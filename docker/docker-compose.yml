@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  # Main MAS application
+  mas-agent:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - ELASTICSEARCH_URL=http://elasticsearch:9200
+      - REDIS_URL=redis://redis:6379
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - DEBUG=true
+    depends_on:
+      - elasticsearch
+      - redis
+    volumes:
+      - ../src:/app/src
+      - ../config:/app/config
+    networks:
+      - mas-network
+
+  # Elasticsearch for memory storage
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.12.0
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - mas-network
+
+  # Redis for session management
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - mas-network
+
+volumes:
+  elasticsearch_data:
+  redis_data:
+
+networks:
+  mas-network:
+    driver: bridge 
