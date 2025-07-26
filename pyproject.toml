@@ -9,62 +9,26 @@ readme = "README.md"
 requires-python = ">=3.11"
 
 dependencies = [
-    # Agent Framework
-    "langgraph>=0.2.0",
-    "langchain>=0.3.0",
-    "langchain-openai>=0.2.0",
-    
-    # API Framework
-    "fastapi>=0.110.0",
-    "uvicorn[standard]>=0.27.0",
-    "pydantic>=2.5.0",
-    
-    # Memory & Storage
-    "elasticsearch>=8.12.0",
-    "redis>=5.0.0",
-    
-    # Multi-Modal
-    "openai>=1.10.0",
-    "whisper>=1.1.10",
-    "Pillow>=10.0.0",
-    "opencv-python>=4.9.0",
-    
-    # Vector Operations
-    "sentence-transformers>=2.3.0",
-    "numpy>=1.24.0",
-    
-    # Utilities
-    "python-dotenv>=1.0.0",
-    "pydantic-settings>=2.0.0",
-    "httpx>=0.25.0",
-    "aioredis>=2.0.0",
+    "elasticsearch>=9.0.2",
+    "fastapi>=0.116.1",
+    "langchain>=0.3.27",
+    "langgraph>=0.5.4",
+    "openai>=1.97.1",
+    "python-dotenv>=1.1.1",
+    "redis>=6.2.0",
+    "uvicorn>=0.35.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     # Testing
-    "pytest>=8.0.0",
-    "pytest-asyncio>=0.23.0",
-    "pytest-cov>=4.0.0",
-    "pytest-mock>=3.12.0",
-    
-    # Code Quality
-    "black>=24.0.0",
-    "isort>=5.13.0",
-    "flake8>=7.0.0",
-    "mypy>=1.8.0",
-    
-    # Development
-    "ipython>=8.20.0",
-    "pre-commit>=3.6.0",
+    "pytest>=8.3.4",
+    "black>=25.1.0",
+    "isort>=5.14.0",
 ]
 
 [project.scripts]
 mas-server = "main:main"
-
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
 
 [tool.black]
 line-length = 88
@@ -88,15 +52,3 @@ extend-exclude = '''
 profile = "black"
 multi_line_output = 3
 line_length = 88
-
-[tool.mypy]
-python_version = "3.11"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
-
-[tool.pytest.ini_options]
-minversion = "7.0"
-addopts = "-ra -q --strict-markers --strict-config"
-testpaths = ["tests"]
-asyncio_mode = "auto" 
