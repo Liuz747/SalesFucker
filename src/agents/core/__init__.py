@@ -27,13 +27,13 @@ from .message import AgentMessage, ConversationState
 from .registry import AgentRegistry, agent_registry
 from .orchestrator import MultiAgentOrchestrator
 from .workflow import WorkflowBuilder
-from .workflow_nodes import NodeProcessor
+from .node_processor import NodeProcessor
 from .state_manager import ConversationStateManager
 
 # 工具模块导入
 from src.utils import (
     # 时间工具
-    get_current_timestamp,
+    get_current_datetime,
     get_processing_time_ms,
     TimestampMixin,
     
@@ -72,7 +72,7 @@ __all__ = [
     "ConversationStateManager",
     
     # 时间工具
-    "get_current_timestamp",
+    "get_current_datetime",
     "get_processing_time_ms", 
     "TimestampMixin",
     

@@ -11,7 +11,7 @@
 - ../sales.py: 轻量级核心智能体
 """
 
-from ..sales import SalesAgent
+from .agent import SalesAgent
 from .conversation_templates import get_conversation_templates, get_conversation_responses, get_tone_variations
 from .sales_strategies import get_sales_strategies, analyze_customer_segment, CustomerSegment
 from .need_assessment import analyze_customer_needs, determine_conversation_stage, ConversationStage, SkinType

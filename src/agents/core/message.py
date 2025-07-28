@@ -1,8 +1,7 @@
 """
-智能体消息系统模块 - 优化版本
+智能体消息系统模块
 
 该模块定义了多智能体系统中的消息类型和通信架构。
-使用标准化常量，消除重复的字符串定义。
 
 核心功能:
 - 智能体间消息格式标准化
@@ -16,7 +15,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 import uuid
 
-from src.utils import MessageConstants, StatusConstants, WorkflowConstants
+from src.utils import MessageConstants, StatusConstants, WorkflowConstants, get_current_datetime
 
 
 class AgentMessage(BaseModel):
@@ -74,7 +73,7 @@ class AgentMessage(BaseModel):
     )
     intent_classification: Optional[str] = Field(None, description="客户意图分类结果")
     compliance_status: Literal["approved", "flagged", "blocked"] = Field(
-        "approved", 
+        StatusConstants.APPROVED, 
         description="合规审查状态：approved=通过, flagged=标记, blocked=阻止"
     )
     market_strategy: Optional[Literal["premium", "budget", "youth", "mature"]] = Field(
@@ -90,7 +89,7 @@ class AgentMessage(BaseModel):
     
     # 元数据
     timestamp: datetime = Field(
-        default_factory=datetime.utcnow,
+        default_factory=get_current_datetime,
         description="消息创建时间戳"
     )
     priority: Literal["low", "medium", "high", "urgent"] = Field(

@@ -14,13 +14,11 @@
 
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional, List
-from datetime import datetime
-import uuid
 
 from .message import AgentMessage, ConversationState
 from src.utils import (
     get_component_logger, 
-    get_current_timestamp, 
+    get_current_datetime, 
     get_processing_time_ms,
     StatusMixin,
     TimestampMixin,
@@ -31,7 +29,7 @@ from src.utils import (
 
 class BaseAgent(ABC, StatusMixin, TimestampMixin):
     """
-    智能体抽象基类 - 优化版本
+    多智能体系统的抽象基类
     
     定义所有智能体必须实现的基础接口和通用功能。
     使用混入类提供标准化的状态管理和时间戳功能。
@@ -175,7 +173,7 @@ class BaseAgent(ABC, StatusMixin, TimestampMixin):
             processing_time: 处理耗时(毫秒)，默认为0
         """
         self.processing_stats["messages_processed"] += 1
-        self.processing_stats["last_activity"] = datetime.utcnow()
+        self.processing_stats["last_activity"] = get_current_datetime()
         
         # 更新处理时间统计
         if processing_time > 0:

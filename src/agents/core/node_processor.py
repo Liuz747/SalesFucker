@@ -1,5 +1,5 @@
 """
-工作流节点处理模块 - 重构版本
+节点处理器模块
 
 该模块负责各个智能体节点的处理逻辑和错误降级策略。
 使用通用工具消除重复代码，提高可维护性。
@@ -16,7 +16,6 @@ from .message import ConversationState
 from .registry import agent_registry
 from src.utils import (
     get_component_logger, 
-    with_error_handling,
     StatusConstants,
     WorkflowConstants
 )
@@ -24,10 +23,7 @@ from src.utils import (
 
 class NodeProcessor:
     """
-    节点处理器 - 优化版本
-    
-    使用通用方法处理所有智能体节点，消除重复代码。
-    从原来的344行减少到约150行，减少56%的代码量。
+    节点处理器
     
     属性:
         tenant_id: 租户标识符

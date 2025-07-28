@@ -1,8 +1,7 @@
 """
-对话状态管理模块 - 优化版本
+对话状态管理模块
 
 该模块负责对话状态的管理、监控和状态转换。
-使用标准化工具模块，消除重复代码。
 
 核心功能:
 - 对话状态初始化和验证
@@ -16,15 +15,14 @@ from typing import Dict, Any, Optional
 from .message import ConversationState
 from src.utils import (
     get_component_logger,
-    get_current_timestamp,
-    StatusMixin,
-    StatusConstants
+    get_current_datetime,
+    StatusMixin
 )
 
 
 class ConversationStateManager(StatusMixin):
     """
-    对话状态管理器 - 优化版本
+    对话状态管理器
     
     负责管理对话状态的生命周期，使用StatusMixin提供标准化状态管理。
     
@@ -80,7 +78,7 @@ class ConversationStateManager(StatusMixin):
         
         # 更新统计信息
         self.state_stats["total_conversations"] += 1
-        self.state_stats["last_activity"] = get_current_timestamp()
+        self.state_stats["last_activity"] = get_current_datetime()
         
         self.logger.info(
             f"创建新对话状态 - 租户: {self.tenant_id}, "

@@ -1,8 +1,8 @@
 """
-工作流构建模块 - 优化版本
+工作流构建模块
 
 该模块负责构建LangGraph工作流图，定义智能体节点和边的连接关系。
-使用标准化工具模块，消除重复代码。
+所有具体的智能体实现都应该继承此基类。
 
 核心功能:
 - LangGraph工作流图构建
@@ -14,8 +14,7 @@
 from typing import Dict, Any
 from langgraph import StateGraph
 
-from .workflow_nodes import NodeProcessor
-from .message import ConversationState
+from .node_processor import NodeProcessor
 from src.utils import (
     get_component_logger,
     WorkflowConstants,
@@ -25,7 +24,7 @@ from src.utils import (
 
 class WorkflowBuilder(StatusMixin):
     """
-    工作流构建器 - 优化版本
+    工作流构建器
     
     负责构建LangGraph工作流图，使用StatusMixin提供标准化状态管理。
     定义智能体节点间的连接关系和条件路由逻辑。
@@ -62,7 +61,7 @@ class WorkflowBuilder(StatusMixin):
         返回:
             StateGraph: 配置完成的LangGraph状态图
         """
-        # 创建状态图，使用ConversationState作为状态类型
+        # 创建状态图，使用字典作为状态类型
         graph = StateGraph(dict)
         
         # 注册节点处理函数

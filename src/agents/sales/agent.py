@@ -15,10 +15,10 @@ import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-from .core import BaseAgent, AgentMessage, ConversationState
-from .sales.conversation_templates import get_conversation_templates, get_conversation_responses, get_tone_variations
-from .sales.sales_strategies import get_sales_strategies, analyze_customer_segment, get_strategy_for_segment, adapt_strategy_to_context
-from .sales.need_assessment import analyze_customer_needs, determine_conversation_stage, ConversationStage
+from ..core import BaseAgent, AgentMessage, ConversationState
+from .conversation_templates import get_conversation_templates, get_conversation_responses, get_tone_variations
+from .sales_strategies import get_sales_strategies, analyze_customer_segment, get_strategy_for_segment, adapt_strategy_to_context
+from .need_assessment import analyze_customer_needs, determine_conversation_stage, ConversationStage
 
 logger = logging.getLogger(__name__)
 

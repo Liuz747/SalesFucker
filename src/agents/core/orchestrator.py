@@ -1,8 +1,7 @@
 """
-智能体编排管理模块 - 优化版本
+智能体编排管理模块
 
 该模块负责使用LangGraph管理多智能体的工作流编排。
-使用标准化工具模块，消除重复代码。
 
 核心功能:
 - 多智能体编排协调
@@ -12,13 +11,13 @@
 """
 
 from typing import Dict, Any, Optional
-from datetime import datetime
 
 from .message import ConversationState
 from .workflow import WorkflowBuilder
 from .state_manager import ConversationStateManager
 from src.utils import (
     get_component_logger,
+    get_current_datetime,
     get_processing_time_ms,
     StatusMixin,
     ErrorHandler,
@@ -28,7 +27,7 @@ from src.utils import (
 
 class MultiAgentOrchestrator(StatusMixin):
     """
-    多智能体编排器 - 优化版本
+    多智能体编排器
     
     使用LangGraph框架协调多个智能体的工作流程。
     使用StatusMixin提供标准化状态管理功能。
@@ -133,7 +132,7 @@ class MultiAgentOrchestrator(StatusMixin):
         返回:
             ConversationState: 处理完成的对话状态
         """
-        start_time = datetime.utcnow()
+        start_time = get_current_datetime()
         
         try:
             # 将状态转换为字典格式供LangGraph使用

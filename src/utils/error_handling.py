@@ -12,7 +12,7 @@
 import logging
 from functools import wraps
 from typing import Any, Callable, Optional, Dict
-from .time_utils import get_current_timestamp
+from .time_utils import get_current_datetime
 
 
 def with_error_handling(fallback_response: Any = None, 
@@ -48,7 +48,7 @@ def with_error_handling(fallback_response: Any = None,
                     "error": str(e),
                     "error_type": type(e).__name__,
                     "function": func.__name__,
-                    "timestamp": get_current_timestamp()
+                    "timestamp": get_current_datetime().isoformat()
                 }
         
         @wraps(func)
@@ -67,7 +67,7 @@ def with_error_handling(fallback_response: Any = None,
                     "error": str(e),
                     "error_type": type(e).__name__,
                     "function": func.__name__,
-                    "timestamp": get_current_timestamp()
+                    "timestamp": get_current_datetime().isoformat()
                 }
         
         # 检测函数是否为异步
@@ -151,7 +151,7 @@ class ErrorHandler:
             "error": str(error),
             "error_type": type(error).__name__,
             "component": self.component_name,
-            "timestamp": get_current_timestamp()
+            "timestamp": get_current_datetime().isoformat()
         }
         
         if context:

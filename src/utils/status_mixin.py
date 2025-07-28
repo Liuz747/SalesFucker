@@ -10,7 +10,7 @@
 """
 
 from typing import Dict, Any, Optional
-from .time_utils import get_current_timestamp
+from .time_utils import get_current_datetime
 from .constants import StatusConstants
 
 
@@ -36,7 +36,7 @@ class StatusMixin:
         """
         response = {
             **status_data,
-            "timestamp": get_current_timestamp(),
+            "timestamp": get_current_datetime().isoformat(),
             "component": component_name or self.__class__.__name__
         }
         
@@ -58,7 +58,7 @@ class StatusMixin:
         """
         response = {
             "status": health_status,
-            "timestamp": get_current_timestamp(),
+            "timestamp": get_current_datetime().isoformat(),
             "component": self.__class__.__name__
         }
         
@@ -107,7 +107,7 @@ class StatusMixin:
             "error": str(error),
             "error_type": type(error).__name__,
             "component": self.__class__.__name__,
-            "timestamp": get_current_timestamp()
+            "timestamp": get_current_datetime().isoformat()
         }
         
         if context:
