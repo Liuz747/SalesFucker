@@ -22,7 +22,7 @@
 """
 
 # 核心组件导入
-from .base_agent import BaseAgent
+from .base import BaseAgent
 from .message import AgentMessage, ConversationState
 from .registry import AgentRegistry, agent_registry
 from .orchestrator import MultiAgentOrchestrator

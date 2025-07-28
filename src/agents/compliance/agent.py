@@ -15,7 +15,7 @@ import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-from ..core.base_agent import BaseAgent
+from ..core.base import BaseAgent
 from ..core.message import AgentMessage, ConversationState
 from .rules import ComplianceRuleSet, RuleSeverity, RuleAction
 from .checker import ComplianceChecker
