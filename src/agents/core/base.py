@@ -21,18 +21,17 @@ from src.utils import (
     get_current_datetime, 
     get_processing_time_ms,
     StatusMixin,
-    TimestampMixin,
     ErrorHandler,
     ProcessingConstants
 )
 
 
-class BaseAgent(ABC, StatusMixin, TimestampMixin):
+class BaseAgent(ABC, StatusMixin):
     """
     多智能体系统的抽象基类
     
     定义所有智能体必须实现的基础接口和通用功能。
-    使用混入类提供标准化的状态管理和时间戳功能。
+    使用混入类提供标准化的状态管理功能。
     
     属性:
         agent_id: 智能体唯一标识符
@@ -118,8 +117,13 @@ class BaseAgent(ABC, StatusMixin, TimestampMixin):
         """
         pass
     
-    async def send_message(self, recipient: str, message_type: str, payload: Dict[str, Any], 
-                          context: Optional[Dict[str, Any]] = None) -> AgentMessage:
+    async def send_message(
+            self,
+            recipient: str,
+            message_type: str,
+            payload: Dict[str, Any], 
+            context: Optional[Dict[str, Any]] = None
+    ) -> AgentMessage:
         """
         发送消息给其他智能体
         

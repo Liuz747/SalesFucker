@@ -12,7 +12,7 @@
 - constants: 系统常量
 """
 
-from .time_utils import get_current_datetime, get_processing_time_ms, TimestampMixin
+from .time_utils import get_current_datetime, get_processing_time_ms, format_timestamp
 from .logger_factory import get_component_logger, LoggerMixin
 from .status_mixin import StatusMixin
 from .error_handling import with_error_handling, with_fallback, ErrorHandler
@@ -30,7 +30,7 @@ __all__ = [
     # 时间工具
     "get_current_datetime",
     "get_processing_time_ms", 
-    "TimestampMixin",
+    "format_timestamp",
     
     # 日志工具
     "get_component_logger",

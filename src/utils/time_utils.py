@@ -6,7 +6,6 @@
 核心功能:
 - 统一时间戳格式（使用Asia/Shanghai时区）
 - 处理时间计算
-- 时间戳混入类
 """
 
 from datetime import datetime
@@ -46,35 +45,14 @@ def get_processing_time_ms(start_time: datetime) -> float:
 
 def format_timestamp(dt: Optional[datetime] = None) -> str:
     """
-    格式化时间戳
+    格式化时间戳为ISO格式字符串
     
     参数:
         dt: 要格式化的时间，为None则使用当前Shanghai时间
         
     返回:
-        str: ISO格式时间戳
+        str: ISO格式时间戳 (e.g., "2024-01-15T10:30:45.123456+08:00")
     """
     if dt is None:
-        dt = datetime.now(SHANGHAI_TZ)
+        dt = get_current_datetime()
     return dt.isoformat()
-
-
-class TimestampMixin:
-    """
-    时间戳混入类
-    
-    为需要时间戳功能的类提供标准化的时间处理方法。
-    使用Asia/Shanghai时区作为默认时区。
-    """
-    
-    def get_timestamp(self) -> str:
-        """获取当前Shanghai时间戳"""
-        return get_current_datetime().isoformat()
-    
-    def calculate_processing_time(self, start_time: datetime) -> float:
-        """计算处理时间"""
-        return get_processing_time_ms(start_time)
-    
-    def format_time(self, dt: Optional[datetime] = None) -> str:
-        """格式化时间"""
-        return format_timestamp(dt) 

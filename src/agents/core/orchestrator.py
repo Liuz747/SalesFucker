@@ -25,7 +25,7 @@ from src.utils import (
 )
 
 
-class MultiAgentOrchestrator(StatusMixin):
+class Orchestrator(StatusMixin):
     """
     多智能体编排器
     
@@ -80,8 +80,12 @@ class MultiAgentOrchestrator(StatusMixin):
         
         self.logger.info(f"多智能体编排器初始化完成，租户: {tenant_id}")
     
-    async def process_conversation(self, customer_input: str, customer_id: Optional[str] = None,
-                                 input_type: str = "text") -> ConversationState:
+    async def process_conversation(
+            self, 
+            customer_input: str, 
+            customer_id: Optional[str] = None,
+            input_type: str = "text"
+        ) -> ConversationState:
         """
         处理客户对话的主入口函数
         

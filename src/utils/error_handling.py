@@ -1,35 +1,38 @@
 """
 错误处理工具模块
 
-提供标准化的错误处理装饰器和工具函数，消除重复的错误处理代码。
+提供标准化的错误处理装饰器和类用于统一错误处理。
 
 核心功能:
 - 错误处理装饰器
-- 降级处理策略
+- 降级策略装饰器
 - 异常日志记录
+- 错误处理器类
 """
 
 import logging
 from functools import wraps
 from typing import Any, Callable, Optional, Dict
-from .time_utils import get_current_datetime
+from .time_utils import format_timestamp
 
 
-def with_error_handling(fallback_response: Any = None, 
-                       log_errors: bool = True,
-                       reraise: bool = False):
+def with_error_handling(
+        fallback_response: Any = None, 
+        log_errors: bool = True,
+        reraise: bool = False
+    ) -> Callable:
     """
     错误处理装饰器
     
-    为函数添加标准化的错误处理逻辑，消除重复的try-catch代码。
+    为函数添加统一的错误处理机制，记录错误并返回降级响应。
     
     参数:
-        fallback_response: 错误时的回退响应
+        fallback_response: 发生错误时的降级响应
         log_errors: 是否记录错误日志
         reraise: 是否重新抛出异常
         
     返回:
-        装饰器函数
+        Callable: 装饰后的函数
     """
     def decorator(func: Callable) -> Callable:
         @wraps(func)
@@ -39,16 +42,17 @@ def with_error_handling(fallback_response: Any = None,
             except Exception as e:
                 if log_errors:
                     logger = logging.getLogger(func.__module__)
-                    logger.error(f"Error in {func.__name__}: {e}", exc_info=True)
+                    logger.error(f"错误发生在 {func.__name__}: {e}", exc_info=True)
                 
                 if reraise:
                     raise
                 
-                return fallback_response or {
+                return {
                     "error": str(e),
                     "error_type": type(e).__name__,
                     "function": func.__name__,
-                    "timestamp": get_current_datetime().isoformat()
+                    "timestamp": format_timestamp(),
+                    "fallback_data": fallback_response
                 }
         
         @wraps(func)
@@ -58,19 +62,20 @@ def with_error_handling(fallback_response: Any = None,
             except Exception as e:
                 if log_errors:
                     logger = logging.getLogger(func.__module__)
-                    logger.error(f"Error in {func.__name__}: {e}", exc_info=True)
+                    logger.error(f"错误发生在 {func.__name__}: {e}", exc_info=True)
                 
                 if reraise:
                     raise
                 
-                return fallback_response or {
+                return {
                     "error": str(e),
                     "error_type": type(e).__name__,
                     "function": func.__name__,
-                    "timestamp": get_current_datetime().isoformat()
+                    "timestamp": format_timestamp(),
+                    "fallback_data": fallback_response
                 }
         
-        # 检测函数是否为异步
+        # 检查是否为异步函数
         if hasattr(func, '__code__') and func.__code__.co_flags & 0x80:
             return async_wrapper
         else:
@@ -81,7 +86,7 @@ def with_error_handling(fallback_response: Any = None,
 
 def with_fallback(fallback_handler: Callable[[Exception], Any]):
     """
-    降级处理装饰器
+    降级策略装饰器
     
     当函数执行失败时，调用指定的降级处理函数。
     
@@ -110,7 +115,7 @@ def with_fallback(fallback_handler: Callable[[Exception], Any]):
                 logger.warning(f"Fallback triggered for {func.__name__}: {e}")
                 return fallback_handler(e)
         
-        # 检测函数是否为异步
+        # 检查是否为异步函数
         if hasattr(func, '__code__') and func.__code__.co_flags & 0x80:
             return async_wrapper
         else:
@@ -151,7 +156,7 @@ class ErrorHandler:
             "error": str(error),
             "error_type": type(error).__name__,
             "component": self.component_name,
-            "timestamp": get_current_datetime().isoformat()
+            "timestamp": format_timestamp()
         }
         
         if context:

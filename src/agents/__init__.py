@@ -25,7 +25,7 @@ from .core import (
     AgentMessage,
     ConversationState,
     AgentRegistry,
-    MultiAgentOrchestrator,
+    Orchestrator,
     agent_registry,
     MessagePriority,
     MessageType,
@@ -44,7 +44,7 @@ __all__ = [
     "AgentMessage", 
     "ConversationState",
     "AgentRegistry",
-    "MultiAgentOrchestrator",
+    "Orchestrator",
     "agent_registry",
     "MessagePriority",
     "MessageType",
@@ -86,7 +86,7 @@ def create_agent_set(tenant_id: str) -> dict:
     return agents
 
 # 获取租户编排器的工具函数
-def get_orchestrator(tenant_id: str) -> MultiAgentOrchestrator:
+def get_orchestrator(tenant_id: str) -> Orchestrator:
     """
     获取或创建指定租户的智能体编排器
     
@@ -96,4 +96,4 @@ def get_orchestrator(tenant_id: str) -> MultiAgentOrchestrator:
     返回:
         MultiAgentOrchestrator: 多智能体编排器实例
     """
-    return MultiAgentOrchestrator(tenant_id) 
+    return Orchestrator(tenant_id) 
