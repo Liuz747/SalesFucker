@@ -11,6 +11,7 @@ import uvicorn
 import logging
 
 from config.settings import settings
+from src.api.agents import router as agents_router
 
 # Configure logging
 logging.basicConfig(
@@ -37,6 +38,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Include API routers
+app.include_router(agents_router)
 
 @app.get("/")
 async def root():
@@ -44,7 +47,14 @@ async def root():
     return {
         "message": "MAS Cosmetic Agent System",
         "version": settings.app_version,
-        "status": "operational"
+        "status": "operational",
+        "features": [
+            "Multi-agent conversation processing",
+            "Compliance review and content moderation", 
+            "Sales agent with cosmetic expertise",
+            "Multi-tenant support",
+            "LangGraph orchestration"
+        ]
     }
 
 
