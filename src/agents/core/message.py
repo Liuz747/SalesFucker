@@ -10,12 +10,21 @@
 - 消息优先级和路由
 """
 
-from typing import Dict, Any, Optional, List, Literal
+from typing import Dict, Any, Optional, List
 from datetime import datetime
 from pydantic import BaseModel, Field
 import uuid
 
-from src.utils import MessageConstants, StatusConstants, WorkflowConstants, get_current_datetime
+from src.utils import (
+    StatusConstants, 
+    MessageConstants,
+    get_current_datetime,
+    MessageType,
+    ComplianceStatus,
+    MarketStrategy,
+    PriorityLevel,
+    InputType
+)
 
 
 class AgentMessage(BaseModel):
@@ -52,7 +61,7 @@ class AgentMessage(BaseModel):
     )
     sender: str = Field(description="发送方智能体的唯一标识符")
     recipient: str = Field(description="接收方智能体的唯一标识符")
-    message_type: Literal["query", "response", "notification", "trigger", "suggestion"] = Field(
+    message_type: MessageType = Field(
         description="消息类型：query=查询, response=响应, notification=通知, trigger=触发, suggestion=建议"
     )
     
@@ -72,11 +81,11 @@ class AgentMessage(BaseModel):
         description="客户情感分数，范围-1(负面)到1(正面)，0为中性"
     )
     intent_classification: Optional[str] = Field(None, description="客户意图分类结果")
-    compliance_status: Literal["approved", "flagged", "blocked"] = Field(
+    compliance_status: ComplianceStatus = Field(
         StatusConstants.APPROVED, 
         description="合规审查状态：approved=通过, flagged=标记, blocked=阻止"
     )
-    market_strategy: Optional[Literal["premium", "budget", "youth", "mature"]] = Field(
+    market_strategy: Optional[MarketStrategy] = Field(
         None, 
         description="选定的市场策略：premium=高端, budget=预算, youth=年轻, mature=成熟"
     )
@@ -92,8 +101,8 @@ class AgentMessage(BaseModel):
         default_factory=get_current_datetime,
         description="消息创建时间戳"
     )
-    priority: Literal["low", "medium", "high", "urgent"] = Field(
-        "medium", 
+    priority: PriorityLevel = Field(
+        MessageConstants.MEDIUM_PRIORITY, 
         description="消息优先级：low=低, medium=中, high=高, urgent=紧急"
     )
     human_loop_required: bool = Field(
@@ -140,13 +149,13 @@ class ConversationState(BaseModel):
         default_factory=lambda: str(uuid.uuid4()),
         description="用户会话标识符"
     )
-    tenant_id: str = Field(description="多租户标识符，区分不同化妆品品牌")
+    tenant_id: str = Field(description="多租户标识符")
     customer_id: Optional[str] = Field(None, description="客户唯一标识符")
     
     # 客户输入
     customer_input: str = Field("", description="客户当前输入的消息内容")
-    input_type: Literal["text", "voice", "image"] = Field(
-        "text", 
+    input_type: InputType = Field(
+        MessageConstants.TEXT_INPUT, 
         description="输入类型：text=文本, voice=语音, image=图片"
     )
     input_metadata: Dict[str, Any] = Field(
@@ -199,37 +208,3 @@ class ConversationState(BaseModel):
     processing_complete: bool = Field(False, description="对话处理完成标志")
     error_state: Optional[str] = Field(None, description="错误状态信息")
     human_escalation: bool = Field(False, description="是否需要人工升级处理")
-
-
-# 验证函数：使用常量进行运行时验证
-def validate_message_type(message_type: str) -> bool:
-    """验证消息类型是否有效"""
-    valid_types = [
-        MessageConstants.QUERY,
-        MessageConstants.RESPONSE,
-        MessageConstants.NOTIFICATION,
-        MessageConstants.TRIGGER,
-        MessageConstants.SUGGESTION
-    ]
-    return message_type in valid_types
-
-
-def validate_compliance_status(status: str) -> bool:
-    """验证合规状态是否有效"""
-    valid_statuses = [
-        StatusConstants.APPROVED,
-        StatusConstants.FLAGGED,
-        StatusConstants.BLOCKED
-    ]
-    return status in valid_statuses
-
-
-def validate_market_strategy(strategy: str) -> bool:
-    """验证市场策略是否有效"""
-    valid_strategies = [
-        WorkflowConstants.PREMIUM_STRATEGY,
-        WorkflowConstants.BUDGET_STRATEGY,
-        WorkflowConstants.YOUTH_STRATEGY,
-        WorkflowConstants.MATURE_STRATEGY
-    ]
-    return strategy in valid_strategies 

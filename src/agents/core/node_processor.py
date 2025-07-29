@@ -71,7 +71,6 @@ class NodeProcessor:
         """
         通用智能体节点处理方法
         
-        消除了原来8个节点函数中200+行的重复代码。
         统一处理智能体调用、错误处理和降级策略。
         
         参数:
@@ -123,7 +122,6 @@ class NodeProcessor:
             return state
     
     # ============ 具体节点处理方法 ============
-    # 现在每个方法只需要3-5行，而不是原来的30-40行
     
     async def compliance_node(self, state: dict) -> dict:
         """合规审查节点"""
