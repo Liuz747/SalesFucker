@@ -186,9 +186,13 @@ class AgentRegistry(StatusMixin):
         
         return target_agent
     
-    async def broadcast_message(self, sender_id: str, message_type: str, 
-                               payload: Dict[str, Any], 
-                               recipients: List[str]) -> List[AgentMessage]:
+    async def broadcast_message(
+            self,
+            sender_id: str, 
+            message_type: str, 
+            payload: Dict[str, Any], 
+            recipients: List[str]
+        ) -> List[AgentMessage]:
         """
         广播消息给多个智能体
         

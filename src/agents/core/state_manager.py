@@ -53,9 +53,12 @@ class ConversationStateManager(StatusMixin):
             "last_activity": None
         }
     
-    def create_initial_state(self, customer_input: str, 
-                           customer_id: Optional[str] = None,
-                           input_type: str = "text") -> ConversationState:
+    def create_initial_state(
+        self, 
+        customer_input: str, 
+        customer_id: Optional[str] = None,
+        input_type: str = "text"
+    ) -> ConversationState:
         """
         创建初始对话状态
         
@@ -124,8 +127,11 @@ class ConversationStateManager(StatusMixin):
             self.logger.error(f"状态验证过程中出错: {e}")
             return False
     
-    def create_error_state(self, original_state: ConversationState, 
-                          error: Exception) -> ConversationState:
+    def create_error_state(
+            self, 
+            original_state: ConversationState, 
+            error: Exception
+    ) -> ConversationState:
         """
         创建错误状态
         
@@ -150,8 +156,7 @@ class ConversationStateManager(StatusMixin):
         
         return error_state
     
-    def update_completion_stats(self, state: ConversationState, 
-                              processing_time_ms: float):
+    def update_completion_stats(self, state: ConversationState, processing_time_ms: float):
         """
         更新完成统计信息
         

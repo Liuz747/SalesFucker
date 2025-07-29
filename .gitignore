@@ -36,6 +36,7 @@ env/
 .vscode/
 .idea/
 .cursor/
+CLAUDE.md
 *.swp
 *.swo
 
