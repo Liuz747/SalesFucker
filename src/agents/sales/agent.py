@@ -11,16 +11,13 @@
 - LangGraph工作流节点处理
 """
 
-import logging
-from typing import Dict, Any, List, Optional
-from datetime import datetime
+from typing import Dict, Any
 
 from ..core import BaseAgent, AgentMessage, ConversationState
 from .conversation_templates import get_conversation_templates, get_conversation_responses, get_tone_variations
 from .sales_strategies import get_sales_strategies, analyze_customer_segment, get_strategy_for_segment, adapt_strategy_to_context
 from .need_assessment import analyze_customer_needs, determine_conversation_stage, ConversationStage
-
-logger = logging.getLogger(__name__)
+from src.utils import format_timestamp
 
 
 class SalesAgent(BaseAgent):
@@ -68,7 +65,7 @@ class SalesAgent(BaseAgent):
                 "sales_response": sales_response,
                 "agent_type": "sales",
                 "processing_agent": self.agent_id,
-                "response_timestamp": datetime.utcnow().isoformat()
+                "response_timestamp": format_timestamp()
             }
             
             return await self.send_message(

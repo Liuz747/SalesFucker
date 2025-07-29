@@ -18,8 +18,7 @@ from typing import Dict, Any, Optional, List
 from .message import AgentMessage, ConversationState
 from src.utils import (
     get_component_logger, 
-    get_current_datetime, 
-    get_processing_time_ms,
+    get_current_datetime,
     StatusMixin,
     ErrorHandler,
     ProcessingConstants
@@ -43,8 +42,8 @@ class BaseAgent(ABC, StatusMixin):
         error_handler: 错误处理器
     
     子类必须实现:
-        process_message: 处理单个消息
-        process_conversation: 处理对话状态
+        process_message: 处理单个消息的具体实现
+        process_conversation: 处理对话状态的具体实现
     """
     
     def __init__(self, agent_id: str, tenant_id: Optional[str] = None):
@@ -82,10 +81,10 @@ class BaseAgent(ABC, StatusMixin):
     @abstractmethod
     async def process_message(self, message: AgentMessage) -> AgentMessage:
         """
-        处理单个智能体消息 (抽象方法)
+        处理单个智能体消息的具体实现 (抽象方法)
         
-        每个具体的智能体必须实现此方法来处理接收到的消息。
-        方法应该是幂等的，即多次调用产生相同结果。
+        每个具体的智能体子类必须实现此方法来定义具体的消息处理逻辑。
+        此方法专注于业务逻辑，性能统计由基类自动处理。
         
         参数:
             message: 待处理的智能体消息
@@ -101,10 +100,11 @@ class BaseAgent(ABC, StatusMixin):
     @abstractmethod
     async def process_conversation(self, state: ConversationState) -> ConversationState:
         """
-        处理对话状态 (抽象方法)
+        处理对话状态的具体实现 (抽象方法)
         
         在LangGraph工作流中处理对话状态，更新相关信息并返回修改后的状态。
-        此方法是智能体参与对话流程的主要接口。
+        子类必须实现此方法来定义具体的对话处理逻辑。
+        此方法专注于业务逻辑，性能统计由基类自动处理。
         
         参数:
             state: 当前对话状态对象

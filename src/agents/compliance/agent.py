@@ -11,8 +11,7 @@
 - 租户规则管理
 """
 
-import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 from datetime import datetime
 
 from ..core.base import BaseAgent
@@ -21,6 +20,7 @@ from .rules import ComplianceRuleSet, RuleSeverity, RuleAction
 from .checker import ComplianceChecker
 from .audit import ComplianceAuditor
 from .metrics import ComplianceMetricsManager
+from src.utils import get_current_datetime, get_processing_time_ms, format_timestamp
 
 
 class ComplianceAgent(BaseAgent):
@@ -77,7 +77,7 @@ class ComplianceAgent(BaseAgent):
         返回:
             AgentMessage: 包含合规检查结果的响应消息
         """
-        start_time = datetime.utcnow()
+        start_time = get_current_datetime()
         
         try:
             input_text = message.payload.get("text", "")
@@ -88,13 +88,13 @@ class ComplianceAgent(BaseAgent):
             # 构建响应载荷
             response_payload = {
                 "compliance_result": compliance_result,
-                "original_text_hash": hash(input_text),  # 隐私保护
+                "original_text_hash": hash(input_text),
                 "processing_agent": self.agent_id,
-                "check_timestamp": datetime.utcnow().isoformat()
+                "check_timestamp": format_timestamp(start_time)
             }
             
             # 更新统计和审计
-            processing_time = (datetime.utcnow() - start_time).total_seconds() * 1000
+            processing_time = get_processing_time_ms(start_time)
             self._update_metrics_and_audit(
                 message.context.get("conversation_id", "unknown"),
                 input_text, 
@@ -140,7 +140,7 @@ class ComplianceAgent(BaseAgent):
         返回:
             ConversationState: 更新后的对话状态
         """
-        start_time = datetime.utcnow()
+        start_time = get_current_datetime()
         
         try:
             customer_input = state.customer_input
@@ -156,7 +156,7 @@ class ComplianceAgent(BaseAgent):
             self._update_conversation_state(state, compliance_result)
             
             # 更新统计和审计
-            processing_time = (datetime.utcnow() - start_time).total_seconds() * 1000
+            processing_time = get_processing_time_ms(start_time)
             self._update_metrics_and_audit(
                 state.conversation_id,
                 customer_input,
