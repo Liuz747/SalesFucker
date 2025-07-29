@@ -13,7 +13,8 @@
 """
 
 from typing import List
-from .rule_types import ComplianceRule, RuleSeverity, RuleAction
+from .models import ComplianceRule
+from .types import RuleSeverity, RuleAction
 
 
 def get_default_rules() -> List[ComplianceRule]:

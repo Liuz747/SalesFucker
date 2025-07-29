@@ -9,14 +9,19 @@
 - checker: 合规检查核心逻辑
 - audit: 审计日志和报告
 - metrics: 性能指标管理
-- rules: 合规规则和规则集
+- rules: 合规规则集管理
+- models: 合规数据模型和业务逻辑
+- types: 合规类型定义和枚举
 """
 
 from .agent import ComplianceAgent
 from .checker import ComplianceChecker
 from .audit import ComplianceAuditor
 from .metrics import ComplianceMetricsManager
-from .rules import ComplianceRule, ComplianceRuleSet, RuleSeverity, RuleAction
+from .rule_manager import ComplianceRuleManager
+from .models import ComplianceRule
+from .types import RuleSeverity, RuleAction, RuleCategory
+from .default_rules import get_default_rules, get_rules_by_category, get_critical_rules
 
 __all__ = [
     # 主要智能体类
@@ -29,7 +34,13 @@ __all__ = [
     
     # 规则相关类
     "ComplianceRule",
-    "ComplianceRuleSet", 
+    "ComplianceRuleManager", 
     "RuleSeverity",
-    "RuleAction"
+    "RuleAction",
+    "RuleCategory",
+    
+    # 规则函数
+    "get_default_rules",
+    "get_rules_by_category",
+    "get_critical_rules"
 ] 

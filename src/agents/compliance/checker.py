@@ -14,7 +14,7 @@
 from typing import Dict, Any, List
 from datetime import datetime
 
-from .rules import ComplianceRuleSet
+from .rule_manager import ComplianceRuleManager
 
 
 class ComplianceChecker:
@@ -29,7 +29,7 @@ class ComplianceChecker:
         agent_id: 关联的智能体ID
     """
     
-    def __init__(self, rule_set: ComplianceRuleSet, agent_id: str):
+    def __init__(self, rule_set: ComplianceRuleManager, agent_id: str):
         """
         初始化合规检查器
         

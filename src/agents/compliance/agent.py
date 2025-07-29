@@ -16,7 +16,8 @@ from datetime import datetime
 
 from ..core.base import BaseAgent
 from ..core.message import AgentMessage, ConversationState
-from .rules import ComplianceRuleSet, RuleSeverity, RuleAction
+from .rule_manager import ComplianceRuleManager
+from .types import RuleSeverity, RuleAction
 from .checker import ComplianceChecker
 from .audit import ComplianceAuditor
 from .metrics import ComplianceMetricsManager
@@ -53,7 +54,7 @@ class ComplianceAgent(BaseAgent):
         super().__init__(f"compliance_review_{tenant_id}", tenant_id)
         
         # 初始化规则集
-        self.rule_set = ComplianceRuleSet()
+        self.rule_set = ComplianceRuleManager()
         
         # 初始化模块化组件
         self.checker = ComplianceChecker(self.rule_set, self.agent_id)

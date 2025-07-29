@@ -12,7 +12,8 @@
 """
 
 from typing import Dict, Any, List, Optional
-from .rule_types import ComplianceRule, RuleSeverity
+from .models import ComplianceRule
+from .types import RuleSeverity
 from .default_rules import get_default_rules
 
 
