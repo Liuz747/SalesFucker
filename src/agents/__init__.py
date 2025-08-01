@@ -26,16 +26,27 @@ from .core import (
     ConversationState,
     AgentRegistry,
     Orchestrator,
-    agent_registry,
-    MessagePriority,
+    agent_registry
+)
+
+# 导入常量
+from src.utils import (
     MessageType,
     ComplianceStatus,
-    MarketStrategy
+    MarketStrategy,
+    PriorityLevel as MessagePriority
 )
 
 # 导入专业智能体
-from .compliance import ComplianceAgent, ComplianceRule, ComplianceRuleSet
+from .compliance import ComplianceAgent, ComplianceRule, ComplianceRuleManager
 from .sales import SalesAgent
+from .sentiment import SentimentAnalysisAgent
+from .intent import IntentAnalysisAgent
+from .product import ProductExpertAgent
+from .memory import MemoryAgent
+from .strategy import MarketStrategyCoordinator
+from .proactive import ProactiveAgent
+from .suggestion import AISuggestionAgent
 
 # 导出所有智能体类和核心组件
 __all__ = [
@@ -54,8 +65,15 @@ __all__ = [
     # 专业智能体实现
     "ComplianceAgent",
     "ComplianceRule",
-    "ComplianceRuleSet",
+    "ComplianceRuleManager",
     "SalesAgent",
+    "SentimentAnalysisAgent",
+    "IntentAnalysisAgent",
+    "ProductExpertAgent",
+    "MemoryAgent",
+    "MarketStrategyCoordinator",
+    "ProactiveAgent",
+    "AISuggestionAgent",
     
     # 工厂函数
     "create_agent_set",
@@ -75,9 +93,16 @@ def create_agent_set(tenant_id: str) -> dict:
     """
     agents = {}
     
-    # 创建核心智能体
+    # 创建完整的9智能体系统
     agents["compliance"] = ComplianceAgent(tenant_id)
+    agents["sentiment"] = SentimentAnalysisAgent(tenant_id)
+    agents["intent"] = IntentAnalysisAgent(tenant_id)
     agents["sales"] = SalesAgent(tenant_id)
+    agents["product"] = ProductExpertAgent(tenant_id)
+    agents["memory"] = MemoryAgent(tenant_id)
+    agents["strategy"] = MarketStrategyCoordinator(tenant_id)
+    agents["proactive"] = ProactiveAgent(tenant_id)
+    agents["suggestion"] = AISuggestionAgent(tenant_id)
     
     # 在全局注册中心注册智能体
     for agent in agents.values():

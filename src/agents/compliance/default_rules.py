@@ -5,8 +5,6 @@
 分离规则数据定义，便于维护和扩展。
 
 核心功能:
-- FDA化妆品法规规则
-- EU化妆品法规规则
 - 成分安全检查规则
 - 隐私保护规则
 - 竞品检测规则
@@ -25,32 +23,6 @@ def get_default_rules() -> List[ComplianceRule]:
         List[ComplianceRule]: 默认规则列表
     """
     return [
-        # FDA化妆品法规
-        ComplianceRule(
-            rule_id="fda_drug_claims",
-            name="FDA药物功效声明",
-            description="检测可能违反FDA化妆品法规的药物功效声明",
-            pattern=r"\b(cure|heal|treat|prevent|drug|medicine|therapeutic)\b",
-            severity=RuleSeverity.CRITICAL,
-            action=RuleAction.BLOCK,
-            message="检测到可能的药物功效声明，违反FDA化妆品法规",
-            category="fda_compliance",
-            tags=["fda", "drug_claims", "cosmetics"]
-        ),
-        
-        # EU化妆品法规
-        ComplianceRule(
-            rule_id="eu_cosmetics_regulation",
-            name="EU化妆品法规",
-            description="检测违反EU化妆品法规1223/2009的内容",
-            pattern=r"\b(miracle|fountain of youth|anti-aging breakthrough|永久|奇迹|逆转衰老)\b",
-            severity=RuleSeverity.HIGH,
-            action=RuleAction.FLAG,
-            message="检测到可能违反EU化妆品法规的夸大声明",
-            category="eu_compliance",
-            tags=["eu", "cosmetics", "regulation"]
-        ),
-        
         # 成分安全检查
         ComplianceRule(
             rule_id="banned_ingredients",

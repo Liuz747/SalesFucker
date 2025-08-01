@@ -14,10 +14,10 @@
 from typing import Dict, Any
 
 from ..core import BaseAgent, AgentMessage, ConversationState
-from .conversation_templates import get_conversation_templates, get_conversation_responses, get_tone_variations
 from .sales_strategies import get_sales_strategies, analyze_customer_segment, get_strategy_for_segment, adapt_strategy_to_context
-from .need_assessment import analyze_customer_needs, determine_conversation_stage, ConversationStage
+# Removed need_assessment - now using enhanced IntentAnalysisAgent for field extraction
 from src.utils import format_timestamp
+from src.llm import get_llm_client, get_prompt_manager
 
 
 class SalesAgent(BaseAgent):
@@ -36,8 +36,12 @@ class SalesAgent(BaseAgent):
     
     def __init__(self, tenant_id: str):
         super().__init__(f"sales_agent_{tenant_id}", tenant_id)
-        # 使用专门模块加载配置
-        self.conversation_templates = get_conversation_templates()
+        
+        # LLM integration for dynamic responses
+        self.llm_client = get_llm_client()
+        self.prompt_manager = get_prompt_manager()
+        
+        # Strategy management
         self.sales_strategies = get_sales_strategies()
         
         self.logger.info(f"销售智能体初始化完成: {self.agent_id}")
@@ -105,9 +109,29 @@ class SalesAgent(BaseAgent):
         try:
             customer_input = state.customer_input
             
-            # 使用专门模块分析客户需求和对话阶段
-            needs = analyze_customer_needs(customer_input)
-            stage = determine_conversation_stage(customer_input, state.conversation_history)
+            # 从IntentAnalysisAgent获取增强的客户分析数据
+            intent_analysis = state.intent_analysis or {}
+            customer_profile_data = intent_analysis.get("customer_profile", {})
+            
+            # 提取客户需求信息 (来自LLM分析)
+            needs = {
+                "skin_concerns": customer_profile_data.get("skin_concerns", []),
+                "product_interests": customer_profile_data.get("product_interests", []),
+                "urgency": customer_profile_data.get("urgency", "normal"),
+                "experience_level": customer_profile_data.get("experience_level", "intermediate"),
+                "budget_signals": customer_profile_data.get("budget_signals", [])
+            }
+            
+            # 获取对话阶段 (来自LLM分析)
+            stage_value = intent_analysis.get("conversation_stage", "consultation")
+            
+            # 使用LLM提取的信息丰富客户档案
+            if customer_profile_data.get("skin_type_indicators"):
+                state.customer_profile["inferred_skin_type"] = customer_profile_data["skin_type_indicators"][0]
+            if customer_profile_data.get("budget_signals"):
+                state.customer_profile["budget_preference"] = customer_profile_data["budget_signals"][0]
+            if customer_profile_data.get("experience_level"):
+                state.customer_profile["experience_level"] = customer_profile_data["experience_level"]
             
             # 客户细分和策略选择
             customer_segment = analyze_customer_segment(state.customer_profile)
@@ -121,9 +145,9 @@ class SalesAgent(BaseAgent):
             }
             adapted_strategy = adapt_strategy_to_context(strategy, context)
             
-            # 生成个性化响应
-            response = self._generate_conversation_response(
-                customer_input, needs, stage.value, adapted_strategy, state
+            # 生成LLM驱动的个性化响应
+            response = await self._generate_llm_response(
+                customer_input, needs, stage_value, adapted_strategy, state
             )
             
             # 更新对话状态
@@ -144,11 +168,11 @@ class SalesAgent(BaseAgent):
             state.error_state = "sales_processing_error"
             return state
     
-    def _generate_conversation_response(self, customer_input: str, needs: Dict[str, Any],
-                                      stage: str, strategy: Dict[str, Any], 
-                                      state: ConversationState) -> str:
+    async def _generate_llm_response(self, customer_input: str, needs: Dict[str, Any],
+                                   stage: str, strategy: Dict[str, Any], 
+                                   state: ConversationState) -> str:
         """
-        生成对话响应（轻量级方法）
+        使用LLM生成个性化销售响应
         
         参数:
             customer_input: 客户输入
@@ -158,32 +182,79 @@ class SalesAgent(BaseAgent):
             state: 对话状态
             
         返回:
-            str: 个性化销售响应
+            str: LLM生成的个性化销售响应
         """
-        templates = self.conversation_templates.get(stage, {})
-        tone_variations = get_tone_variations()
-        
-        # 选择基础响应模板
-        if stage == "greeting":
-            template_key = "new_customer" if not state.customer_profile else "returning_customer"
-            base_response = templates.get(template_key, "Hello! How can I help you today?")
-        elif stage == "consultation":
-            base_response = templates.get("skin_analysis", "Let me help you find the perfect products.")
-        else:
-            base_response = templates.get("confident_close", "How can I help you today?")
-        
-        # 应用语调调整
-        tone = strategy.get("tone", "friendly")
-        if tone in tone_variations:
-            tone_template = tone_variations[tone].get("recommendation", base_response)
-            base_response = tone_template.format(product="our recommended products")
-        
-        return base_response
+        try:
+            # 准备提示词参数
+            conversation_history = self.prompt_manager.format_conversation_history(
+                state.conversation_history
+            )
+            
+            # 获取销售咨询提示词
+            prompt = self.prompt_manager.get_prompt(
+                "sales",
+                "consultation",
+                brand_name=self.tenant_id,
+                customer_input=customer_input,
+                conversation_history=conversation_history,
+                skin_type=state.customer_profile.get("skin_type", "not specified"),
+                concerns=", ".join(needs.get("concerns", ["general consultation"])),
+                budget_range=state.customer_profile.get("budget_range", "medium"),
+                purchase_history=", ".join(state.customer_profile.get("purchase_history", ["none"])),
+                tone=strategy.get("tone", "friendly"),
+                tone_description=self._get_tone_description(strategy.get("tone", "friendly")),
+                strategy=strategy.get("approach", "consultative")
+            )
+            
+            # 调用LLM生成响应
+            messages = [{"role": "user", "content": prompt}]
+            response = await self.llm_client.chat_completion(messages, temperature=0.8)
+            
+            return response
+            
+        except Exception as e:
+            self.logger.error(f"LLM响应生成失败: {e}")
+            # 降级到简单模板响应
+            return self._generate_fallback_response(stage, strategy)
     
     async def _generate_sales_response(self, customer_input: str, context: Dict[str, Any]) -> str:
-        """生成销售响应（简化版本）"""
-        return ("Thank you for your message! I'm here to help you find the perfect beauty products. "
-                "Could you tell me a bit more about what you're looking for today?")
+        """生成销售响应（LLM驱动）"""
+        try:
+            prompt = self.prompt_manager.get_prompt(
+                "sales",
+                "consultation", 
+                customer_input=customer_input,
+                brand_name=self.tenant_id
+            )
+            
+            messages = [{"role": "user", "content": prompt}]
+            return await self.llm_client.chat_completion(messages, temperature=0.8)
+            
+        except Exception as e:
+            self.logger.error(f"销售响应生成失败: {e}")
+            return self._generate_fallback_response("consultation", {"tone": "friendly"})
+    
+    def _get_tone_description(self, tone: str) -> str:
+        """获取语调描述"""
+        tone_descriptions = {
+            "sophisticated": "elegant and refined",
+            "energetic": "enthusiastic and exciting", 
+            "professional": "expert and authoritative",
+            "warm": "caring and personal",
+            "friendly": "approachable and helpful"
+        }
+        return tone_descriptions.get(tone, "professional and helpful")
+    
+    def _generate_fallback_response(self, stage: str, strategy: Dict[str, Any]) -> str:
+        """生成降级响应"""
+        tone = strategy.get("tone", "friendly")
+        
+        if stage == "greeting":
+            return "Hello! Welcome! I'm excited to help you find the perfect beauty products today. What brings you here?"
+        elif stage == "consultation":
+            return "I'd love to help you find products that work perfectly for your needs. Could you tell me more about what you're looking for?"
+        else:
+            return "Thank you for your interest! How can I help you with your beauty needs today?"
     
     def get_conversation_metrics(self) -> Dict[str, Any]:
         """获取销售对话性能指标"""

@@ -12,7 +12,7 @@
 """
 
 from typing import Dict, Any
-from langgraph import StateGraph
+from langgraph.graph import StateGraph
 
 from .node_processor import NodeProcessor
 from src.utils import (

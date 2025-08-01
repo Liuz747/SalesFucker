@@ -6,7 +6,8 @@ This module handles all configuration management for the MAS system.
 
 import os
 from typing import Optional
-from pydantic import BaseSettings, Field
+from pydantic import Field
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -22,11 +23,11 @@ class Settings(BaseSettings):
     api_port: int = Field(default=8000, env="API_PORT")
     
     # Database Configuration
-    elasticsearch_url: str = Field(env="ELASTICSEARCH_URL")
-    redis_url: str = Field(env="REDIS_URL")
+    elasticsearch_url: str = Field(default="http://localhost:9200", env="ELASTICSEARCH_URL")
+    redis_url: str = Field(default="redis://localhost:6379", env="REDIS_URL")
     
     # AI Models
-    openai_api_key: str = Field(env="OPENAI_API_KEY")
+    openai_api_key: str = Field(default="", env="OPENAI_API_KEY")
     openai_model: str = Field(default="gpt-4-turbo", env="OPENAI_MODEL")
     
     # Multi-tenant Configuration

@@ -1,16 +1,24 @@
 """
-Agent System Tests
+Enhanced LLM-Powered Multi-Agent System Tests
 
-Basic tests to verify the multi-agent system functionality.
+Comprehensive tests for the complete 9-agent LLM-powered system.
+Tests include all agents, LLM integration, and end-to-end workflows.
 """
 
 import pytest
 import asyncio
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, AsyncMock
 
 from src.agents.core import ConversationState, AgentMessage
 from src.agents.compliance import ComplianceAgent, ComplianceRule
 from src.agents.sales import SalesAgent
+from src.agents.sentiment import SentimentAnalysisAgent
+from src.agents.intent import IntentAnalysisAgent
+from src.agents.product import ProductExpertAgent
+from src.agents.memory import MemoryAgent
+from src.agents.strategy import MarketStrategyCoordinator
+from src.agents.proactive import ProactiveAgent
+from src.agents.suggestion import AISuggestionAgent
 from src.agents import create_agent_set, get_orchestrator, agent_registry
 
 
@@ -24,14 +32,24 @@ class TestComplianceAgent:
     
     @pytest.mark.asyncio
     async def test_compliance_approved_message(self, compliance_agent):
-        """Test that clean messages are approved."""
-        result = await compliance_agent._perform_compliance_check(
-            "I'm looking for a great moisturizer for dry skin."
-        )
-        
-        assert result["status"] == "approved"
-        assert len(result["violations"]) == 0
-        assert result["agent_id"] == compliance_agent.agent_id
+        """Test that clean messages are approved by enhanced LLM+rules system."""
+        with patch.object(compliance_agent, '_llm_compliance_analysis', new_callable=AsyncMock) as mock_llm:
+            mock_llm.return_value = {
+                "status": "approved",
+                "violations": [],
+                "severity": "low",
+                "user_message": "",
+                "recommended_action": "proceed"
+            }
+            
+            result = await compliance_agent._enhanced_compliance_check(
+                "I'm looking for a great moisturizer for dry skin."
+            )
+            
+            assert result["status"] == "approved"
+            assert len(result["violations"]) == 0
+            assert result["agent_id"] == compliance_agent.agent_id
+            assert result["analysis_method"] == "hybrid"
     
     @pytest.mark.asyncio
     async def test_compliance_flagged_message(self, compliance_agent):
@@ -71,7 +89,7 @@ class TestComplianceAgent:
 
 
 class TestSalesAgent:
-    """Test suite for Sales Agent."""
+    """Test suite for enhanced LLM-powered Sales Agent."""
     
     @pytest.fixture
     def sales_agent(self):
@@ -128,32 +146,123 @@ class TestSalesAgent:
         assert "foundation" in urgent_needs["product_types"]
     
     @pytest.mark.asyncio
-    async def test_conversation_processing(self, sales_agent):
-        """Test full conversation processing."""
+    async def test_llm_powered_conversation_processing(self, sales_agent):
+        """Test LLM-powered conversation processing with enhanced intent analysis."""
         state = ConversationState(
             tenant_id="test_tenant",
-            customer_input="Hi! I'm looking for a good foundation.",
+            customer_input="Hi! I'm looking for a good foundation for my oily skin.",
             compliance_result={"status": "approved"},
-            intent_analysis={"market_strategy": "premium"}
+            intent_analysis={
+                "intent": "product_inquiry",
+                "conversation_stage": "consultation",
+                "customer_profile": {
+                    "skin_concerns": ["oiliness"],
+                    "product_interests": ["makeup", "foundation"],
+                    "skin_type_indicators": ["oily"],
+                    "urgency": "medium",
+                    "experience_level": "intermediate"
+                }
+            }
         )
         
-        result_state = await sales_agent.process_conversation(state)
-        
-        assert sales_agent.agent_id in result_state.active_agents
-        assert sales_agent.agent_id in result_state.agent_responses
-        
-        response_data = result_state.agent_responses[sales_agent.agent_id]
-        assert "response" in response_data
-        assert "strategy_used" in response_data
-        assert "conversation_stage" in response_data
+        with patch.object(sales_agent, '_generate_llm_response', new_callable=AsyncMock) as mock_llm:
+            mock_llm.return_value = "Based on your oily skin, I'd recommend our oil-control foundation..."
+            
+            result_state = await sales_agent.process_conversation(state)
+            
+            assert sales_agent.agent_id in result_state.active_agents
+            assert result_state.sales_response is not None
+            assert "oily skin" in result_state.sales_response or mock_llm.called
 
 
-class TestAgentIntegration:
-    """Test suite for agent integration and orchestration."""
+class TestLLMAgents:
+    """Test suite for LLM-powered agents."""
     
-    def test_agent_set_creation(self):
-        """Test creating a complete agent set."""
-        tenant_id = "integration_test"
+    @pytest.fixture
+    def sentiment_agent(self):
+        return SentimentAnalysisAgent("test_tenant")
+    
+    @pytest.fixture  
+    def intent_agent(self):
+        return IntentAnalysisAgent("test_tenant")
+    
+    @pytest.fixture
+    def product_agent(self):
+        return ProductExpertAgent("test_tenant")
+    
+    @pytest.mark.asyncio
+    async def test_sentiment_analysis_agent(self, sentiment_agent):
+        """Test LLM-powered sentiment analysis."""
+        state = ConversationState(
+            tenant_id="test_tenant",
+            customer_input="I'm so frustrated! Nothing works for my acne!"
+        )
+        
+        with patch.object(sentiment_agent.llm_client, 'chat_completion', new_callable=AsyncMock) as mock_llm:
+            mock_llm.return_value = '{"sentiment": "negative", "score": -0.7, "confidence": 0.9, "reasoning": "Customer expressing frustration"}'
+            
+            result_state = await sentiment_agent.process_conversation(state)
+            
+            assert sentiment_agent.agent_id in result_state.active_agents
+            assert result_state.sentiment_analysis is not None
+            assert result_state.sentiment_analysis.get("sentiment") == "negative"
+    
+    @pytest.mark.asyncio
+    async def test_enhanced_intent_analysis_with_field_extraction(self, intent_agent):
+        """Test enhanced intent analysis with LLM field extraction."""
+        state = ConversationState(
+            tenant_id="test_tenant",
+            customer_input="My skin has been really oily lately and I keep getting breakouts. I need something affordable."
+        )
+        
+        with patch.object(intent_agent.llm_client, 'chat_completion', new_callable=AsyncMock) as mock_llm:
+            mock_response = '''{
+                "intent": "skin_concern_consultation",
+                "conversation_stage": "consultation", 
+                "customer_profile": {
+                    "skin_concerns": ["oiliness", "acne"],
+                    "urgency": "medium",
+                    "budget_signals": ["budget_conscious"],
+                    "skin_type_indicators": ["oily"]
+                },
+                "confidence": 0.85
+            }'''
+            mock_llm.return_value = mock_response
+            
+            result_state = await intent_agent.process_conversation(state)
+            
+            assert intent_agent.agent_id in result_state.active_agents
+            assert result_state.intent_analysis is not None
+            profile = result_state.intent_analysis.get("customer_profile", {})
+            assert "oiliness" in profile.get("skin_concerns", [])
+            assert "budget_conscious" in profile.get("budget_signals", [])
+    
+    @pytest.mark.asyncio
+    async def test_product_expert_agent(self, product_agent):
+        """Test AI-powered product recommendations.""" 
+        state = ConversationState(
+            tenant_id="test_tenant",
+            customer_input="I need a cleanser for sensitive skin",
+            customer_profile={"skin_type": "sensitive", "budget_preference": "medium"}
+        )
+        
+        with patch.object(product_agent.llm_client, 'chat_completion', new_callable=AsyncMock) as mock_llm:
+            mock_llm.return_value = "For sensitive skin, I recommend our gentle cream cleanser..."
+            
+            result_state = await product_agent.process_conversation(state)
+            
+            assert product_agent.agent_id in result_state.active_agents
+            assert product_agent.agent_id in result_state.agent_responses
+            recommendations = result_state.agent_responses[product_agent.agent_id].get("product_recommendations")
+            assert recommendations is not None
+
+
+class TestCompleteAgentSystem:
+    """Test suite for complete 9-agent system integration."""
+    
+    def test_complete_9_agent_set_creation(self):
+        """Test creating the complete 9-agent LLM-powered system."""
+        tenant_id = "complete_system_test"
         
         # Clear any existing agents
         agents_to_remove = [
@@ -163,20 +272,34 @@ class TestAgentIntegration:
         for agent_id in agents_to_remove:
             del agent_registry.agents[agent_id]
         
-        # Create new agent set
+        # Create complete agent set
         agents = create_agent_set(tenant_id)
         
-        assert "compliance" in agents
-        assert "sales" in agents
-        assert isinstance(agents["compliance"], ComplianceAgent)
-        assert isinstance(agents["sales"], SalesAgent)
+        # Verify all 9 agents are created
+        expected_agents = {
+            "compliance": ComplianceAgent,
+            "sentiment": SentimentAnalysisAgent,
+            "intent": IntentAnalysisAgent,
+            "sales": SalesAgent,
+            "product": ProductExpertAgent,
+            "memory": MemoryAgent,
+            "strategy": MarketStrategyCoordinator,
+            "proactive": ProactiveAgent,
+            "suggestion": AISuggestionAgent
+        }
         
-        # Verify agents are registered
-        compliance_id = f"compliance_review_{tenant_id}"
-        sales_id = f"sales_agent_{tenant_id}"
+        assert len(agents) == 9, f"Expected 9 agents, got {len(agents)}"
         
-        assert agent_registry.get_agent(compliance_id) is not None
-        assert agent_registry.get_agent(sales_id) is not None
+        for agent_type, agent_class in expected_agents.items():
+            assert agent_type in agents, f"Missing agent: {agent_type}"
+            assert isinstance(agents[agent_type], agent_class), f"Wrong type for {agent_type}"
+        
+        # Verify agents are properly registered
+        registered_count = len([
+            agent_id for agent_id in agent_registry.agents.keys()
+            if agent_id.endswith(f"_{tenant_id}")
+        ])
+        assert registered_count == 9, f"Expected 9 registered agents, got {registered_count}"
     
     @pytest.mark.asyncio
     async def test_orchestrator_conversation_flow(self):
