@@ -12,28 +12,20 @@
 """
 
 from .agent import SalesAgent
-from .conversation_templates import get_conversation_templates, get_conversation_responses, get_tone_variations
 from .sales_strategies import get_sales_strategies, analyze_customer_segment, CustomerSegment
-from .need_assessment import analyze_customer_needs, determine_conversation_stage, ConversationStage, SkinType
+# Need assessment now handled by enhanced IntentAnalysisAgent with LLM field extraction
 
 # 公开接口
 __all__ = [
     # 核心智能体
     "SalesAgent",
     
-    # 模板和响应管理
-    "get_conversation_templates",
-    "get_conversation_responses", 
-    "get_tone_variations",
+    # 模板和响应管理 (now LLM-powered)
     
     # 策略管理
     "get_sales_strategies",
     "analyze_customer_segment",
-    "CustomerSegment",
+    "CustomerSegment"
     
-    # 需求分析
-    "analyze_customer_needs",
-    "determine_conversation_stage",
-    "ConversationStage",
-    "SkinType"
+    # 需求分析现在由增强的IntentAnalysisAgent处理
 ] 

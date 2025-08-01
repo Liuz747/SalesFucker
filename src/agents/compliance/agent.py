@@ -22,6 +22,7 @@ from .checker import ComplianceChecker
 from .audit import ComplianceAuditor
 from .metrics import ComplianceMetricsManager
 from src.utils import get_current_datetime, get_processing_time_ms, format_timestamp
+from src.llm import get_llm_client, get_prompt_manager, parse_structured_response
 
 
 class ComplianceAgent(BaseAgent):
@@ -60,6 +61,10 @@ class ComplianceAgent(BaseAgent):
         self.checker = ComplianceChecker(self.rule_set, self.agent_id)
         self.auditor = ComplianceAuditor(tenant_id, self.agent_id)
         self.metrics = ComplianceMetricsManager(tenant_id, self.agent_id)
+        
+        # LLM integration for enhanced analysis
+        self.llm_client = get_llm_client()
+        self.prompt_manager = get_prompt_manager()
         
         # 租户特定配置
         self.tenant_rules: Dict[str, Any] = {}
@@ -146,8 +151,8 @@ class ComplianceAgent(BaseAgent):
         try:
             customer_input = state.customer_input
             
-            # 执行综合合规检查
-            compliance_result = await self.checker.perform_compliance_check(customer_input)
+            # 执行综合合规检查 (规则 + LLM分析)
+            compliance_result = await self._enhanced_compliance_check(customer_input)
             
             # 更新对话状态
             state.compliance_result = compliance_result
@@ -297,4 +302,116 @@ class ComplianceAgent(BaseAgent):
         返回:
             Dict[str, Any]: 健康状态信息
         """
-        return self.metrics.get_health_status() 
+        return self.metrics.get_health_status()
+    
+    async def _enhanced_compliance_check(self, customer_input: str) -> Dict[str, Any]:
+        """
+        执行增强的合规检查 (规则 + LLM分析)
+        
+        结合传统规则检查和LLM智能分析，提供更准确的合规评估。
+        
+        参数:
+            customer_input: 客户输入文本
+            
+        返回:
+            Dict[str, Any]: 综合合规检查结果
+        """
+        try:
+            # 1. 执行传统规则检查 (快速、确定性)
+            rule_result = await self.checker.perform_compliance_check(customer_input)
+            
+            # 2. 如果规则检查已经阻止，直接返回
+            if rule_result.get("status") == "blocked":
+                rule_result["analysis_method"] = "rule_based"
+                return rule_result
+            
+            # 3. 执行LLM增强分析 (上下文感知、细致)
+            llm_result = await self._llm_compliance_analysis(customer_input)
+            
+            # 4. 合并规则和LLM分析结果
+            return self._merge_compliance_results(rule_result, llm_result)
+            
+        except Exception as e:
+            self.logger.error(f"增强合规检查失败: {e}")
+            # 降级到纯规则检查
+            fallback_result = await self.checker.perform_compliance_check(customer_input)
+            fallback_result["analysis_method"] = "rule_fallback"
+            fallback_result["llm_error"] = str(e)
+            return fallback_result
+    
+    async def _llm_compliance_analysis(self, customer_input: str) -> Dict[str, Any]:
+        """
+        使用LLM进行合规分析
+        
+        参数:
+            customer_input: 客户输入文本
+            
+        返回:
+            Dict[str, Any]: LLM分析结果
+        """
+        try:
+            # 获取合规分析提示词
+            prompt = self.prompt_manager.get_prompt(
+                "compliance", 
+                "content_analysis",
+                customer_input=customer_input
+            )
+            
+            # 调用LLM分析
+            messages = [{"role": "user", "content": prompt}]
+            response = await self.llm_client.chat_completion(messages, temperature=0.3)
+            
+            # 解析结构化响应
+            return parse_structured_response(response, "compliance")
+            
+        except Exception as e:
+            self.logger.warning(f"LLM合规分析失败: {e}")
+            return {
+                "status": "approved",
+                "violations": [],
+                "severity": "low",
+                "user_message": "",
+                "recommended_action": "proceed",
+                "llm_fallback": True
+            }
+    
+    def _merge_compliance_results(self, rule_result: Dict[str, Any], llm_result: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        合并规则检查和LLM分析结果
+        
+        参数:
+            rule_result: 规则检查结果
+            llm_result: LLM分析结果
+            
+        返回:
+            Dict[str, Any]: 综合分析结果
+        """
+        # 以更严格的状态为准
+        rule_status = rule_result.get("status", "approved")
+        llm_status = llm_result.get("status", "approved")
+        
+        status_priority = {"blocked": 3, "flagged": 2, "approved": 1}
+        final_status = rule_status if status_priority.get(rule_status, 1) >= status_priority.get(llm_status, 1) else llm_status
+        
+        # 合并违规信息
+        rule_violations = rule_result.get("violations", [])
+        llm_violations = llm_result.get("violations", [])
+        combined_violations = list(set(rule_violations + llm_violations))
+        
+        # 综合严重性评估
+        rule_severity = rule_result.get("severity", "low")
+        llm_severity = llm_result.get("severity", "low")
+        severity_priority = {"high": 3, "medium": 2, "low": 1}
+        final_severity = rule_severity if severity_priority.get(rule_severity, 1) >= severity_priority.get(llm_severity, 1) else llm_severity
+        
+        return {
+            "status": final_status,
+            "violations": combined_violations,
+            "severity": final_severity,
+            "user_message": llm_result.get("user_message", rule_result.get("user_message", "")),
+            "recommended_action": llm_result.get("recommended_action", rule_result.get("recommended_action", "proceed")),
+            "analysis_method": "hybrid",
+            "rule_analysis": rule_result,
+            "llm_analysis": llm_result,
+            "agent_id": self.agent_id
+        } 

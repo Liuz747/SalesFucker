@@ -54,34 +54,44 @@ class TenantAgentsResponse(BaseModel):
 
 # Dependency to get or create agents for a tenant
 async def get_tenant_agents(tenant_id: str) -> Dict[str, Any]:
-    """Get or create agents for a tenant."""
-    # Check if agents already exist
+    """Get or create complete 9-agent set for a tenant."""
+    # Check if full agent set exists (check a few key agents)
     compliance_agent = agent_registry.get_agent(f"compliance_review_{tenant_id}")
+    sentiment_agent = agent_registry.get_agent(f"sentiment_analysis_{tenant_id}")
     sales_agent = agent_registry.get_agent(f"sales_agent_{tenant_id}")
     
-    if not compliance_agent or not sales_agent:
-        # Create agent set if doesn't exist
+    if not all([compliance_agent, sentiment_agent, sales_agent]):
+        # Create complete agent set if doesn't exist
         agents = create_agent_set(tenant_id)
-        logger.info(f"Created agent set for tenant: {tenant_id}")
+        logger.info(f"Created complete 9-agent set for tenant: {tenant_id}")
         return agents
     
-    return {
-        "compliance": compliance_agent,
-        "sales": sales_agent
-    }
+    # Return all registered agents for this tenant
+    tenant_agents = {}
+    for agent_id, agent in agent_registry.agents.items():
+        if agent.tenant_id == tenant_id:
+            # Extract agent type from agent_id (e.g., "sales_agent_tenant1" -> "sales")
+            agent_type = agent_id.replace(f"_{tenant_id}", "").replace("_agent", "").replace("_review", "").replace("_analysis", "")
+            tenant_agents[agent_type] = agent
+    
+    return tenant_agents
 
 
 @router.post("/conversation", response_model=ConversationResponse)
 async def process_conversation(request: ConversationRequest):
     """
-    Process a customer conversation through the multi-agent system.
+    Process a customer conversation through the complete 9-agent multi-agent system.
     
-    This endpoint orchestrates the full conversation flow:
-    1. Compliance review
-    2. Sentiment analysis (placeholder)
-    3. Intent analysis (placeholder)
-    4. Sales agent processing
-    5. Response generation
+    This endpoint orchestrates the full LLM-powered conversation flow:
+    1. ComplianceAgent: LLM+rule hybrid safety validation
+    2. SentimentAnalysisAgent: AI emotion detection and satisfaction scoring
+    3. IntentAnalysisAgent: AI intent classification with field extraction
+    4. SalesAgent: Dynamic LLM personalized responses
+    5. ProductExpertAgent: AI product recommendations
+    6. MemoryAgent: Customer profile management and persistence
+    7. MarketStrategyCoordinator: Segment-based strategy selection
+    8. ProactiveAgent: Behavior-triggered opportunity identification
+    9. AISuggestionAgent: Human-AI collaboration and escalation decisions
     """
     try:
         # Ensure agents exist for tenant
@@ -168,7 +178,7 @@ async def test_compliance_agent(tenant_id: str, test_message: str):
             raise HTTPException(status_code=404, detail="Compliance agent not found")
         
         # Test compliance check
-        result = await compliance_agent._perform_compliance_check(test_message)
+        result = await compliance_agent.checker.perform_compliance_check(test_message)
         
         return {
             "test_message": test_message,
@@ -186,7 +196,7 @@ async def test_compliance_agent(tenant_id: str, test_message: str):
 
 @router.post("/tenant/{tenant_id}/sales/test")
 async def test_sales_agent(tenant_id: str, test_message: str):
-    """Test the sales agent with a specific message."""
+    """Test the enhanced LLM-powered sales agent with a specific message."""
     try:
         agents = await get_tenant_agents(tenant_id)
         sales_agent = agents.get("sales")
@@ -201,7 +211,15 @@ async def test_sales_agent(tenant_id: str, test_message: str):
             tenant_id=tenant_id,
             customer_input=test_message,
             compliance_result={"status": "approved"},
-            intent_analysis={"market_strategy": "premium"}
+            intent_analysis={
+                "intent": "product_inquiry",
+                "conversation_stage": "consultation",
+                "customer_profile": {
+                    "skin_concerns": ["dryness", "sensitivity"],
+                    "urgency": "medium",
+                    "experience_level": "intermediate"
+                }
+            }
         )
         
         # Process through sales agent
@@ -209,9 +227,10 @@ async def test_sales_agent(tenant_id: str, test_message: str):
         
         return {
             "test_message": test_message,
-            "sales_response": result_state.agent_responses.get(sales_agent.agent_id, {}),
-            "conversation_stage": result_state.agent_responses.get(sales_agent.agent_id, {}).get("conversation_stage"),
-            "agent_id": sales_agent.agent_id
+            "sales_response": result_state.sales_response,
+            "agent_responses": result_state.agent_responses.get(sales_agent.agent_id, {}),
+            "agent_id": sales_agent.agent_id,
+            "llm_powered": True
         }
         
     except Exception as e:
@@ -220,6 +239,146 @@ async def test_sales_agent(tenant_id: str, test_message: str):
             status_code=500,
             detail=f"Sales agent test failed: {str(e)}"
         )
+
+
+@router.post("/tenant/{tenant_id}/sentiment/test")
+async def test_sentiment_agent(tenant_id: str, test_message: str):
+    """Test the LLM-powered sentiment analysis agent."""
+    try:
+        agents = await get_tenant_agents(tenant_id)
+        sentiment_agent = agents.get("sentiment")
+        
+        if not sentiment_agent:
+            raise HTTPException(status_code=404, detail="Sentiment agent not found")
+        
+        from src.agents.core import ConversationState
+        
+        test_state = ConversationState(
+            tenant_id=tenant_id,
+            customer_input=test_message
+        )
+        
+        result_state = await sentiment_agent.process_conversation(test_state)
+        
+        return {
+            "test_message": test_message,
+            "sentiment_analysis": result_state.sentiment_analysis,
+            "agent_id": sentiment_agent.agent_id,
+            "llm_powered": True
+        }
+        
+    except Exception as e:
+        logger.error(f"Sentiment agent test failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Sentiment agent test failed: {str(e)}")
+
+
+@router.post("/tenant/{tenant_id}/intent/test")
+async def test_intent_agent(tenant_id: str, test_message: str):
+    """Test the enhanced LLM-powered intent analysis agent with field extraction."""
+    try:
+        agents = await get_tenant_agents(tenant_id)
+        intent_agent = agents.get("intent")
+        
+        if not intent_agent:
+            raise HTTPException(status_code=404, detail="Intent agent not found")
+        
+        from src.agents.core import ConversationState
+        
+        test_state = ConversationState(
+            tenant_id=tenant_id,
+            customer_input=test_message
+        )
+        
+        result_state = await intent_agent.process_conversation(test_state)
+        
+        return {
+            "test_message": test_message,
+            "intent_analysis": result_state.intent_analysis,
+            "customer_profile_extracted": result_state.intent_analysis.get("customer_profile", {}),
+            "agent_id": intent_agent.agent_id,
+            "llm_powered": True,
+            "field_extraction": True
+        }
+        
+    except Exception as e:
+        logger.error(f"Intent agent test failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Intent agent test failed: {str(e)}")
+
+
+@router.post("/tenant/{tenant_id}/product/test")
+async def test_product_agent(tenant_id: str, test_message: str):
+    """Test the AI-powered product expert agent."""
+    try:
+        agents = await get_tenant_agents(tenant_id)
+        product_agent = agents.get("product")
+        
+        if not product_agent:
+            raise HTTPException(status_code=404, detail="Product agent not found")
+        
+        from src.agents.core import ConversationState
+        
+        test_state = ConversationState(
+            tenant_id=tenant_id,
+            customer_input=test_message,
+            customer_profile={
+                "skin_type": "combination",
+                "budget_preference": "medium",
+                "experience_level": "intermediate"
+            }
+        )
+        
+        result_state = await product_agent.process_conversation(test_state)
+        
+        return {
+            "test_message": test_message,
+            "product_recommendations": result_state.agent_responses.get(product_agent.agent_id, {}).get("product_recommendations", {}),
+            "agent_id": product_agent.agent_id,
+            "llm_powered": True
+        }
+        
+    except Exception as e:
+        logger.error(f"Product agent test failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Product agent test failed: {str(e)}")
+
+
+@router.post("/tenant/{tenant_id}/agents/test-all")
+async def test_all_agents(tenant_id: str, test_message: str = "I have oily skin and need a good cleanser for my daily routine."):
+    """Test all 9 agents with a single message to show complete system capability."""
+    try:
+        agents = await get_tenant_agents(tenant_id)
+        
+        # Get orchestrator and process complete conversation
+        orchestrator = get_orchestrator(tenant_id)
+        result = await orchestrator.process_conversation(
+            customer_input=test_message,
+            customer_id="test_customer_all_agents"
+        )
+        
+        # Extract responses from all agents
+        agent_results = {}
+        for agent_type, agent in agents.items():
+            agent_response = result.agent_responses.get(agent.agent_id, {})
+            agent_results[agent_type] = {
+                "agent_id": agent.agent_id,
+                "response": agent_response,
+                "active": agent.agent_id in result.active_agents
+            }
+        
+        return {
+            "test_message": test_message,
+            "conversation_id": result.conversation_id,
+            "processing_complete": result.processing_complete,
+            "final_response": result.final_response,
+            "compliance_status": result.compliance_result.get("status", "unknown"),
+            "human_escalation": result.human_escalation,
+            "total_agents_active": len(result.active_agents),
+            "agent_results": agent_results,
+            "system_status": "9_agent_llm_powered_system_operational"
+        }
+        
+    except Exception as e:
+        logger.error(f"All agents test failed: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"All agents test failed: {str(e)}")
 
 
 @router.get("/registry/status")

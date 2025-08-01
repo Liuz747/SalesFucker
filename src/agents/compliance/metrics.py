@@ -14,6 +14,14 @@
 from typing import Dict, Any, Optional
 from datetime import datetime
 
+from src.utils import (
+    get_component_logger,
+    get_current_datetime,
+    get_processing_time_ms,
+    format_timestamp,
+    with_error_handling
+)
+
 
 class ComplianceMetricsManager:
     """
@@ -39,7 +47,7 @@ class ComplianceMetricsManager:
         """
         self.tenant_id = tenant_id
         self.agent_id = agent_id
-        self.start_time = datetime.utcnow()
+        self.start_time = get_current_datetime()
         
         # 性能统计
         self.processing_metrics = {
@@ -102,7 +110,7 @@ class ComplianceMetricsManager:
         返回:
             Dict[str, Any]: 完整的性能统计信息
         """
-        uptime_seconds = (datetime.utcnow() - self.start_time).total_seconds()
+        uptime_seconds = get_processing_time_ms(self.start_time)
         
         base_stats = self.processing_metrics.copy()
         
@@ -138,7 +146,7 @@ class ComplianceMetricsManager:
             "processing_metrics": self.get_performance_stats(),
             "audit_log_size": audit_log_size,
             "is_active": is_active,
-            "last_check": datetime.utcnow().isoformat()
+            "last_check": format_timestamp(self.start_time)
         }
     
     def _format_uptime(self, uptime_seconds: float) -> str:
@@ -241,15 +249,15 @@ class ComplianceMetricsManager:
             "error_rate": error_rate,
             "average_response_time": avg_time,
             "total_checks": self.processing_metrics["total_checks"],
-            "uptime_seconds": (datetime.utcnow() - self.start_time).total_seconds(),
-            "timestamp": datetime.utcnow().isoformat()
+            "uptime_seconds": get_processing_time_ms(self.start_time),
+            "timestamp": format_timestamp()
         }
     
     def reset_metrics(self):
         """
         重置所有性能指标
         """
-        self.start_time = datetime.utcnow()
+        self.start_time = get_current_datetime()
         self.processing_metrics = {
             "total_checks": 0,
             "approved_count": 0,

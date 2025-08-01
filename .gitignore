@@ -37,6 +37,7 @@ env/
 .idea/
 .cursor/
 CLAUDE.md
+.claude/
 *.swp
 *.swo
 
@@ -77,3 +78,4 @@ customer_data/
 agent_memory/
 temp_audio/
 temp_images/
+memory-bank/
