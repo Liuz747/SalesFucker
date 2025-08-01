@@ -1,8 +1,8 @@
 """
-LLM Response Parser
+LLM响应解析器
 
-Utilities for parsing and validating LLM responses into structured data.
-Handles JSON parsing, fallback responses, and data validation.
+用于解析和验证LLM响应为结构化数据的工具。
+处理JSON解析、备用响应和数据验证。
 """
 
 import json
@@ -14,20 +14,20 @@ logger = logging.getLogger(__name__)
 
 class ResponseParser:
     """
-    LLM response parsing utilities
+    LLM响应解析工具
     
-    Provides robust parsing of LLM responses with fallback handling
-    and data validation for structured outputs.
+    提供强大的LLM响应解析，包含备用处理
+    和结构化输出的数据验证。
     """
     
     @staticmethod
     def parse_json_response(response: str, fallback: Dict[str, Any] = None) -> Dict[str, Any]:
         """
-        Parse JSON response from LLM with fallback
+        使用备用方案解析LLM的JSON响应
         
-        Args:
-            response: Raw LLM response text
-            fallback: Default response if parsing fails
+        参数:
+            response: 原始LLM响应文本
+            fallback: 解析失败时的默认响应
             
         Returns:
             Dict: Parsed JSON data or fallback

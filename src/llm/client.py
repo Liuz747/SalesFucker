@@ -1,8 +1,8 @@
 """
-OpenAI Client Module
+OpenAI客户端模块
 
-Provides async OpenAI API integration with error handling and retry logic.
-Centralizes all LLM API calls for the multi-agent system.
+提供带错误处理和重试逻辑的异步OpenAI API集成。
+为多智能体系统集中管理所有LLM API调用。
 """
 
 import asyncio
@@ -17,14 +17,14 @@ logger = logging.getLogger(__name__)
 
 class OpenAIClient:
     """
-    Async OpenAI client wrapper
+    异步OpenAI客户端包装器
     
-    Provides centralized OpenAI API access with error handling,
-    retry logic, and request optimization.
+    提供集中式OpenAI API访问，包含错误处理、
+    重试逻辑和请求优化。
     """
     
     def __init__(self):
-        """Initialize OpenAI client with configuration"""
+        """使用配置初始化OpenAI客户端"""
         self.client = AsyncOpenAI(api_key=settings.openai_api_key)
         self.default_model = settings.openai_model
         
@@ -36,16 +36,16 @@ class OpenAIClient:
         max_tokens: Optional[int] = None
     ) -> str:
         """
-        Generate chat completion using OpenAI API
+        使用OpenAI API生成聊天完成
         
-        Args:
-            messages: List of chat messages in OpenAI format
-            model: Optional model override
-            temperature: Response randomness (0.0-1.0)
-            max_tokens: Maximum response length
+        参数:
+            messages: OpenAI格式的聊天消息列表
+            model: 可选的模型覆盖
+            temperature: 响应随机性 (0.0-1.0)
+            max_tokens: 最大响应长度
             
-        Returns:
-            str: Generated response content
+        返回:
+            str: 生成的响应内容
         """
         try:
             response = await self.client.chat.completions.create(
@@ -57,24 +57,24 @@ class OpenAIClient:
             
             content = response.choices[0].message.content
             if not content:
-                raise ValueError("Empty response from OpenAI API")
+                raise ValueError("OpenAI API返回空响应")
                 
-            logger.debug(f"Generated response: {len(content)} characters")
+            logger.debug(f"生成响应: {len(content)} 字符")
             return content
             
         except Exception as e:
-            logger.error(f"OpenAI API error: {e}")
+            logger.error(f"OpenAI API错误: {e}")
             raise
     
     async def analyze_sentiment(self, text: str) -> Dict[str, Any]:
         """
-        Analyze sentiment of given text
+        分析给定文本的情感
         
-        Args:
-            text: Text to analyze
+        参数:
+            text: 要分析的文本
             
-        Returns:
-            Dict with sentiment, score, and confidence
+        返回:
+            包含情感、分数和置信度的字典
         """
         messages = [
             {

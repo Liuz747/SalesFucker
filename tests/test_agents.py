@@ -1,8 +1,8 @@
 """
-Enhanced LLM-Powered Multi-Agent System Tests
+增强的LLM驱动多智能体系统测试
 
-Comprehensive tests for the complete 9-agent LLM-powered system.
-Tests include all agents, LLM integration, and end-to-end workflows.
+完整的9智能体LLM驱动系统的综合测试。
+测试包括所有智能体、LLM集成和端到端工作流。
 """
 
 import pytest
@@ -23,16 +23,16 @@ from src.agents import create_agent_set, get_orchestrator, agent_registry
 
 
 class TestComplianceAgent:
-    """Test suite for Compliance Agent."""
+    """合规智能体测试套件。"""
     
     @pytest.fixture
     def compliance_agent(self):
-        """Create a test compliance agent."""
+        """创建测试用合规智能体。"""
         return ComplianceAgent("test_tenant")
     
     @pytest.mark.asyncio
     async def test_compliance_approved_message(self, compliance_agent):
-        """Test that clean messages are approved by enhanced LLM+rules system."""
+        """测试干净的消息会被增强的LLM+规则系统批准。"""
         with patch.object(compliance_agent, '_llm_compliance_analysis', new_callable=AsyncMock) as mock_llm:
             mock_llm.return_value = {
                 "status": "approved",
@@ -89,16 +89,16 @@ class TestComplianceAgent:
 
 
 class TestSalesAgent:
-    """Test suite for enhanced LLM-powered Sales Agent."""
+    """增强LLM驱动销售智能体测试套件。"""
     
     @pytest.fixture
     def sales_agent(self):
-        """Create a test sales agent."""
+        """创建测试用销售智能体。"""
         return SalesAgent("test_tenant")
     
     def test_conversation_stage_analysis(self, sales_agent):
-        """Test conversation stage detection."""
-        # Test greeting detection
+        """测试对话阶段检测。"""
+        # 测试问候检测
         state_greeting = ConversationState(
             tenant_id="test_tenant",
             customer_input="Hi there!",
@@ -107,7 +107,7 @@ class TestSalesAgent:
         stage = sales_agent._analyze_conversation_stage(state_greeting)
         assert stage == "greeting"
         
-        # Test product inquiry detection
+        # 测试产品查询检测
         state_inquiry = ConversationState(
             tenant_id="test_tenant", 
             customer_input="I'm looking for a foundation.",
@@ -116,7 +116,7 @@ class TestSalesAgent:
         stage = sales_agent._analyze_conversation_stage(state_inquiry)
         assert stage == "product_inquiry"
         
-        # Test need assessment detection
+        # 测试需求评估检测
         state_needs = ConversationState(
             tenant_id="test_tenant",
             customer_input="I have very dry skin and need help.",
@@ -126,7 +126,7 @@ class TestSalesAgent:
         assert stage == "need_assessment"
     
     def test_customer_needs_assessment(self, sales_agent):
-        """Test customer needs identification."""
+        """测试客户需求识别。"""
         needs = sales_agent._assess_customer_needs(
             "I have dry, sensitive skin and need a moisturizer",
             {}
@@ -137,7 +137,7 @@ class TestSalesAgent:
         assert "moisturizer" in needs["product_types"]
         assert needs["urgency"] == "normal"
         
-        # Test urgency detection
+        # 测试紧急程度检测
         urgent_needs = sales_agent._assess_customer_needs(
             "I need foundation today for a special event!",
             {}
@@ -147,7 +147,7 @@ class TestSalesAgent:
     
     @pytest.mark.asyncio
     async def test_llm_powered_conversation_processing(self, sales_agent):
-        """Test LLM-powered conversation processing with enhanced intent analysis."""
+        """测试带增强意图分析的LLM驱动对话处理。"""
         state = ConversationState(
             tenant_id="test_tenant",
             customer_input="Hi! I'm looking for a good foundation for my oily skin.",
@@ -176,7 +176,7 @@ class TestSalesAgent:
 
 
 class TestLLMAgents:
-    """Test suite for LLM-powered agents."""
+    """LLM驱动智能体测试套件。"""
     
     @pytest.fixture
     def sentiment_agent(self):
@@ -192,7 +192,7 @@ class TestLLMAgents:
     
     @pytest.mark.asyncio
     async def test_sentiment_analysis_agent(self, sentiment_agent):
-        """Test LLM-powered sentiment analysis."""
+        """测试LLM驱动的情感分析。"""
         state = ConversationState(
             tenant_id="test_tenant",
             customer_input="I'm so frustrated! Nothing works for my acne!"
@@ -209,7 +209,7 @@ class TestLLMAgents:
     
     @pytest.mark.asyncio
     async def test_enhanced_intent_analysis_with_field_extraction(self, intent_agent):
-        """Test enhanced intent analysis with LLM field extraction."""
+        """测试带LLM字段提取的增强意图分析。"""
         state = ConversationState(
             tenant_id="test_tenant",
             customer_input="My skin has been really oily lately and I keep getting breakouts. I need something affordable."
@@ -239,7 +239,7 @@ class TestLLMAgents:
     
     @pytest.mark.asyncio
     async def test_product_expert_agent(self, product_agent):
-        """Test AI-powered product recommendations.""" 
+        """测试AI驱动的产品推荐。""" 
         state = ConversationState(
             tenant_id="test_tenant",
             customer_input="I need a cleanser for sensitive skin",
@@ -258,13 +258,13 @@ class TestLLMAgents:
 
 
 class TestCompleteAgentSystem:
-    """Test suite for complete 9-agent system integration."""
+    """完整的9智能体系统集成测试套件。"""
     
     def test_complete_9_agent_set_creation(self):
-        """Test creating the complete 9-agent LLM-powered system."""
+        """测试创建完整的9智能体LLM驱动系统。"""
         tenant_id = "complete_system_test"
         
-        # Clear any existing agents
+        # 清除任何现有智能体
         agents_to_remove = [
             agent_id for agent_id in agent_registry.agents.keys()
             if agent_id.endswith(f"_{tenant_id}")
@@ -272,10 +272,10 @@ class TestCompleteAgentSystem:
         for agent_id in agents_to_remove:
             del agent_registry.agents[agent_id]
         
-        # Create complete agent set
+        # 创建完整智能体集合
         agents = create_agent_set(tenant_id)
         
-        # Verify all 9 agents are created
+        # 验证所0个智能体都被创建
         expected_agents = {
             "compliance": ComplianceAgent,
             "sentiment": SentimentAnalysisAgent,
@@ -294,7 +294,7 @@ class TestCompleteAgentSystem:
             assert agent_type in agents, f"Missing agent: {agent_type}"
             assert isinstance(agents[agent_type], agent_class), f"Wrong type for {agent_type}"
         
-        # Verify agents are properly registered
+        # 验证智能体被正确注册
         registered_count = len([
             agent_id for agent_id in agent_registry.agents.keys()
             if agent_id.endswith(f"_{tenant_id}")

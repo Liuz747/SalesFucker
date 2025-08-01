@@ -1,7 +1,7 @@
 """
-Agent API Endpoints
+智能体API端点
 
-REST API endpoints for agent interaction and testing.
+用于智能体交互和测试的REST API端点。
 """
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -16,17 +16,17 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/agents", tags=["agents"])
 
 
-# Request/Response Models
+# 请求/响应模型
 class ConversationRequest(BaseModel):
-    """Request model for starting a conversation."""
-    tenant_id: str = Field(description="Tenant identifier")
-    customer_id: Optional[str] = Field(None, description="Customer identifier")
-    message: str = Field(description="Customer message")
-    input_type: str = Field("text", description="Input type (text, voice, image)")
+    """对话请求模型。"""
+    tenant_id: str = Field(description="租户标识符")
+    customer_id: Optional[str] = Field(None, description="客户标识符")
+    message: str = Field(description="客户消息")
+    input_type: str = Field("text", description="输入类型（文本、语音、图像）")
 
 
 class ConversationResponse(BaseModel):
-    """Response model for conversation processing."""
+    """对话处理响应模型。"""
     conversation_id: str
     response: str
     processing_complete: bool
@@ -37,7 +37,7 @@ class ConversationResponse(BaseModel):
 
 
 class AgentStatusResponse(BaseModel):
-    """Response model for agent status."""
+    """智能体状态响应模型。"""
     agent_id: str
     is_active: bool
     messages_processed: int
@@ -46,31 +46,31 @@ class AgentStatusResponse(BaseModel):
 
 
 class TenantAgentsResponse(BaseModel):
-    """Response model for tenant agent listing."""
+    """租户智能体列表响应模型。"""
     tenant_id: str
     agents: List[AgentStatusResponse]
     total_agents: int
 
 
-# Dependency to get or create agents for a tenant
+# 获取或创建租户智能体的依赖函数
 async def get_tenant_agents(tenant_id: str) -> Dict[str, Any]:
-    """Get or create complete 9-agent set for a tenant."""
-    # Check if full agent set exists (check a few key agents)
+    """获取或创建租户的完整9智能体集合。"""
+    # 检查完整智能体集合是否存在（检查几个关键智能体）
     compliance_agent = agent_registry.get_agent(f"compliance_review_{tenant_id}")
     sentiment_agent = agent_registry.get_agent(f"sentiment_analysis_{tenant_id}")
     sales_agent = agent_registry.get_agent(f"sales_agent_{tenant_id}")
     
     if not all([compliance_agent, sentiment_agent, sales_agent]):
-        # Create complete agent set if doesn't exist
+        # 如果不存在则创建完整智能体集合
         agents = create_agent_set(tenant_id)
-        logger.info(f"Created complete 9-agent set for tenant: {tenant_id}")
+        logger.info(f"为租户创建了完整的9智能体集合: {tenant_id}")
         return agents
     
-    # Return all registered agents for this tenant
+    # 返回该租户的所有已注册智能体
     tenant_agents = {}
     for agent_id, agent in agent_registry.agents.items():
         if agent.tenant_id == tenant_id:
-            # Extract agent type from agent_id (e.g., "sales_agent_tenant1" -> "sales")
+            # 从agent_id中提取智能体类型 (例如 "sales_agent_tenant1" -> "sales")
             agent_type = agent_id.replace(f"_{tenant_id}", "").replace("_agent", "").replace("_review", "").replace("_analysis", "")
             tenant_agents[agent_type] = agent
     
@@ -80,40 +80,40 @@ async def get_tenant_agents(tenant_id: str) -> Dict[str, Any]:
 @router.post("/conversation", response_model=ConversationResponse)
 async def process_conversation(request: ConversationRequest):
     """
-    Process a customer conversation through the complete 9-agent multi-agent system.
+    通过完整的9智能体多智能体系统处理客户对话。
     
-    This endpoint orchestrates the full LLM-powered conversation flow:
-    1. ComplianceAgent: LLM+rule hybrid safety validation
-    2. SentimentAnalysisAgent: AI emotion detection and satisfaction scoring
-    3. IntentAnalysisAgent: AI intent classification with field extraction
-    4. SalesAgent: Dynamic LLM personalized responses
-    5. ProductExpertAgent: AI product recommendations
-    6. MemoryAgent: Customer profile management and persistence
-    7. MarketStrategyCoordinator: Segment-based strategy selection
-    8. ProactiveAgent: Behavior-triggered opportunity identification
-    9. AISuggestionAgent: Human-AI collaboration and escalation decisions
+    此端点协调完整的LLM驱动对话流程：
+    1. 合规智能体：LLM+规则混合安全验证
+    2. 情感分析智能体：AI情绪检测和满意度评分
+    3. 意图分析智能体：AI意图分类与字段提取
+    4. 销售智能体：动态LLM个性化响应
+    5. 产品专家智能体：AI产品推荐
+    6. 记忆智能体：客户档案管理和持久化
+    7. 市场策略协调器：基于细分的策略选择
+    8. 主动智能体：行为触发的机会识别
+    9. AI建议智能体：人机协作和升级决策
     """
     try:
-        # Ensure agents exist for tenant
+        # 确保租户的智能体存在
         await get_tenant_agents(request.tenant_id)
         
-        # Get orchestrator for tenant
+        # 获取租户的编排器
         orchestrator = get_orchestrator(request.tenant_id)
         
-        # Process conversation
+        # 处理对话
         result = await orchestrator.process_conversation(
             customer_input=request.message,
             customer_id=request.customer_id,
             input_type=request.input_type
         )
         
-        # Extract response from sales agent or use fallback
+        # 从销售智能体提取响应或使用备用响应
         final_response = result.final_response
         if not final_response and result.agent_responses.get("sales_agent_" + request.tenant_id):
             final_response = result.agent_responses[f"sales_agent_{request.tenant_id}"]["response"]
         
         if not final_response:
-            final_response = "Thank you for your message! How can I help you with your beauty needs today?"
+            final_response = "感谢您的消息！我能为您的美容需求提供什么帮助吗？"
         
         return ConversationResponse(
             conversation_id=result.conversation_id,
@@ -126,18 +126,18 @@ async def process_conversation(request: ConversationRequest):
         )
         
     except Exception as e:
-        logger.error(f"Conversation processing failed: {e}", exc_info=True)
+        logger.error(f"对话处理失败: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Conversation processing failed: {str(e)}"
+            detail=f"对话处理失败: {str(e)}"
         )
 
 
 @router.get("/tenant/{tenant_id}/status", response_model=TenantAgentsResponse)
 async def get_tenant_agent_status(tenant_id: str):
-    """Get status of all agents for a specific tenant."""
+    """获取特定租户的所有智能体状态。"""
     try:
-        # Ensure agents exist
+        # 确保智能体存在
         agents = await get_tenant_agents(tenant_id)
         
         agent_statuses = []
@@ -160,24 +160,24 @@ async def get_tenant_agent_status(tenant_id: str):
         )
         
     except Exception as e:
-        logger.error(f"Failed to get agent status: {e}", exc_info=True)
+        logger.error(f"获取智能体状态失败: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to get agent status: {str(e)}"
+            detail=f"获取智能体状态失败: {str(e)}"
         )
 
 
 @router.post("/tenant/{tenant_id}/compliance/test")
 async def test_compliance_agent(tenant_id: str, test_message: str):
-    """Test the compliance agent with a specific message."""
+    """使用特定消息测试合规智能体。"""
     try:
         agents = await get_tenant_agents(tenant_id)
         compliance_agent = agents.get("compliance")
         
         if not compliance_agent:
-            raise HTTPException(status_code=404, detail="Compliance agent not found")
+            raise HTTPException(status_code=404, detail="未找到合规智能体")
         
-        # Test compliance check
+        # 测试合规检查
         result = await compliance_agent.checker.perform_compliance_check(test_message)
         
         return {
@@ -187,10 +187,10 @@ async def test_compliance_agent(tenant_id: str, test_message: str):
         }
         
     except Exception as e:
-        logger.error(f"Compliance test failed: {e}", exc_info=True)
+        logger.error(f"合规测试失败: {e}", exc_info=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Compliance test failed: {str(e)}"
+            detail=f"合规测试失败: {str(e)}"
         )
 
 
