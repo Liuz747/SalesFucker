@@ -7,6 +7,9 @@ Handles customer data storage, retrieval, and profile updates.
 
 from typing import Dict, Any, List, Optional
 from datetime import datetime
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+import json
 from ..core import BaseAgent, AgentMessage, ConversationState
 from src.utils import get_current_datetime, get_processing_time_ms
 
@@ -22,11 +25,20 @@ class MemoryAgent(BaseAgent):
     def __init__(self, tenant_id: str):
         super().__init__(f"memory_agent_{tenant_id}", tenant_id)
         
-        # 简化的内存存储 (生产环境中会使用Elasticsearch)
+        # 优化的内存存储结构
         self.customer_profiles: Dict[str, Dict[str, Any]] = {}
         self.conversation_history: Dict[str, List[Dict[str, Any]]] = {}
         
-        self.logger.info(f"记忆管理智能体初始化完成: {self.agent_id}")
+        # 性能优化组件
+        self._profile_cache = {}  # LRU缓存
+        self._cache_max_size = 1000
+        self._executor = ThreadPoolExecutor(max_workers=4)  # 异步I/O处理
+        
+        # 索引结构 - 快速查询
+        self._customer_index = {}  # 客户ID到最后更新时间映射
+        self._profile_locks = {}  # 并发控制
+        
+        self.logger.info(f"记忆管理智能体初始化完成: {self.agent_id}，启用性能优化")
     
     async def process_message(self, message: AgentMessage) -> AgentMessage:
         """
@@ -182,7 +194,9 @@ class MemoryAgent(BaseAgent):
     
     async def _retrieve_customer_data(self, customer_id: str) -> Dict[str, Any]:
         """
-        检索客户数据
+        优化的客户数据检索
+        
+        使用缓存和异步I/O提升性能
         
         参数:
             customer_id: 客户ID
@@ -194,11 +208,17 @@ class MemoryAgent(BaseAgent):
             if not customer_id:
                 return {"success": False, "error": "Customer ID required"}
             
-            # 简化检索 (生产环境中使用Elasticsearch)
-            profile_data = self.customer_profiles.get(customer_id)
+            # 1. 检查缓存 - O(1)性能
+            if customer_id in self._profile_cache:
+                cached_data = self._profile_cache[customer_id]
+                self.logger.debug(f"缓存命中: {customer_id}")
+                return cached_data
+            
+            # 2. 异步检索数据
+            profile_data = await self._async_get_profile(customer_id)
             
             if profile_data:
-                return {
+                result = {
                     "success": True,
                     "customer_id": customer_id,
                     "profile": profile_data["profile"],
@@ -206,17 +226,39 @@ class MemoryAgent(BaseAgent):
                     "conversation_history": self.conversation_history.get(customer_id, [])
                 }
             else:
-                return {
+                result = {
                     "success": True,
                     "customer_id": customer_id,
                     "profile": {},
                     "conversation_history": [],
                     "new_customer": True
                 }
+            
+            # 3. 更新缓存
+            self._update_cache(customer_id, result)
+            
+            return result
                 
         except Exception as e:
             self.logger.error(f"客户数据检索失败: {e}")
             return {"success": False, "error": str(e)}
+    
+    async def _async_get_profile(self, customer_id: str) -> Optional[Dict[str, Any]]:
+        """异步获取客户档案"""
+        loop = asyncio.get_event_loop()
+        return await loop.run_in_executor(
+            self._executor, 
+            lambda: self.customer_profiles.get(customer_id)
+        )
+    
+    def _update_cache(self, customer_id: str, data: Dict[str, Any]):
+        """更新LRU缓存"""
+        if len(self._profile_cache) >= self._cache_max_size:
+            # 移除最旧的条目
+            oldest_key = next(iter(self._profile_cache))
+            del self._profile_cache[oldest_key]
+        
+        self._profile_cache[customer_id] = data
     
     async def _update_customer_profile(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """

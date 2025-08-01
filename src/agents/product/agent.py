@@ -6,6 +6,9 @@ Provides expert product knowledge and personalized recommendations.
 """
 
 from typing import Dict, Any, List
+import asyncio
+import hashlib
+from functools import lru_cache
 from ..core import BaseAgent, AgentMessage, ConversationState
 from src.llm import get_llm_client, get_prompt_manager
 from src.utils import get_current_datetime, get_processing_time_ms
@@ -26,7 +29,7 @@ class ProductExpertAgent(BaseAgent):
         self.llm_client = get_llm_client()
         self.prompt_manager = get_prompt_manager()
         
-        # Product knowledge base (simplified for now)
+        # 优化的产品知识库
         self.product_categories = {
             "skincare": ["cleanser", "moisturizer", "serum", "sunscreen", "toner"],
             "makeup": ["foundation", "concealer", "lipstick", "eyeshadow", "mascara"],
@@ -34,7 +37,15 @@ class ProductExpertAgent(BaseAgent):
             "tools": ["brush", "sponge", "applicator", "mirror"]
         }
         
-        self.logger.info(f"产品专家智能体初始化完成: {self.agent_id}")
+        # 性能优化组件
+        self._recommendation_cache = {}  # 推荐结果缓存
+        self._cache_ttl = 3600  # 1小时缓存
+        self._max_cache_size = 500
+        
+        # 预计算的推荐模板（生产环境中会使用向量数据库）
+        self._popular_products = self._init_popular_products()
+        
+        self.logger.info(f"产品专家智能体初始化完成: {self.agent_id}，启用性能优化")
     
     async def process_message(self, message: AgentMessage) -> AgentMessage:
         """
@@ -154,7 +165,9 @@ class ProductExpertAgent(BaseAgent):
         needs_analysis: Dict[str, Any] = None
     ) -> Dict[str, Any]:
         """
-        使用LLM生成产品推荐
+        优化的产品推荐生成
+        
+        使用缓存和预计算提高性能
         
         参数:
             customer_input: 客户输入
@@ -165,48 +178,151 @@ class ProductExpertAgent(BaseAgent):
             Dict[str, Any]: 产品推荐结果
         """
         try:
-            # 准备推荐上下文
-            recommendation_context = self._build_recommendation_context(
-                customer_profile, needs_analysis
-            )
+            # 1. 检查缓存
+            cache_key = self._generate_cache_key(customer_input, customer_profile, needs_analysis)
+            cached_result = self._get_cached_recommendation(cache_key)
+            if cached_result:
+                self.logger.debug(f"推荐缓存命中: {cache_key[:16]}...")
+                return cached_result
             
-            # 获取产品推荐提示词
-            prompt = self.prompt_manager.get_prompt(
-                "sales",
-                "product_recommendation",
-                customer_input=customer_input,
-                skin_type=customer_profile.get("skin_type", "not specified"),
-                main_concerns=", ".join(needs_analysis.get("concerns", []) if needs_analysis else ["general consultation"]),
-                lifestyle=customer_profile.get("lifestyle", "not specified"),
-                budget_preference=customer_profile.get("budget_preference", "medium"),
-                product_context=recommendation_context
-            )
+            # 2. 快速推荐路径（简单查询）
+            if self._is_simple_query(customer_input, needs_analysis):
+                recommendations = await self._get_fast_recommendations(
+                    customer_input, customer_profile, needs_analysis
+                )
+            else:
+                # 3. 完整LLM推荐路径
+                recommendations = await self._get_llm_recommendations(
+                    customer_input, customer_profile, needs_analysis
+                )
             
-            # 调用LLM生成推荐
-            messages = [{"role": "user", "content": prompt}]
-            response = await self.llm_client.chat_completion(messages, temperature=0.7)
-            
-            # 解析推荐结果
-            recommendations = self._parse_recommendation_response(response)
-            
-            # 添加元数据
-            recommendations["agent_id"] = self.agent_id
-            recommendations["recommendation_method"] = "llm_powered"
-            recommendations["confidence"] = self._calculate_recommendation_confidence(
-                customer_profile, needs_analysis
-            )
+            # 4. 缓存结果
+            self._cache_recommendation(cache_key, recommendations)
             
             return recommendations
             
         except Exception as e:
             self.logger.error(f"产品推荐生成失败: {e}")
-            return {
-                "products": [],
-                "general_advice": "I'd be happy to help you find the perfect products. Could you share more about your specific needs?",
-                "fallback": True,
-                "error": str(e),
-                "agent_id": self.agent_id
-            }
+            return self._get_fallback_recommendations(customer_profile)
+    
+    def _generate_cache_key(self, customer_input: str, customer_profile: Dict[str, Any], 
+                          needs_analysis: Dict[str, Any] = None) -> str:
+        """生成缓存键"""
+        key_data = {
+            "input": customer_input.lower().strip(),
+            "skin_type": customer_profile.get("skin_type", ""),
+            "budget": customer_profile.get("budget_preference", ""),
+            "concerns": sorted(needs_analysis.get("concerns", []) if needs_analysis else [])
+        }
+        key_string = str(sorted(key_data.items()))
+        return hashlib.md5(key_string.encode()).hexdigest()
+    
+    def _get_cached_recommendation(self, cache_key: str) -> Optional[Dict[str, Any]]:
+        """获取缓存的推荐结果"""
+        if cache_key in self._recommendation_cache:
+            cached_data = self._recommendation_cache[cache_key]
+            # 检查TTL
+            if get_current_datetime().timestamp() - cached_data["timestamp"] < self._cache_ttl:
+                return cached_data["data"]
+            else:
+                del self._recommendation_cache[cache_key]
+        return None
+    
+    def _cache_recommendation(self, cache_key: str, data: Dict[str, Any]):
+        """缓存推荐结果"""
+        if len(self._recommendation_cache) >= self._max_cache_size:
+            # 移除最旧的条目
+            oldest_key = min(self._recommendation_cache.keys(), 
+                           key=lambda k: self._recommendation_cache[k]["timestamp"])
+            del self._recommendation_cache[oldest_key]
+        
+        self._recommendation_cache[cache_key] = {
+            "data": data,
+            "timestamp": get_current_datetime().timestamp()
+        }
+    
+    def _is_simple_query(self, customer_input: str, needs_analysis: Dict[str, Any] = None) -> bool:
+        """判断是否为简单查询（可使用快速推荐）"""
+        simple_keywords = ["popular", "best", "recommend", "moisturizer", "cleanser"]
+        return any(keyword in customer_input.lower() for keyword in simple_keywords)
+    
+    async def _get_fast_recommendations(self, customer_input: str, customer_profile: Dict[str, Any], 
+                                      needs_analysis: Dict[str, Any] = None) -> Dict[str, Any]:
+        """快速推荐（使用预计算结果）"""
+        category = needs_analysis.get("product_category", "skincare") if needs_analysis else "skincare"
+        
+        return {
+            "products": self._popular_products.get(category, [])[:3],
+            "general_advice": f"这些是我们{category}类别中最受欢迎的产品",
+            "recommendation_method": "fast_lookup",
+            "agent_id": self.agent_id,
+            "confidence": 0.8
+        }
+    
+    async def _get_llm_recommendations(self, customer_input: str, customer_profile: Dict[str, Any], 
+                                     needs_analysis: Dict[str, Any] = None) -> Dict[str, Any]:
+        """完整LLM推荐流程"""
+        # 准备推荐上下文
+        recommendation_context = self._build_recommendation_context(
+            customer_profile, needs_analysis
+        )
+        
+        # 获取产品推荐提示词
+        prompt = self.prompt_manager.get_prompt(
+            "sales",
+            "product_recommendation",
+            customer_input=customer_input,
+            skin_type=customer_profile.get("skin_type", "not specified"),
+            main_concerns=", ".join(needs_analysis.get("concerns", []) if needs_analysis else ["general consultation"]),
+            lifestyle=customer_profile.get("lifestyle", "not specified"),
+            budget_preference=customer_profile.get("budget_preference", "medium"),
+            product_context=recommendation_context
+        )
+        
+        # 调用LLM生成推荐
+        messages = [{"role": "user", "content": prompt}]
+        response = await self.llm_client.chat_completion(messages, temperature=0.7)
+        
+        # 解析推荐结果
+        recommendations = self._parse_recommendation_response(response)
+        
+        # 添加元数据
+        recommendations["agent_id"] = self.agent_id
+        recommendations["recommendation_method"] = "llm_powered"
+        recommendations["confidence"] = self._calculate_recommendation_confidence(
+            customer_profile, needs_analysis
+        )
+        
+        return recommendations
+    
+    def _init_popular_products(self) -> Dict[str, List[str]]:
+        """初始化热门产品数据（生产环境中从数据库加载）"""
+        return {
+            "skincare": [
+                "温和洁面乳 - 适合所有肤质",
+                "保湿精华 - 深层水分补充",
+                "防晒乳SPF50 - 日常防护必备"
+            ],
+            "makeup": [
+                "气垫粉底液 - 轻透自然",
+                "防水睡毛膏 - 持久不晕染",
+                "最爱口红 - 多色可选"
+            ],
+            "fragrance": [
+                "清香淡香水 - 日常香气",
+                "身体喂嘘喂 - 清新持久"
+            ]
+        }
+    
+    def _get_fallback_recommendations(self, customer_profile: Dict[str, Any]) -> Dict[str, Any]:
+        """降级推荐（错误情况下使用）"""
+        return {
+            "products": self._popular_products.get("skincare", [])[:2],
+            "general_advice": "我很乐意为您推荐产品。请告诉我更多关于您的需求。",
+            "fallback": True,
+            "agent_id": self.agent_id,
+            "confidence": 0.5
+        }
     
     def _analyze_customer_needs(
         self, 
