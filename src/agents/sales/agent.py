@@ -5,7 +5,7 @@
 专注于智能体核心逻辑，将模板、策略等功能分离到专门模块。
 
 核心功能:
-- 智能体核心逻辑（< 150行）
+- 智能体核心逻辑
 - 对话协调和状态管理
 - 模块间集成和错误处理
 - LangGraph工作流节点处理
@@ -15,7 +15,6 @@ from typing import Dict, Any
 
 from ..core import BaseAgent, AgentMessage, ConversationState
 from .sales_strategies import get_sales_strategies, analyze_customer_segment, get_strategy_for_segment, adapt_strategy_to_context
-# Removed need_assessment - now using enhanced IntentAnalysisAgent for field extraction
 from src.utils import format_timestamp
 from src.llm import get_llm_client, get_prompt_manager
 

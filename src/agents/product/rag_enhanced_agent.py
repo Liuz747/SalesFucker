@@ -2,69 +2,51 @@
 RAG增强的产品专家智能体
 RAG-Enhanced Product Expert Agent
 
-结合向量检索和智能推荐的增强版产品专家智能体
+结合向量检索和智能推荐的增强版产品专家智能体 - 重构版本
 """
 
 import asyncio
-import json
-from typing import Dict, Any, List, Optional
 import logging
+from typing import Dict, Any, List
 from datetime import datetime
 
 from ..core import BaseAgent, AgentMessage, ConversationState
-from src.llm import get_llm_client, get_prompt_manager
 from src.utils import get_current_datetime, get_processing_time_ms
-from src.rag import (
-    ProductRecommender,
-    RecommendationType, 
-    RecommendationRequest,
-    ProductIndexer,
-    ProductSearch,
-    SearchQuery
-)
+
+# 导入重构后的模块
+from .recommendation_engine import RAGRecommendationEngine
+from .needs_analyzer import CustomerNeedsAnalyzer
+from .recommendation_formatter import RecommendationFormatter
+from .fallback_system import FallbackRecommendationSystem
+from .product_indexer import ProductIndexManager
 
 logger = logging.getLogger(__name__)
 
 class RAGEnhancedProductExpertAgent(BaseAgent):
     """
-    RAG增强的产品专家智能体
+    RAG增强的产品专家智能体 (重构版本)
     
-    在原有产品专家智能体基础上增加了：
-    - 向量化产品检索
-    - 语义相似性搜索
-    - 智能推荐引擎
-    - 个性化推荐算法
-    - 多种推荐策略
+    作为轻量级编排器，协调各个专门模块：
+    - RAG推荐引擎
+    - 客户需求分析器
+    - 推荐结果格式化器
+    - 降级推荐系统
+    - 产品索引管理器
     """
     
     def __init__(self, tenant_id: str, enable_fallback: bool = True):
         super().__init__(f"rag_product_expert_{tenant_id}", tenant_id)
         
-        # LLM integration (继承原有)
-        self.llm_client = get_llm_client()
-        self.prompt_manager = get_prompt_manager()
-        
-        # RAG系统组件
-        self.recommender = ProductRecommender(tenant_id)
-        self.search = ProductSearch(tenant_id)
-        self.indexer = ProductIndexer(tenant_id)
-        
         # 系统配置
         self.enable_fallback = enable_fallback
         self.rag_initialized = False
-        self.fallback_agent = None  # 降级使用原有逻辑
         
-        # 性能配置
-        self.max_recommendations = 5
-        self.similarity_threshold = 0.7
-        self.response_timeout = 30  # 30秒超时
-        
-        # 推荐策略配置
-        self.default_recommendation_types = [
-            RecommendationType.PERSONALIZED,
-            RecommendationType.QUERY_BASED,
-            RecommendationType.TRENDING
-        ]
+        # 初始化各个专门模块
+        self.recommendation_engine = RAGRecommendationEngine(tenant_id)
+        self.needs_analyzer = CustomerNeedsAnalyzer(tenant_id)
+        self.formatter = RecommendationFormatter(tenant_id, self.agent_id)
+        self.fallback_system = FallbackRecommendationSystem(tenant_id, self.agent_id)
+        self.product_indexer = ProductIndexManager(tenant_id)
         
         self.logger.info(f"RAG增强产品专家智能体初始化: {self.agent_id}")
         
@@ -74,10 +56,10 @@ class RAGEnhancedProductExpertAgent(BaseAgent):
     async def _initialize_rag_system(self) -> None:
         """异步初始化RAG系统"""
         try:
-            # 初始化各个RAG组件
-            await self.recommender.initialize()
-            await self.search.initialize()
-            await self.indexer.initialize()
+            # 初始化各个模块
+            await self.recommendation_engine.initialize()
+            await self.needs_analyzer.initialize()
+            await self.product_indexer.initialize()
             
             self.rag_initialized = True
             self.logger.info(f"RAG系统初始化完成: {self.agent_id}")
@@ -86,7 +68,6 @@ class RAGEnhancedProductExpertAgent(BaseAgent):
             self.logger.error(f"RAG系统初始化失败: {e}")
             if self.enable_fallback:
                 self.logger.info("启用降级模式，使用基础产品推荐")
-                # 可以在这里初始化原有的ProductExpertAgent作为fallback
             else:
                 raise
     
@@ -110,15 +91,9 @@ class RAGEnhancedProductExpertAgent(BaseAgent):
                 raise RuntimeError("RAG系统未初始化")
             
             # 生成智能推荐
-            if self.rag_initialized:
-                recommendations = await self._generate_rag_recommendations(
-                    customer_input, customer_profile, customer_history
-                )
-            else:
-                # 使用降级推荐
-                recommendations = await self._generate_fallback_recommendations(
-                    customer_input, customer_profile
-                )
+            recommendations = await self._orchestrate_recommendation_process(
+                customer_input, customer_profile, customer_history
+            )
             
             response_payload = {
                 "product_recommendations": recommendations,
@@ -142,13 +117,8 @@ class RAGEnhancedProductExpertAgent(BaseAgent):
             }
             error_info = await self.handle_error(e, error_context)
             
-            # 紧急降级推荐
-            emergency_recommendations = {
-                "products": [],
-                "general_advice": "我很乐意帮您找到合适的产品。请告诉我您的具体需求和肌肤类型。",
-                "fallback": True,
-                "error_recovery": True
-            }
+            # 使用格式化器创建紧急响应
+            emergency_recommendations = self.formatter.create_fallback_response(str(e))
             
             return await self.send_message(
                 recipient=message.sender,
@@ -177,21 +147,15 @@ class RAGEnhancedProductExpertAgent(BaseAgent):
             customer_profile = state.customer_profile
             customer_history = getattr(state, 'customer_history', [])
             
-            # 分析客户需求（保留原有逻辑）
-            needs_analysis = await self._analyze_customer_needs_enhanced(
+            # 分析客户需求
+            needs_analysis = await self.needs_analyzer.analyze_customer_needs(
                 customer_input, customer_profile, state.intent_analysis
             )
             
-            # 生成RAG增强的产品推荐
-            if self.rag_initialized:
-                recommendations = await self._generate_rag_recommendations(
-                    customer_input, customer_profile, customer_history, needs_analysis
-                )
-            else:
-                # 降级到基础推荐
-                recommendations = await self._generate_fallback_recommendations(
-                    customer_input, customer_profile, needs_analysis
-                )
+            # 生成推荐
+            recommendations = await self._orchestrate_recommendation_process(
+                customer_input, customer_profile, customer_history, needs_analysis
+            )
             
             # 更新对话状态
             state.agent_responses[self.agent_id] = {
@@ -200,7 +164,7 @@ class RAGEnhancedProductExpertAgent(BaseAgent):
                 "processing_complete": True,
                 "rag_enhanced": self.rag_initialized,
                 "recommendation_metadata": {
-                    "engine_version": "rag_enhanced_v1.0",
+                    "engine_version": "rag_enhanced_v2.0_refactored",
                     "processing_time_ms": get_processing_time_ms(start_time),
                     "fallback_used": not self.rag_initialized
                 }
@@ -216,14 +180,11 @@ class RAGEnhancedProductExpertAgent(BaseAgent):
         except Exception as e:
             await self.handle_error(e, {"conversation_id": state.conversation_id})
             
-            # 设置错误降级响应
+            # 使用格式化器创建错误响应
+            error_recommendations = self.formatter.create_fallback_response(str(e))
+            
             state.agent_responses[self.agent_id] = {
-                "product_recommendations": {
-                    "products": [],
-                    "general_advice": "我很乐意为您推荐产品。请告诉我您的具体需求。",
-                    "fallback": True,
-                    "error_recovery": True
-                },
+                "product_recommendations": error_recommendations,
                 "error": str(e),
                 "agent_id": self.agent_id,
                 "rag_enhanced": False

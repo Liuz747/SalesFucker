@@ -30,7 +30,7 @@ class ComplianceAgent(BaseAgent):
     合规审查智能体
     
     作为客户输入的第一道防线，执行全面的合规性检查。
-    支持FDA、EU等多种监管要求，提供详细的审计追踪。
+    支持多种监管要求，提供详细的审计追踪。
     
     采用模块化设计：
     - ComplianceChecker: 核心检查逻辑
