@@ -1,52 +1,44 @@
 """
-音频预处理器
+音频处理管道模块
 
-该模块提供音频文件的预处理功能，包括格式转换、质量优化和元数据提取。
-为语音识别提供最佳的音频输入质量。
+该模块提供音频文件的预处理和后处理功能。
+支持格式转换、质量增强、噪声过滤和音频验证。
 
 核心功能:
-- 音频格式转换和标准化
-- 噪音过滤和质量增强
+- 音频格式转换和优化
+- 噪声过滤和质量增强
 - 音频元数据提取
-- 文件验证和安全检查
+- 音频质量验证
 """
 
 import asyncio
 import aiofiles
+import tempfile
+import os
 from typing import Dict, Any, Optional, Tuple
 from pathlib import Path
-import tempfile
-import shutil
-
-try:
-    import librosa
-    import soundfile as sf
-    import numpy as np
-    AUDIO_LIBS_AVAILABLE = True
-except ImportError:
-    AUDIO_LIBS_AVAILABLE = False
+import subprocess
+import json
 
 from src.utils import (
     get_current_datetime,
     get_processing_time_ms,
     LoggerMixin,
     ErrorHandler,
-    MultiModalConstants,
-    MessageConstants
+    MultiModalConstants
 )
 
 
 class AudioProcessor(LoggerMixin):
     """
-    音频预处理器类
+    音频处理器类
     
-    提供音频文件的预处理、格式转换和质量优化功能。
-    支持多种音频格式的处理和标准化。
+    提供音频文件的预处理和后处理功能。
+    支持多种音频格式和质量优化。
     
     属性:
         temp_dir: 临时文件目录
-        target_sample_rate: 目标采样率
-        target_channels: 目标声道数
+        ffmpeg_available: FFmpeg是否可用
         supported_formats: 支持的音频格式
     """
     
@@ -55,363 +47,395 @@ class AudioProcessor(LoggerMixin):
         初始化音频处理器
         
         Args:
-            temp_dir: 临时文件目录，None使用系统默认
+            temp_dir: 临时文件目录
         """
         super().__init__()
+        
         self.temp_dir = temp_dir or tempfile.gettempdir()
-        self.target_sample_rate = 16000  # Whisper推荐采样率
-        self.target_channels = 1  # 单声道
-        self.supported_formats = MessageConstants.SUPPORTED_AUDIO_FORMATS
+        self.supported_formats = MultiModalConstants.SUPPORTED_AUDIO_FORMATS
         
-        if not AUDIO_LIBS_AVAILABLE:
-            self.logger.warning("音频处理库未安装，仅支持基础功能")
+        # 检查FFmpeg可用性
+        self.ffmpeg_available = self._check_ffmpeg_availability()
         
-        self.logger.info(f"音频处理器已初始化 - 临时目录: {self.temp_dir}")
+        if self.ffmpeg_available:
+            self.logger.info("音频处理器已初始化，FFmpeg可用")
+        else:
+            self.logger.warning("音频处理器已初始化，FFmpeg不可用，功能受限")
+    
+    def _check_ffmpeg_availability(self) -> bool:
+        """检查FFmpeg是否可用"""
+        try:
+            result = subprocess.run(
+                ['ffmpeg', '-version'], 
+                capture_output=True, 
+                text=True, 
+                timeout=5
+            )
+            return result.returncode == 0
+        except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
+            return False
     
     @ErrorHandler.with_error_handling()
-    async def process_audio_file(self, input_path: str, output_path: Optional[str] = None) -> Dict[str, Any]:
+    async def process_audio_file(
+        self, 
+        file_path: str,
+        enhance_quality: bool = True,
+        normalize_format: bool = True
+    ) -> Dict[str, Any]:
         """
         处理音频文件
         
         Args:
-            input_path: 输入音频文件路径
-            output_path: 输出文件路径，None自动生成
+            file_path: 音频文件路径
+            enhance_quality: 是否增强质量
+            normalize_format: 是否标准化格式
             
         Returns:
-            处理结果，包含输出路径和音频信息
+            处理结果和元数据
         """
-        start_time = get_current_datetime()
-        self.logger.info(f"开始处理音频文件: {input_path}")
+        start_time = asyncio.get_event_loop().time()
+        
+        self.logger.info(f"开始处理音频文件: {file_path}")
         
         try:
-            # 验证输入文件
-            input_info = await self.validate_audio_file(input_path)
-            if not input_info['is_valid']:
-                raise ValueError(f"无效的音频文件: {input_info['error']}")
+            # 验证文件
+            await self._validate_audio_file(file_path)
             
-            # 生成输出路径
-            if not output_path:
-                output_path = await self._generate_temp_path(input_path, 'wav')
+            # 提取音频元数据
+            metadata = await self._extract_audio_metadata(file_path)
             
-            # 执行音频处理
-            if AUDIO_LIBS_AVAILABLE:
-                processed_info = await self._process_with_librosa(input_path, output_path)
-            else:
-                # 简单文件复制（如果格式已支持）
-                processed_info = await self._simple_copy(input_path, output_path)
+            # 处理后的文件路径
+            processed_path = file_path
             
-            processing_time = get_processing_time_ms(start_time)
+            # 格式标准化
+            if normalize_format and self.ffmpeg_available:
+                processed_path = await self._normalize_audio_format(file_path, metadata)
+            
+            # 质量增强
+            if enhance_quality and self.ffmpeg_available:
+                processed_path = await self._enhance_audio_quality(processed_path, metadata)
+            
+            # 更新元数据
+            if processed_path != file_path:
+                final_metadata = await self._extract_audio_metadata(processed_path)
+                metadata.update(final_metadata)
+            
+            processing_time = (asyncio.get_event_loop().time() - start_time) * 1000
             
             result = {
-                'input_path': input_path,
-                'output_path': output_path,
-                'original_info': input_info,
-                'processed_info': processed_info,
+                'original_path': file_path,
+                'processed_path': processed_path,
+                'metadata': metadata,
                 'processing_time_ms': processing_time,
-                'success': True
+                'enhanced': enhance_quality and self.ffmpeg_available,
+                'normalized': normalize_format and self.ffmpeg_available
             }
             
             self.logger.info(
-                f"音频处理完成: {input_path} -> {output_path}, "
-                f"耗时: {processing_time}ms"
+                f"音频文件处理完成: {file_path}, "
+                f"耗时: {processing_time:.1f}ms, "
+                f"时长: {metadata.get('duration', 0):.1f}秒"
             )
             
             return result
             
         except Exception as e:
-            self.logger.error(f"音频处理失败: {input_path}, 错误: {e}")
+            self.logger.error(f"音频文件处理失败: {file_path}, 错误: {e}")
             raise
     
-    @ErrorHandler.with_error_handling()
-    async def validate_audio_file(self, file_path: str) -> Dict[str, Any]:
-        """
-        验证音频文件
+    async def _validate_audio_file(self, file_path: str):
+        """验证音频文件"""
+        path = Path(file_path)
         
-        Args:
-            file_path: 音频文件路径
-            
-        Returns:
-            验证结果信息
-        """
-        result = {
-            'is_valid': False,
-            'file_path': file_path,
-            'error': None,
-            'file_size': 0,
-            'format': None,
-            'duration': None,
-            'sample_rate': None,
-            'channels': None
-        }
+        # 检查文件是否存在
+        if not path.exists():
+            raise FileNotFoundError(f"音频文件不存在: {file_path}")
         
+        # 检查文件大小
+        file_size = path.stat().st_size
+        if file_size > MultiModalConstants.MAX_AUDIO_SIZE:
+            raise ValueError(f"音频文件过大: {file_size} bytes")
+        
+        if file_size == 0:
+            raise ValueError("音频文件为空")
+        
+        # 检查文件格式
+        extension = path.suffix.lower().lstrip('.')
+        if extension not in self.supported_formats:
+            raise ValueError(f"不支持的音频格式: {extension}")
+    
+    async def _extract_audio_metadata(self, file_path: str) -> Dict[str, Any]:
+        """提取音频元数据"""
         try:
-            # 检查文件存在
-            path = Path(file_path)
-            if not path.exists():
-                result['error'] = "文件不存在"
-                return result
-            
-            # 检查文件大小
-            file_size = path.stat().st_size
-            result['file_size'] = file_size
-            
-            if file_size == 0:
-                result['error'] = "文件为空"
-                return result
-            
-            if file_size > MultiModalConstants.MAX_AUDIO_SIZE:
-                result['error'] = f"文件过大: {file_size} > {MultiModalConstants.MAX_AUDIO_SIZE}"
-                return result
-            
-            # 检查文件格式
-            file_extension = path.suffix.lower().lstrip('.')
-            if file_extension not in self.supported_formats:
-                result['error'] = f"不支持的格式: {file_extension}"
-                return result
-            
-            result['format'] = file_extension
-            
-            # 提取音频信息（如果可能）
-            if AUDIO_LIBS_AVAILABLE:
-                try:
-                    audio_info = await self._extract_audio_info(file_path)
-                    result.update(audio_info)
-                    
-                    # 验证音频时长
-                    if result['duration']:
-                        if result['duration'] < MultiModalConstants.MIN_AUDIO_DURATION:
-                            result['error'] = f"音频过短: {result['duration']}s < {MultiModalConstants.MIN_AUDIO_DURATION}s"
-                            return result
-                        
-                        if result['duration'] > MultiModalConstants.MAX_AUDIO_DURATION:
-                            result['error'] = f"音频过长: {result['duration']}s > {MultiModalConstants.MAX_AUDIO_DURATION}s"
-                            return result
-                    
-                except Exception as e:
-                    self.logger.warning(f"无法提取音频信息: {e}")
-            
-            result['is_valid'] = True
-            return result
-            
-        except Exception as e:
-            result['error'] = str(e)
-            return result
-    
-    async def _extract_audio_info(self, file_path: str) -> Dict[str, Any]:
-        """
-        提取音频文件信息
-        
-        Args:
-            file_path: 音频文件路径
-            
-        Returns:
-            音频信息字典
-        """
-        try:
-            # 使用librosa加载音频信息（不加载数据）
-            info = sf.info(file_path)
-            
-            return {
-                'duration': info.duration,
-                'sample_rate': info.samplerate,
-                'channels': info.channels,
-                'frames': info.frames,
-                'format': info.format,
-                'subtype': info.subtype
-            }
-        except Exception as e:
-            self.logger.warning(f"提取音频信息失败: {e}")
-            return {
-                'duration': None,
-                'sample_rate': None,
-                'channels': None
-            }
-    
-    async def _process_with_librosa(self, input_path: str, output_path: str) -> Dict[str, Any]:
-        """
-        使用librosa处理音频
-        
-        Args:
-            input_path: 输入文件路径
-            output_path: 输出文件路径
-            
-        Returns:
-            处理后的音频信息
-        """
-        try:
-            # 加载音频数据
-            audio_data, original_sr = librosa.load(input_path, sr=None, mono=False)
-            
-            # 转换为单声道
-            if audio_data.ndim > 1:
-                audio_data = librosa.to_mono(audio_data)
-            
-            # 重采样到目标采样率
-            if original_sr != self.target_sample_rate:
-                audio_data = librosa.resample(
-                    audio_data, 
-                    orig_sr=original_sr, 
-                    target_sr=self.target_sample_rate
-                )
-            
-            # 音频增强（可选）
-            audio_data = self._enhance_audio(audio_data)
-            
-            # 保存处理后的音频
-            sf.write(output_path, audio_data, self.target_sample_rate)
-            
-            return {
-                'duration': len(audio_data) / self.target_sample_rate,
-                'sample_rate': self.target_sample_rate,
-                'channels': 1,
-                'frames': len(audio_data),
-                'enhanced': True
-            }
-            
-        except Exception as e:
-            self.logger.error(f"librosa音频处理失败: {e}")
-            # 降级到简单复制
-            return await self._simple_copy(input_path, output_path)
-    
-    def _enhance_audio(self, audio_data: np.ndarray) -> np.ndarray:
-        """
-        音频增强处理
-        
-        Args:
-            audio_data: 音频数据
-            
-        Returns:
-            增强后的音频数据
-        """
-        try:
-            # 归一化音频
-            if np.max(np.abs(audio_data)) > 0:
-                audio_data = audio_data / np.max(np.abs(audio_data)) * 0.8
-            
-            # 简单的噪音过滤（移除过小的信号）
-            threshold = np.max(np.abs(audio_data)) * 0.01
-            audio_data = np.where(np.abs(audio_data) < threshold, 0, audio_data)
-            
-            return audio_data
-            
-        except Exception as e:
-            self.logger.warning(f"音频增强失败: {e}")
-            return audio_data
-    
-    async def _simple_copy(self, input_path: str, output_path: str) -> Dict[str, Any]:
-        """
-        简单文件复制（无法使用librosa时的降级方案）
-        
-        Args:
-            input_path: 输入文件路径
-            output_path: 输出文件路径
-            
-        Returns:
-            文件信息
-        """
-        try:
-            async with aiofiles.open(input_path, 'rb') as src:
-                async with aiofiles.open(output_path, 'wb') as dst:
-                    await dst.write(await src.read())
-            
-            # 返回基本信息
-            file_size = Path(output_path).stat().st_size
-            return {
-                'duration': None,
-                'sample_rate': None,
-                'channels': None,
-                'frames': None,
-                'file_size': file_size,
-                'enhanced': False
-            }
-            
-        except Exception as e:
-            self.logger.error(f"文件复制失败: {e}")
-            raise
-    
-    async def _generate_temp_path(self, input_path: str, target_format: str) -> str:
-        """
-        生成临时文件路径
-        
-        Args:
-            input_path: 输入文件路径
-            target_format: 目标格式
-            
-        Returns:
-            临时文件路径
-        """
-        input_name = Path(input_path).stem
-        temp_filename = f"processed_{input_name}_{get_current_datetime().strftime('%Y%m%d_%H%M%S')}.{target_format}"
-        return str(Path(self.temp_dir) / temp_filename)
-    
-    @ErrorHandler.with_error_handling()
-    async def batch_process_audio(self, input_paths: List[str]) -> List[Dict[str, Any]]:
-        """
-        批量处理音频文件
-        
-        Args:
-            input_paths: 输入文件路径列表
-            
-        Returns:
-            处理结果列表
-        """
-        self.logger.info(f"开始批量处理音频，文件数量: {len(input_paths)}")
-        
-        # 创建异步任务
-        tasks = [self.process_audio_file(path) for path in input_paths]
-        
-        # 并发执行
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        
-        # 处理结果
-        successful_results = []
-        for i, result in enumerate(results):
-            if isinstance(result, Exception):
-                self.logger.error(f"批量处理失败 {input_paths[i]}: {result}")
+            if self.ffmpeg_available:
+                return await self._extract_metadata_with_ffmpeg(file_path)
             else:
-                successful_results.append(result)
-        
-        self.logger.info(f"批量音频处理完成，成功: {len(successful_results)}/{len(input_paths)}")
-        return successful_results
+                return await self._extract_metadata_basic(file_path)
+        except Exception as e:
+            self.logger.warning(f"元数据提取失败: {e}")
+            return await self._extract_metadata_basic(file_path)
     
-    async def cleanup_temp_files(self, max_age_hours: int = 24):
-        """
-        清理临时文件
-        
-        Args:
-            max_age_hours: 文件最大保留时间（小时）
-        """
+    async def _extract_metadata_with_ffmpeg(self, file_path: str) -> Dict[str, Any]:
+        """使用FFmpeg提取音频元数据"""
         try:
-            temp_path = Path(self.temp_dir)
-            current_time = get_current_datetime()
+            # 使用ffprobe提取详细信息
+            cmd = [
+                'ffprobe',
+                '-v', 'quiet',
+                '-print_format', 'json',
+                '-show_format',
+                '-show_streams',
+                file_path
+            ]
             
-            for file_path in temp_path.glob("processed_*"):
-                if file_path.is_file():
-                    file_age = current_time - datetime.fromtimestamp(file_path.stat().st_mtime)
-                    if file_age.total_seconds() > max_age_hours * 3600:
-                        file_path.unlink()
-                        self.logger.debug(f"清理临时文件: {file_path}")
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            
+            stdout, stderr = await process.communicate()
+            
+            if process.returncode != 0:
+                raise Exception(f"ffprobe失败: {stderr.decode()}")
+            
+            probe_data = json.loads(stdout.decode())
+            
+            # 提取音频流信息
+            audio_stream = None
+            for stream in probe_data.get('streams', []):
+                if stream.get('codec_type') == 'audio':
+                    audio_stream = stream
+                    break
+            
+            if not audio_stream:
+                raise Exception("未找到音频流")
+            
+            format_info = probe_data.get('format', {})
+            
+            return {
+                'duration': float(format_info.get('duration', 0)),
+                'bit_rate': int(format_info.get('bit_rate', 0)),
+                'sample_rate': int(audio_stream.get('sample_rate', 0)),
+                'channels': int(audio_stream.get('channels', 0)),
+                'codec': audio_stream.get('codec_name', ''),
+                'format': format_info.get('format_name', ''),
+                'size_bytes': int(format_info.get('size', 0))
+            }
             
         except Exception as e:
-            self.logger.error(f"清理临时文件失败: {e}")
+            self.logger.warning(f"FFmpeg元数据提取失败: {e}")
+            raise
     
-    def get_processing_stats(self) -> Dict[str, Any]:
-        """
-        获取处理统计信息
+    async def _extract_metadata_basic(self, file_path: str) -> Dict[str, Any]:
+        """基础元数据提取"""
+        path = Path(file_path)
+        file_size = path.stat().st_size
         
-        Returns:
-            统计信息字典
-        """
         return {
-            'audio_libs_available': AUDIO_LIBS_AVAILABLE,
-            'target_sample_rate': self.target_sample_rate,
-            'target_channels': self.target_channels,
+            'size_bytes': file_size,
+            'format': path.suffix.lower().lstrip('.'),
+            'duration': 0,  # 无法获取，设为0
+            'sample_rate': 0,
+            'channels': 0,
+            'bit_rate': 0,
+            'codec': 'unknown'
+        }
+    
+    async def _normalize_audio_format(
+        self, 
+        file_path: str, 
+        metadata: Dict[str, Any]
+    ) -> str:
+        """标准化音频格式"""
+        try:
+            # 如果已经是理想格式，跳过转换
+            if (metadata.get('codec') == 'pcm_s16le' and 
+                metadata.get('sample_rate') == 16000 and 
+                metadata.get('channels') == 1):
+                return file_path
+            
+            # 生成输出文件路径
+            temp_file = self._generate_temp_filename(file_path, 'normalized.wav')
+            
+            # FFmpeg转换命令
+            cmd = [
+                'ffmpeg',
+                '-i', file_path,
+                '-ar', '16000',  # 采样率16kHz
+                '-ac', '1',      # 单声道
+                '-c:a', 'pcm_s16le',  # PCM 16位编码
+                '-y',            # 覆盖输出文件
+                temp_file
+            ]
+            
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            
+            stdout, stderr = await process.communicate()
+            
+            if process.returncode != 0:
+                raise Exception(f"音频格式转换失败: {stderr.decode()}")
+            
+            self.logger.info(f"音频格式已标准化: {file_path} -> {temp_file}")
+            return temp_file
+            
+        except Exception as e:
+            self.logger.error(f"音频格式标准化失败: {e}")
+            return file_path  # 返回原文件
+    
+    async def _enhance_audio_quality(
+        self, 
+        file_path: str, 
+        metadata: Dict[str, Any]
+    ) -> str:
+        """增强音频质量"""
+        try:
+            # 生成输出文件路径
+            temp_file = self._generate_temp_filename(file_path, 'enhanced.wav')
+            
+            # 构建音频过滤器
+            filters = []
+            
+            # 噪声抑制
+            filters.append('anlmdn=s=0.002')
+            
+            # 音量标准化
+            filters.append('dynaudnorm=p=0.95:m=10')
+            
+            # 高通滤波器去除低频噪声
+            filters.append('highpass=f=80')
+            
+            # 低通滤波器去除高频噪声
+            filters.append('lowpass=f=8000')
+            
+            # FFmpeg增强命令
+            cmd = [
+                'ffmpeg',
+                '-i', file_path,
+                '-af', ','.join(filters),
+                '-y',
+                temp_file
+            ]
+            
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            
+            stdout, stderr = await process.communicate()
+            
+            if process.returncode != 0:
+                self.logger.warning(f"音频质量增强失败: {stderr.decode()}")
+                return file_path  # 返回原文件
+            
+            self.logger.info(f"音频质量已增强: {file_path} -> {temp_file}")
+            return temp_file
+            
+        except Exception as e:
+            self.logger.error(f"音频质量增强失败: {e}")
+            return file_path  # 返回原文件
+    
+    def _generate_temp_filename(self, original_path: str, suffix: str) -> str:
+        """生成临时文件名"""
+        original_name = Path(original_path).stem
+        temp_name = f"{original_name}_{suffix}"
+        return os.path.join(self.temp_dir, temp_name)
+    
+    @ErrorHandler.with_error_handling()
+    async def validate_audio_quality(self, file_path: str) -> Dict[str, Any]:
+        """验证音频质量"""
+        try:
+            metadata = await self._extract_audio_metadata(file_path)
+            
+            quality_scores = {}
+            recommendations = []
+            
+            # 检查时长
+            duration = metadata.get('duration', 0)
+            if duration < MultiModalConstants.MIN_AUDIO_DURATION:
+                quality_scores['duration'] = 0.0
+                recommendations.append("音频时长过短，可能影响识别准确性")
+            elif duration > MultiModalConstants.MAX_AUDIO_DURATION:
+                quality_scores['duration'] = 0.5
+                recommendations.append("音频时长过长，建议分段处理")
+            else:
+                quality_scores['duration'] = 1.0
+            
+            # 检查采样率
+            sample_rate = metadata.get('sample_rate', 0)
+            if sample_rate >= 16000:
+                quality_scores['sample_rate'] = 1.0
+            elif sample_rate >= 8000:
+                quality_scores['sample_rate'] = 0.7
+                recommendations.append("采样率偏低，建议提高到16kHz")
+            else:
+                quality_scores['sample_rate'] = 0.3
+                recommendations.append("采样率过低，可能严重影响识别质量")
+            
+            # 检查比特率
+            bit_rate = metadata.get('bit_rate', 0)
+            if bit_rate >= 128000:
+                quality_scores['bit_rate'] = 1.0
+            elif bit_rate >= 64000:
+                quality_scores['bit_rate'] = 0.8
+            else:
+                quality_scores['bit_rate'] = 0.5
+                recommendations.append("比特率偏低，可能影响音质")
+            
+            # 计算总体质量分数
+            overall_score = sum(quality_scores.values()) / len(quality_scores)
+            
+            quality_level = "excellent"
+            if overall_score < 0.5:
+                quality_level = "poor"
+            elif overall_score < 0.8:
+                quality_level = "fair"
+            elif overall_score < 0.95:
+                quality_level = "good"
+            
+            return {
+                'overall_score': overall_score,
+                'quality_level': quality_level,
+                'quality_scores': quality_scores,
+                'recommendations': recommendations,
+                'metadata': metadata,
+                'is_acceptable': overall_score >= 0.5
+            }
+            
+        except Exception as e:
+            self.logger.error(f"音频质量验证失败: {e}")
+            return {
+                'overall_score': 0.0,
+                'quality_level': "unknown",
+                'quality_scores': {},
+                'recommendations': ["无法验证音频质量"],
+                'metadata': {},
+                'is_acceptable': False,
+                'error': str(e)
+            }
+    
+    async def cleanup_temp_files(self, file_paths: list):
+        """清理临时文件"""
+        for file_path in file_paths:
+            try:
+                if os.path.exists(file_path) and file_path.startswith(self.temp_dir):
+                    os.remove(file_path)
+                    self.logger.debug(f"已删除临时文件: {file_path}")
+            except Exception as e:
+                self.logger.warning(f"清理临时文件失败: {file_path}, 错误: {e}")
+    
+    async def health_check(self) -> Dict[str, Any]:
+        """健康检查"""
+        return {
+            'status': 'healthy',
+            'service': 'audio_processor',
+            'ffmpeg_available': self.ffmpeg_available,
             'supported_formats': self.supported_formats,
             'temp_dir': self.temp_dir,
-            'max_file_size': MultiModalConstants.MAX_AUDIO_SIZE,
-            'duration_limits': {
-                'min': MultiModalConstants.MIN_AUDIO_DURATION,
-                'max': MultiModalConstants.MAX_AUDIO_DURATION
-            },
             'timestamp': get_current_datetime()
         }

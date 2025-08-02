@@ -231,7 +231,7 @@ class WhisperService(LoggerMixin):
             if segment_scores:
                 # 将logprob转换为0-1范围的置信度
                 avg_logprob = sum(segment_scores) / len(segment_scores)
-                base_confidence = max(0, min(1, (ago_logprob + 1) / 1))  # 简化映射
+                base_confidence = max(0, min(1, (avg_logprob + 1) / 1))  # 简化映射
                 confidence_factors.append(base_confidence)
         
         # 文本长度因子

@@ -1,8 +1,7 @@
 """
-Example usage of the refactored RAG system
+Example usage of the RAG system
 
 This demonstrates the clean, simple API of the new RAG modules.
-Each module is focused and under 250 lines.
 """
 import asyncio
 from src.rag import (

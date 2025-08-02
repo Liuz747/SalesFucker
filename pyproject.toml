@@ -9,13 +9,15 @@ readme = "README.md"
 requires-python = ">=3.11"
 
 dependencies = [
+    "anthropic>=0.60.0",
     "elasticsearch>=9.0.2",
     "fastapi>=0.116.1",
+    "google-genai>=0.4.0",
     "langchain>=0.3.27",
     "langgraph>=0.5.4",
     "openai>=1.97.1",
     "pydantic-settings>=2.10.1",
-    "pymilvus>=2.3.0",
+    "pymilvus>=2.5.14",
     "python-dotenv>=1.1.1",
     "redis>=6.2.0",
     "uvicorn>=0.35.0",
