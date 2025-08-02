@@ -29,7 +29,9 @@ from .types import (
     ComplianceStatus,
     MarketStrategy,
     PriorityLevel,
-    InputType
+    InputType,
+    ProcessingType,
+    ProcessingStatus
 )
 from .constants import (
     StatusConstants, 
@@ -38,7 +40,8 @@ from .constants import (
     WorkflowConstants,
     AgentConstants,
     ErrorConstants,
-    ConfigConstants
+    ConfigConstants,
+    MultiModalConstants
 )
 
 __all__ = [
@@ -71,6 +74,8 @@ __all__ = [
     "MarketStrategy",
     "PriorityLevel",
     "InputType",
+    "ProcessingType",
+    "ProcessingStatus",
     
     # 常量
     "StatusConstants",
@@ -79,5 +84,6 @@ __all__ = [
     "WorkflowConstants",
     "AgentConstants",
     "ErrorConstants",
-    "ConfigConstants"
+    "ConfigConstants",
+    "MultiModalConstants"
 ] 

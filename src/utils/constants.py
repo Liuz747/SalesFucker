@@ -86,6 +86,25 @@ class MessageConstants:
     TEXT_INPUT = "text"
     VOICE_INPUT = "voice"
     IMAGE_INPUT = "image"
+    MULTIMODAL_INPUT = "multimodal"
+    
+    # 多模态处理类型
+    VOICE_TRANSCRIPTION = "voice_transcription"
+    IMAGE_ANALYSIS = "image_analysis"
+    SKIN_ANALYSIS = "skin_analysis"
+    PRODUCT_RECOGNITION = "product_recognition"
+    
+    # 多模态文件格式
+    SUPPORTED_AUDIO_FORMATS = ["mp3", "wav", "m4a", "ogg", "webm"]
+    SUPPORTED_IMAGE_FORMATS = ["jpg", "jpeg", "png", "webp"]
+    
+    # 多模态处理状态
+    UPLOADING = "uploading"
+    PROCESSING = "processing"
+    TRANSCRIBING = "transcribing"
+    ANALYZING = "analyzing"
+    COMPLETED = "completed"
+    ERROR = "error"
 
 
 class WorkflowConstants:
@@ -171,4 +190,44 @@ class ConfigConstants:
     ENABLE_COMPLIANCE = True
     ENABLE_MEMORY = True
     ENABLE_ANALYTICS = True
-    ENABLE_HUMAN_LOOP = True 
+    ENABLE_HUMAN_LOOP = True
+    ENABLE_MULTIMODAL = True
+
+
+class MultiModalConstants:
+    """
+    多模态处理常量类
+    
+    定义多模态处理相关的常量和配置。
+    """
+    
+    # 文件大小限制（字节）
+    MAX_AUDIO_SIZE = 25 * 1024 * 1024  # 25MB
+    MAX_IMAGE_SIZE = 10 * 1024 * 1024  # 10MB
+    
+    # 处理时间限制（毫秒）
+    VOICE_PROCESSING_TIMEOUT = 30000  # 30秒
+    IMAGE_PROCESSING_TIMEOUT = 15000  # 15秒
+    
+    # 质量配置
+    MIN_AUDIO_DURATION = 0.5  # 0.5秒
+    MAX_AUDIO_DURATION = 60.0  # 60秒
+    MIN_IMAGE_WIDTH = 200
+    MIN_IMAGE_HEIGHT = 200
+    
+    # 批处理配置
+    MAX_BATCH_IMAGES = 5
+    MAX_CONCURRENT_PROCESSING = 10
+    
+    # 缓存配置
+    VOICE_CACHE_TTL = 3600  # 1小时
+    IMAGE_CACHE_TTL = 86400  # 24小时
+    
+    # 置信度阈值
+    MIN_VOICE_CONFIDENCE = 0.7
+    MIN_IMAGE_CONFIDENCE = 0.6
+    MIN_SKIN_ANALYSIS_CONFIDENCE = 0.5
+    
+    # 支持的语言
+    SUPPORTED_LANGUAGES = ["zh", "en"]
+    DEFAULT_VOICE_LANGUAGE = "zh" 

@@ -53,3 +53,22 @@ class InputType(str, Enum):
     TEXT = MessageConstants.TEXT_INPUT
     VOICE = MessageConstants.VOICE_INPUT
     IMAGE = MessageConstants.IMAGE_INPUT
+    MULTIMODAL = MessageConstants.MULTIMODAL_INPUT
+
+
+class ProcessingType(str, Enum):
+    """多模态处理类型枚举"""
+    VOICE_TRANSCRIPTION = MessageConstants.VOICE_TRANSCRIPTION
+    IMAGE_ANALYSIS = MessageConstants.IMAGE_ANALYSIS
+    SKIN_ANALYSIS = MessageConstants.SKIN_ANALYSIS
+    PRODUCT_RECOGNITION = MessageConstants.PRODUCT_RECOGNITION
+
+
+class ProcessingStatus(str, Enum):
+    """多模态处理状态枚举"""
+    UPLOADING = MessageConstants.UPLOADING
+    PROCESSING = MessageConstants.PROCESSING
+    TRANSCRIBING = MessageConstants.TRANSCRIBING
+    ANALYZING = MessageConstants.ANALYZING
+    COMPLETED = MessageConstants.COMPLETED
+    ERROR = MessageConstants.ERROR
