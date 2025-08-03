@@ -11,7 +11,7 @@ import uvicorn
 import logging
 
 from config.settings import settings
-from src.api.agents import router as agents_router
+from src.api import api_router
 
 # Configure logging
 logging.basicConfig(
@@ -39,7 +39,7 @@ app.add_middleware(
 )
 
 # Include API routers
-app.include_router(agents_router)
+app.include_router(api_router)
 
 @app.get("/")
 async def root():
@@ -53,7 +53,11 @@ async def root():
             "Compliance review and content moderation", 
             "Sales agent with cosmetic expertise",
             "Multi-tenant support",
-            "LangGraph orchestration"
+            "LangGraph orchestration",
+            "Multi-LLM provider support",
+            "Intelligent routing and failover",
+            "Cost tracking and optimization",
+            "Multi-modal input processing"
         ]
     }
 

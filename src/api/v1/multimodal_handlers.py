@@ -32,6 +32,7 @@ from src.multimodal.core.processor import MultiModalProcessor
 from src.multimodal.core.message import MultiModalMessage
 from src.multimodal.core.attachment import AudioAttachment, ImageAttachment
 from src.agents.core.orchestrator import AgentOrchestrator
+from src.api.multi_llm_handlers import MultiLLMAPIHandler
 
 
 class MultiModalAPIHandler(LoggerMixin):
@@ -54,15 +55,17 @@ class MultiModalAPIHandler(LoggerMixin):
         self.processing_status = {}  # 处理状态缓存
         self._processor_instances = {}
         self._orchestrator_instances = {}
+        self.multi_llm_handler = MultiLLMAPIHandler()
     
     async def get_processor(self, tenant_id: str) -> MultiModalProcessor:
-        """获取多模态处理器实例"""
+        """获取多模态处理器实例 - 集成多LLM支持"""
         if tenant_id not in self._processor_instances:
-            openai_api_key = os.getenv("OPENAI_API_KEY")
-            if not openai_api_key:
-                raise HTTPException(status_code=500, detail="OpenAI API key not configured")
-            
-            self._processor_instances[tenant_id] = MultiModalProcessor(openai_api_key)
+            # 使用多LLM客户端而不是直接的OpenAI客户端
+            multi_llm_client = await self.multi_llm_handler.get_client()
+            self._processor_instances[tenant_id] = MultiModalProcessor(
+                llm_client=multi_llm_client,
+                tenant_id=tenant_id
+            )
         
         return self._processor_instances[tenant_id]
     

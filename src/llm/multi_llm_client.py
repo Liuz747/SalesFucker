@@ -12,12 +12,9 @@
 - 多租户隔离和配置管理
 """
 
-import asyncio
 import time
-import uuid
 from typing import Dict, Any, Optional, List, Union, AsyncGenerator
 from datetime import datetime
-from contextlib import asynccontextmanager
 
 from .base_provider import LLMRequest, LLMResponse, RequestType, ProviderError
 from .provider_manager import ProviderManager
@@ -25,6 +22,10 @@ from .intelligent_router import IntelligentRouter, RoutingContext, RoutingStrate
 from .failover_system import FailoverSystem
 from .cost_optimizer import CostOptimizer
 from .provider_config import GlobalProviderConfig, ProviderType
+from .multi_llm_client_modules.request_builder import RequestBuilder
+from .multi_llm_client_modules.response_processor import ResponseProcessor
+from .multi_llm_client_modules.session_manager import SessionManager
+from .multi_llm_client_modules.stats_collector import StatsCollector
 from src.utils import get_component_logger, ErrorHandler
 
 
@@ -53,41 +54,25 @@ class MultiLLMClient:
         self.failover_system = FailoverSystem(self.intelligent_router)
         self.cost_optimizer = CostOptimizer()
         
-        # 客户端状态
-        self.is_initialized = False
-        self.is_shutting_down = False
+        # 专用组件
+        self.request_builder = RequestBuilder()
+        self.response_processor = ResponseProcessor()
+        self.session_manager = SessionManager()
+        self.stats_collector = StatsCollector()
         
-        # 性能统计
-        self.stats = {
-            "total_requests": 0,
-            "successful_requests": 0,
-            "failed_requests": 0,
-            "total_response_time": 0.0,
-            "provider_usage": {},
-            "cost_metrics": {}
-        }
+        # 设置组件引用
+        self.session_manager.set_components(
+            provider_manager=self.provider_manager,
+            intelligent_router=self.intelligent_router,
+            failover_system=self.failover_system,
+            cost_optimizer=self.cost_optimizer
+        )
         
         self.logger.info("多LLM客户端初始化完成")
     
     async def initialize(self):
         """初始化客户端组件"""
-        if self.is_initialized:
-            return
-        
-        try:
-            # 初始化供应商管理器
-            await self.provider_manager.initialize()
-            
-            # 设置成本配置
-            for tenant_id, tenant_config in self.config.tenant_configs.items():
-                self.cost_optimizer.set_cost_config(tenant_id, tenant_config.cost_config)
-            
-            self.is_initialized = True
-            self.logger.info("多LLM客户端初始化成功")
-            
-        except Exception as e:
-            self.logger.error(f"多LLM客户端初始化失败: {str(e)}")
-            raise
+        await self.session_manager.initialize_client(self.config)
     
     async def chat_completion(
         self,
@@ -119,29 +104,32 @@ class MultiLLMClient:
             Union[str, LLMResponse, AsyncGenerator]: 响应内容
         """
         # 检查初始化状态
-        if not self.is_initialized:
+        if not self.session_manager.is_initialized:
             await self.initialize()
         
-        # 创建请求对象
-        request = LLMRequest(
-            request_id=str(uuid.uuid4()),
-            request_type=RequestType.CHAT_COMPLETION,
-            messages=messages,
-            model=model,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            stream=stream,
-            tenant_id=tenant_id,
-            agent_type=agent_type,
-            metadata=kwargs
-        )
-        
-        # 创建路由上下文
-        routing_context = self._create_routing_context(
-            agent_type, tenant_id, messages, **kwargs
-        )
+        start_time = time.time()
         
         try:
+            # 构建请求对象
+            request = self.request_builder.build_chat_request(
+                messages=messages,
+                agent_type=agent_type,
+                tenant_id=tenant_id,
+                model=model,
+                temperature=temperature,
+                max_tokens=max_tokens,
+                stream=stream,
+                **kwargs
+            )
+            
+            # 记录请求开始
+            session_id = self.stats_collector.record_request_start(request)
+            
+            # 构建路由上下文
+            routing_context = self.request_builder.build_routing_context(
+                agent_type, tenant_id, messages, **kwargs
+            )
+            
             # 执行带故障转移的请求
             response = await self.failover_system.execute_with_failover(
                 request, routing_context, strategy
@@ -153,65 +141,17 @@ class MultiLLMClient:
                     request, response, response.provider_type, agent_type
                 )
             
-            # 更新统计信息
-            self._update_stats(request, response, True)
+            # 记录成功统计
+            processing_time = time.time() - start_time
+            self.stats_collector.record_request_success(request, response, processing_time)
             
-            # 返回兼容格式
-            if stream:
-                return response  # 流式响应返回生成器
-            elif isinstance(response, LLMResponse):
-                return response.content  # 兼容原有字符串返回格式
-            else:
-                return response
-                
-        except Exception as e:
-            self._update_stats(request, None, False)
-            self.logger.error(f"聊天完成请求失败: {request.request_id}, 错误: {str(e)}")
-            raise
-    
-    async def process_request(
-        self,
-        request: LLMRequest,
-        routing_context: Optional[RoutingContext] = None,
-        strategy: Optional[RoutingStrategy] = None
-    ) -> Union[LLMResponse, AsyncGenerator[str, None]]:
-        """
-        处理LLM请求的通用接口
-        
-        参数:
-            request: LLM请求对象
-            routing_context: 路由上下文
-            strategy: 路由策略
-            
-        返回:
-            Union[LLMResponse, AsyncGenerator]: 响应结果
-        """
-        if not self.is_initialized:
-            await self.initialize()
-        
-        if not routing_context:
-            routing_context = self._create_routing_context(
-                request.agent_type, 
-                request.tenant_id, 
-                request.messages
-            )
-        
-        try:
-            response = await self.failover_system.execute_with_failover(
-                request, routing_context, strategy
-            )
-            
-            # 记录成本和统计
-            if isinstance(response, LLMResponse):
-                await self.cost_optimizer.record_cost(
-                    request, response, response.provider_type, request.agent_type
-                )
-            
-            self._update_stats(request, response, True)
-            return response
+            # 处理响应格式
+            return self.response_processor.process_chat_response(response, stream)
             
         except Exception as e:
-            self._update_stats(request, None, False)
+            processing_time = time.time() - start_time
+            self.stats_collector.record_request_failure(request, e, processing_time)
+            self.logger.error(f"聊天完成请求失败: {agent_type}, 错误: {str(e)}")
             raise
     
     async def analyze_sentiment(
@@ -231,36 +171,19 @@ class MultiLLMClient:
         返回:
             Dict[str, Any]: 情感分析结果
         """
-        messages = [
-            {
-                "role": "system",
-                "content": "分析给定文本的情感。用JSON格式回复，包含'sentiment'(positive/negative/neutral)、'score'(-1.0到1.0)和'confidence'(0.0到1.0)。"
-            },
-            {
-                "role": "user",
-                "content": text
-            }
-        ]
+        messages = self.response_processor.build_sentiment_messages(text)
+        params = self.response_processor.get_sentiment_params()
+        strategy = self.response_processor.get_sentiment_strategy()
         
         response = await self.chat_completion(
             messages=messages,
             agent_type="sentiment",
             tenant_id=tenant_id,
-            temperature=0.3,
-            strategy=RoutingStrategy.CHINESE_OPTIMIZED,
-            **kwargs
+            strategy=strategy,
+            **{**params, **kwargs}
         )
         
-        try:
-            import json
-            return json.loads(response)
-        except json.JSONDecodeError:
-            return {
-                "sentiment": "neutral",
-                "score": 0.0,
-                "confidence": 0.5,
-                "fallback": True
-            }
+        return self.response_processor.process_sentiment_response(response)
     
     async def classify_intent(
         self,
@@ -281,122 +204,19 @@ class MultiLLMClient:
         返回:
             Dict[str, Any]: 意图分类结果
         """
-        context = ""
-        if conversation_history:
-            context = f"对话历史：\n{chr(10).join(conversation_history[-3:])}\n\n"
-        
-        messages = [
-            {
-                "role": "system",
-                "content": "分类美妆咨询的客户意图。用JSON格式回复，包含'intent'(browsing/interested/ready_to_buy/support)、'category'(skincare/makeup/fragrance/general)、'confidence'(0.0-1.0)和'urgency'(low/medium/high)。"
-            },
-            {
-                "role": "user",
-                "content": f"{context}客户消息: {text}"
-            }
-        ]
+        messages = self.response_processor.build_intent_messages(text, conversation_history)
+        params = self.response_processor.get_intent_params()
+        strategy = self.response_processor.get_intent_strategy()
         
         response = await self.chat_completion(
             messages=messages,
             agent_type="intent",
             tenant_id=tenant_id,
-            temperature=0.3,
-            strategy=RoutingStrategy.AGENT_OPTIMIZED,
-            **kwargs
+            strategy=strategy,
+            **{**params, **kwargs}
         )
         
-        try:
-            import json
-            return json.loads(response)
-        except json.JSONDecodeError:
-            return {
-                "intent": "browsing",
-                "category": "general",
-                "confidence": 0.5,
-                "urgency": "medium",
-                "fallback": True
-            }
-    
-    def _create_routing_context(
-        self,
-        agent_type: Optional[str],
-        tenant_id: Optional[str],
-        messages: List[Dict[str, Any]],
-        **kwargs
-    ) -> RoutingContext:
-        """创建路由上下文"""
-        # 检测内容语言
-        content_language = self._detect_content_language(messages)
-        
-        # 检测多模态内容
-        has_multimodal = self._detect_multimodal_content(messages)
-        
-        # 获取紧急程度
-        urgency_level = kwargs.get("urgency", "medium")
-        
-        # 获取成本优先级
-        cost_priority = kwargs.get("cost_priority", 0.5)
-        
-        # 获取质量阈值
-        quality_threshold = kwargs.get("quality_threshold", 0.8)
-        
-        return RoutingContext(
-            agent_type=agent_type,
-            tenant_id=tenant_id,
-            content_language=content_language,
-            has_multimodal=has_multimodal,
-            urgency_level=urgency_level,
-            cost_priority=cost_priority,
-            quality_threshold=quality_threshold
-        )
-    
-    def _detect_content_language(self, messages: List[Dict[str, Any]]) -> Optional[str]:
-        """检测内容语言"""
-        chinese_chars = set('的一是在不了有和人这中大为上个国我以要他时来用们生到作地于出就分对成会可主发年动同工也能下过子说产种面而方后多定行学法所民得经十三之进着等部度家电力里如水化高自二理起小物现实加量都两体制机当使点从业本去把性好应开它合还因由其些然前外天政四日那社义事平形相全表间样与关各重新线内数正心反你明看原又么利比或但质气第向道命此变条只没结解问意建月公无系军很情者最立代想已通并提直题党程展五果料象员革位入常文总次品式活设及管特件长求老头基资边流路级少图山统接知较将组见计别她手角期根论运农指几九区强放决西被干做必战先回则任取据处队南给色光门即保治北造百规热领七海口东导器压志世金增争济阶油思术极交受联什认六共权收证改清己美再采转更单风切打白教速花带安场身车例真务具万每目至达走积示议声报斗完类八离华名确才科张信马节话米整空元况今集温传土许步群广石记需段研界拉林律叫且究观越织装影算低持音众书布复容儿须际商非验连断深难近矿千周委素技备半办青省列习响约支般史感劳便团往酸历市克何除消构府称太准精值号率族维划选标写存候毛亲快效斯院查江型眼王按格养易置派层片始却专状育厂京识适属圆包火住调满县局照参红细引听该铁价严')
-        
-        for msg in messages:
-            if isinstance(msg, dict) and "content" in msg:
-                content = str(msg["content"])
-                if any(char in chinese_chars for char in content):
-                    return "zh"
-        
-        return "en"
-    
-    def _detect_multimodal_content(self, messages: List[Dict[str, Any]]) -> bool:
-        """检测多模态内容"""
-        for msg in messages:
-            if isinstance(msg, dict):
-                # 检查图像URL
-                if "image_url" in msg:
-                    return True
-                # 检查内容数组（GPT-4V格式）
-                if isinstance(msg.get("content"), list):
-                    for content_item in msg["content"]:
-                        if isinstance(content_item, dict) and content_item.get("type") == "image_url":
-                            return True
-        
-        return False
-    
-    def _update_stats(
-        self,
-        request: LLMRequest,
-        response: Optional[Union[LLMResponse, AsyncGenerator]],
-        success: bool
-    ):
-        """更新统计信息"""
-        self.stats["total_requests"] += 1
-        
-        if success:
-            self.stats["successful_requests"] += 1
-            
-            if isinstance(response, LLMResponse):
-                self.stats["total_response_time"] += response.response_time
-                
-                # 供应商使用统计
-                provider = response.provider_type.value
-                self.stats["provider_usage"][provider] = self.stats["provider_usage"].get(provider, 0) + 1
-        else:
-            self.stats["failed_requests"] += 1
+        return self.response_processor.process_intent_response(response)
     
     async def get_provider_status(self, tenant_id: Optional[str] = None) -> Dict[str, Any]:
         """获取供应商状态"""
@@ -467,103 +287,23 @@ class MultiLLMClient:
             for suggestion in suggestions
         ]
     
-    async def get_routing_stats(self) -> Dict[str, Any]:
-        """获取路由统计"""
-        return self.intelligent_router.get_routing_stats()
-    
-    async def get_failover_stats(self) -> Dict[str, Any]:
-        """获取故障转移统计"""
-        return self.failover_system.get_failover_stats()
-    
     async def get_global_stats(self) -> Dict[str, Any]:
         """获取全局统计信息"""
         return {
-            "client_stats": self.stats.copy(),
+            "client_stats": self.stats_collector.get_full_stats(),
             "provider_stats": self.provider_manager.get_global_stats(),
-            "routing_stats": await self.get_routing_stats(),
-            "failover_stats": await self.get_failover_stats(),
+            "routing_stats": await self.intelligent_router.get_routing_stats(),
+            "failover_stats": await self.failover_system.get_failover_stats(),
             "cost_summary": self.cost_optimizer.get_cost_summary()
         }
     
     async def health_check(self) -> Dict[str, Any]:
         """健康检查"""
-        try:
-            health_status = {
-                "status": "healthy",
-                "timestamp": datetime.now().isoformat(),
-                "is_initialized": self.is_initialized,
-                "provider_manager": "healthy",
-                "intelligent_router": "healthy",
-                "failover_system": "healthy",
-                "cost_optimizer": "healthy"
-            }
-            
-            # 检查供应商状态
-            provider_status = await self.get_provider_status()
-            healthy_providers = sum(
-                1 for status in provider_status.values() 
-                if status["is_healthy"]
-            )
-            
-            health_status["available_providers"] = healthy_providers
-            health_status["total_providers"] = len(provider_status)
-            
-            if healthy_providers == 0:
-                health_status["status"] = "unhealthy"
-                health_status["error"] = "没有可用的供应商"
-            
-            return health_status
-            
-        except Exception as e:
-            return {
-                "status": "unhealthy",
-                "timestamp": datetime.now().isoformat(),
-                "error": str(e)
-            }
-    
-    @asynccontextmanager
-    async def request_context(
-        self,
-        agent_type: Optional[str] = None,
-        tenant_id: Optional[str] = None,
-        strategy: Optional[RoutingStrategy] = None
-    ):
-        """请求上下文管理器"""
-        context = {
-            "agent_type": agent_type,
-            "tenant_id": tenant_id,
-            "strategy": strategy,
-            "start_time": time.time()
-        }
-        
-        try:
-            yield context
-        finally:
-            # 记录请求完成时间
-            context["end_time"] = time.time()
-            context["duration"] = context["end_time"] - context["start_time"]
-            
-            self.logger.debug(
-                f"请求上下文完成: 智能体={agent_type}, "
-                f"租户={tenant_id}, "
-                f"耗时={context['duration']:.3f}s"
-            )
+        return await self.session_manager.health_check()
     
     async def shutdown(self):
         """关闭客户端"""
-        if self.is_shutting_down:
-            return
-        
-        self.is_shutting_down = True
-        
-        try:
-            # 关闭供应商管理器
-            await self.provider_manager.shutdown()
-            
-            self.logger.info("多LLM客户端已关闭")
-            
-        except Exception as e:
-            self.logger.error(f"关闭多LLM客户端时出错: {str(e)}")
+        await self.session_manager.shutdown()
 
 
 # 全局客户端实例
