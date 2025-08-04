@@ -48,17 +48,13 @@ All dependencies are managed via `pyproject.toml`:
 
 ### Core Dependencies
 - **anthropic>=0.60.0** - Claude models support
-- **google-generativeai>=0.8.0** - Gemini models support
+- **google-genai>=1.28.0** - Gemini models support
 - **openai>=1.98.0** - OpenAI and DeepSeek models
 - **fastapi>=0.116.1** - Web API framework
 - **elasticsearch>=9.1.0** - Memory storage
 - **redis>=6.2.0** - Caching layer
 - **langchain>=0.3.27** - LLM framework
 - **langgraph>=0.6.2** - Agent orchestration
-
-### Multi-Modal Dependencies
-- **pillow>=10.0.0** - Image processing
-- **python-multipart>=0.0.6** - File uploads
 
 ## 🔧 Configuration
 

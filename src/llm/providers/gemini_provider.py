@@ -13,7 +13,7 @@ Google Gemini供应商实现模块
 """
 
 from typing import Dict, Any, Optional, List, AsyncGenerator
-import google.generativeai as genai
+import google.genai as genai
 import base64
 import io
 import time
