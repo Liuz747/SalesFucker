@@ -12,16 +12,18 @@
 - 多租户成本隔离
 """
 
-from typing import Dict, Any, Optional, List
+from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime, timedelta
+from collections import defaultdict
+from enum import Enum
 
 from .base_provider import LLMRequest, LLMResponse
 from .provider_config import ProviderType, CostConfig
-from .cost_optimizer.models import CostRecord, CostAnalysis, OptimizationSuggestion
-from .cost_optimizer.analyzer import CostAnalyzer
-from .cost_optimizer.suggestion_engine import SuggestionEngine
-from .cost_optimizer.budget_monitor import BudgetMonitor
-from .cost_optimizer.benchmark_data import BenchmarkData
+from .cost_optimizer_modules.models import CostRecord, CostAnalysis, OptimizationSuggestion, OptimizationType
+from .cost_optimizer_modules.analyzer import CostAnalyzer
+from .cost_optimizer_modules.suggestion_engine import SuggestionEngine
+from .cost_optimizer_modules.budget_monitor import BudgetMonitor
+from .cost_optimizer_modules.benchmark_data import BenchmarkData
 from src.utils import get_component_logger, ErrorHandler
 
 
@@ -39,6 +41,12 @@ class CostOptimizer:
         """初始化成本优化器"""
         self.logger = get_component_logger(__name__, "CostOptimizer")
         self.error_handler = ErrorHandler("cost_optimizer")
+        
+        # 初始化核心组件
+        self.analyzer = CostAnalyzer()
+        self.suggestion_engine = SuggestionEngine()
+        self.budget_monitor = BudgetMonitor()
+        self.benchmark_data = BenchmarkData()
         
         # 成本记录存储
         self.cost_records: List[CostRecord] = []
@@ -161,7 +169,7 @@ class CostOptimizer:
                 self.cost_records = self.cost_records[-self.max_records:]
             
             # 检查预算告警
-            await self._check_budget_alerts(cost_record)
+            await self.budget_monitor.check_alerts(cost_record)
             
             # 清理相关缓存
             self._invalidate_analysis_cache(request.tenant_id)
@@ -262,10 +270,10 @@ class CostOptimizer:
                 tenant_breakdown[tenant_key] += record.cost
             
             # 成本趋势分析
-            cost_trends = self._calculate_cost_trends(filtered_records, start_time, end_time)
+            cost_trends = self.analyzer.calculate_trends(filtered_records, start_time, end_time)
             
             # 优化机会分析
-            optimization_opportunities = await self._identify_optimization_opportunities(filtered_records)
+            optimization_opportunities = await self.analyzer.identify_opportunities(filtered_records)
             
             # 创建分析结果
             analysis = CostAnalysis(
@@ -326,15 +334,15 @@ class CostOptimizer:
             suggestions = []
             
             # 供应商切换建议
-            provider_suggestions = await self._analyze_provider_switching(analysis, min_savings)
+            provider_suggestions = await self.suggestion_engine.analyze_provider_switching(analysis, min_savings)
             suggestions.extend(provider_suggestions)
             
             # 模型降级建议
-            model_suggestions = await self._analyze_model_downgrading(analysis, min_savings)
+            model_suggestions = await self.suggestion_engine.analyze_model_downgrading(analysis, min_savings)
             suggestions.extend(model_suggestions)
             
             # 缓存策略建议
-            cache_suggestions = await self._analyze_cache_opportunities(analysis, min_savings)
+            cache_suggestions = await self.suggestion_engine.analyze_cache_opportunities(analysis, min_savings)
             suggestions.extend(cache_suggestions)
             
             # 按节省潜力排序

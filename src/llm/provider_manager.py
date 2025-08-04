@@ -24,9 +24,9 @@ from .provider_config import (
     TenantProviderConfig,
     ProviderHealth
 )
-from .provider_manager.lifecycle_manager import LifecycleManager
-from .provider_manager.health_monitor import HealthMonitor
-from .provider_manager.stats_collector import StatsCollector
+from .provider_manager_modules.lifecycle_manager import LifecycleManager
+from .provider_manager_modules.health_monitor import HealthMonitor
+from .provider_manager_modules.stats_collector import StatsCollector
 from src.utils import get_component_logger, ErrorHandler
 
 

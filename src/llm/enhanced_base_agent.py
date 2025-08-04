@@ -19,8 +19,8 @@ from ..agents.core.message import AgentMessage, ConversationState
 from .multi_llm_client import MultiLLMClient, get_multi_llm_client
 from .intelligent_router import RoutingStrategy
 from .provider_config import GlobalProviderConfig
-from .enhanced_base_agent.agent_config import AgentConfig
-from .enhanced_base_agent.llm_interface import LLMInterface
+from .enhanced_base_agent_modules.agent_config import AgentConfig
+from .enhanced_base_agent_modules.llm_interface import LLMInterface
 from src.utils import get_component_logger
 
 

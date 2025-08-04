@@ -22,11 +22,11 @@ from .provider_config import (
     ProviderConfig,
     ProviderType
 )
-from .config_manager.encryption import ConfigEncryption
-from .config_manager.validator import ConfigValidator
-from .config_manager.loader import ConfigLoader
-from .config_manager.serializer import ConfigSerializer
-from .config_manager.backup_manager import BackupManager
+from .config_manager_modules.encryption import ConfigEncryption
+from .config_manager_modules.validator import ConfigValidator
+from .config_manager_modules.loader import ConfigLoader
+from .config_manager_modules.serializer import ConfigSerializer
+from .config_manager_modules.backup_manager import BackupManager
 from src.utils import get_component_logger, ErrorHandler
 
 

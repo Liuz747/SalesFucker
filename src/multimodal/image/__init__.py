@@ -13,12 +13,10 @@
 
 from .gpt4v_service import GPT4VService
 from .image_processor import ImageProcessor
-from .skin_analyzer import SkinAnalyzer
-from .product_recognizer import ProductRecognizer
+from .analysis_orchestrator import ImageAnalysisOrchestrator
 
 __all__ = [
     "GPT4VService",
     "ImageProcessor",
-    "SkinAnalyzer", 
-    "ProductRecognizer"
+    "ImageAnalysisOrchestrator"
 ]

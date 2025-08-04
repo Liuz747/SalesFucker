@@ -23,7 +23,7 @@ from src.utils import (
     get_current_datetime,
     get_processing_time_ms,
     LoggerMixin,
-    ErrorHandler,
+    with_error_handling,
     MultiModalConstants,
     ProcessingType
 )
@@ -56,7 +56,7 @@ class GPT4VService(LoggerMixin):
         
         self.logger.info("GPT-4V图像分析服务已初始化")
     
-    @ErrorHandler.with_error_handling()
+    @with_error_handling()
     async def analyze_skin(self, image_path: str, language: str = 'zh') -> Dict[str, Any]:
         """
         分析皮肤状态
@@ -97,7 +97,7 @@ class GPT4VService(LoggerMixin):
             self.logger.error(f"皮肤分析失败: {image_path}, 错误: {e}")
             raise
     
-    @ErrorHandler.with_error_handling()
+    @with_error_handling()
     async def recognize_product(self, image_path: str, language: str = 'zh') -> Dict[str, Any]:
         """
         识别化妆品产品
@@ -138,7 +138,7 @@ class GPT4VService(LoggerMixin):
             self.logger.error(f"产品识别失败: {image_path}, 错误: {e}")
             raise
     
-    @ErrorHandler.with_error_handling()
+    @with_error_handling()
     async def analyze_general(self, image_path: str, language: str = 'zh') -> Dict[str, Any]:
         """
         通用图像分析

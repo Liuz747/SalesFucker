@@ -17,14 +17,14 @@ from typing import Optional
 from .base_provider import LLMRequest, LLMResponse
 from .intelligent_router import IntelligentRouter, RoutingContext, RoutingStrategy
 from .provider_config import ProviderType
-from .failover_system.models import (
+from .failover_system_modules.models import (
     FailureType, 
     FailoverAction, 
     FailureContext, 
     CircuitBreakerState,
     FailoverConfig
 )
-from .failover_system.failover_system import FailoverSystem as FailoverSystemCore
+from .failover_system_modules.failover_system import FailoverSystem as FailoverSystemCore
 from src.utils import get_component_logger
 
 

@@ -23,7 +23,7 @@ from src.utils import (
     get_current_datetime,
     get_processing_time_ms,
     LoggerMixin,
-    ErrorHandler,
+    with_error_handling,
     MultiModalConstants
 )
 
@@ -70,7 +70,7 @@ class ImageProcessor(LoggerMixin):
         except ImportError:
             return False
     
-    @ErrorHandler.with_error_handling()
+    @with_error_handling()
     async def process_image_file(
         self, 
         file_path: str,
@@ -353,7 +353,7 @@ class ImageProcessor(LoggerMixin):
         temp_name = f"{original_name}_{suffix}"
         return os.path.join(self.temp_dir, temp_name)
     
-    @ErrorHandler.with_error_handling()
+    @with_error_handling()
     async def validate_image_quality(self, file_path: str) -> Dict[str, Any]:
         """验证图像质量"""
         try:
@@ -440,7 +440,7 @@ class ImageProcessor(LoggerMixin):
                 'error': str(e)
             }
     
-    @ErrorHandler.with_error_handling()
+    @with_error_handling()
     async def encode_image_to_base64(self, file_path: str) -> str:
         """将图像编码为base64字符串"""
         try:
