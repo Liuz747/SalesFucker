@@ -90,7 +90,7 @@ class MultiModalErrorHandler(LoggerMixin):
         
         self.logger.info("多模态错误处理器已初始化")
     
-    @ErrorHandler.with_error_handling()
+    @with_error_handling()
     async def handle_voice_processing_error(
         self,
         error: Exception,
@@ -154,7 +154,7 @@ class MultiModalErrorHandler(LoggerMixin):
         
         return fallback_result
     
-    @ErrorHandler.with_error_handling()
+    @with_error_handling()
     async def handle_image_processing_error(
         self,
         error: Exception,
@@ -226,7 +226,7 @@ class MultiModalErrorHandler(LoggerMixin):
         
         return fallback_result
     
-    @ErrorHandler.with_error_handling()
+    @with_error_handling()
     async def handle_multimodal_processing_error(
         self,
         error: Exception,

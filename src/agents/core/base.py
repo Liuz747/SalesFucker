@@ -20,6 +20,7 @@ from src.utils import (
     get_component_logger, 
     get_current_datetime,
     StatusMixin,
+    with_error_handling,
     ErrorHandler,
     ProcessingConstants
 )

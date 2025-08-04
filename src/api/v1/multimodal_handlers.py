@@ -22,7 +22,7 @@ from src.utils import (
     get_current_datetime,
     get_processing_time_ms,
     LoggerMixin,
-    ErrorHandler,
+    with_error_handling,
     InputType,
     ProcessingType,
     ProcessingStatus,
@@ -31,7 +31,7 @@ from src.utils import (
 from src.multimodal.core.processor import MultiModalProcessor
 from src.multimodal.core.message import MultiModalMessage
 from src.multimodal.core.attachment import AudioAttachment, ImageAttachment
-from src.agents.core.orchestrator import AgentOrchestrator
+from src.agents.core.orchestrator import Orchestrator
 from src.api.multi_llm_handlers import MultiLLMAPIHandler
 
 
@@ -69,14 +69,14 @@ class MultiModalAPIHandler(LoggerMixin):
         
         return self._processor_instances[tenant_id]
     
-    async def get_orchestrator(self, tenant_id: str) -> AgentOrchestrator:
+    async def get_orchestrator(self, tenant_id: str) -> Orchestrator:
         """获取智能体编排器实例"""
         if tenant_id not in self._orchestrator_instances:
-            self._orchestrator_instances[tenant_id] = AgentOrchestrator(tenant_id)
+            self._orchestrator_instances[tenant_id] = Orchestrator(tenant_id)
         
         return self._orchestrator_instances[tenant_id]
     
-    @ErrorHandler.with_error_handling()
+    @with_error_handling()
     async def validate_and_save_file(
         self,
         file: UploadFile,
@@ -185,7 +185,7 @@ class MultiModalAPIHandler(LoggerMixin):
         """获取任务状态"""
         return self.processing_status.get(task_id)
     
-    @ErrorHandler.with_error_handling()
+    @with_error_handling()
     async def create_multimodal_message(
         self,
         tenant_id: str,

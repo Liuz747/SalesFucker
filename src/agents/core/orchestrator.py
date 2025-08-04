@@ -20,7 +20,7 @@ from src.utils import (
     get_current_datetime,
     get_processing_time_ms,
     StatusMixin,
-    ErrorHandler,
+    with_error_handling,
     StatusConstants
 )
 

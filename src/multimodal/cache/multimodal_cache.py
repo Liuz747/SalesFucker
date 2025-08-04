@@ -22,7 +22,7 @@ import redis.asyncio as redis
 from src.utils import (
     get_current_datetime,
     LoggerMixin,
-    ErrorHandler,
+    with_error_handling,
     MultiModalConstants
 )
 
@@ -109,7 +109,7 @@ class MultiModalCache(LoggerMixin):
             self.logger.warning(f"Redis连接失败，使用仅内存缓存: {e}")
             self.redis_client = None
     
-    @ErrorHandler.with_error_handling()
+    @with_error_handling()
     async def cache_voice_transcription(
         self,
         audio_content: bytes,
@@ -138,7 +138,7 @@ class MultiModalCache(LoggerMixin):
         self.logger.debug(f"语音转录结果已缓存: {cache_key}")
         return cache_key
     
-    @ErrorHandler.with_error_handling()
+    @with_error_handling()
     async def get_voice_transcription(
         self,
         audio_content: bytes,
@@ -163,7 +163,7 @@ class MultiModalCache(LoggerMixin):
         
         return result
     
-    @ErrorHandler.with_error_handling()
+    @with_error_handling()
     async def cache_image_analysis(
         self,
         image_content: bytes,
@@ -196,7 +196,7 @@ class MultiModalCache(LoggerMixin):
         self.logger.debug(f"图像分析结果已缓存: {cache_key}")
         return cache_key
     
-    @ErrorHandler.with_error_handling()
+    @with_error_handling()
     async def get_image_analysis(
         self,
         image_content: bytes,
@@ -225,7 +225,7 @@ class MultiModalCache(LoggerMixin):
         
         return result
     
-    @ErrorHandler.with_error_handling()
+    @with_error_handling()
     async def cache_multimodal_result(
         self,
         message_content: Dict[str, Any],
@@ -252,7 +252,7 @@ class MultiModalCache(LoggerMixin):
         self.logger.debug(f"多模态处理结果已缓存: {cache_key}")
         return cache_key
     
-    @ErrorHandler.with_error_handling()
+    @with_error_handling()
     async def get_multimodal_result(
         self,
         message_content: Dict[str, Any]
@@ -453,7 +453,7 @@ class MultiModalCache(LoggerMixin):
             if oldest_key in self.memory_cache:
                 del self.memory_cache[oldest_key]
     
-    @ErrorHandler.with_error_handling()
+    @with_error_handling()
     async def invalidate_cache(
         self,
         cache_type: Optional[str] = None,
@@ -496,7 +496,7 @@ class MultiModalCache(LoggerMixin):
             
             self.logger.info(f"内存缓存已清理: {len(keys_to_remove)} 个键")
     
-    @ErrorHandler.with_error_handling()
+    @with_error_handling()
     async def cleanup_expired_cache(self):
         """清理过期缓存"""
         current_time = datetime.now()
@@ -515,7 +515,7 @@ class MultiModalCache(LoggerMixin):
         if expired_keys:
             self.logger.info(f"清理过期内存缓存: {len(expired_keys)} 个键")
     
-    @ErrorHandler.with_error_handling()
+    @with_error_handling()
     async def get_cache_stats(self) -> Dict[str, Any]:
         """获取缓存统计信息"""
         hit_rate = 0.0
@@ -543,7 +543,7 @@ class MultiModalCache(LoggerMixin):
             'cache_config': self.cache_config
         }
     
-    @ErrorHandler.with_error_handling()
+    @with_error_handling()
     async def warmup_cache(
         self,
         common_queries: List[Dict[str, Any]]

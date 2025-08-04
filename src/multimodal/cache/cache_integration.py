@@ -77,7 +77,7 @@ class CachedWhisperService(CachedMultiModalService):
         super().__init__(cache, "whisper_service")
         self.whisper_service = whisper_service
     
-    @ErrorHandler.with_error_handling()
+    @with_error_handling()
     async def transcribe_audio(
         self,
         audio_path: str,
@@ -173,7 +173,7 @@ class CachedGPT4VService(CachedMultiModalService):
         super().__init__(cache, "gpt4v_service")
         self.gpt4v_service = gpt4v_service
     
-    @ErrorHandler.with_error_handling()
+    @with_error_handling()
     async def analyze_skin(
         self,
         image_path: str,
@@ -196,7 +196,7 @@ class CachedGPT4VService(CachedMultiModalService):
             language
         )
     
-    @ErrorHandler.with_error_handling()
+    @with_error_handling()
     async def recognize_product(
         self,
         image_path: str,
@@ -219,7 +219,7 @@ class CachedGPT4VService(CachedMultiModalService):
             language
         )
     
-    @ErrorHandler.with_error_handling()
+    @with_error_handling()
     async def analyze_general(
         self,
         image_path: str,
@@ -316,7 +316,7 @@ class CachedMultiModalProcessor(CachedMultiModalService):
             self.processor.gpt4v_service, cache
         )
     
-    @ErrorHandler.with_error_handling()
+    @with_error_handling()
     async def process_multimodal_message(
         self,
         message,

@@ -17,7 +17,7 @@ from typing import Dict, Any, Optional
 from src.utils import (
     get_current_datetime,
     LoggerMixin,
-    ErrorHandler,
+    with_error_handling,
     InputType
 )
 from src.agents.sentiment.sentiment_analyzer import ChineseSentimentAnalyzer
@@ -61,7 +61,7 @@ class MultimodalSentimentAnalyzer(LoggerMixin):
         
         self.logger.info(f"多模态情感分析器已初始化: {tenant_id}")
     
-    @ErrorHandler.with_error_handling()
+    @with_error_handling()
     async def analyze_multimodal_sentiment(
         self,
         message_context: Dict[str, Any],

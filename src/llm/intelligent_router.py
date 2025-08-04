@@ -29,6 +29,10 @@ from .provider_config import (
     ProviderHealth
 )
 from .provider_manager import ProviderManager
+from .intelligent_router_modules.rule_engine import RuleEngine
+from .intelligent_router_modules.scoring_engine import ScoringEngine
+from .intelligent_router_modules.selection_engine import SelectionEngine
+from .intelligent_router_modules.learning_engine import LearningEngine
 from src.utils import get_component_logger, ErrorHandler
 
 
@@ -87,6 +91,12 @@ class IntelligentRouter:
         self.provider_manager = provider_manager
         self.logger = get_component_logger(__name__, "IntelligentRouter")
         self.error_handler = ErrorHandler("intelligent_router")
+        
+        # 初始化路由的核心组件
+        self.rule_engine = RuleEngine()
+        self.scoring_engine = ScoringEngine(self.agent_optimizations)
+        self.selection_engine = SelectionEngine()
+        self.learning_engine = LearningEngine()
         
         # 路由历史和学习数据
         self.routing_history: List[Dict[str, Any]] = []
@@ -174,7 +184,7 @@ class IntelligentRouter:
                 )
             
             # 应用路由规则过滤
-            filtered_providers = await self._apply_routing_rules(
+            filtered_providers = self.rule_engine.apply_rules(
                 available_providers, request, context
             )
             
@@ -184,16 +194,16 @@ class IntelligentRouter:
                 self.logger.warning("路由规则过滤后无可用供应商，回退到全部供应商")
             
             # 计算供应商评分
-            provider_scores = await self._score_providers(
+            provider_scores = self.scoring_engine.score_providers(
                 filtered_providers, request, context, strategy
             )
             
             # 选择最优供应商
-            selected_provider = self._select_provider(provider_scores, context)
+            selected_provider = self.selection_engine.select_provider(provider_scores, context)
             
             # 记录路由决策
             routing_time = time.time() - start_time
-            await self._record_routing_decision(
+            self.learning_engine.record_decision(
                 request, context, selected_provider, provider_scores, routing_time
             )
             
