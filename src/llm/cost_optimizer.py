@@ -16,15 +16,68 @@ from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime, timedelta
 from collections import defaultdict
 from enum import Enum
+from dataclasses import dataclass, field
 
 from .base_provider import LLMRequest, LLMResponse
 from .provider_config import ProviderType, CostConfig
-from .cost_optimizer_modules.models import CostRecord, CostAnalysis, OptimizationSuggestion, OptimizationType
-from .cost_optimizer_modules.analyzer import CostAnalyzer
-from .cost_optimizer_modules.suggestion_engine import SuggestionEngine
-from .cost_optimizer_modules.budget_monitor import BudgetMonitor
-from .cost_optimizer_modules.benchmark_data import BenchmarkData
 from src.utils import get_component_logger, ErrorHandler
+
+
+# 集成的数据模型 (原 models.py)
+class OptimizationType(str, Enum):
+    """优化类型枚举"""
+    PROVIDER_SWITCH = "provider_switch"
+    MODEL_DOWNGRADE = "model_downgrade"
+    BATCH_OPTIMIZATION = "batch_optimization"
+    CACHE_STRATEGY = "cache_strategy"
+    USAGE_LIMIT = "usage_limit"
+
+
+@dataclass
+class CostRecord:
+    """成本记录"""
+    request_id: str
+    provider_type: ProviderType
+    model_name: str
+    agent_type: Optional[str]
+    tenant_id: Optional[str]
+    input_tokens: int
+    output_tokens: int
+    total_tokens: int
+    cost: float
+    timestamp: datetime
+    response_time: float = 0.0
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class CostAnalysis:
+    """成本分析结果"""
+    period_start: datetime
+    period_end: datetime
+    total_cost: float
+    total_requests: int
+    total_tokens: int
+    avg_cost_per_request: float
+    avg_cost_per_token: float
+    provider_breakdown: Dict[str, float]
+    agent_breakdown: Dict[str, float]
+    tenant_breakdown: Dict[str, float]
+    cost_trends: Dict[str, List[float]]
+    optimization_opportunities: List[Dict[str, Any]]
+
+
+@dataclass
+class OptimizationSuggestion:
+    """优化建议"""
+    optimization_type: OptimizationType
+    current_cost: float
+    potential_savings: float
+    savings_percentage: float
+    confidence: float
+    description: str
+    implementation_details: Dict[str, Any]
+    estimated_impact: Dict[str, Any]
 
 
 
@@ -42,11 +95,8 @@ class CostOptimizer:
         self.logger = get_component_logger(__name__, "CostOptimizer")
         self.error_handler = ErrorHandler("cost_optimizer")
         
-        # 初始化核心组件
-        self.analyzer = CostAnalyzer()
-        self.suggestion_engine = SuggestionEngine()
-        self.budget_monitor = BudgetMonitor()
-        self.benchmark_data = BenchmarkData()
+        # 预算告警状态 (集成 BudgetMonitor 功能)
+        self.budget_alerts: Dict[str, Dict[str, bool]] = defaultdict(dict)
         
         # 成本记录存储
         self.cost_records: List[CostRecord] = []
@@ -168,8 +218,8 @@ class CostOptimizer:
             if len(self.cost_records) > self.max_records:
                 self.cost_records = self.cost_records[-self.max_records:]
             
-            # 检查预算告警
-            await self.budget_monitor.check_alerts(cost_record)
+            # 检查预算告警 (集成功能)
+            await self._check_budget_alerts(cost_record)
             
             # 清理相关缓存
             self._invalidate_analysis_cache(request.tenant_id)
@@ -269,11 +319,11 @@ class CostOptimizer:
                 tenant_key = record.tenant_id or "default"
                 tenant_breakdown[tenant_key] += record.cost
             
-            # 成本趋势分析
-            cost_trends = self.analyzer.calculate_trends(filtered_records, start_time, end_time)
+            # 成本趋势分析 (集成分析器功能)
+            cost_trends = self._calculate_cost_trends(filtered_records, start_time, end_time)
             
-            # 优化机会分析
-            optimization_opportunities = await self.analyzer.identify_opportunities(filtered_records)
+            # 优化机会分析 (集成分析器功能)
+            optimization_opportunities = self._identify_optimization_opportunities(filtered_records)
             
             # 创建分析结果
             analysis = CostAnalysis(
@@ -333,16 +383,16 @@ class CostOptimizer:
             
             suggestions = []
             
-            # 供应商切换建议
-            provider_suggestions = await self.suggestion_engine.analyze_provider_switching(analysis, min_savings)
+            # 供应商切换建议 (集成建议引擎功能)
+            provider_suggestions = self._analyze_provider_switching(analysis, min_savings)
             suggestions.extend(provider_suggestions)
             
-            # 模型降级建议
-            model_suggestions = await self.suggestion_engine.analyze_model_downgrading(analysis, min_savings)
+            # 模型降级建议 (集成建议引擎功能)
+            model_suggestions = self._analyze_model_downgrading(analysis, min_savings)  
             suggestions.extend(model_suggestions)
             
-            # 缓存策略建议
-            cache_suggestions = await self.suggestion_engine.analyze_cache_opportunities(analysis, min_savings)
+            # 缓存策略建议 (集成建议引擎功能)
+            cache_suggestions = self._analyze_cache_opportunities(analysis, min_savings)
             suggestions.extend(cache_suggestions)
             
             # 按节省潜力排序
@@ -446,7 +496,7 @@ class CostOptimizer:
     def set_cost_config(self, tenant_id: str, cost_config: CostConfig):
         """设置租户成本配置"""
         self.cost_configs[tenant_id] = cost_config
-        self.budget_monitor.reset_alerts(tenant_id)
+        self.budget_alerts[tenant_id] = {}  # 重置告警状态
         self.logger.info(f"更新租户成本配置: {tenant_id}")
     
     def get_cost_summary(self, tenant_id: Optional[str] = None) -> Dict[str, Any]:
@@ -475,3 +525,182 @@ class CostOptimizer:
             }
         
         return summary
+    
+    # 集成的预算监控功能 (原 BudgetMonitor)
+    async def _check_budget_alerts(self, cost_record: CostRecord):
+        """检查预算告警"""
+        tenant_id = cost_record.tenant_id or "default"
+        
+        if tenant_id not in self.cost_configs:
+            return
+        
+        cost_config = self.cost_configs[tenant_id]
+        
+        # 计算当日成本（简化估算）
+        today_cost = cost_record.cost * 100  # 估算当日总成本
+        
+        if not cost_config.daily_budget or cost_config.daily_budget <= 0:
+            return
+        
+        usage_ratio = today_cost / cost_config.daily_budget
+        
+        # 严重告警
+        if usage_ratio >= cost_config.cost_threshold_critical:
+            if not self.budget_alerts[tenant_id].get("daily_critical", False):
+                self.logger.warning(
+                    f"租户 {tenant_id} 日预算严重告警: "
+                    f"${today_cost:.4f} / ${cost_config.daily_budget:.4f} "
+                    f"({usage_ratio*100:.1f}%)"
+                )
+                self.budget_alerts[tenant_id]["daily_critical"] = True
+        
+        # 警告告警
+        elif usage_ratio >= cost_config.cost_threshold_warning:
+            if not self.budget_alerts[tenant_id].get("daily_warning", False):
+                self.logger.info(
+                    f"租户 {tenant_id} 日预算警告: "
+                    f"${today_cost:.4f} / ${cost_config.daily_budget:.4f} "
+                    f"({usage_ratio*100:.1f}%)"
+                )
+                self.budget_alerts[tenant_id]["daily_warning"] = True
+    
+    # 集成的分析功能 (原 CostAnalyzer)
+    def _calculate_cost_trends(self, records: List[CostRecord], start_time: datetime, end_time: datetime) -> Dict[str, List[float]]:
+        """计算成本趋势"""
+        trends = {}
+        if not records:
+            return trends
+        
+        # 按日分组计算趋势
+        daily_costs = defaultdict(float)
+        for record in records:
+            day_key = record.timestamp.strftime("%Y-%m-%d")
+            daily_costs[day_key] += record.cost
+        
+        # 转换为趋势数据
+        sorted_days = sorted(daily_costs.keys())
+        trends["daily_cost"] = [daily_costs[day] for day in sorted_days]
+        trends["dates"] = sorted_days
+        
+        return trends
+    
+    def _identify_optimization_opportunities(self, records: List[CostRecord]) -> List[Dict[str, Any]]:
+        """识别优化机会"""
+        opportunities = []
+        
+        if not records:
+            return opportunities
+        
+        # 供应商成本分析
+        provider_costs = defaultdict(float)
+        for record in records:
+            provider_costs[record.provider_type.value] += record.cost
+        
+        # 识别高成本供应商
+        if len(provider_costs) > 1:
+            max_cost_provider = max(provider_costs.items(), key=lambda x: x[1])
+            min_cost_provider = min(provider_costs.items(), key=lambda x: x[1])
+            
+            if max_cost_provider[1] > min_cost_provider[1] * 1.5:
+                opportunities.append({
+                    "type": "provider_switch",
+                    "description": f"考虑从 {max_cost_provider[0]} 切换到 {min_cost_provider[0]}",
+                    "potential_savings": max_cost_provider[1] - min_cost_provider[1],
+                    "confidence": 0.7
+                })
+        
+        return opportunities
+    
+    # 集成的建议引擎功能 (原 SuggestionEngine)
+    def _analyze_provider_switching(self, analysis: CostAnalysis, min_savings: float) -> List[OptimizationSuggestion]:
+        """分析供应商切换建议"""
+        suggestions = []
+        
+        if len(analysis.provider_breakdown) < 2:
+            return suggestions
+        
+        # 找到最贵和最便宜的供应商
+        provider_costs = analysis.provider_breakdown
+        max_provider = max(provider_costs.items(), key=lambda x: x[1])
+        min_provider = min(provider_costs.items(), key=lambda x: x[1])
+        
+        potential_savings = max_provider[1] - min_provider[1]
+        if potential_savings >= min_savings:
+            savings_percentage = potential_savings / max_provider[1] if max_provider[1] > 0 else 0
+            
+            suggestion = OptimizationSuggestion(
+                optimization_type=OptimizationType.PROVIDER_SWITCH,
+                current_cost=max_provider[1],
+                potential_savings=potential_savings,
+                savings_percentage=savings_percentage,
+                confidence=0.8,
+                description=f"从 {max_provider[0]} 切换到 {min_provider[0]} 可节省成本",
+                implementation_details={
+                    "from_provider": max_provider[0],
+                    "to_provider": min_provider[0],
+                    "estimated_effort": "medium"
+                },
+                estimated_impact={
+                    "cost_reduction": potential_savings,
+                    "performance_impact": "minimal"
+                }
+            )
+            suggestions.append(suggestion)
+        
+        return suggestions
+    
+    def _analyze_model_downgrading(self, analysis: CostAnalysis, min_savings: float) -> List[OptimizationSuggestion]:
+        """分析模型降级建议"""
+        suggestions = []
+        
+        # 简化实现：检查是否使用了高成本模型
+        if analysis.total_cost > 10.0:  # 如果总成本超过$10
+            suggestion = OptimizationSuggestion(
+                optimization_type=OptimizationType.MODEL_DOWNGRADE,
+                current_cost=analysis.total_cost,
+                potential_savings=analysis.total_cost * 0.3,  # 估算节省30%
+                savings_percentage=0.3,
+                confidence=0.6,
+                description="考虑使用更经济的模型以降低成本",
+                implementation_details={
+                    "suggested_models": ["gpt-3.5-turbo", "claude-haiku"],
+                    "estimated_effort": "low"
+                },
+                estimated_impact={
+                    "cost_reduction": analysis.total_cost * 0.3,
+                    "quality_impact": "minor"
+                }
+            )
+            suggestions.append(suggestion)
+        
+        return suggestions
+    
+    def _analyze_cache_opportunities(self, analysis: CostAnalysis, min_savings: float) -> List[OptimizationSuggestion]:
+        """分析缓存策略建议"""
+        suggestions = []
+        
+        # 如果请求量较大，建议使用缓存
+        if analysis.total_requests > 100:
+            potential_savings = analysis.total_cost * 0.4  # 估算缓存可节省40%
+            
+            if potential_savings >= min_savings:
+                suggestion = OptimizationSuggestion(
+                    optimization_type=OptimizationType.CACHE_STRATEGY,
+                    current_cost=analysis.total_cost,
+                    potential_savings=potential_savings,
+                    savings_percentage=0.4,
+                    confidence=0.7,
+                    description="实施响应缓存策略以减少重复请求成本",
+                    implementation_details={
+                        "cache_type": "redis",
+                        "ttl": "1hour",
+                        "estimated_effort": "high"
+                    },
+                    estimated_impact={
+                        "cost_reduction": potential_savings,
+                        "response_time_improvement": "significant"
+                    }
+                )
+                suggestions.append(suggestion)
+        
+        return suggestions

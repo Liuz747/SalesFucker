@@ -1,33 +1,30 @@
 """
-配置管理器模块
+简化配置管理器模块
 
-该模块提供多LLM供应商配置的安全存储、加载和管理功能。
-支持配置加密、验证和热更新等高级功能。
+该模块提供简单的LLM供应商配置加载和管理功能。
+遵循现代最佳实践：环境变量存储API密钥，JSON文件存储配置。
 
 核心功能:
-- 安全的凭据存储和加密
-- 配置验证和完整性检查
-- 动态配置加载和热更新
-- 多租户配置隔离
-- 配置备份和恢复
+- 从环境变量加载API密钥
+- JSON配置文件加载和保存
+- 基本配置验证
+- 多租户配置支持
 """
 
-from typing import Optional
-from datetime import datetime
+import os
+import json
+from typing import Optional, Dict, Any
 from pathlib import Path
 
 from .provider_config import (
     GlobalProviderConfig,
     TenantProviderConfig,
     ProviderConfig,
-    ProviderType
+    ProviderType,
+    ProviderCredentials,
+    ModelConfig
 )
-from .config_manager_modules.encryption import ConfigEncryption
-from .config_manager_modules.validator import ConfigValidator
-from .config_manager_modules.loader import ConfigLoader
-from .config_manager_modules.serializer import ConfigSerializer
-from .config_manager_modules.backup_manager import BackupManager
-from src.utils import get_component_logger, ErrorHandler
+from src.utils import get_component_logger
 
 
 class ConfigValidationError(Exception):
@@ -35,77 +32,69 @@ class ConfigValidationError(Exception):
     pass
 
 
-class ConfigEncryptionError(Exception):
-    """配置加密错误"""
-    pass
-
-
 class ConfigManager:
     """
-    配置管理器主类
+    简化配置管理器
     
-    提供安全的配置存储、加载和管理功能。
-    支持配置加密和多租户隔离。
+    提供简单的配置加载和保存功能，遵循现代最佳实践。
+    API密钥通过环境变量管理，配置通过JSON文件管理。
     """
     
-    def __init__(self, config_dir: str = "config", encryption_key: Optional[str] = None):
+    def __init__(self, config_dir: str = "config"):
         """
         初始化配置管理器
         
         参数:
             config_dir: 配置文件目录
-            encryption_key: 加密密钥，None时从环境变量获取
         """
         self.config_dir = Path(config_dir)
         self.config_dir.mkdir(exist_ok=True)
-        
         self.logger = get_component_logger(__name__, "ConfigManager")
-        self.error_handler = ErrorHandler("config_manager")
-        
-        # 初始化子组件
-        self.encryption = ConfigEncryption(encryption_key)
-        self.validator = ConfigValidator()
-        self.loader = ConfigLoader(self.config_dir, self.encryption)
-        self.serializer = ConfigSerializer(self.encryption)
-        self.backup_manager = BackupManager(self.config_dir)
         
         # 配置缓存
-        self._config_cache: Optional[GlobalProviderConfig] = None
-        self._config_last_modified: Optional[datetime] = None
+        self._global_config: Optional[GlobalProviderConfig] = None
         
-        self.logger.info("配置管理器初始化完成")
+        self.logger.info("简化配置管理器初始化完成")
     
-    async def load_global_config(self, force_reload: bool = False) -> GlobalProviderConfig:
+    async def load_global_config(self) -> GlobalProviderConfig:
         """
         加载全局配置
         
-        参数:
-            force_reload: 是否强制重新加载
-            
         返回:
             GlobalProviderConfig: 全局配置对象
         """
         try:
             # 检查缓存
-            if not force_reload and self._config_cache:
-                if self.loader.config_file_exists("global_config.json"):
-                    file_modified = self.loader.get_file_modified_time("global_config.json")
-                    if self._config_last_modified and file_modified <= self._config_last_modified:
-                        return self._config_cache
+            if self._global_config:
+                return self._global_config
             
-            # 使用加载器加载配置
-            global_config = await self.loader.load_global_config()
+            config_file = self.config_dir / "global_config.json"
             
-            # 更新缓存
-            self._config_cache = global_config
-            self._config_last_modified = datetime.now()
+            if config_file.exists():
+                # 从文件加载配置
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    config_data = json.load(f)
+                
+                # 解析配置
+                global_config = self._parse_global_config(config_data)
+            else:
+                # 创建默认配置
+                global_config = self._create_default_config()
+                # 保存默认配置
+                await self.save_global_config(global_config)
+            
+            # 从环境变量加载API密钥
+            self._load_api_keys_from_env(global_config)
+            
+            # 缓存配置
+            self._global_config = global_config
             
             self.logger.info("全局配置加载成功")
             return global_config
             
         except Exception as e:
-            self.error_handler.handle_error(e, {"operation": "load_global_config"})
-            raise
+            self.logger.error(f"配置加载失败: {str(e)}")
+            raise ConfigValidationError(f"配置加载失败: {str(e)}")
     
     async def save_global_config(self, config: GlobalProviderConfig):
         """
@@ -115,245 +104,187 @@ class ConfigManager:
             config: 全局配置对象
         """
         try:
-            # 使用加载器保存配置
-            await self.loader.save_global_config(config)
+            config_file = self.config_dir / "global_config.json"
+            
+            # 序列化配置（不包含API密钥）
+            config_data = self._serialize_global_config(config)
+            
+            # 保存到文件
+            with open(config_file, 'w', encoding='utf-8') as f:
+                json.dump(config_data, f, indent=2, ensure_ascii=False)
             
             # 更新缓存
-            self._config_cache = config
-            self._config_last_modified = datetime.now()
+            self._global_config = config
             
             self.logger.info("全局配置保存成功")
             
         except Exception as e:
-            self.error_handler.handle_error(e, {"operation": "save_global_config"})
-            raise
+            self.logger.error(f"配置保存失败: {str(e)}")
+            raise ConfigValidationError(f"配置保存失败: {str(e)}")
     
-    async def load_tenant_config(self, tenant_id: str) -> Optional[TenantProviderConfig]:
-        """
-        加载租户配置
+    def _load_api_keys_from_env(self, config: GlobalProviderConfig):
+        """从环境变量加载API密钥"""
+        env_mapping = {
+            ProviderType.OPENAI: "OPENAI_API_KEY",
+            ProviderType.ANTHROPIC: "ANTHROPIC_API_KEY", 
+            ProviderType.GEMINI: "GEMINI_API_KEY",
+            ProviderType.DEEPSEEK: "DEEPSEEK_API_KEY"
+        }
         
-        参数:
-            tenant_id: 租户ID
-            
-        返回:
-            TenantProviderConfig: 租户配置对象或None
-        """
-        try:
-            return await self.loader.load_tenant_config(tenant_id)
-            
-        except Exception as e:
-            self.error_handler.handle_error(e, {
-                "operation": "load_tenant_config",
-                "tenant_id": tenant_id
-            })
-            return None
+        for provider_type, provider_config in config.default_providers.items():
+            env_var = env_mapping.get(provider_type)
+            if env_var:
+                api_key = os.getenv(env_var)
+                if api_key:
+                    provider_config.credentials.api_key = api_key
+                    self.logger.debug(f"从环境变量加载API密钥: {provider_type}")
+                else:
+                    self.logger.warning(f"环境变量 {env_var} 未设置")
     
-    async def save_tenant_config(self, tenant_config: TenantProviderConfig):
-        """
-        保存租户配置
+    def _create_default_config(self) -> GlobalProviderConfig:
+        """创建默认配置"""
+        default_providers = {}
         
-        参数:
-            tenant_config: 租户配置对象
-        """
-        try:
-            await self.loader.save_tenant_config(tenant_config)
-            
-            # 更新全局配置缓存
-            if self._config_cache:
-                self._config_cache.tenant_configs[tenant_config.tenant_id] = tenant_config
-            
-            self.logger.info(f"租户配置保存成功: {tenant_config.tenant_id}")
-            
-        except Exception as e:
-            self.error_handler.handle_error(e, {
-                "operation": "save_tenant_config",
-                "tenant_id": tenant_config.tenant_id
-            })
-            raise
+        # OpenAI配置
+        if os.getenv("OPENAI_API_KEY"):
+            default_providers[ProviderType.OPENAI] = ProviderConfig(
+                provider_type=ProviderType.OPENAI,
+                credentials=ProviderCredentials(api_key=""),  # 将从环境变量加载
+                models={
+                    "gpt-4": ModelConfig(model_name="gpt-4", max_tokens=8192, temperature=0.7),
+                    "gpt-3.5-turbo": ModelConfig(model_name="gpt-3.5-turbo", max_tokens=4096, temperature=0.7)
+                },
+                is_enabled=True,
+                priority=1
+            )
+        
+        # Anthropic配置
+        if os.getenv("ANTHROPIC_API_KEY"):
+            default_providers[ProviderType.ANTHROPIC] = ProviderConfig(
+                provider_type=ProviderType.ANTHROPIC,
+                credentials=ProviderCredentials(api_key=""),
+                models={
+                    "claude-3-sonnet": ModelConfig(model_name="claude-3-sonnet-20240229", max_tokens=4096, temperature=0.7)
+                },
+                is_enabled=True,
+                priority=2
+            )
+        
+        # Gemini配置
+        if os.getenv("GEMINI_API_KEY"):
+            default_providers[ProviderType.GEMINI] = ProviderConfig(
+                provider_type=ProviderType.GEMINI,
+                credentials=ProviderCredentials(api_key=""),
+                models={
+                    "gemini-pro": ModelConfig(model_name="gemini-pro", max_tokens=2048, temperature=0.7)
+                },
+                is_enabled=True,
+                priority=3
+            )
+        
+        # DeepSeek配置
+        if os.getenv("DEEPSEEK_API_KEY"):
+            default_providers[ProviderType.DEEPSEEK] = ProviderConfig(
+                provider_type=ProviderType.DEEPSEEK,
+                credentials=ProviderCredentials(api_key=""),
+                models={
+                    "deepseek-chat": ModelConfig(model_name="deepseek-chat", max_tokens=4096, temperature=0.7)
+                },
+                is_enabled=True,
+                priority=4
+            )
+        
+        return GlobalProviderConfig(
+            default_providers=default_providers,
+            tenant_configs={}
+        )
     
-    async def create_provider_config(
-        self,
-        provider_type: ProviderType,
-        api_key: str,
-        api_base: Optional[str] = None,
-        organization: Optional[str] = None,
-        **kwargs
-    ) -> ProviderConfig:
-        """
-        创建供应商配置
+    def _parse_global_config(self, config_data: Dict[str, Any]) -> GlobalProviderConfig:
+        """解析全局配置数据"""
+        default_providers = {}
         
-        参数:
-            provider_type: 供应商类型
-            api_key: API密钥
-            api_base: API基础URL
-            organization: 组织ID
-            **kwargs: 其他配置参数
+        for provider_type_str, provider_data in config_data.get("default_providers", {}).items():
+            provider_type = ProviderType(provider_type_str)
             
-        返回:
-            ProviderConfig: 供应商配置对象
-        """
-        try:
-            # 使用工厂方法创建配置
-            provider_config = self._create_provider_config_factory(
-                provider_type, api_key, api_base, organization, **kwargs
+            # 解析模型配置
+            models = {}
+            for model_name, model_data in provider_data.get("models", {}).items():
+                models[model_name] = ModelConfig(
+                    model_name=model_data["model_name"],
+                    max_tokens=model_data.get("max_tokens", 2048),
+                    temperature=model_data.get("temperature", 0.7)
+                )
+            
+            # 创建供应商配置
+            provider_config = ProviderConfig(
+                provider_type=provider_type,
+                credentials=ProviderCredentials(api_key=""),  # 将从环境变量加载
+                models=models,
+                is_enabled=provider_data.get("is_enabled", True),
+                priority=provider_data.get("priority", 1),
+                rate_limit_rpm=provider_data.get("rate_limit_rpm", 1000),
+                rate_limit_tpm=provider_data.get("rate_limit_tpm", 100000)
             )
             
-            # 验证配置
-            await self.validate_provider_config(provider_config)
-            
-            self.logger.info(f"供应商配置创建成功: {provider_type}")
-            return provider_config
-            
-        except Exception as e:
-            self.error_handler.handle_error(e, {
-                "operation": "create_provider_config",
-                "provider_type": provider_type
-            })
-            raise
+            default_providers[provider_type] = provider_config
+        
+        return GlobalProviderConfig(
+            default_providers=default_providers,
+            tenant_configs={}
+        )
     
-    async def validate_provider_config(self, config: ProviderConfig) -> bool:
+    def _serialize_global_config(self, config: GlobalProviderConfig) -> Dict[str, Any]:
+        """序列化全局配置（不包含API密钥）"""
+        default_providers = {}
+        
+        for provider_type, provider_config in config.default_providers.items():
+            models = {}
+            for model_name, model_config in provider_config.models.items():
+                models[model_name] = {
+                    "model_name": model_config.model_name,
+                    "max_tokens": model_config.max_tokens,
+                    "temperature": model_config.temperature
+                }
+            
+            default_providers[provider_type.value] = {
+                "models": models,
+                "is_enabled": provider_config.is_enabled,
+                "priority": provider_config.priority,
+                "rate_limit_rpm": provider_config.rate_limit_rpm,
+                "rate_limit_tpm": provider_config.rate_limit_tpm
+            }
+        
+        return {
+            "default_providers": default_providers,
+            "tenant_configs": {}  # 简化版暂不支持租户配置
+        }
+    
+    async def validate_config(self, config: GlobalProviderConfig) -> bool:
         """
-        验证供应商配置
+        验证配置
         
         参数:
-            config: 供应商配置对象
+            config: 配置对象
             
         返回:
             bool: 验证是否通过
-            
-        异常:
-            ConfigValidationError: 验证失败时抛出
-        """
-        return await self.validator.validate_provider_config(config, self.encryption)
-    
-    def _create_provider_config_factory(
-        self,
-        provider_type: ProviderType,
-        api_key: str,
-        api_base: Optional[str] = None,
-        organization: Optional[str] = None,
-        **kwargs
-    ) -> ProviderConfig:
-        """创建供应商配置的工厂方法"""
-        from .provider_config import ProviderCredentials, ModelConfig
-        
-        # 创建加密的凭据
-        encrypted_api_key = self.encryption.encrypt_sensitive_data(api_key)
-        credentials = ProviderCredentials(
-            api_key=encrypted_api_key,
-            api_base=api_base,
-            organization=organization
-        )
-        
-        # 创建默认模型配置
-        models = self._get_default_models_for_provider(provider_type)
-        
-        return ProviderConfig(
-            provider_type=provider_type,
-            credentials=credentials,
-            models=models,
-            is_enabled=kwargs.get('is_enabled', True),
-            priority=kwargs.get('priority', 1),
-            rate_limit_rpm=kwargs.get('rate_limit_rpm', 1000),
-            rate_limit_tpm=kwargs.get('rate_limit_tpm', 100000),
-            timeout_seconds=kwargs.get('timeout_seconds', 30),
-            retry_attempts=kwargs.get('retry_attempts', 3)
-        )
-    
-    def _get_default_models_for_provider(self, provider_type: ProviderType) -> dict:
-        """获取供应商的默认模型配置"""
-        from .provider_config import ModelConfig
-        
-        defaults = {
-            ProviderType.OPENAI: {
-                "gpt-4": ModelConfig(model_name="gpt-4", max_tokens=8192, temperature=0.7),
-                "gpt-3.5-turbo": ModelConfig(model_name="gpt-3.5-turbo", max_tokens=4096, temperature=0.7)
-            },
-            ProviderType.ANTHROPIC: {
-                "claude-3-sonnet": ModelConfig(model_name="claude-3-sonnet-20240229", max_tokens=4096, temperature=0.7)
-            },
-            ProviderType.GEMINI: {
-                "gemini-pro": ModelConfig(model_name="gemini-pro", max_tokens=2048, temperature=0.7)
-            },
-            ProviderType.DEEPSEEK: {
-                "deepseek-chat": ModelConfig(model_name="deepseek-chat", max_tokens=4096, temperature=0.7)
-            }
-        }
-        
-        return defaults.get(provider_type, {})
-    
-    async def backup_config(self, backup_dir: Optional[str] = None) -> str:
-        """
-        备份配置
-        
-        参数:
-            backup_dir: 备份目录，None时使用默认目录
-            
-        返回:
-            str: 备份文件路径
         """
         try:
-            # 加载当前配置
-            global_config = await self.load_global_config()
+            # 基本验证
+            if not config.default_providers:
+                raise ConfigValidationError("必须配置至少一个供应商")
             
-            # 使用备份管理器进行备份
-            backup_file = await self.backup_manager.backup_config(
-                global_config, self.serializer, backup_dir
-            )
+            # 验证每个供应商
+            for provider_type, provider_config in config.default_providers.items():
+                if not provider_config.credentials.api_key:
+                    self.logger.warning(f"供应商 {provider_type} 缺少API密钥")
+                
+                if not provider_config.models:
+                    raise ConfigValidationError(f"供应商 {provider_type} 必须配置至少一个模型")
             
-            self.logger.info(f"配置备份完成: {backup_file}")
-            return backup_file
+            return True
             
-        except Exception as e:
-            self.error_handler.handle_error(e, {"operation": "backup_config"})
+        except ConfigValidationError:
             raise
-    
-    async def restore_config(self, backup_file: str):
-        """
-        恢复配置
-        
-        参数:
-            backup_file: 备份文件路径
-        """
-        try:
-            # 使用备份管理器恢复配置
-            global_config = await self.backup_manager.restore_config(
-                backup_file, self.serializer
-            )
-            
-            # 保存恢复的配置
-            await self.save_global_config(global_config)
-            
-            self.logger.info(f"配置恢复完成: {backup_file}")
-            
         except Exception as e:
-            self.error_handler.handle_error(e, {
-                "operation": "restore_config",
-                "backup_file": backup_file
-            })
-            raise
-    
-    def list_backups(self) -> list:
-        """列出所有备份文件"""
-        return self.backup_manager.list_backups()
-    
-    def cleanup_old_backups(self, keep_count: int = 10):
-        """清理旧备份文件"""
-        return self.backup_manager.cleanup_old_backups(keep_count)
-    
-    def get_config_stats(self) -> dict:
-        """获取配置统计信息"""
-        stats = {
-            "cache_enabled": self._config_cache is not None,
-            "last_modified": self._config_last_modified.isoformat() if self._config_last_modified else None,
-            "encryption_enabled": self.encryption.is_encryption_enabled(),
-            "config_dir": str(self.config_dir)
-        }
-        
-        if self._config_cache:
-            stats.update({
-                "default_providers_count": len(self._config_cache.default_providers),
-                "tenant_configs_count": len(self._config_cache.tenant_configs)
-            })
-        
-        return stats
+            raise ConfigValidationError(f"配置验证失败: {str(e)}")
