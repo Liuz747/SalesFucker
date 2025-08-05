@@ -1,36 +1,42 @@
 """
-API Route Handlers
+API Package - Production-Grade Multi-Agent System API
 
-This package contains API route handlers and endpoints:
-- Conversation endpoints
-- Multi-modal input handlers
-- Multi-LLM provider management
-- Tenant routing
-- Agent-specific endpoints
+该包包含完整的FastAPI应用程序和所有API组件：
+
+组织结构:
+- main.py: FastAPI应用入口点
+- endpoints/: API路由处理器
+- handlers/: 业务逻辑处理器  
+- schemas/: Pydantic数据模型
+- middleware/: 中间件组件
+- exceptions.py: 异常处理
+- dependencies.py: 依赖注入
+
+核心功能:
+- 智能体管理和测试
+- 对话处理和历史管理
+- 多LLM提供商管理
+- 多模态内容处理
+- 系统健康监控
+- 多租户数据隔离
 """
 
-from fastapi import APIRouter
-from .agents import router as agents_router
-from .agent_endpoints import router as agent_test_router
-from .multi_llm_endpoints import router as multi_llm_router
-from .multi_llm_admin_endpoints import router as multi_llm_admin_router
-from .v1.multimodal import router as multimodal_router
+from .main import app
+from .endpoints import (
+    agents_router,
+    conversations_router,
+    llm_management_router,
+    multimodal_router,
+    health_router
+)
 
-# 创建主路由器
-api_router = APIRouter(prefix="/api", tags=["api"])
-
-# 注册子路由器
-api_router.include_router(agents_router)
-api_router.include_router(agent_test_router)
-api_router.include_router(multi_llm_router)
-api_router.include_router(multi_llm_admin_router)
-api_router.include_router(multimodal_router)
+__version__ = "1.0.0"
 
 __all__ = [
-    "api_router", 
-    "agents_router", 
-    "agent_test_router",
-    "multi_llm_router",
-    "multi_llm_admin_router",
-    "multimodal_router"
-] 
+    "app",
+    "agents_router",
+    "conversations_router", 
+    "llm_management_router",
+    "multimodal_router",
+    "health_router"
+]
