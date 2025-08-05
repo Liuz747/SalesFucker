@@ -230,4 +230,4 @@ class MultiModalConstants:
     
     # 支持的语言
     SUPPORTED_LANGUAGES = ["zh", "en"]
-    DEFAULT_VOICE_LANGUAGE = "zh" 
+    DEFAULT_VOICE_LANGUAGE = "zh"
