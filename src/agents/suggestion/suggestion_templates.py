@@ -6,7 +6,7 @@
 """
 
 from typing import Dict, Any, List
-from src.utils import get_logger
+from src.utils import get_component_logger
 
 
 class SuggestionTemplateManager:
@@ -19,7 +19,7 @@ class SuggestionTemplateManager:
     
     def __init__(self, tenant_id: str):
         self.tenant_id = tenant_id
-        self.logger = get_logger(f"suggestion_templates_{tenant_id}")
+        self.logger = get_component_logger(f"suggestion_templates_{tenant_id}")
         
         # 建议类型配置
         self.suggestion_types = {

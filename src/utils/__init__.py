@@ -17,10 +17,6 @@
 from .time_utils import get_current_datetime, get_processing_time_ms, format_timestamp
 from .logger_factory import get_component_logger, LoggerMixin
 
-# 为了向后兼容，提供get_logger函数
-def get_logger(component_name: str = None):
-    """获取日志器的便捷函数"""
-    return get_component_logger(component_name)
 from .status_mixin import StatusMixin
 from .error_handling import with_error_handling, with_fallback, ErrorHandler
 from .validation import (
@@ -57,7 +53,6 @@ __all__ = [
     
     # 日志工具
     "get_component_logger",
-    "get_logger",
     "LoggerMixin",
     
     # 状态管理

@@ -9,7 +9,7 @@ from typing import Dict, Any
 import json
 import logging
 from src.llm import get_llm_client
-from src.utils import get_logger
+from src.utils import get_component_logger
 
 
 class LLMAnalyzer:
@@ -22,7 +22,7 @@ class LLMAnalyzer:
     
     def __init__(self, tenant_id: str):
         self.tenant_id = tenant_id
-        self.logger = get_logger(f"llm_analyzer_{tenant_id}")
+        self.logger = get_component_logger(f"llm_analyzer_{tenant_id}")
         
         # LLM客户端
         self.llm_client = get_llm_client()

@@ -6,7 +6,7 @@
 """
 
 from typing import Dict, Any, List
-from src.utils import get_logger
+from src.utils import get_component_logger
 
 from .suggestion_templates import SuggestionTemplateManager  
 from .performance_suggestions import PerformanceSuggestionGenerator
@@ -23,7 +23,7 @@ class SuggestionGenerator:
     
     def __init__(self, tenant_id: str):
         self.tenant_id = tenant_id
-        self.logger = get_logger(f"suggestion_generator_{tenant_id}")
+        self.logger = get_component_logger(f"suggestion_generator_{tenant_id}")
         
         # 初始化子组件
         self.template_manager = SuggestionTemplateManager(tenant_id)
