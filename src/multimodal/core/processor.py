@@ -30,7 +30,7 @@ from src.multimodal.core.message import MultiModalMessage, ProcessingResult
 from src.multimodal.core.attachment import AudioAttachment, ImageAttachment
 from src.multimodal.voice.whisper_service import WhisperService
 from src.multimodal.image.gpt4v_service import GPT4VService
-from src.agents.core.message import AgentMessage
+from src.agents.base import AgentMessage
 
 
 class MultiModalProcessor(LoggerMixin):

@@ -15,14 +15,11 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
 
 from .message import AgentMessage, ConversationState
-from src.llm.llm_mixin import LLMMixin
 from src.utils import get_component_logger, ErrorHandler, StatusMixin
 from src.infra.monitoring import AgentMonitor
+from src.llm import RoutingStrategy, GlobalProviderConfig, LLMMixin
 
-from src.llm.intelligent_router import RoutingStrategy
-from src.llm.provider_config import GlobalProviderConfig
-
-class BaseAgent(ABC, StatusMixin, LLMMixin):
+class BaseAgent(LLMMixin, StatusMixin, ABC):
     """
     多智能体系统(MAS)的抽象基类
     
@@ -50,16 +47,18 @@ class BaseAgent(ABC, StatusMixin, LLMMixin):
         llm_config: Optional[GlobalProviderConfig] = None,
         routing_strategy: Optional[RoutingStrategy] = None
     ):
-        # 提取智能体类型并初始化LLMMixin
-        agent_type = agent_id.split('_')[0] if '_' in agent_id else "unknown"
-        super().__init__(agent_id, agent_type, tenant_id, llm_config, routing_strategy)
-        
+        # 设置基本属性
         self.agent_id = agent_id
         self.tenant_id = tenant_id
         self.is_active = False
+        
+        # 初始化LLMMixin，使用property方法获取agent_type
+        super().__init__(agent_id, self.agent_type, tenant_id, llm_config, routing_strategy)
+        
+        # 初始化其他组件
         self.logger = get_component_logger(__name__, agent_id)
         self.error_handler = ErrorHandler(agent_id)
-        self.monitor = AgentMonitor(agent_id, agent_type, tenant_id)
+        self.monitor = AgentMonitor(agent_id, self.agent_type, tenant_id)
     
     @abstractmethod
     async def process_message(self, message: AgentMessage) -> AgentMessage:

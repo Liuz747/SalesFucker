@@ -6,7 +6,7 @@ AI建议智能体 - 重构版
 """
 
 from typing import Dict, Any
-from ..core import BaseAgent, AgentMessage, ConversationState
+from ..base import BaseAgent, AgentMessage, ConversationState
 from src.llm.intelligent_router import RoutingStrategy
 from src.utils import get_current_datetime, get_processing_time_ms
 

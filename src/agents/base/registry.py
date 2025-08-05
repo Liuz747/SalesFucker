@@ -12,7 +12,7 @@
 """
 
 from typing import Dict, Any, Optional, List
-from .base import BaseAgent
+from .agent import BaseAgent
 from .message import AgentMessage
 from src.utils import (
     get_component_logger,

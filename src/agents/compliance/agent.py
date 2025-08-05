@@ -14,8 +14,7 @@
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-from ..core.base import BaseAgent
-from ..core.message import AgentMessage, ConversationState
+from ..base import BaseAgent, AgentMessage, ConversationState
 from .rule_manager import ComplianceRuleManager
 from .types import RuleSeverity, RuleAction
 from .checker import ComplianceChecker

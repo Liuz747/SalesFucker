@@ -67,10 +67,10 @@ async def validate_system():
     
     try:
         # Test core modules first
-        from src.agents.core.base import BaseAgent
+        from src.agents.base import BaseAgent
         print_success("BaseAgent import successful")
         
-        from src.agents.core.message import ConversationState
+        from src.agents.base import ConversationState
         print_success("ConversationState import successful")
         
     except Exception as e:

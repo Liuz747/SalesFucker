@@ -11,7 +11,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import json
 
-from ..core import BaseAgent, AgentMessage, ConversationState
+from ..base import BaseAgent, AgentMessage, ConversationState
 from src.llm.intelligent_router import RoutingStrategy
 from src.utils import get_current_datetime, get_processing_time_ms
 

@@ -11,6 +11,7 @@ from .provider_manager import ProviderManager
 from .intelligent_router import IntelligentRouter, RoutingStrategy, RoutingContext
 from .cost_optimizer import CostOptimizer
 from .config_manager import ConfigManager
+from .llm_mixin import LLMMixin
 
 # Configuration and data models
 from .provider_config import (
@@ -46,6 +47,7 @@ __all__ = [
     "IntelligentRouter",
     "CostOptimizer",
     "ConfigManager",
+    "LLMMixin",
     
     # Configuration models
     "ProviderType",

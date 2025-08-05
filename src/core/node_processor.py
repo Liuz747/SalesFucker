@@ -11,9 +11,10 @@
 - 智能体协调调用
 """
 
+import asyncio
 from typing import Dict, Any, Callable, Optional
-from .message import ConversationState
-from .registry import agent_registry
+
+from src.agents.base import ConversationState, agent_registry
 from src.utils import (
     get_component_logger, 
     StatusConstants,

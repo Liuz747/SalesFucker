@@ -12,7 +12,7 @@
 
 from typing import Dict, Any, Optional
 
-from .message import ConversationState
+from src.agents.base import ConversationState
 from src.utils import (
     get_component_logger,
     get_current_datetime,

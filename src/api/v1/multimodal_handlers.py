@@ -31,7 +31,7 @@ from src.utils import (
 from src.multimodal.core.processor import MultiModalProcessor
 from src.multimodal.core.message import MultiModalMessage
 from src.multimodal.core.attachment import AudioAttachment, ImageAttachment
-from src.agents.core.orchestrator import Orchestrator
+from src.core import Orchestrator
 from src.api.multi_llm_handlers import MultiLLMAPIHandler
 
 

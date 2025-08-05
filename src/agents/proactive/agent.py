@@ -7,7 +7,7 @@ Identifies opportunities for proactive customer contact and follow-up.
 
 from typing import Dict, Any, List
 from datetime import datetime, timedelta
-from ..core import BaseAgent, AgentMessage, ConversationState
+from ..base import BaseAgent, AgentMessage, ConversationState
 from src.llm.intelligent_router import RoutingStrategy
 from src.utils import get_current_datetime, get_processing_time_ms
 

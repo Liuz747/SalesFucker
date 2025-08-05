@@ -7,7 +7,7 @@
 
 from typing import Dict, Any, List
 import logging
-from ..core import ConversationState
+from ..base import ConversationState
 from src.utils import get_component_logger
 
 

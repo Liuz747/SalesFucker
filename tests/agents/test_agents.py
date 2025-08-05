@@ -23,7 +23,7 @@ from unittest.mock import Mock, patch, AsyncMock
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 
-from src.agents.core import ConversationState, AgentMessage
+from src.agents.base import ConversationState, AgentMessage
 from src.agents.compliance import ComplianceAgent, ComplianceRule
 from src.agents.sales import SalesAgent
 from src.agents.sentiment import SentimentAnalysisAgent

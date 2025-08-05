@@ -70,7 +70,7 @@ class AgentTestHandler:
             raise HTTPException(status_code=404, detail="Sales agent not found")
         
         # Create a mock conversation state for testing
-        from src.agents.core import ConversationState
+        from src.agents.base import ConversationState
         
         test_state = ConversationState(
             tenant_id=tenant_id,
@@ -107,7 +107,7 @@ class AgentTestHandler:
             from fastapi import HTTPException
             raise HTTPException(status_code=404, detail="Sentiment agent not found")
         
-        from src.agents.core import ConversationState
+        from src.agents.base import ConversationState
         
         test_state = ConversationState(
             tenant_id=tenant_id,
@@ -132,7 +132,7 @@ class AgentTestHandler:
             from fastapi import HTTPException
             raise HTTPException(status_code=404, detail="Intent agent not found")
         
-        from src.agents.core import ConversationState
+        from src.agents.base import ConversationState
         
         test_state = ConversationState(
             tenant_id=tenant_id,
@@ -159,7 +159,7 @@ class AgentTestHandler:
             from fastapi import HTTPException
             raise HTTPException(status_code=404, detail="Product agent not found")
         
-        from src.agents.core import ConversationState
+        from src.agents.base import ConversationState
         
         test_state = ConversationState(
             tenant_id=tenant_id,

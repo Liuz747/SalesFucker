@@ -6,7 +6,7 @@ Identifies purchase intent, conversation stage, and specific customer needs.
 """
 
 from typing import Dict, Any
-from ..core import BaseAgent, AgentMessage, ConversationState
+from ..base import BaseAgent, AgentMessage, ConversationState
 from src.llm import get_llm_client, get_prompt_manager, parse_structured_response
 from src.llm.intelligent_router import RoutingStrategy
 from src.utils import get_current_datetime, get_processing_time_ms

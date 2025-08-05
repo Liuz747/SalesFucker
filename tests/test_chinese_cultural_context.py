@@ -12,7 +12,7 @@ from unittest.mock import Mock, AsyncMock
 
 from src.agents.sentiment import SentimentAnalysisAgent
 from src.agents.sales import SalesAgent
-from src.agents.core import ConversationState
+from src.agents.base import ConversationState
 from src.llm.multi_llm_client import MultiLLMClient
 
 

@@ -7,7 +7,7 @@ Provides expert product knowledge and personalized recommendations.
 
 from typing import Dict, Any, List
 import asyncio
-from ..core import BaseAgent, AgentMessage, ConversationState
+from ..base import BaseAgent, AgentMessage, ConversationState
 from src.utils import get_current_datetime, get_processing_time_ms
 from src.llm.intelligent_router import RoutingStrategy
 

@@ -12,7 +12,7 @@
 
 from typing import Dict, Any, Optional
 
-from .message import ConversationState
+from src.agents.base import ConversationState
 from .workflow import WorkflowBuilder
 from .state_manager import ConversationStateManager
 from src.utils import (
@@ -21,7 +21,8 @@ from src.utils import (
     get_processing_time_ms,
     StatusMixin,
     with_error_handling,
-    StatusConstants
+    StatusConstants,
+    ErrorHandler
 )
 
 
@@ -173,7 +174,7 @@ class Orchestrator(StatusMixin):
         返回:
             Dict[str, Any]: 工作流状态和统计信息
         """
-        from .registry import agent_registry
+        from src.agents.base import agent_registry
         
         available_agents = [
             agent_id for agent_id in self.node_mapping.values()
@@ -204,7 +205,7 @@ class Orchestrator(StatusMixin):
         返回:
             Dict[str, Any]: 系统健康状态信息
         """
-        from .registry import agent_registry
+        from src.agents.base import agent_registry
         
         # 检查智能体可用性
         total_agents = len(self.node_mapping)
