@@ -6,7 +6,7 @@
 """
 
 from typing import Dict, Any, List
-from src.utils import get_logger
+from src.utils import get_component_logger
 
 
 class PerformanceSuggestionGenerator:
@@ -19,7 +19,7 @@ class PerformanceSuggestionGenerator:
     
     def __init__(self, tenant_id: str):
         self.tenant_id = tenant_id
-        self.logger = get_logger(f"performance_suggestions_{tenant_id}")
+        self.logger = get_component_logger(f"performance_suggestions_{tenant_id}")
         
         # 性能阈值配置
         self.performance_thresholds = {

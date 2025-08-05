@@ -20,14 +20,16 @@
 """
 
 # 导入核心组件
-from .core import (
+from .base import (
     BaseAgent,
     AgentMessage,
     ConversationState,
     AgentRegistry,
-    Orchestrator,
     agent_registry
 )
+
+# 导入LangGraph工作流组件
+from src.core import Orchestrator
 
 # 导入常量
 from src.utils import (
@@ -74,51 +76,4 @@ __all__ = [
     "MarketStrategyCoordinator",
     "ProactiveAgent",
     "AISuggestionAgent",
-    
-    # 工厂函数
-    "create_agent_set",
-    "get_orchestrator"
-]
-
-# 智能体工厂函数，便于租户实例化
-def create_agent_set(tenant_id: str) -> dict:
-    """
-    为指定租户创建完整的智能体集合
-    
-    参数:
-        tenant_id: 租户标识符，用于多租户隔离
-        
-    返回:
-        dict: 智能体集合 {"agent_type": agent_instance}
-    """
-    agents = {}
-    
-    # 创建完整的9智能体系统
-    agents["compliance"] = ComplianceAgent(tenant_id)
-    agents["sentiment"] = SentimentAnalysisAgent(tenant_id)
-    agents["intent"] = IntentAnalysisAgent(tenant_id)
-    agents["sales"] = SalesAgent(tenant_id)
-    agents["product"] = ProductExpertAgent(tenant_id)
-    agents["memory"] = MemoryAgent(tenant_id)
-    agents["strategy"] = MarketStrategyCoordinator(tenant_id)
-    agents["proactive"] = ProactiveAgent(tenant_id)
-    agents["suggestion"] = AISuggestionAgent(tenant_id)
-    
-    # 在全局注册中心注册智能体
-    for agent in agents.values():
-        agent_registry.register_agent(agent)
-    
-    return agents
-
-# 获取租户编排器的工具函数
-def get_orchestrator(tenant_id: str) -> Orchestrator:
-    """
-    获取或创建指定租户的智能体编排器
-    
-    参数:
-        tenant_id: 租户标识符
-        
-    返回:
-        MultiAgentOrchestrator: 多智能体编排器实例
-    """
-    return Orchestrator(tenant_id) 
+] 

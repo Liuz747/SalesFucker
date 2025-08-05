@@ -11,7 +11,8 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import json
 
-from ..core import BaseAgent, AgentMessage, ConversationState
+from ..base import BaseAgent, AgentMessage, ConversationState
+from src.llm.intelligent_router import RoutingStrategy
 from src.utils import get_current_datetime, get_processing_time_ms
 
 
@@ -24,7 +25,12 @@ class MemoryAgent(BaseAgent):
     """
     
     def __init__(self, tenant_id: str):
-        super().__init__(f"memory_agent_{tenant_id}", tenant_id)
+        # MAS架构：使用成本优化策略进行客户档案管理
+        super().__init__(
+            agent_id=f"memory_agent_{tenant_id}", 
+            tenant_id=tenant_id,
+            routing_strategy=RoutingStrategy.COST_FIRST  # 客户档案管理，成本优化
+        )
         
         # 优化的内存存储结构
         self.customer_profiles: Dict[str, Dict[str, Any]] = {}

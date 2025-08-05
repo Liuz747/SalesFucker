@@ -14,7 +14,7 @@ from unittest.mock import Mock, patch, AsyncMock
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 
-from src.agents.core import ConversationState, AgentMessage
+from src.agents.base import ConversationState, AgentMessage
 from src.agents.sales import SalesAgent
 from src.llm.multi_llm_client import MultiLLMClient
 from src.llm.provider_config import ProviderType, GlobalProviderConfig

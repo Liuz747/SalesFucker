@@ -7,8 +7,8 @@
 
 from typing import Dict, Any, List
 import logging
-from ..core import ConversationState
-from src.utils import get_logger
+from ..base import ConversationState
+from src.utils import get_component_logger
 
 
 class QualityAssessor:
@@ -21,7 +21,7 @@ class QualityAssessor:
     
     def __init__(self, tenant_id: str):
         self.tenant_id = tenant_id
-        self.logger = get_logger(f"quality_assessor_{tenant_id}")
+        self.logger = get_component_logger(f"quality_assessor_{tenant_id}")
         
         # 质量评估配置
         self.quality_thresholds = {

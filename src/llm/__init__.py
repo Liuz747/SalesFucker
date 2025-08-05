@@ -2,22 +2,16 @@
 Multi-LLM Integration Module
 
 Provides comprehensive multi-LLM provider support for the multi-agent system.
-Includes intelligent routing, failover, cost optimization, and unified interfaces.
+Includes intelligent routing, simple retry, cost optimization, and unified interfaces.
 """
-
-# Legacy single-provider support (maintained for backward compatibility)
-from .client import OpenAIClient, get_llm_client
-from .prompts import PromptManager, get_prompt_manager
-from .response_parser import ResponseParser, parse_structured_response
 
 # Multi-LLM provider system
 from .multi_llm_client import MultiLLMClient, get_multi_llm_client, shutdown_multi_llm_client
 from .provider_manager import ProviderManager
 from .intelligent_router import IntelligentRouter, RoutingStrategy, RoutingContext
-from .failover_system import FailoverSystem
 from .cost_optimizer import CostOptimizer
 from .config_manager import ConfigManager
-from .enhanced_base_agent import MultiLLMBaseAgent, MultiLLMAgentMixin
+from .llm_mixin import LLMMixin
 
 # Configuration and data models
 from .provider_config import (
@@ -45,27 +39,17 @@ from .base_provider import (
 )
 
 __all__ = [
-    # Legacy support
-    "OpenAIClient",
-    "get_llm_client", 
-    "PromptManager",
-    "get_prompt_manager",
-    "ResponseParser",
-    "parse_structured_response",
-    
-    # Multi-LLM system
+    # Multi-LLM system - core functionality
     "MultiLLMClient",
-    "get_multi_llm_client",
+    "get_multi_llm_client", 
     "shutdown_multi_llm_client",
     "ProviderManager",
     "IntelligentRouter",
-    "FailoverSystem",
     "CostOptimizer",
     "ConfigManager",
-    "MultiLLMBaseAgent",
-    "MultiLLMAgentMixin",
+    "LLMMixin",
     
-    # Configuration
+    # Configuration models
     "ProviderType",
     "ProviderConfig",
     "ProviderCredentials", 
@@ -78,7 +62,7 @@ __all__ = [
     "RoutingStrategy",
     "RoutingContext",
     
-    # Base models
+    # Base provider models
     "BaseProvider",
     "LLMRequest",
     "LLMResponse", 

@@ -140,7 +140,7 @@ async def get_configuration_summary(
                 if status.get("is_healthy", False)
             ],
             "routing_stats": global_stats.get("routing_stats", {}),
-            "failover_stats": global_stats.get("failover_stats", {}),
+            "retry_stats": global_stats.get("retry_stats", {}),
             "cost_summary": global_stats.get("cost_summary", {}),
             "timestamp": datetime.now().isoformat()
         }

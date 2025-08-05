@@ -6,7 +6,7 @@
 """
 
 from typing import Dict, Any, List
-from src.utils import get_logger
+from src.utils import get_component_logger
 
 
 class OptimizationAnalyzer:
@@ -19,7 +19,7 @@ class OptimizationAnalyzer:
     
     def __init__(self, tenant_id: str):
         self.tenant_id = tenant_id
-        self.logger = get_logger(f"optimization_analyzer_{tenant_id}")
+        self.logger = get_component_logger(f"optimization_analyzer_{tenant_id}")
         
         # 优化机会识别规则
         self.optimization_rules = {

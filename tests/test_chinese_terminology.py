@@ -14,7 +14,7 @@ from src.llm.multi_llm_client import MultiLLMClient
 from src.agents.sentiment import SentimentAnalysisAgent
 from src.agents.product import ProductExpertAgent
 from src.agents.sales import SalesAgent
-from src.agents.core import ConversationState
+from src.agents.base import ConversationState
 
 
 class TestChineseCosmeticsTerminology:

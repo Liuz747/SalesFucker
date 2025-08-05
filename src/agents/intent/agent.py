@@ -6,8 +6,9 @@ Identifies purchase intent, conversation stage, and specific customer needs.
 """
 
 from typing import Dict, Any
-from ..core import BaseAgent, AgentMessage, ConversationState
+from ..base import BaseAgent, AgentMessage, ConversationState
 from src.llm import get_llm_client, get_prompt_manager, parse_structured_response
+from src.llm.intelligent_router import RoutingStrategy
 from src.utils import get_current_datetime, get_processing_time_ms
 
 
@@ -20,7 +21,12 @@ class IntentAnalysisAgent(BaseAgent):
     """
     
     def __init__(self, tenant_id: str):
-        super().__init__(f"intent_analysis_{tenant_id}", tenant_id)
+        # MAS架构：使用成本优化策略进行快速意图分析
+        super().__init__(
+            agent_id=f"intent_analysis_{tenant_id}", 
+            tenant_id=tenant_id,
+            routing_strategy=RoutingStrategy.COST_FIRST  # 快速意图识别，成本优化
+        )
         
         # LLM integration
         self.llm_client = get_llm_client()

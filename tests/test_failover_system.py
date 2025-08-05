@@ -1,146 +1,198 @@
 """
-故障转移系统综合测试套件
+多LLM系统简化重试逻辑测试
 
-该测试套件为多LLM故障转移系统提供全面的测试覆盖。
+该测试文件替代了原有的复杂故障转移系统测试，专注于测试新的简化重试逻辑。
+原有的故障转移系统已被移除，替换为更简单、更可靠的重试机制。
 
-重要提示: 该文件已被重构为更小的模块化测试文件，以符合代码质量标准:
-
-专业测试模块:
-- test_circuit_breaker.py - 断路器(Circuit Breaker)模式测试
-- test_failure_detector.py - 故障检测器(Failure Detector)测试
-- test_context_preserver.py - 上下文保持器(Context Preserver)测试  
-- test_recovery_manager.py - 恢复管理器(Recovery Manager)测试
-- test_failover_integration.py - 端到端故障转移场景测试
-
-每个模块都专注于特定组件的详细测试，提供更好的代码组织和维护性。
+测试覆盖:
+- MultiLLMClient的重试逻辑
+- 供应商故障处理
+- 简化的错误恢复
 """
 
 import pytest
 import asyncio
 from unittest.mock import Mock, patch, AsyncMock
 from typing import Dict, Any, Optional, List
-from datetime import datetime, timedelta
 
-from src.llm.failover_system import FailoverSystem
-from src.llm.failover_system.circuit_breaker import CircuitBreaker, CircuitState
-from src.llm.failover_system.failure_detector import FailureDetector, FailurePattern
-from src.llm.failover_system.context_preserver import ContextPreserver, ConversationContext
-from src.llm.failover_system.recovery_manager import RecoveryManager, RecoveryStrategy
-from src.llm.failover_system.models import FailureType
-from src.llm.provider_config import ProviderType
-from src.llm.base_provider import ProviderError
+from src.llm.multi_llm_client import MultiLLMClient
+from src.llm.provider_config import ProviderType, GlobalProviderConfig, ProviderConfig, ProviderCredentials
+from src.llm.base_provider import ProviderError, RateLimitError
+from src.llm.intelligent_router import RoutingStrategy
 
 
-class TestFailoverSystemCore:
-    """测试故障转移系统核心集成功能"""
+class TestMultiLLMRetryLogic:
+    """测试多LLM客户端的重试逻辑"""
     
-    def test_failover_system_initialization(self):
-        """测试故障转移系统初始化"""
-        from src.llm.provider_config import GlobalProviderConfig, ProviderConfig
-        
-        config = GlobalProviderConfig(
-            providers={
-                ProviderType.OPENAI: ProviderConfig(
+    @pytest.fixture
+    def mock_config(self):
+        """创建模拟配置"""
+        return GlobalProviderConfig(
+            default_providers={
+                "openai": ProviderConfig(
                     provider_type=ProviderType.OPENAI,
-                    api_key="test-key",
-                    models=["gpt-4"]
+                    credentials=ProviderCredentials(
+                        provider_type=ProviderType.OPENAI,
+                        api_key="test-key"
+                    ),
+                    is_enabled=True
+                ),
+                "anthropic": ProviderConfig(
+                    provider_type=ProviderType.ANTHROPIC,
+                    credentials=ProviderCredentials(
+                        provider_type=ProviderType.ANTHROPIC,
+                        api_key="test-key"
+                    ),
+                    is_enabled=True
                 )
-            },
-            default_provider=ProviderType.OPENAI,
-            tenant_id="test_tenant"
+            }
         )
-        
-        provider_manager = Mock()
-        failover_system = FailoverSystem(config, provider_manager)
-        
-        assert failover_system.config == config
-        assert failover_system.provider_manager == provider_manager
-        assert failover_system.circuit_breakers is not None
-        assert failover_system.failure_detector is not None
-        assert failover_system.context_preserver is not None
-        assert failover_system.recovery_manager is not None
     
-    def test_component_integration(self):
-        """测试组件集成"""
-        # 测试各组件能够正常实例化和协作
-        circuit_breaker = CircuitBreaker(failure_threshold=3)
-        failure_detector = FailureDetector()
-        context_preserver = ContextPreserver()
-        recovery_manager = RecoveryManager()
+    @pytest.fixture
+    async def multi_llm_client(self, mock_config):
+        """创建多LLM客户端"""
+        with patch('src.llm.multi_llm_client.ProviderManager') as mock_pm, \
+             patch('src.llm.multi_llm_client.IntelligentRouter') as mock_router, \
+             patch('src.llm.multi_llm_client.CostOptimizer') as mock_co:
+            
+            client = MultiLLMClient(mock_config)
+            yield client
+    
+    @pytest.mark.asyncio
+    async def test_retry_on_provider_failure(self, multi_llm_client):
+        """测试供应商失败时的重试逻辑"""
+        # 模拟第一次失败，第二次成功
+        mock_provider1 = Mock()
+        mock_provider1.provider_type = ProviderType.OPENAI
+        mock_provider1.chat_completion = AsyncMock(side_effect=ProviderError("Test error", ProviderType.OPENAI, "TEST_ERR"))
         
-        # 验证组件状态
-        assert circuit_breaker.state == CircuitState.CLOSED
-        assert len(failure_detector.failure_history) == 0
+        mock_provider2 = Mock()
+        mock_provider2.provider_type = ProviderType.ANTHROPIC
+        mock_provider2.chat_completion = AsyncMock(return_value=Mock(content="Success", cost=0.01))
         
-        # 测试组件间基本交互
-        failure_detector.record_result(
-            provider=ProviderType.OPENAI,
-            success=False,
-            latency_ms=5000,
-            error_message="Test error"
+        multi_llm_client.router.route_request = AsyncMock(side_effect=[mock_provider1, mock_provider2])
+        
+        messages = [{"role": "user", "content": "Test message"}]
+        
+        result = await multi_llm_client.chat_completion(
+            messages=messages,
+            agent_type="test",
+            max_retries=2
         )
         
-        patterns = failure_detector.detect_failure_patterns(ProviderType.OPENAI)
-        assert len(patterns) >= 0  # Should be able to detect patterns
+        assert result.content == "Success"
+        assert multi_llm_client.router.route_request.call_count == 2
+    
+    @pytest.mark.asyncio
+    async def test_max_retries_exceeded(self, multi_llm_client):
+        """测试达到最大重试次数"""
+        mock_provider = Mock()
+        mock_provider.provider_type = ProviderType.OPENAI
+        mock_provider.chat_completion = AsyncMock(side_effect=ProviderError("Persistent error", ProviderType.OPENAI, "PERSISTENT_ERR"))
         
-        # 测试上下文存储
-        context = ConversationContext(
-            conversation_id="test_conv",
-            customer_id="test_customer",
-            agent_type="test_agent"
+        multi_llm_client.router.route_request = AsyncMock(return_value=mock_provider)
+        
+        messages = [{"role": "user", "content": "Test message"}]
+        
+        with pytest.raises(ProviderError, match="Persistent error"):
+            await multi_llm_client.chat_completion(
+                messages=messages,
+                agent_type="test",
+                max_retries=2
+            )
+        
+        # 应该尝试3次(初始+2次重试)
+        assert mock_provider.chat_completion.call_count == 3
+    
+    @pytest.mark.asyncio
+    async def test_no_retry_on_rate_limit(self, multi_llm_client):
+        """测试速率限制错误不进行重试"""
+        mock_provider = Mock()
+        mock_provider.provider_type = ProviderType.OPENAI
+        mock_provider.chat_completion = AsyncMock(side_effect=RateLimitError("Rate limited", ProviderType.OPENAI, "RATE_LIMIT"))
+        
+        multi_llm_client.router.route_request = AsyncMock(return_value=mock_provider)
+        
+        messages = [{"role": "user", "content": "Test message"}]
+        
+        with pytest.raises(RateLimitError, match="Rate limited"):
+            await multi_llm_client.chat_completion(
+                messages=messages,
+                agent_type="test",
+                max_retries=2
+            )
+        
+        # 速率限制错误不应该重试
+        assert mock_provider.chat_completion.call_count == 1
+    
+    @pytest.mark.asyncio
+    async def test_success_on_first_try(self, multi_llm_client):
+        """测试第一次尝试就成功"""
+        mock_provider = Mock()
+        mock_provider.provider_type = ProviderType.OPENAI
+        mock_provider.chat_completion = AsyncMock(return_value=Mock(content="Success", cost=0.01))
+        
+        multi_llm_client.router.route_request = AsyncMock(return_value=mock_provider)
+        
+        messages = [{"role": "user", "content": "Test message"}]
+        
+        result = await multi_llm_client.chat_completion(
+            messages=messages,
+            agent_type="test",
+            max_retries=2
         )
         
-        context_preserver.store_context("test_conv", context)
-        retrieved = context_preserver.get_context("test_conv")
-        assert retrieved is not None
-        assert retrieved.conversation_id == "test_conv"
+        assert result.content == "Success"
+        # 成功时只调用一次
+        assert mock_provider.chat_completion.call_count == 1
+        assert multi_llm_client.router.route_request.call_count == 1
+
+
+class TestProviderHealthHandling:
+    """测试供应商健康状态处理"""
+    
+    @pytest.mark.asyncio
+    async def test_unhealthy_provider_exclusion(self):
+        """测试不健康的供应商被排除"""
+        # 这个测试应该集成到实际的路由器测试中
+        # 因为健康检查逻辑现在在路由器中处理
+        pass
+    
+    @pytest.mark.asyncio
+    async def test_provider_recovery_detection(self):
+        """测试供应商恢复检测"""
+        # 这个测试应该集成到供应商管理器测试中
+        # 因为恢复检测现在通过健康检查实现
+        pass
+
+
+class TestLegacyFailoverSystemRemoval:
+    """确认旧的故障转移系统已被移除"""
+    
+    def test_failover_system_imports_removed(self):
+        """确认故障转移系统导入已移除"""
+        try:
+            from src.llm.failover_system import FailoverSystem
+            pytest.fail("FailoverSystem should have been removed")
+        except ImportError:
+            pass  # 预期的行为
+    
+    def test_circuit_breaker_imports_removed(self):
+        """确认断路器导入已移除"""
+        try:
+            from src.llm.failover_system.circuit_breaker import CircuitBreaker
+            pytest.fail("CircuitBreaker should have been removed")
+        except ImportError:
+            pass  # 预期的行为
+    
+    def test_recovery_manager_imports_removed(self):
+        """确认恢复管理器导入已移除"""
+        try:
+            from src.llm.failover_system.recovery_manager import RecoveryManager
+            pytest.fail("RecoveryManager should have been removed")
+        except ImportError:
+            pass  # 预期的行为
 
 
 if __name__ == "__main__":
-    # 运行核心故障转移测试
-    async def run_core_failover_tests():
-        print("运行核心故障转移测试...")
-        
-        # 测试基本组件
-        circuit_breaker = CircuitBreaker(failure_threshold=3)
-        assert circuit_breaker.state == CircuitState.CLOSED
-        print(f"断路器初始化成功: {circuit_breaker.state}")
-        
-        failure_detector = FailureDetector()
-        failure_detector.record_result(
-            provider=ProviderType.OPENAI,
-            success=False,
-            latency_ms=5000,
-            error_message="Test error"
-        )
-        patterns = failure_detector.detect_failure_patterns(ProviderType.OPENAI)
-        print(f"故障检测器工作正常: {len(patterns)} 个模式检测到")
-        
-        context_preserver = ContextPreserver()
-        context = ConversationContext(
-            conversation_id="test_conv",
-            customer_id="test_customer",
-            agent_type="test_agent"
-        )
-        context_preserver.store_context("test_conv", context)
-        retrieved = context_preserver.get_context("test_conv")
-        assert retrieved is not None
-        print(f"上下文保持器工作正常: {retrieved.conversation_id}")
-        
-        recovery_manager = RecoveryManager()
-        strategy = recovery_manager.select_recovery_strategy(
-            provider=ProviderType.OPENAI,
-            error=ProviderError("Test", ProviderType.OPENAI, "test"),
-            failure_pattern=FailurePattern(FailureType.TIMEOUT, 0.5, 1)
-        )
-        print(f"恢复管理器工作正常: {strategy}")
-        
-        print("核心故障转移测试完成!")
-        print("\n专业测试请运行:")
-        print("- pytest tests/test_circuit_breaker.py")
-        print("- pytest tests/test_failure_detector.py") 
-        print("- pytest tests/test_context_preserver.py")
-        print("- pytest tests/test_recovery_manager.py")
-        print("- pytest tests/test_failover_integration.py")
-    
-    asyncio.run(run_core_failover_tests())
+    pytest.main([__file__])

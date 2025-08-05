@@ -9,6 +9,7 @@ readme = "README.md"
 requires-python = ">=3.11"
 
 dependencies = [
+    "aiofiles>=24.1.0",
     "anthropic>=0.60.0",
     "elasticsearch>=9.1.0",
     "fastapi>=0.116.1",
@@ -18,8 +19,10 @@ dependencies = [
     "openai>=1.98.0",
     "pydantic-settings>=2.10.1",
     "pymilvus>=2.5.14",
+    "python-multipart>=0.0.7",
     "redis>=6.2.0",
     "uvicorn>=0.35.0",
+    "pillow>=10.0.0",
 ]
 
 [dependency-groups]
@@ -27,6 +30,7 @@ dev = [
     "pytest>=8.4.1",
     "black>=25.1.0",
     "isort>=5.14.0",
+    "pre-commit",
 ]
 
 [tool.black]

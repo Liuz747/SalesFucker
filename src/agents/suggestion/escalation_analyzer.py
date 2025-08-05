@@ -7,7 +7,7 @@
 
 from typing import Dict, Any, List
 import logging
-from src.utils import get_logger
+from src.utils import get_component_logger
 
 
 class EscalationAnalyzer:
@@ -20,7 +20,7 @@ class EscalationAnalyzer:
     
     def __init__(self, tenant_id: str):
         self.tenant_id = tenant_id
-        self.logger = get_logger(f"escalation_analyzer_{tenant_id}")
+        self.logger = get_component_logger(f"escalation_analyzer_{tenant_id}")
         
         # 升级规则配置
         self.escalation_rules = {
