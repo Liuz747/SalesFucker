@@ -52,7 +52,7 @@ class BaseAgent(LLMMixin, StatusMixin, ABC):
         self.tenant_id = tenant_id
         self.is_active = False
         
-        # 初始化LLMMixin，使用property方法获取agent_type
+        # 初始化LLMMixin
         super().__init__(agent_id, self.agent_type, tenant_id, llm_config, routing_strategy)
         
         # 初始化其他组件
