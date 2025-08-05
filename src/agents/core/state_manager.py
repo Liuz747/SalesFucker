@@ -239,12 +239,10 @@ class ConversationStateManager(StatusMixin):
     
     def get_health_status(self) -> Dict[str, Any]:
         """
-        获取状态管理器健康状态
-        
-        使用StatusMixin提供标准化健康响应。
+        获取状态管理器指标数据（不做主观健康判断）
         
         返回:
-            Dict[str, Any]: 健康状态信息
+            Dict[str, Any]: 原始指标数据
         """
         total_completed = (
             self.state_stats["successful_completions"] + 
@@ -257,14 +255,18 @@ class ConversationStateManager(StatusMixin):
                 self.state_stats["error_completions"] / total_completed * 100
             )
         
-        # 判断健康状态
-        health_status = self.determine_health_status(error_rate)
-        
         metrics = {
             "error_rate": error_rate,
+            "error_count": self.state_stats["error_completions"],
+            "successful_count": self.state_stats["successful_completions"],
             "total_conversations": self.state_stats["total_conversations"],
             "average_processing_time": self.state_stats["average_processing_time"],
             "last_activity": self.state_stats["last_activity"]
         }
         
-        return self.create_health_response(health_status, metrics) 
+        details = {
+            "component": "ConversationStateManager",
+            "total_completed": total_completed
+        }
+        
+        return self.create_metrics_response(metrics, details) 

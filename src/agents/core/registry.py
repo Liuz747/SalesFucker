@@ -353,7 +353,7 @@ class AgentRegistry(StatusMixin):
             "unhealthy_agents": unhealthy_agents
         }
         
-        return self.create_health_response(health_status, metrics, details)
+        return self.create_metrics_response(metrics, details)
     
     def __len__(self) -> int:
         """返回注册智能体数量"""

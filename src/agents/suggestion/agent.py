@@ -7,6 +7,7 @@ AI建议智能体 - 重构版
 
 from typing import Dict, Any
 from ..core import BaseAgent, AgentMessage, ConversationState
+from src.llm.intelligent_router import RoutingStrategy
 from src.utils import get_current_datetime, get_processing_time_ms
 
 from .escalation_analyzer import EscalationAnalyzer
@@ -24,7 +25,12 @@ class AISuggestionAgent(BaseAgent):
     """
     
     def __init__(self, tenant_id: str):
-        super().__init__(f"ai_suggestion_{tenant_id}", tenant_id)
+        # MAS架构：使用智能体优化策略提供系统建议
+        super().__init__(
+            agent_id=f"ai_suggestion_{tenant_id}", 
+            tenant_id=tenant_id,
+            routing_strategy=RoutingStrategy.AGENT_OPTIMIZED  # 平衡质量和效率的建议生成
+        )
         
         # 初始化功能模块
         self.escalation_analyzer = EscalationAnalyzer(tenant_id)

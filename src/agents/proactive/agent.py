@@ -8,6 +8,7 @@ Identifies opportunities for proactive customer contact and follow-up.
 from typing import Dict, Any, List
 from datetime import datetime, timedelta
 from ..core import BaseAgent, AgentMessage, ConversationState
+from src.llm.intelligent_router import RoutingStrategy
 from src.utils import get_current_datetime, get_processing_time_ms
 
 
@@ -20,7 +21,12 @@ class ProactiveAgent(BaseAgent):
     """
     
     def __init__(self, tenant_id: str):
-        super().__init__(f"proactive_agent_{tenant_id}", tenant_id)
+        # MAS架构：使用销售优化策略生成主动营销内容
+        super().__init__(
+            agent_id=f"proactive_agent_{tenant_id}", 
+            tenant_id=tenant_id,
+            routing_strategy=RoutingStrategy.BALANCED  # 主动营销内容生成
+        )
         
         # 触发器配置
         self.trigger_rules = {

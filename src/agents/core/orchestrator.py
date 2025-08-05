@@ -238,7 +238,7 @@ class Orchestrator(StatusMixin):
             "state_manager_health": state_health
         }
         
-        return self.create_health_response(overall_status, metrics, details)
+        return self.create_metrics_response(metrics, details)
     
     def reset_statistics(self):
         """

@@ -245,16 +245,76 @@ class TestSystemHealthAndMonitoring:
             assert "error_rate" in stats
 
 
-class TestLegacySystemRemoval:
-    """确认旧系统组件已被移除"""
+class TestUnifiedBaseAgentArchitecture:
+    """测试统一的BaseAgent架构"""
     
-    def test_no_more_micro_modules(self):
-        """确认微模块已被移除"""
+    def test_unified_base_agent_import(self):
+        """确认统一BaseAgent导入正常工作"""
+        try:
+            from src.agents.core.base import BaseAgent
+            from src.llm.intelligent_router import RoutingStrategy
+            from src.llm.provider_config import GlobalProviderConfig
+            
+            # 如果能导入说明统一架构成功
+            assert True
+        except ImportError as e:
+            pytest.fail(f"Unified BaseAgent imports failed: {e}")
+    
+    def test_base_agent_mas_llm_features(self):
+        """测试BaseAgent的MAS多LLM功能"""
+        from src.agents.core.base import BaseAgent
+        from src.llm.intelligent_router import RoutingStrategy
+        
+        # MAS架构：所有智能体都具备LLM能力
+        sales_agent = BaseAgent(
+            agent_id="sales_test",
+            tenant_id="test_tenant",
+            routing_strategy=RoutingStrategy.SALES_OPTIMIZED
+        )
+        
+        assert sales_agent.multi_llm_available == True  # 架构变更
+        assert sales_agent.agent_type == "sales"
+        assert sales_agent.routing_strategy == RoutingStrategy.SALES_OPTIMIZED
+        assert hasattr(sales_agent, 'llm_stats')
+        assert hasattr(sales_agent, 'llm_preferences')
+        
+        # 测试配置自动加载
+        product_agent = BaseAgent(
+            agent_id="product_expert_test",
+            tenant_id="test_tenant"
+        )
+        
+        assert product_agent.agent_type == "product"
+        # 自动加载产品智能体的偏好配置
+        assert product_agent.llm_preferences.get("temperature") == 0.5  # 来自配置文件
+    
+    def test_mas_agent_preference_loading(self):
+        """测试MAS智能体偏好配置加载"""
+        from src.agents.core.base import BaseAgent
+        from src.llm.agent_preferences import get_agent_preferences
+        
+        # 测试智能体类型配置自动加载
+        compliance_agent = BaseAgent(
+            agent_id="compliance_review_test",
+            tenant_id="test_tenant"
+        )
+        
+        # 验证合规智能体的高精度配置
+        assert compliance_agent.agent_type == "compliance"
+        assert compliance_agent.llm_preferences.get("temperature") == 0.3  # 高精度
+        assert compliance_agent.llm_preferences.get("quality_threshold") == 0.9
+        
+        # 验证配置一致性
+        direct_config = get_agent_preferences("compliance")
+        assert compliance_agent.llm_preferences == direct_config
+    
+    def test_no_more_micro_modules_and_deprecated_files(self):
+        """确认微模块目录和弃用文件已被移除"""
         import os
         
-        # 确认旧的模块目录不存在
         base_path = "/Users/preszheng/Desktop/HM/mas-v0.2/src/llm"
         
+        # 已移除的微模块目录
         obsolete_dirs = [
             "failover_system",
             "cost_optimizer_modules", 
@@ -266,15 +326,21 @@ class TestLegacySystemRemoval:
         for dir_name in obsolete_dirs:
             dir_path = os.path.join(base_path, dir_name)
             assert not os.path.exists(dir_path), f"Directory {dir_name} should have been removed"
+        
+        # 确认弃用文件已被删除
+        deprecated_file = os.path.join(base_path, "enhanced_base_agent.py")
+        assert not os.path.exists(deprecated_file), "enhanced_base_agent.py should have been removed"
     
-    def test_consolidated_imports_work(self):
-        """确认整合后的导入正常工作"""
+    def test_consolidated_llm_imports_work(self):
+        """确认整合后的LLM导入正常工作"""
         try:
             from src.llm.multi_llm_client import MultiLLMClient
             from src.llm.provider_manager import ProviderManager
             from src.llm.intelligent_router import IntelligentRouter
             from src.llm.cost_optimizer import CostOptimizer
-            from src.llm.enhanced_base_agent import MultiLLMBaseAgent
+            
+            # 测试新的统一架构
+            from src.agents.core.base import BaseAgent
             
             # 如果能导入说明整合成功
             assert True

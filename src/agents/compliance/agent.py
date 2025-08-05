@@ -23,6 +23,7 @@ from .audit import ComplianceAuditor
 from .metrics import ComplianceMetricsManager
 from src.utils import get_current_datetime, get_processing_time_ms, format_timestamp
 from src.llm import get_llm_client, get_prompt_manager, parse_structured_response
+from src.llm.intelligent_router import RoutingStrategy
 
 
 class ComplianceAgent(BaseAgent):
@@ -52,7 +53,12 @@ class ComplianceAgent(BaseAgent):
         参数:
             tenant_id: 租户标识符，用于多租户规则隔离
         """
-        super().__init__(f"compliance_review_{tenant_id}", tenant_id)
+        # MAS架构：使用质量优化策略确保合规检查精确性
+        super().__init__(
+            agent_id=f"compliance_review_{tenant_id}", 
+            tenant_id=tenant_id,
+            routing_strategy=RoutingStrategy.PERFORMANCE_FIRST  # 合规检查需要高精度
+        )
         
         # 初始化规则集
         self.rule_set = ComplianceRuleManager()

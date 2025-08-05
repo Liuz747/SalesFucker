@@ -9,6 +9,7 @@ from typing import Dict, Any, List
 import asyncio
 from ..core import BaseAgent, AgentMessage, ConversationState
 from src.utils import get_current_datetime, get_processing_time_ms
+from src.llm.intelligent_router import RoutingStrategy
 
 # 导入模块化组件
 from .recommendation_coordinator import RecommendationCoordinator
@@ -33,7 +34,12 @@ class ProductExpertAgent(BaseAgent):
     """
     
     def __init__(self, tenant_id: str):
-        super().__init__(f"product_expert_{tenant_id}", tenant_id)
+        # MAS架构：所有智能体都具备LLM能力，自动使用产品推荐优化配置
+        super().__init__(
+            agent_id=f"product_expert_{tenant_id}",
+            tenant_id=tenant_id,
+            routing_strategy=RoutingStrategy.PERFORMANCE_FIRST  # 产品推荐需要高质量响应
+        )
         
         # 初始化模块化组件
         self.recommendation_coordinator = RecommendationCoordinator(tenant_id, self.agent_id)
@@ -43,7 +49,7 @@ class ProductExpertAgent(BaseAgent):
         # 系统初始化状态
         self._initialized = False
         
-        self.logger.info(f"产品专家智能体初始化完成: {self.agent_id}，使用模块化架构")
+        self.logger.info(f"产品专家智能体初始化完成: {self.agent_id}，模块化架构，MAS自动LLM优化")
     
     async def _ensure_initialized(self) -> None:
         """确保所有组件已初始化"""

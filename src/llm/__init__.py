@@ -5,15 +5,12 @@ Provides comprehensive multi-LLM provider support for the multi-agent system.
 Includes intelligent routing, simple retry, cost optimization, and unified interfaces.
 """
 
-# No legacy support - clean API only
-
 # Multi-LLM provider system
 from .multi_llm_client import MultiLLMClient, get_multi_llm_client, shutdown_multi_llm_client
 from .provider_manager import ProviderManager
 from .intelligent_router import IntelligentRouter, RoutingStrategy, RoutingContext
 from .cost_optimizer import CostOptimizer
 from .config_manager import ConfigManager
-from .enhanced_base_agent import MultiLLMBaseAgent, MultiLLMAgentMixin
 
 # Configuration and data models
 from .provider_config import (
@@ -49,8 +46,6 @@ __all__ = [
     "IntelligentRouter",
     "CostOptimizer",
     "ConfigManager",
-    "MultiLLMBaseAgent",
-    "MultiLLMAgentMixin",
     
     # Configuration models
     "ProviderType",

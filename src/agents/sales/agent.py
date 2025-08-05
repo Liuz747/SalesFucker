@@ -16,7 +16,7 @@ from typing import Dict, Any
 from ..core import BaseAgent, AgentMessage, ConversationState
 from .sales_strategies import get_sales_strategies, analyze_customer_segment, get_strategy_for_segment, adapt_strategy_to_context
 from src.utils import format_timestamp
-from src.llm import get_llm_client, get_prompt_manager
+from src.llm.intelligent_router import RoutingStrategy
 
 
 class SalesAgent(BaseAgent):
@@ -34,16 +34,17 @@ class SalesAgent(BaseAgent):
     """
     
     def __init__(self, tenant_id: str):
-        super().__init__(f"sales_agent_{tenant_id}", tenant_id)
-        
-        # LLM integration for dynamic responses
-        self.llm_client = get_llm_client()
-        self.prompt_manager = get_prompt_manager()
+        # MAS架构：所有智能体都具备LLM能力，自动使用最优配置
+        super().__init__(
+            agent_id=f"sales_agent_{tenant_id}",
+            tenant_id=tenant_id,
+            routing_strategy=RoutingStrategy.BALANCED  # 使用平衡路由策略
+        )
         
         # Strategy management
         self.sales_strategies = get_sales_strategies()
         
-        self.logger.info(f"销售智能体初始化完成: {self.agent_id}")
+        self.logger.info(f"销售智能体初始化完成: {self.agent_id}, MAS架构自动LLM优化")
     
     async def process_message(self, message: AgentMessage) -> AgentMessage:
         """
@@ -171,7 +172,9 @@ class SalesAgent(BaseAgent):
                                    stage: str, strategy: Dict[str, Any], 
                                    state: ConversationState) -> str:
         """
-        使用LLM生成个性化销售响应
+        使用MAS多LLM生成个性化销售响应
+        
+        利用BaseAgent的MAS多LLM功能，智能选择最优供应商生成销售响应。
         
         参数:
             customer_input: 客户输入
@@ -184,50 +187,94 @@ class SalesAgent(BaseAgent):
             str: LLM生成的个性化销售响应
         """
         try:
-            # 准备提示词参数
-            conversation_history = self.prompt_manager.format_conversation_history(
-                state.conversation_history
+            # 构建上下文信息
+            context = {
+                "customer_profile": state.customer_profile,
+                "conversation_history": state.conversation_history[-5:],  # 最近5轮对话
+                "product_context": {
+                    "concerns": needs.get("concerns", []),
+                    "budget_range": state.customer_profile.get("budget_range", "medium"),
+                    "skin_type": state.customer_profile.get("skin_type", "not specified")
+                }
+            }
+            
+            # 构建销售咨询提示词
+            prompt = f"""
+作为专业的美妆销售顾问，请为以下客户咨询提供个性化建议：
+
+客户咨询：{customer_input}
+
+客户档案：
+- 肌肤类型：{state.customer_profile.get('skin_type', '未知')}
+- 关注问题：{', '.join(needs.get('concerns', ['一般咨询']))}
+- 预算范围：{state.customer_profile.get('budget_range', '中等')}
+- 经验水平：{needs.get('experience_level', '中级')}
+
+销售策略：
+- 语调风格：{strategy.get('tone', '友好')} ({self._get_tone_description(strategy.get('tone', 'friendly'))})
+- 建议方式：{strategy.get('approach', '咨询式')}
+- 对话阶段：{stage}
+
+请提供：
+1. 针对客户关注问题的专业分析
+2. 个性化的产品建议或解决方案
+3. 合适的后续问题或引导
+4. 保持{strategy.get('tone', '友好')}的语调风格
+
+请用中文回复，语言自然流畅，体现专业性和亲和力。
+"""
+            
+            # 使用增强的BaseAgent多LLM功能
+            response = await self.llm_generate_response(
+                prompt=prompt,
+                context=context,
+                temperature=0.8,  # 适合销售对话的创造性温度
+                max_tokens=512,   # 适中的响应长度
+                # 多LLM系统会自动选择最优供应商和模型
             )
             
-            # 获取销售咨询提示词
-            prompt = self.prompt_manager.get_prompt(
-                "sales",
-                "consultation",
-                brand_name=self.tenant_id,
-                customer_input=customer_input,
-                conversation_history=conversation_history,
-                skin_type=state.customer_profile.get("skin_type", "not specified"),
-                concerns=", ".join(needs.get("concerns", ["general consultation"])),
-                budget_range=state.customer_profile.get("budget_range", "medium"),
-                purchase_history=", ".join(state.customer_profile.get("purchase_history", ["none"])),
-                tone=strategy.get("tone", "friendly"),
-                tone_description=self._get_tone_description(strategy.get("tone", "friendly")),
-                strategy=strategy.get("approach", "consultative")
-            )
-            
-            # 调用LLM生成响应
-            messages = [{"role": "user", "content": prompt}]
-            response = await self.llm_client.chat_completion(messages, temperature=0.8)
-            
-            return response
+            if response:
+                return response
+            else:
+                # 如果多LLM未启用或失败，降级到简单响应
+                self.logger.warning("多LLM响应失败，使用降级响应")
+                return self._generate_fallback_response(stage, strategy)
             
         except Exception as e:
-            self.logger.error(f"LLM响应生成失败: {e}")
+            self.logger.error(f"多LLM响应生成失败: {e}")
             # 降级到简单模板响应
             return self._generate_fallback_response(stage, strategy)
     
     async def _generate_sales_response(self, customer_input: str, context: Dict[str, Any]) -> str:
-        """生成销售响应（LLM驱动）"""
+        """生成销售响应（多LLM增强）"""
         try:
-            prompt = self.prompt_manager.get_prompt(
-                "sales",
-                "consultation", 
-                customer_input=customer_input,
-                brand_name=self.tenant_id
+            # 构建简化的销售咨询提示词
+            prompt = f"""
+作为{self.tenant_id}品牌的专业美妆顾问，请为以下客户咨询提供个性化建议：
+
+客户咨询：{customer_input}
+
+请提供专业、友好的回复，包含：
+1. 对客户需求的理解
+2. 相关的产品建议或解决方案
+3. 后续的引导问题
+
+请用中文回复，保持专业和亲和的语调。
+"""
+            
+            # 使用增强的BaseAgent多LLM功能
+            response = await self.llm_generate_response(
+                prompt=prompt,
+                context=context,
+                temperature=0.8,
+                max_tokens=400
             )
             
-            messages = [{"role": "user", "content": prompt}]
-            return await self.llm_client.chat_completion(messages, temperature=0.8)
+            if response:
+                return response
+            else:
+                self.logger.warning("多LLM响应失败，使用降级响应")
+                return self._generate_fallback_response("consultation", {"tone": "friendly"})
             
         except Exception as e:
             self.logger.error(f"销售响应生成失败: {e}")
