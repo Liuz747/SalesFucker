@@ -53,6 +53,18 @@ class ConversationRequest(BaseRequest):
         max_length=50
     )
     
+    assistant_id: str = Field(
+        description="销售助理标识符",
+        min_length=1,
+        max_length=100
+    )
+    
+    device_id: str = Field(
+        description="设备标识符",
+        min_length=1,
+        max_length=100
+    )
+    
     customer_id: Optional[str] = Field(
         None,
         description="客户标识符",
@@ -134,6 +146,8 @@ class ConversationStartRequest(BaseRequest):
     """
     
     tenant_id: str = Field(description="租户ID")
+    assistant_id: str = Field(description="销售助理ID")
+    device_id: str = Field(description="设备ID")
     customer_id: Optional[str] = Field(None, description="客户ID")
     initial_message: Optional[str] = Field(None, description="初始消息")
     
@@ -155,6 +169,8 @@ class ConversationHistoryRequest(BaseRequest):
     """
     
     tenant_id: str = Field(description="租户ID")
+    assistant_id: Optional[str] = Field(None, description="销售助理ID")
+    device_id: Optional[str] = Field(None, description="设备ID")
     customer_id: Optional[str] = Field(None, description="客户ID")
     thread_id: Optional[str] = Field(None, description="对话ID")
     
@@ -282,6 +298,8 @@ class ConversationStatusResponse(SuccessResponse[Dict[str, Any]]):
     
     # 基本信息
     tenant_id: str = Field(description="租户ID")
+    assistant_id: Optional[str] = Field(None, description="销售助理ID")
+    device_id: Optional[str] = Field(None, description="设备ID")
     customer_id: Optional[str] = Field(None, description="客户ID")
     created_at: datetime = Field(description="创建时间")
     updated_at: datetime = Field(description="最后更新时间")
@@ -354,6 +372,8 @@ class ConversationExportRequest(BaseRequest):
     
     # 导出范围
     thread_ids: Optional[List[str]] = Field(None, description="指定对话ID列表")
+    assistant_id: Optional[str] = Field(None, description="指定销售助理ID")
+    device_id: Optional[str] = Field(None, description="指定设备ID")
     customer_id: Optional[str] = Field(None, description="指定客户ID")
     
     # 时间范围

@@ -19,6 +19,7 @@ import logging
 from src.agents import agent_registry, get_orchestrator
 from src.factories import create_agent_set
 from src.utils import get_component_logger
+from src.external import DeviceClient, get_external_config
 from ..schemas.llm import LLMProviderType
 
 logger = get_component_logger(__name__, "APIDependencies")
@@ -247,5 +248,76 @@ async def validate_provider_access(
             detail={
                 "error": "UNSUPPORTED_PROVIDER",
                 "message": f"不支持的LLM提供商: {provider.value}"
+            }
+        )
+
+
+# 设备相关依赖项
+
+async def get_device_client() -> DeviceClient:
+    """
+    获取设备客户端实例
+    
+    返回:
+        DeviceClient: 设备查询客户端
+    """
+    try:
+        config = get_external_config()
+        return DeviceClient(config)
+    except Exception as e:
+        logger.error(f"获取设备客户端失败: {e}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "DEVICE_CLIENT_UNAVAILABLE",
+                "message": "设备查询服务暂时不可用"
+            }
+        )
+
+
+async def validate_device_access(
+    device_id: str,
+    tenant_id: str = Depends(get_tenant_id),
+    device_client: DeviceClient = Depends(get_device_client)
+) -> str:
+    """
+    验证设备是否存在且属于指定租户
+    
+    参数:
+        device_id: 设备ID
+        tenant_id: 租户ID
+        device_client: 设备客户端
+        
+    返回:
+        str: 验证后的设备ID
+        
+    异常:
+        HTTPException: 设备不存在或不属于租户时抛出
+    """
+    try:
+        # 查询设备信息
+        device_info = await device_client.get_device(device_id, tenant_id)
+        
+        if not device_info:
+            raise HTTPException(
+                status_code=404,
+                detail={
+                    "error": "DEVICE_NOT_FOUND",
+                    "message": f"设备 {device_id} 不存在或不属于租户 {tenant_id}"
+                }
+            )
+        
+        logger.debug(f"设备验证成功: {device_id}")
+        return device_id
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"设备验证失败: device_id={device_id}, error={e}")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "DEVICE_VALIDATION_FAILED",
+                "message": "设备验证失败，请稍后重试"
             }
         )

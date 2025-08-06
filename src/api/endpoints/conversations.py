@@ -19,7 +19,8 @@ import logging
 from ..dependencies import (
     get_tenant_id,
     get_orchestrator_service,
-    get_request_context
+    get_request_context,
+    get_device_client
 )
 from ..schemas.conversations import (
     ConversationRequest,
@@ -58,7 +59,8 @@ async def start_conversation(
     request: ConversationStartRequest,
     tenant_id: str = Depends(get_tenant_id),
     context: Dict[str, Any] = Depends(get_request_context),
-    orchestrator = Depends(get_orchestrator_service)
+    orchestrator = Depends(get_orchestrator_service),
+    device_client = Depends(get_device_client)
 ):
     """
     开始新对话
@@ -69,6 +71,14 @@ async def start_conversation(
         # 验证租户匹配
         if request.tenant_id != tenant_id:
             raise HTTPException(status_code=400, detail="租户ID不匹配")
+        
+        # 验证设备存在
+        device_info = await device_client.get_device(request.device_id, tenant_id)
+        if not device_info:
+            raise HTTPException(
+                status_code=404,
+                detail=f"设备 {request.device_id} 不存在或不属于租户 {tenant_id}"
+            )
         
         return await conversation_handler.start_conversation(
             request=request,
@@ -86,7 +96,8 @@ async def process_message(
     request: ConversationRequest,
     tenant_id: str = Depends(get_tenant_id),
     context: Dict[str, Any] = Depends(get_request_context),
-    orchestrator = Depends(get_orchestrator_service)
+    orchestrator = Depends(get_orchestrator_service),
+    device_client = Depends(get_device_client)
 ):
     """
     处理对话消息
@@ -97,6 +108,14 @@ async def process_message(
         # 验证租户匹配
         if request.tenant_id != tenant_id:
             raise HTTPException(status_code=400, detail="租户ID不匹配")
+        
+        # 验证设备存在
+        device_info = await device_client.get_device(request.device_id, tenant_id)
+        if not device_info:
+            raise HTTPException(
+                status_code=404,
+                detail=f"设备 {request.device_id} 不存在或不属于租户 {tenant_id}"
+            )
         
         return await conversation_handler.process_message(
             request=request,

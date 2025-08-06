@@ -127,6 +127,8 @@ class StorageOperations:
     async def get_conversation_history(
         self,
         thread_id: str,
+        assistant_id: str,
+        device_id: str,
         limit: int = 50,
         offset: int = 0,
         message_types: Optional[List[MessageType]] = None
@@ -143,12 +145,14 @@ class StorageOperations:
         try:
             index_name = self.index_manager.get_messages_index(thread_id)
             
-            # 构建查询
+            # 构建查询 - 增强数据隔离
             query = {
                 "bool": {
                     "must": [
                         {"term": {"thread_id": thread_id}},
-                        {"term": {"tenant_id": self.tenant_id}}
+                        {"term": {"tenant_id": self.tenant_id}},
+                        {"term": {"assistant_id": assistant_id}},
+                        {"term": {"device_id": device_id}}
                     ]
                 }
             }

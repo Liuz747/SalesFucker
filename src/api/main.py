@@ -27,6 +27,8 @@ from .endpoints import (
     multimodal_router,
     health_router
 )
+from .endpoints.assistants import router as assistants_router
+from .endpoints.prompts import router as prompts_router
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -94,6 +96,8 @@ app.include_router(agents_router, prefix="/api/v1")
 app.include_router(conversations_router, prefix="/api/v1")
 app.include_router(llm_management_router, prefix="/api/v1")
 app.include_router(multimodal_router, prefix="/api/v1")
+app.include_router(assistants_router)
+app.include_router(prompts_router)
 
 # 根路径健康检查
 @app.get("/")

@@ -34,6 +34,8 @@ class AgentMessage(BaseModel):
         message_type: 消息类型(查询/响应/通知/触发/建议)
         context: 消息上下文信息
         tenant_id: 多租户标识符
+        assistant_id: 销售助理标识符
+        device_id: 设备标识符
         customer_id: 客户标识符
         thread_id: 对话标识符
         session_id: 会话标识符
@@ -64,6 +66,8 @@ class AgentMessage(BaseModel):
         description="消息上下文信息，包含处理消息所需的环境数据"
     )
     tenant_id: Optional[str] = Field(None, description="多租户标识符，用于区分不同的化妆品品牌")
+    assistant_id: Optional[str] = Field(None, description="销售助理标识符，用于区分租户内不同的销售人员")
+    device_id: Optional[str] = Field(None, description="设备标识符，用于区分销售助理使用的不同终端设备")
     customer_id: Optional[str] = Field(None, description="客户唯一标识符")
     thread_id: Optional[str] = Field(None, description="对话会话标识符")
     session_id: Optional[str] = Field(None, description="用户会话标识符")
@@ -115,6 +119,8 @@ class ThreadState(BaseModel):
         thread_id: 对话唯一标识符
         session_id: 会话标识符
         tenant_id: 租户标识符
+        assistant_id: 销售助理标识符
+        device_id: 设备标识符
         customer_id: 客户标识符
         customer_input: 客户输入内容
         input_type: 输入类型(文本/语音/图片)
@@ -143,6 +149,8 @@ class ThreadState(BaseModel):
         description="用户会话标识符"
     )
     tenant_id: str = Field(description="多租户标识符")
+    assistant_id: Optional[str] = Field(None, description="销售助理标识符，用于区分租户内不同的销售人员")
+    device_id: Optional[str] = Field(None, description="设备标识符，用于区分销售助理使用的不同终端设备")
     customer_id: Optional[str] = Field(None, description="客户唯一标识符")
     
     # 客户输入

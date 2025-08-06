@@ -78,18 +78,22 @@ class ConversationStore:
     async def get_conversation_history(
         self,
         thread_id: str,
+        assistant_id: str,
+        device_id: str,
         limit: int = 50,
         offset: int = 0,
         message_types: Optional[List[MessageType]] = None
     ) -> List[ConversationMessage]:
         """获取对话历史"""
         return await self._storage_ops.get_conversation_history(
-            thread_id, limit, offset, message_types
+            thread_id, assistant_id, device_id, limit, offset, message_types
         )
     
     # 搜索和分析操作代理方法
     async def search_messages(
         self,
+        assistant_id: str,
+        device_id: str,
         customer_id: Optional[str] = None,
         query_text: Optional[str] = None,
         date_range: Optional[Tuple[datetime, datetime]] = None,
@@ -98,16 +102,18 @@ class ConversationStore:
     ) -> List[ConversationMessage]:
         """智能消息搜索"""
         return await self._search_analytics.search_messages(
-            customer_id, query_text, date_range, message_types, limit
+            assistant_id, device_id, customer_id, query_text, date_range, message_types, limit
         )
     
     async def get_customer_message_stats(
         self,
+        assistant_id: str,
+        device_id: str,
         customer_id: str,
         days: int = 30
     ) -> Dict[str, Any]:
         """获取客户消息统计"""
-        return await self._search_analytics.get_customer_message_stats(customer_id, days)
+        return await self._search_analytics.get_customer_message_stats(assistant_id, device_id, customer_id, days)
     
     async def delete_old_messages(self, days_to_keep: int = 365) -> int:
         """清理旧消息数据"""

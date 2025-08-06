@@ -32,6 +32,8 @@ class ConversationMessage:
     message_id: str
     thread_id: str
     tenant_id: str
+    assistant_id: str
+    device_id: str
     customer_id: str
     message_type: MessageType
     content: Union[str, Dict[str, Any]]
