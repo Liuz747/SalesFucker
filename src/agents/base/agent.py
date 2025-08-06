@@ -14,7 +14,7 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
 
-from .message import AgentMessage, ConversationState
+from .message import AgentMessage, ThreadState
 from src.utils import get_component_logger, ErrorHandler, StatusMixin
 from src.infra.monitoring import AgentMonitor
 from src.llm import RoutingStrategy, GlobalProviderConfig, LLMMixin
@@ -77,7 +77,7 @@ class BaseAgent(LLMMixin, StatusMixin, ABC):
         pass
     
     @abstractmethod
-    async def process_conversation(self, state: ConversationState) -> ConversationState:
+    async def process_conversation(self, state: ThreadState) -> ThreadState:
         """
         处理对话状态的具体实现 (抽象方法)
         
@@ -88,7 +88,7 @@ class BaseAgent(LLMMixin, StatusMixin, ABC):
             state: 当前对话状态对象
             
         返回:
-            ConversationState: 更新后的对话状态
+            ThreadState: 更新后的对话状态
         """
         pass
     

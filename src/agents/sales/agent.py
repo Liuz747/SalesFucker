@@ -13,7 +13,7 @@
 
 from typing import Dict, Any
 
-from ..base import BaseAgent, AgentMessage, ConversationState
+from ..base import BaseAgent, AgentMessage, ThreadState
 from .sales_strategies import get_sales_strategies, analyze_customer_segment, get_strategy_for_segment, adapt_strategy_to_context
 from src.utils import format_timestamp
 from src.llm.intelligent_router import RoutingStrategy
@@ -24,7 +24,6 @@ class SalesAgent(BaseAgent):
     销售智能体 - 核心控制器
     
     负责协调各个销售模块，保持轻量级核心设计。
-    按照行业标准保持在150行以内，专注于核心逻辑。
     
     职责:
     - 智能体生命周期管理
@@ -94,7 +93,7 @@ class SalesAgent(BaseAgent):
                 context=message.context
             )
     
-    async def process_conversation(self, state: ConversationState) -> ConversationState:
+    async def process_conversation(self, state: ThreadState) -> ThreadState:
         """
         处理对话状态（LangGraph工作流节点）
         
@@ -104,7 +103,7 @@ class SalesAgent(BaseAgent):
             state: 当前对话状态
             
         返回:
-            ConversationState: 更新后的对话状态
+            ThreadState: 更新后的对话状态
         """
         try:
             customer_input = state.customer_input
@@ -164,13 +163,18 @@ class SalesAgent(BaseAgent):
             return state
             
         except Exception as e:
-            await self.handle_error(e, {"conversation_id": state.conversation_id})
+            await self.handle_error(e, {"thread_id": state.thread_id})
             state.error_state = "sales_processing_error"
             return state
     
-    async def _generate_llm_response(self, customer_input: str, needs: Dict[str, Any],
-                                   stage: str, strategy: Dict[str, Any], 
-                                   state: ConversationState) -> str:
+    async def _generate_llm_response(
+            self, 
+            customer_input: str, 
+            needs: Dict[str, Any],
+            stage: str, 
+            strategy: Dict[str, Any], 
+            state: ThreadState
+    ) -> str:
         """
         使用MAS多LLM生成个性化销售响应
         
@@ -200,29 +204,29 @@ class SalesAgent(BaseAgent):
             
             # 构建销售咨询提示词
             prompt = f"""
-作为专业的美妆销售顾问，请为以下客户咨询提供个性化建议：
+            作为专业的美妆销售顾问，请为以下客户咨询提供个性化建议：
 
-客户咨询：{customer_input}
+            客户咨询：{customer_input}
 
-客户档案：
-- 肌肤类型：{state.customer_profile.get('skin_type', '未知')}
-- 关注问题：{', '.join(needs.get('concerns', ['一般咨询']))}
-- 预算范围：{state.customer_profile.get('budget_range', '中等')}
-- 经验水平：{needs.get('experience_level', '中级')}
+            客户档案：
+            - 肌肤类型：{state.customer_profile.get('skin_type', '未知')}
+            - 关注问题：{', '.join(needs.get('concerns', ['一般咨询']))}
+            - 预算范围：{state.customer_profile.get('budget_range', '中等')}
+            - 经验水平：{needs.get('experience_level', '中级')}
 
-销售策略：
-- 语调风格：{strategy.get('tone', '友好')} ({self._get_tone_description(strategy.get('tone', 'friendly'))})
-- 建议方式：{strategy.get('approach', '咨询式')}
-- 对话阶段：{stage}
+            销售策略：
+            - 语调风格：{strategy.get('tone', '友好')} ({self._get_tone_description(strategy.get('tone', 'friendly'))})
+            - 建议方式：{strategy.get('approach', '咨询式')}
+            - 对话阶段：{stage}
 
-请提供：
-1. 针对客户关注问题的专业分析
-2. 个性化的产品建议或解决方案
-3. 合适的后续问题或引导
-4. 保持{strategy.get('tone', '友好')}的语调风格
+            请提供：
+            1. 针对客户关注问题的专业分析
+            2. 个性化的产品建议或解决方案
+            3. 合适的后续问题或引导
+            4. 保持{strategy.get('tone', '友好')}的语调风格
 
-请用中文回复，语言自然流畅，体现专业性和亲和力。
-"""
+            请用中文回复，语言自然流畅，体现专业性和亲和力。
+            """
             
             # 使用增强的BaseAgent多LLM功能
             response = await self.llm_generate_response(

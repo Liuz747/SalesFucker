@@ -14,7 +14,7 @@
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-from ..base import BaseAgent, AgentMessage, ConversationState
+from ..base import BaseAgent, AgentMessage, ThreadState
 from .rule_manager import ComplianceRuleManager
 from .types import RuleSeverity, RuleAction
 from .checker import ComplianceChecker
@@ -107,7 +107,7 @@ class ComplianceAgent(BaseAgent):
             # 更新统计和审计
             processing_time = get_processing_time_ms(start_time)
             self._update_metrics_and_audit(
-                message.context.get("conversation_id", "unknown"),
+                message.context.get("thread_id", "unknown"),
                 input_text, 
                 compliance_result, 
                 processing_time
@@ -139,7 +139,7 @@ class ComplianceAgent(BaseAgent):
                 context=message.context
             )
     
-    async def process_conversation(self, state: ConversationState) -> ConversationState:
+    async def process_conversation(self, state: ThreadState) -> ThreadState:
         """
         处理对话状态中的合规检查
         
@@ -149,7 +149,7 @@ class ComplianceAgent(BaseAgent):
             state: 当前对话状态
             
         返回:
-            ConversationState: 更新后的对话状态
+            ThreadState: 更新后的对话状态
         """
         start_time = get_current_datetime()
         
@@ -169,7 +169,7 @@ class ComplianceAgent(BaseAgent):
             # 更新统计和审计
             processing_time = get_processing_time_ms(start_time)
             self._update_metrics_and_audit(
-                state.conversation_id,
+                state.thread_id,
                 customer_input,
                 compliance_result,
                 processing_time
@@ -179,7 +179,7 @@ class ComplianceAgent(BaseAgent):
             
         except Exception as e:
             error_context = {
-                "conversation_id": state.conversation_id,
+                "thread_id": state.thread_id,
                 "customer_input_length": len(state.customer_input),
                 "tenant_id": state.tenant_id,
                 "agent": self.agent_id
@@ -191,7 +191,7 @@ class ComplianceAgent(BaseAgent):
             
             return state
     
-    def _update_conversation_state(self, state: ConversationState, 
+    def _update_conversation_state(self, state: ThreadState, 
                                  compliance_result: Dict[str, Any]):
         """
         根据合规结果更新对话状态
@@ -212,7 +212,7 @@ class ComplianceAgent(BaseAgent):
             # 标记需要人工审核但继续处理
             state.human_escalation = True
     
-    def _set_error_state(self, state: ConversationState):
+    def _set_error_state(self, state: ThreadState):
         """
         设置错误状态
         
@@ -232,13 +232,13 @@ class ComplianceAgent(BaseAgent):
         # 更新错误指标
         self.metrics.update_status_metrics("error")
     
-    def _update_metrics_and_audit(self, conversation_id: str, input_text: str,
+    def _update_metrics_and_audit(self, thread_id: str, input_text: str,
                                 compliance_result: Dict[str, Any], processing_time_ms: float):
         """
         更新指标和审计信息
         
         参数:
-            conversation_id: 对话ID
+            thread_id: 对话ID
             input_text: 输入文本
             compliance_result: 合规结果
             processing_time_ms: 处理时间
@@ -249,7 +249,7 @@ class ComplianceAgent(BaseAgent):
         
         # 记录审计日志
         self.auditor.log_compliance_check(
-            conversation_id, input_text, compliance_result, processing_time_ms
+            thread_id, input_text, compliance_result, processing_time_ms
         )
         
         # 更新基类统计

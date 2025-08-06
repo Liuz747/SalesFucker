@@ -109,9 +109,9 @@ async def process_message(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/{conversation_id}/status", response_model=ConversationStatusResponse)
+@router.get("/{thread_id}/status", response_model=ConversationStatusResponse)
 async def get_conversation_status(
-    conversation_id: str,
+    thread_id: str,
     tenant_id: str = Depends(get_tenant_id),
     include_details: bool = Query(False, description="是否包含详细信息")
 ):
@@ -122,21 +122,21 @@ async def get_conversation_status(
     """
     try:
         return await conversation_handler.get_conversation_status(
-            conversation_id=conversation_id,
+            thread_id=thread_id,
             tenant_id=tenant_id,
             include_details=include_details
         )
         
     except Exception as e:
-        logger.error(f"获取对话状态失败 {conversation_id}: {e}", exc_info=True)
+        logger.error(f"获取对话状态失败 {thread_id}: {e}", exc_info=True)
         if "not found" in str(e).lower():
             raise HTTPException(status_code=404, detail="对话不存在")
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/{conversation_id}/end")
+@router.post("/{thread_id}/end")
 async def end_conversation(
-    conversation_id: str,
+    thread_id: str,
     reason: Optional[str] = Query(None, description="结束原因"),
     tenant_id: str = Depends(get_tenant_id)
 ):
@@ -147,13 +147,13 @@ async def end_conversation(
     """
     try:
         return await conversation_handler.end_conversation(
-            conversation_id=conversation_id,
+            thread_id=thread_id,
             tenant_id=tenant_id,
             reason=reason
         )
         
     except Exception as e:
-        logger.error(f"结束对话失败 {conversation_id}: {e}", exc_info=True)
+        logger.error(f"结束对话失败 {thread_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -161,7 +161,7 @@ async def end_conversation(
 async def get_conversation_history(
     tenant_id: str = Depends(get_tenant_id),
     customer_id: Optional[str] = Query(None, description="客户ID"),
-    conversation_id: Optional[str] = Query(None, description="对话ID"),
+    thread_id: Optional[str] = Query(None, description="对话ID"),
     status: Optional[ConversationStatus] = Query(None, description="对话状态"),
     input_type: Optional[InputType] = Query(None, description="输入类型"),
     pagination: PaginationRequest = Depends(),
@@ -177,7 +177,7 @@ async def get_conversation_history(
         history_request = ConversationHistoryRequest(
             tenant_id=tenant_id,
             customer_id=customer_id,
-            conversation_id=conversation_id,
+            thread_id=thread_id,
             status=status,
             input_type=input_type,
             include_messages=include_messages,
@@ -194,9 +194,9 @@ async def get_conversation_history(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/{conversation_id}/messages")
+@router.get("/{thread_id}/messages")
 async def get_conversation_messages(
-    conversation_id: str,
+    thread_id: str,
     tenant_id: str = Depends(get_tenant_id),
     pagination: PaginationRequest = Depends(),
     include_attachments: bool = Query(False, description="是否包含附件信息"),
@@ -209,7 +209,7 @@ async def get_conversation_messages(
     """
     try:
         return await conversation_handler.get_conversation_messages(
-            conversation_id=conversation_id,
+            thread_id=thread_id,
             tenant_id=tenant_id,
             pagination=pagination,
             include_attachments=include_attachments,
@@ -217,7 +217,7 @@ async def get_conversation_messages(
         )
         
     except Exception as e:
-        logger.error(f"获取对话消息失败 {conversation_id}: {e}", exc_info=True)
+        logger.error(f"获取对话消息失败 {thread_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -387,9 +387,9 @@ async def get_realtime_metrics(
 
 # 管理端点
 
-@router.post("/{conversation_id}/escalate")
+@router.post("/{thread_id}/escalate")
 async def escalate_conversation(
-    conversation_id: str,
+    thread_id: str,
     reason: str = Query(description="升级原因"),
     priority: str = Query("normal", description="优先级", regex="^(low|normal|high|urgent)$"),
     tenant_id: str = Depends(get_tenant_id)
@@ -401,20 +401,20 @@ async def escalate_conversation(
     """
     try:
         return await conversation_handler.escalate_conversation(
-            conversation_id=conversation_id,
+            thread_id=thread_id,
             tenant_id=tenant_id,
             reason=reason,
             priority=priority
         )
         
     except Exception as e:
-        logger.error(f"对话升级失败 {conversation_id}: {e}", exc_info=True)
+        logger.error(f"对话升级失败 {thread_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/{conversation_id}/feedback")
+@router.post("/{thread_id}/feedback")
 async def submit_conversation_feedback(
-    conversation_id: str,
+    thread_id: str,
     rating: int = Query(ge=1, le=5, description="评分（1-5）"),
     feedback: Optional[str] = Query(None, description="反馈内容"),
     tenant_id: str = Depends(get_tenant_id)
@@ -426,20 +426,20 @@ async def submit_conversation_feedback(
     """
     try:
         return await conversation_handler.submit_feedback(
-            conversation_id=conversation_id,
+            thread_id=thread_id,
             tenant_id=tenant_id,
             rating=rating,
             feedback=feedback
         )
         
     except Exception as e:
-        logger.error(f"提交反馈失败 {conversation_id}: {e}", exc_info=True)
+        logger.error(f"提交反馈失败 {thread_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.delete("/{conversation_id}")
+@router.delete("/{thread_id}")
 async def delete_conversation(
-    conversation_id: str,
+    thread_id: str,
     tenant_id: str = Depends(get_tenant_id),
     permanent: bool = Query(False, description="是否永久删除")
 ):
@@ -450,11 +450,11 @@ async def delete_conversation(
     """
     try:
         return await conversation_handler.delete_conversation(
-            conversation_id=conversation_id,
+            thread_id=thread_id,
             tenant_id=tenant_id,
             permanent=permanent
         )
         
     except Exception as e:
-        logger.error(f"删除对话失败 {conversation_id}: {e}", exc_info=True)
+        logger.error(f"删除对话失败 {thread_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

@@ -6,7 +6,7 @@ Identifies purchase intent, conversation stage, and specific customer needs.
 """
 
 from typing import Dict, Any
-from ..base import BaseAgent, AgentMessage, ConversationState
+from ..base import BaseAgent, AgentMessage, ThreadState
 from src.llm import get_llm_client, get_prompt_manager, parse_structured_response
 from src.llm.intelligent_router import RoutingStrategy
 from src.utils import get_current_datetime, get_processing_time_ms
@@ -87,7 +87,7 @@ class IntentAnalysisAgent(BaseAgent):
                 context=message.context
             )
     
-    async def process_conversation(self, state: ConversationState) -> ConversationState:
+    async def process_conversation(self, state: ThreadState) -> ThreadState:
         """
         处理对话状态中的意图分析
         
@@ -97,7 +97,7 @@ class IntentAnalysisAgent(BaseAgent):
             state: 当前对话状态
             
         返回:
-            ConversationState: 更新后的对话状态
+            ThreadState: 更新后的对话状态
         """
         start_time = get_current_datetime()
         
@@ -122,7 +122,7 @@ class IntentAnalysisAgent(BaseAgent):
             return state
             
         except Exception as e:
-            await self.handle_error(e, {"conversation_id": state.conversation_id})
+            await self.handle_error(e, {"thread_id": state.thread_id})
             
             # 设置降级意图分析
             state.intent_analysis = {
@@ -190,7 +190,7 @@ class IntentAnalysisAgent(BaseAgent):
                 "agent_id": self.agent_id
             }
     
-    def _set_strategy_hints(self, state: ConversationState, intent_result: Dict[str, Any]):
+    def _set_strategy_hints(self, state: ThreadState, intent_result: Dict[str, Any]):
         """
         根据意图分析结果设置策略提示
         

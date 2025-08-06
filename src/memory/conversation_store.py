@@ -77,14 +77,14 @@ class ConversationStore:
     
     async def get_conversation_history(
         self,
-        conversation_id: str,
+        thread_id: str,
         limit: int = 50,
         offset: int = 0,
         message_types: Optional[List[MessageType]] = None
     ) -> List[ConversationMessage]:
         """获取对话历史"""
         return await self._storage_ops.get_conversation_history(
-            conversation_id, limit, offset, message_types
+            thread_id, limit, offset, message_types
         )
     
     # 搜索和分析操作代理方法

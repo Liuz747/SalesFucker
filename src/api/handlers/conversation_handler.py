@@ -75,11 +75,11 @@ class ConversationHandler:
         """
         try:
             # 生成对话ID
-            conversation_id = f"conv_{request.tenant_id}_{uuid.uuid4().hex[:8]}"
+            thread_id = f"conv_{request.tenant_id}_{uuid.uuid4().hex[:8]}"
             
             # 初始化对话记录
             conversation = {
-                "conversation_id": conversation_id,
+                "thread_id": thread_id,
                 "tenant_id": request.tenant_id,
                 "customer_id": request.customer_id,
                 "conversation_type": request.conversation_type,
@@ -91,12 +91,12 @@ class ConversationHandler:
             }
             
             # 保存到内存（实际应保存到数据库）
-            self._conversations[conversation_id] = conversation
-            self._conversation_messages[conversation_id] = []
+            self._conversations[thread_id] = conversation
+            self._conversation_messages[thread_id] = []
             
             # 初始化智能体（通过编排器）
             agents_initialized = await self._initialize_agents(
-                conversation_id, request.tenant_id, orchestrator
+                thread_id, request.tenant_id, orchestrator
             )
             
             # 加载客户记忆
@@ -109,16 +109,16 @@ class ConversationHandler:
                 request.customer_profile, request.conversation_type
             )
             
-            self.logger.info(f"对话已开始: {conversation_id}")
+            self.logger.info(f"对话已开始: {thread_id}")
             
             return ConversationStartResponse(
                 success=True,
                 message="对话创建成功",
                 data={
-                    "conversation_id": conversation_id,
+                    "thread_id": thread_id,
                     "tenant_id": request.tenant_id
                 },
-                conversation_id=conversation_id,
+                thread_id=thread_id,
                 welcome_message=welcome_message,
                 conversation_status=ConversationStatus.ACTIVE,
                 agents_initialized=agents_initialized,
@@ -131,7 +131,7 @@ class ConversationHandler:
             raise ConversationException(f"开始对话失败: {str(e)}")
     
     async def _initialize_agents(
-        self, conversation_id: str, tenant_id: str, orchestrator
+        self, thread_id: str, tenant_id: str, orchestrator
     ) -> List[str]:
         """初始化智能体"""
         try:
@@ -198,18 +198,18 @@ class ConversationHandler:
             对话响应
         """
         try:
-            conversation_id = request.conversation_id
-            if not conversation_id:
+            thread_id = request.thread_id
+            if not thread_id:
                 # 如果没有提供对话ID，创建新对话
-                conversation_id = f"conv_{request.tenant_id}_{uuid.uuid4().hex[:8]}"
-                await self._create_conversation_record(conversation_id, request)
+                thread_id = f"conv_{request.tenant_id}_{uuid.uuid4().hex[:8]}"
+                await self._create_conversation_record(thread_id, request)
             
             # 验证对话存在
-            if conversation_id not in self._conversations:
-                raise ConversationException(f"对话不存在: {conversation_id}")
+            if thread_id not in self._conversations:
+                raise ConversationException(f"对话不存在: {thread_id}")
             
             # 记录消息
-            message_id = await self._record_message(conversation_id, request)
+            message_id = await self._record_message(thread_id, request)
             
             # 处理消息（通过编排器）
             start_time = datetime.now()
@@ -231,12 +231,12 @@ class ConversationHandler:
                 
                 # 更新对话状态
                 await self._update_conversation_status(
-                    conversation_id, result, processing_time
+                    thread_id, result, processing_time
                 )
                 
                 # 记录响应消息
                 await self._record_response_message(
-                    conversation_id, final_response, result
+                    thread_id, final_response, result
                 )
                 
                 return ConversationResponse(
@@ -246,7 +246,7 @@ class ConversationHandler:
                         "message_id": message_id,
                         "processing_time_ms": processing_time
                     },
-                    conversation_id=conversation_id,
+                    thread_id=thread_id,
                     response=final_response,
                     processing_complete=result.processing_complete,
                     conversation_status=ConversationStatus.ACTIVE,
@@ -282,7 +282,7 @@ class ConversationHandler:
                         "message_id": message_id,
                         "error": str(processing_error)
                     },
-                    conversation_id=conversation_id,
+                    thread_id=thread_id,
                     response=error_response,
                     processing_complete=False,
                     conversation_status=ConversationStatus.FAILED,
@@ -300,11 +300,11 @@ class ConversationHandler:
             raise ProcessingException(f"处理消息失败: {str(e)}")
     
     async def _create_conversation_record(
-        self, conversation_id: str, request: ConversationRequest
+        self, thread_id: str, request: ConversationRequest
     ):
         """创建对话记录"""
         conversation = {
-            "conversation_id": conversation_id,
+            "thread_id": thread_id,
             "tenant_id": request.tenant_id,
             "customer_id": request.customer_id,
             "status": ConversationStatus.ACTIVE,
@@ -313,11 +313,11 @@ class ConversationHandler:
             "message_count": 0
         }
         
-        self._conversations[conversation_id] = conversation
-        self._conversation_messages[conversation_id] = []
+        self._conversations[thread_id] = conversation
+        self._conversation_messages[thread_id] = []
     
     async def _record_message(
-        self, conversation_id: str, request: ConversationRequest
+        self, thread_id: str, request: ConversationRequest
     ) -> str:
         """记录输入消息"""
         message_id = f"msg_{uuid.uuid4().hex[:8]}"
@@ -331,16 +331,16 @@ class ConversationHandler:
             "attachments": request.attachments or []
         }
         
-        self._conversation_messages[conversation_id].append(message)
+        self._conversation_messages[thread_id].append(message)
         
         # 更新消息计数
-        self._conversations[conversation_id]["message_count"] += 1
-        self._conversations[conversation_id]["updated_at"] = datetime.now()
+        self._conversations[thread_id]["message_count"] += 1
+        self._conversations[thread_id]["updated_at"] = datetime.now()
         
         return message_id
     
     async def _record_response_message(
-        self, conversation_id: str, response: str, result
+        self, thread_id: str, response: str, result
     ):
         """记录响应消息"""
         message_id = f"msg_{uuid.uuid4().hex[:8]}"
@@ -358,14 +358,14 @@ class ConversationHandler:
             }
         }
         
-        self._conversation_messages[conversation_id].append(message)
-        self._conversations[conversation_id]["message_count"] += 1
+        self._conversation_messages[thread_id].append(message)
+        self._conversations[thread_id]["message_count"] += 1
     
     async def _update_conversation_status(
-        self, conversation_id: str, result, processing_time: float
+        self, thread_id: str, result, processing_time: float
     ):
         """更新对话状态"""
-        conversation = self._conversations[conversation_id]
+        conversation = self._conversations[thread_id]
         
         # 更新统计信息
         if "total_processing_time" not in conversation:
@@ -406,28 +406,28 @@ class ConversationHandler:
     
     async def get_conversation_status(
         self,
-        conversation_id: str,
+        thread_id: str,
         tenant_id: str,
         include_details: bool = False
     ) -> ConversationStatusResponse:
         """获取对话状态"""
         try:
-            if conversation_id not in self._conversations:
-                raise ConversationException(f"对话不存在: {conversation_id}")
+            if thread_id not in self._conversations:
+                raise ConversationException(f"对话不存在: {thread_id}")
             
-            conversation = self._conversations[conversation_id]
+            conversation = self._conversations[thread_id]
             
             # 验证租户权限
             if conversation["tenant_id"] != tenant_id:
                 raise ConversationException("无权访问该对话")
             
-            messages = self._conversation_messages.get(conversation_id, [])
+            messages = self._conversation_messages.get(thread_id, [])
             
             return ConversationStatusResponse(
                 success=True,
                 message="对话状态获取成功",
-                data={"conversation_id": conversation_id},
-                conversation_id=conversation_id,
+                data={"thread_id": thread_id},
+                thread_id=thread_id,
                 status=conversation["status"],
                 tenant_id=conversation["tenant_id"],
                 customer_id=conversation.get("customer_id"),
@@ -449,16 +449,16 @@ class ConversationHandler:
     
     async def end_conversation(
         self,
-        conversation_id: str,
+        thread_id: str,
         tenant_id: str,
         reason: Optional[str] = None
     ) -> Dict[str, Any]:
         """结束对话"""
         try:
-            if conversation_id not in self._conversations:
-                raise ConversationException(f"对话不存在: {conversation_id}")
+            if thread_id not in self._conversations:
+                raise ConversationException(f"对话不存在: {thread_id}")
             
-            conversation = self._conversations[conversation_id]
+            conversation = self._conversations[thread_id]
             
             # 验证租户权限
             if conversation["tenant_id"] != tenant_id:
@@ -470,12 +470,12 @@ class ConversationHandler:
             conversation["ended_at"] = datetime.now()
             conversation["updated_at"] = datetime.now()
             
-            self.logger.info(f"对话已结束: {conversation_id}")
+            self.logger.info(f"对话已结束: {thread_id}")
             
             return {
                 "success": True,
                 "message": "对话已结束",
-                "conversation_id": conversation_id,
+                "thread_id": thread_id,
                 "ended_at": conversation["ended_at"].isoformat()
             }
             
@@ -495,7 +495,7 @@ class ConversationHandler:
             filter_summary={}, total=0, page=1, size=10, has_next=False
         )
     
-    async def get_conversation_messages(self, conversation_id: str, tenant_id: str, pagination: PaginationRequest, include_attachments: bool, include_analysis: bool):
+    async def get_conversation_messages(self, thread_id: str, tenant_id: str, pagination: PaginationRequest, include_attachments: bool, include_analysis: bool):
         """获取对话消息 - 简化实现"""
         return {"messages": [], "total": 0}
     
@@ -540,14 +540,14 @@ class ConversationHandler:
         """获取实时指标 - 简化实现"""
         return {"active_conversations": 5, "messages_per_minute": 12}
     
-    async def escalate_conversation(self, conversation_id: str, tenant_id: str, reason: str, priority: str):
+    async def escalate_conversation(self, thread_id: str, tenant_id: str, reason: str, priority: str):
         """升级对话 - 简化实现"""
         return {"success": True, "escalated": True}
     
-    async def submit_feedback(self, conversation_id: str, tenant_id: str, rating: int, feedback: Optional[str]):
+    async def submit_feedback(self, thread_id: str, tenant_id: str, rating: int, feedback: Optional[str]):
         """提交反馈 - 简化实现"""
         return {"success": True, "feedback_recorded": True}
     
-    async def delete_conversation(self, conversation_id: str, tenant_id: str, permanent: bool):
+    async def delete_conversation(self, thread_id: str, tenant_id: str, permanent: bool):
         """删除对话 - 简化实现"""
         return {"success": True, "deleted": True}

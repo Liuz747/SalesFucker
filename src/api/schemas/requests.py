@@ -113,7 +113,7 @@ class ConversationRequest(BaseRequest):
         description="输入类型：text, voice, image"
     )
     
-    conversation_id: Optional[str] = Field(
+    thread_id: Optional[str] = Field(
         None,
         description="对话ID，用于继续现有对话"
     )

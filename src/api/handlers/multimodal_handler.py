@@ -148,7 +148,7 @@ class MultimodalHandler:
         self,
         file: UploadFile,
         request: VoiceProcessingRequest,
-        conversation_id: Optional[str] = None,
+        thread_id: Optional[str] = None,
         background_tasks: Optional[BackgroundTasks] = None
     ) -> Dict[str, Any]:
         """处理语音文件上传"""
@@ -168,7 +168,7 @@ class MultimodalHandler:
                 "created_at": datetime.now(),
                 "tenant_id": request.tenant_id,
                 "customer_id": request.customer_id,
-                "conversation_id": conversation_id,
+                "thread_id": thread_id,
                 "file_info": {
                     "filename": file.filename,
                     "format": request.audio_format.value,
@@ -359,7 +359,7 @@ class MultimodalHandler:
         self,
         file: UploadFile,
         request: ImageAnalysisRequest,
-        conversation_id: Optional[str] = None,
+        thread_id: Optional[str] = None,
         background_tasks: Optional[BackgroundTasks] = None
     ) -> Dict[str, Any]:
         """处理图像文件上传"""
@@ -379,7 +379,7 @@ class MultimodalHandler:
                 "created_at": datetime.now(),
                 "tenant_id": request.tenant_id,
                 "customer_id": request.customer_id,
-                "conversation_id": conversation_id,
+                "thread_id": thread_id,
                 "file_info": {
                     "filename": file.filename,
                     "format": request.image_format.value,
@@ -589,14 +589,14 @@ class MultimodalHandler:
             self.logger.warning(f"清理临时文件失败 {temp_file_path}: {e}")
     
     # 其他方法的简化实现...
-    async def create_multimodal_conversation(self, tenant_id: str, customer_id: Optional[str], conversation_id: Optional[str], text_message: Optional[str], language: str, voice_files: List[UploadFile], image_files: List[UploadFile], background_tasks: BackgroundTasks) -> Dict[str, Any]:
+    async def create_multimodal_conversation(self, tenant_id: str, customer_id: Optional[str], thread_id: Optional[str], text_message: Optional[str], language: str, voice_files: List[UploadFile], image_files: List[UploadFile], background_tasks: BackgroundTasks) -> Dict[str, Any]:
         """创建多模态对话 - 简化实现"""
         processing_id = f"multimodal_{uuid.uuid4().hex[:12]}"
         return {
             "processing_id": processing_id,
             "status": "processing",
             "message": "多模态对话创建成功",
-            "conversation_id": conversation_id or f"conv_{uuid.uuid4().hex[:8]}",
+            "thread_id": thread_id or f"conv_{uuid.uuid4().hex[:8]}",
             "components": {
                 "text": bool(text_message),
                 "voice": len(voice_files),

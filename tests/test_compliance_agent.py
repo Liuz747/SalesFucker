@@ -14,7 +14,7 @@ from unittest.mock import Mock, patch, AsyncMock
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 
-from src.agents.base import ConversationState, AgentMessage
+from src.agents.base import ThreadState, AgentMessage
 from src.agents.compliance import ComplianceAgent, ComplianceRule
 from src.llm.multi_llm_client import MultiLLMClient
 from src.llm.provider_config import ProviderType, GlobalProviderConfig
@@ -75,10 +75,10 @@ class TestComplianceAgent:
     @pytest.mark.asyncio
     async def test_conversation_state_processing(self, compliance_agent):
         """测试处理对话状态"""
-        state = ConversationState(
+        state = ThreadState(
             tenant_id="test_tenant",
             customer_input="Hello, I need help with skincare.",
-            conversation_id="conv_123"
+            thread_id="conv_123"
         )
         
         with patch.object(compliance_agent, '_perform_compliance_check', new_callable=AsyncMock) as mock_check:

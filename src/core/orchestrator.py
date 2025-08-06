@@ -12,16 +12,16 @@
 
 from typing import Dict, Any, Optional
 
-from src.agents.base import ConversationState
+from src.agents.base import ThreadState
 from .workflow import WorkflowBuilder
-from .state_manager import ConversationStateManager
+from .state_manager import ThreadStateManager
+from src.libs.constants import StatusConstants
 from src.utils import (
     get_component_logger,
     get_current_datetime,
     get_processing_time_ms,
     StatusMixin,
     with_error_handling,
-    StatusConstants,
     ErrorHandler
 )
 
@@ -74,7 +74,7 @@ class Orchestrator(StatusMixin):
         
         # 初始化模块化组件
         self.workflow_builder = WorkflowBuilder(tenant_id, self.node_mapping)
-        self.state_manager = ConversationStateManager(tenant_id)
+        self.state_manager = ThreadStateManager(tenant_id)
         
         # 构建工作流图
         self.graph = self.workflow_builder.build_graph()
@@ -86,7 +86,7 @@ class Orchestrator(StatusMixin):
             customer_input: str, 
             customer_id: Optional[str] = None,
             input_type: str = "text"
-        ) -> ConversationState:
+        ) -> ThreadState:
         """
         处理客户对话的主入口函数
         
@@ -99,7 +99,7 @@ class Orchestrator(StatusMixin):
             input_type: 输入类型 (text/voice/image)
             
         返回:
-            ConversationState: 处理完成的对话状态
+            ThreadState: 处理完成的对话状态
         """
         # 创建初始对话状态
         initial_state = self.state_manager.create_initial_state(
@@ -127,7 +127,7 @@ class Orchestrator(StatusMixin):
             self.logger.error(f"对话处理失败: {e}", exc_info=True)
             return self.state_manager.create_error_state(initial_state, e)
     
-    async def _execute_workflow(self, initial_state: ConversationState) -> ConversationState:
+    async def _execute_workflow(self, initial_state: ThreadState) -> ThreadState:
         """
         执行工作流处理
         
@@ -135,7 +135,7 @@ class Orchestrator(StatusMixin):
             initial_state: 初始对话状态
             
         返回:
-            ConversationState: 处理完成的对话状态
+            ThreadState: 处理完成的对话状态
         """
         start_time = get_current_datetime()
         
@@ -147,8 +147,8 @@ class Orchestrator(StatusMixin):
             result_dict = await self.graph.ainvoke(state_dict)
             processing_time = get_processing_time_ms(start_time)
             
-            # 转换回对话状态对象
-            result = ConversationState(**result_dict)
+            # 转换回线程状态对象
+            result = ThreadState(**result_dict)
             
             # 更新统计信息
             self.state_manager.update_completion_stats(result, processing_time)

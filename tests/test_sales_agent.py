@@ -14,7 +14,7 @@ from unittest.mock import Mock, patch, AsyncMock
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 
-from src.agents.base import ConversationState, AgentMessage
+from src.agents.base import ThreadState, AgentMessage
 from src.agents.sales import SalesAgent
 from src.llm.multi_llm_client import MultiLLMClient
 from src.llm.provider_config import ProviderType, GlobalProviderConfig
@@ -68,10 +68,10 @@ class TestSalesAgent:
     @pytest.mark.asyncio
     async def test_sales_conversation_flow(self, sales_agent):
         """测试销售对话流程"""
-        state = ConversationState(
+        state = ThreadState(
             tenant_id="test_tenant",
             customer_input="I'm looking for anti-aging products",
-            conversation_id="conv_sales_123",
+            thread_id="conv_sales_123",
             conversation_history=[
                 {"role": "user", "content": "Hi, I need help with skincare"},
                 {"role": "assistant", "content": "I'd be happy to help! What's your main concern?"}
@@ -136,10 +136,10 @@ class TestSalesAgent:
         stages = ["awareness", "discovery", "consideration", "decision", "purchase"]
         
         for stage in stages:
-            state = ConversationState(
+            state = ThreadState(
                 tenant_id="test_tenant",
                 customer_input=f"Customer input for {stage} stage",
-                conversation_id=f"conv_{stage}",
+                thread_id=f"conv_{stage}",
                 sales_stage=stage
             )
             

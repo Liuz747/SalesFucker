@@ -57,7 +57,7 @@ async def upload_voice_file(
     background_tasks: BackgroundTasks,
     tenant_id: str = Form(..., description="租户ID"),
     customer_id: Optional[str] = Form(None, description="客户ID"),
-    conversation_id: Optional[str] = Form(None, description="对话ID"),
+    thread_id: Optional[str] = Form(None, description="对话ID"),
     language: str = Form("zh-CN", description="语言代码"),
     enable_emotion_detection: bool = Form(False, description="启用情感检测"),
     enable_sentiment_analysis: bool = Form(True, description="启用情感分析"),
@@ -95,7 +95,7 @@ async def upload_voice_file(
         result = await multimodal_handler.process_voice_upload(
             file=file,
             request=processing_request,
-            conversation_id=conversation_id,
+            thread_id=thread_id,
             background_tasks=background_tasks
         )
         
@@ -111,7 +111,7 @@ async def upload_image_file(
     background_tasks: BackgroundTasks,
     tenant_id: str = Form(..., description="租户ID"),
     customer_id: Optional[str] = Form(None, description="客户ID"),
-    conversation_id: Optional[str] = Form(None, description="对话ID"),
+    thread_id: Optional[str] = Form(None, description="对话ID"),
     analysis_types: List[AnalysisType] = Form([AnalysisType.GENERAL_ANALYSIS], description="分析类型列表"),
     detect_products: bool = Form(True, description="检测化妆品产品"),
     analyze_skin_condition: bool = Form(False, description="分析肌肤状况"),
@@ -155,7 +155,7 @@ async def upload_image_file(
         result = await multimodal_handler.process_image_upload(
             file=file,
             request=processing_request,
-            conversation_id=conversation_id,
+            thread_id=thread_id,
             background_tasks=background_tasks
         )
         
@@ -171,7 +171,7 @@ async def create_multimodal_conversation(
     background_tasks: BackgroundTasks,
     tenant_id: str = Form(..., description="租户ID"),
     customer_id: Optional[str] = Form(None, description="客户ID"),
-    conversation_id: Optional[str] = Form(None, description="对话ID"),
+    thread_id: Optional[str] = Form(None, description="对话ID"),
     text_message: Optional[str] = Form(None, description="文本消息"),
     language: str = Form("zh-CN", description="语言代码"),
     voice_files: Optional[List[UploadFile]] = File(None, description="语音文件列表"),
@@ -191,7 +191,7 @@ async def create_multimodal_conversation(
         result = await multimodal_handler.create_multimodal_conversation(
             tenant_id=tenant_id,
             customer_id=customer_id,
-            conversation_id=conversation_id,
+            thread_id=thread_id,
             text_message=text_message,
             language=language,
             voice_files=voice_files or [],

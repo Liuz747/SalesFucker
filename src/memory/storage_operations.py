@@ -49,7 +49,7 @@ class StorageOperations:
                 message.timestamp = datetime.utcnow()
             
             # 存储到Elasticsearch
-            index_name = self.index_manager.get_messages_index(message.conversation_id)
+            index_name = self.index_manager.get_messages_index(message.thread_id)
             doc_id = message.message_id
             
             response = await self.es_client.index(
@@ -88,7 +88,7 @@ class StorageOperations:
                 if not message.timestamp:
                     message.timestamp = datetime.utcnow()
                 
-                index_name = self.index_manager.get_messages_index(message.conversation_id)
+                index_name = self.index_manager.get_messages_index(message.thread_id)
                 
                 bulk_operations.extend([
                     {
@@ -126,7 +126,7 @@ class StorageOperations:
     
     async def get_conversation_history(
         self,
-        conversation_id: str,
+        thread_id: str,
         limit: int = 50,
         offset: int = 0,
         message_types: Optional[List[MessageType]] = None
@@ -141,13 +141,13 @@ class StorageOperations:
         - 高性能检索
         """
         try:
-            index_name = self.index_manager.get_messages_index(conversation_id)
+            index_name = self.index_manager.get_messages_index(thread_id)
             
             # 构建查询
             query = {
                 "bool": {
                     "must": [
-                        {"term": {"conversation_id": conversation_id}},
+                        {"term": {"thread_id": thread_id}},
                         {"term": {"tenant_id": self.tenant_id}}
                     ]
                 }
@@ -186,7 +186,7 @@ class StorageOperations:
             
         except Exception as e:
             self._stats["errors"] += 1
-            self.logger.error(f"历史查询失败 {conversation_id}: {e}")
+            self.logger.error(f"历史查询失败 {thread_id}: {e}")
             return []
     
     def get_stats(self) -> dict:

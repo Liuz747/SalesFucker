@@ -71,7 +71,7 @@ class ConversationRequest(BaseRequest):
         description="输入类型"
     )
     
-    conversation_id: Optional[str] = Field(
+    thread_id: Optional[str] = Field(
         None,
         description="对话ID（继续现有对话时提供）"
     )
@@ -156,7 +156,7 @@ class ConversationHistoryRequest(BaseRequest):
     
     tenant_id: str = Field(description="租户ID")
     customer_id: Optional[str] = Field(None, description="客户ID")
-    conversation_id: Optional[str] = Field(None, description="对话ID")
+    thread_id: Optional[str] = Field(None, description="对话ID")
     
     # 时间范围
     start_date: Optional[datetime] = Field(None, description="开始时间")
@@ -211,7 +211,7 @@ class ConversationResponse(SuccessResponse[Dict[str, Any]]):
     对话处理响应模型
     """
     
-    conversation_id: str = Field(description="对话ID")
+    thread_id: str = Field(description="对话ID")
     response: str = Field(description="回复内容")
     processing_complete: bool = Field(description="处理是否完成")
     
@@ -258,7 +258,7 @@ class ConversationStartResponse(SuccessResponse[Dict[str, Any]]):
     开始对话响应模型
     """
     
-    conversation_id: str = Field(description="对话ID")
+    thread_id: str = Field(description="对话ID")
     welcome_message: Optional[str] = Field(None, description="欢迎消息")
     conversation_status: ConversationStatus = Field(description="对话状态")
     
@@ -277,7 +277,7 @@ class ConversationStatusResponse(SuccessResponse[Dict[str, Any]]):
     对话状态响应模型
     """
     
-    conversation_id: str = Field(description="对话ID")
+    thread_id: str = Field(description="对话ID")
     status: ConversationStatus = Field(description="当前状态")
     
     # 基本信息
@@ -353,7 +353,7 @@ class ConversationExportRequest(BaseRequest):
     tenant_id: str = Field(description="租户ID")
     
     # 导出范围
-    conversation_ids: Optional[List[str]] = Field(None, description="指定对话ID列表")
+    thread_ids: Optional[List[str]] = Field(None, description="指定对话ID列表")
     customer_id: Optional[str] = Field(None, description="指定客户ID")
     
     # 时间范围

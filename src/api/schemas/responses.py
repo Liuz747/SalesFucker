@@ -128,7 +128,7 @@ class ConversationResponse(SuccessResponse[Dict[str, Any]]):
     用于对话处理的响应。
     """
     
-    conversation_id: str = Field(
+    thread_id: str = Field(
         description="对话ID"
     )
     

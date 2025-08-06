@@ -14,7 +14,7 @@ class MessageBuilder:
     
     @staticmethod
     def create_user_message(
-        conversation_id: str,
+        thread_id: str,
         tenant_id: str,
         customer_id: str,
         content: str,
@@ -23,7 +23,7 @@ class MessageBuilder:
         """创建用户文本消息"""
         return ConversationMessage(
             message_id=str(uuid.uuid4()),
-            conversation_id=conversation_id,
+            thread_id=thread_id,
             tenant_id=tenant_id,
             customer_id=customer_id,
             message_type=MessageType.USER_TEXT,
@@ -34,7 +34,7 @@ class MessageBuilder:
     
     @staticmethod
     def create_llm_response(
-        conversation_id: str,
+        thread_id: str,
         tenant_id: str,
         customer_id: str,
         content: str,
@@ -46,7 +46,7 @@ class MessageBuilder:
         """创建LLM响应消息"""
         return ConversationMessage(
             message_id=str(uuid.uuid4()),
-            conversation_id=conversation_id,
+            thread_id=thread_id,
             tenant_id=tenant_id,
             customer_id=customer_id,
             message_type=MessageType.LLM_RESPONSE,
@@ -60,7 +60,7 @@ class MessageBuilder:
     
     @staticmethod
     def create_multimodal_message(
-        conversation_id: str,
+        thread_id: str,
         tenant_id: str,
         customer_id: str,
         content: Union[str, Dict[str, Any]],
@@ -71,7 +71,7 @@ class MessageBuilder:
         """创建多模态消息"""
         return ConversationMessage(
             message_id=str(uuid.uuid4()),
-            conversation_id=conversation_id,
+            thread_id=thread_id,
             tenant_id=tenant_id,
             customer_id=customer_id,
             message_type=message_type,

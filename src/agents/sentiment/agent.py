@@ -6,7 +6,7 @@ Provides emotional context and customer satisfaction insights.
 """
 
 from typing import Dict, Any
-from ..base import BaseAgent, AgentMessage, ConversationState
+from ..base import BaseAgent, AgentMessage, ThreadState
 from src.llm import get_llm_client, get_prompt_manager, parse_structured_response
 from src.llm.intelligent_router import RoutingStrategy
 from src.utils import get_current_datetime, get_processing_time_ms
@@ -86,7 +86,7 @@ class SentimentAnalysisAgent(BaseAgent):
                 context=message.context
             )
     
-    async def process_conversation(self, state: ConversationState) -> ConversationState:
+    async def process_conversation(self, state: ThreadState) -> ThreadState:
         """
         处理对话状态中的情感分析
         
@@ -96,7 +96,7 @@ class SentimentAnalysisAgent(BaseAgent):
             state: 当前对话状态
             
         返回:
-            ConversationState: 更新后的对话状态
+            ThreadState: 更新后的对话状态
         """
         start_time = get_current_datetime()
         
@@ -118,7 +118,7 @@ class SentimentAnalysisAgent(BaseAgent):
             return state
             
         except Exception as e:
-            await self.handle_error(e, {"conversation_id": state.conversation_id})
+            await self.handle_error(e, {"thread_id": state.thread_id})
             
             # 设置降级情感分析
             state.sentiment_analysis = {
@@ -177,7 +177,7 @@ class SentimentAnalysisAgent(BaseAgent):
                 "agent_id": self.agent_id
             }
     
-    def _build_conversation_context(self, state: ConversationState) -> str:
+    def _build_conversation_context(self, state: ThreadState) -> str:
         """
         构建对话上下文信息
         
