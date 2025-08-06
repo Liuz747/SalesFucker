@@ -101,8 +101,8 @@ async def get_agent_status(
 
 @router.post("/{agent_id}/test", response_model=AgentTestResponse)
 async def test_agent(
-    agent_id: str = Depends(validate_agent_id),
     request: AgentTestRequest,
+    agent_id: str = Depends(validate_agent_id),
     tenant_id: str = Depends(get_tenant_id),
     registry = Depends(get_agent_registry_service)
 ):
@@ -149,8 +149,8 @@ async def batch_test_agents(
 
 @router.put("/{agent_id}/config", response_model=AgentOperationResponse)
 async def update_agent_config(
-    agent_id: str = Depends(validate_agent_id),
     request: AgentConfigUpdateRequest,
+    agent_id: str = Depends(validate_agent_id),
     tenant_id: str = Depends(get_tenant_id),
     registry = Depends(get_agent_registry_service)
 ):

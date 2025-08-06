@@ -75,7 +75,7 @@ graph LR
 
 4. **运行应用程序**
    ```bash
-   uv run uvicorn main:app --reload
+   uv run python main.py
    ```
 
 ### 手动部署
@@ -101,18 +101,35 @@ graph LR
 
 ```
 mas-v0.2/
-├── main.py                  # FastAPI 应用程序入口
+├── main.py                  # Uvicorn 入口点 (运行 src.api.main:app)
 ├── src/
-│   ├── agents/              # LangGraph 智能体实现
-│   ├── memory/              # Elasticsearch 集成
+│   ├── api/
+│   │   ├── main.py          # 完整的 FastAPI 应用程序配置
+│   │   ├── endpoints/       # REST API 端点 (conversations, agents, health, llm_management, multimodal)
+│   │   ├── handlers/        # 业务逻辑处理器
+│   │   ├── middleware/      # 安全拦截器和租户隔离
+│   │   └── schemas/         # Pydantic 请求/响应模型
+│   ├── core/
+│   │   ├── orchestrator.py  # LangGraph 工作流编排
+│   │   ├── state_manager.py # ConversationState 生命周期管理
+│   │   ├── workflow.py      # 工作流构建和并行处理
+│   │   └── node_processor.py # 智能体节点处理
+│   ├── agents/
+│   │   ├── base/
+│   │   │   ├── message.py   # AgentMessage 和 ConversationState 架构
+│   │   │   ├── agent.py     # 抽象 BaseAgent 类
+│   │   │   └── registry.py  # 智能体注册管理
+│   │   └── [9个专业智能体]   # compliance, sentiment, intent, sales, product, memory, 等
+│   ├── memory/              # Elasticsearch 集成和高性能存储
 │   ├── rag/                 # 检索增强生成系统
-│   ├── multimodal/          # 语音和图像处理
-│   ├── api/                 # API 路由处理器
+│   ├── multimodal/          # 语音和图像处理 (Whisper, GPT-4V)
+│   ├── llm/                 # 多LLM提供商系统 (OpenAI, Anthropic, Gemini, DeepSeek)
+│   ├── libs/                # 业务库 (constants, types, performance)
 │   └── utils/               # 共享工具函数
 ├── config/                  # 配置文件
 ├── docker/                  # Docker 配置
-├── tests/                   # 测试套件
-├── docs/                    # 项目文档
+├── tests/                   # 全面的测试套件 (16个模块, 9,657行测试代码)
+├── docs/                    # 项目文档和内存银行
 └── scripts/                 # 开发脚本
 ```
 

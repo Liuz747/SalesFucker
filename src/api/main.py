@@ -18,8 +18,8 @@ from fastapi.responses import JSONResponse
 import logging
 
 from .exceptions import APIException
-from .middleware.safety_interceptor import SafetyInterceptorMiddleware
-from .middleware.tenant_isolation import TenantIsolationMiddleware
+from .middleware.safety_interceptor import SafetyInterceptor
+from .middleware.tenant_isolation import TenantIsolation
 from .endpoints import (
     agents_router,
     conversations_router,
@@ -51,8 +51,8 @@ app.add_middleware(
 )
 
 # 添加自定义中间件
-app.add_middleware(SafetyInterceptorMiddleware)
-app.add_middleware(TenantIsolationMiddleware)
+app.add_middleware(SafetyInterceptor)
+app.add_middleware(TenantIsolation)
 
 # 全局异常处理
 @app.exception_handler(APIException)

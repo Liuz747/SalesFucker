@@ -24,7 +24,7 @@ from src.utils import get_component_logger
 logger = get_component_logger(__name__, "SafetyInterceptor")
 
 
-class SafetyInterceptorMiddleware(BaseHTTPMiddleware):
+class SafetyInterceptor(BaseHTTPMiddleware):
     """
     安全审查中间件
     

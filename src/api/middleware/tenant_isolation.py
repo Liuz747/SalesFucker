@@ -24,7 +24,7 @@ from src.utils import get_component_logger
 logger = get_component_logger(__name__, "TenantIsolation")
 
 
-class TenantIsolationMiddleware(BaseHTTPMiddleware):
+class TenantIsolation(BaseHTTPMiddleware):
     """
     多租户隔离中间件
     

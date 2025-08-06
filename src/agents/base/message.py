@@ -10,21 +10,14 @@
 - 消息优先级和路由
 """
 
+import uuid
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 from pydantic import BaseModel, Field
-import uuid
 
-from src.utils import (
-    StatusConstants, 
-    MessageConstants,
-    get_current_datetime,
-    MessageType,
-    ComplianceStatus,
-    MarketStrategy,
-    PriorityLevel,
-    InputType
-)
+from src.libs.constants import StatusConstants, MessageConstants
+from src.libs.types import MessageType, ComplianceStatus, MarketStrategy, PriorityLevel, InputType
+from src.utils import get_current_datetime
 
 
 class AgentMessage(BaseModel):

@@ -21,7 +21,7 @@ API Package - Production-Grade Multi-Agent System API
 - 多租户数据隔离
 """
 
-from .main import app
+# from .main import app  # Commented to avoid circular imports
 from .endpoints import (
     agents_router,
     conversations_router,

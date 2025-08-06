@@ -45,7 +45,7 @@ The system consists of 9 specialized agents working together:
 
 4. **Run the application:**
    ```bash
-   uv run uvicorn main:app --reload
+   uv run python main.py
    ```
 
 ### Manual Setup
@@ -73,17 +73,28 @@ If you prefer manual setup:
 
 ```
 mas-v0.2/
-├── main.py                  # FastAPI application entry point
+├── main.py                  # Uvicorn entry point (runs src.api.main:app)
 ├── src/
-│   ├── agents/              # LangGraph agent implementations
+│   ├── api/
+│   │   ├── main.py          # Complete FastAPI application configuration
+│   │   ├── endpoints/       # REST API endpoints (conversations, agents, etc.)
+│   │   ├── handlers/        # Business logic handlers
+│   │   └── middleware/      # Safety and tenant isolation middleware
+│   ├── core/
+│   │   ├── orchestrator.py  # LangGraph workflow orchestration
+│   │   ├── workflow.py      # Workflow builder with parallel processing
+│   │   └── state_manager.py # ConversationState lifecycle management
+│   ├── agents/
+│   │   ├── base/message.py  # AgentMessage and ConversationState schemas
+│   │   └── [9 specialized agents] # compliance, sentiment, intent, sales, etc.
 │   ├── memory/              # Elasticsearch integration
-│   ├── rag/                 # Retrieval-augmented generation
+│   ├── rag/                 # Retrieval-augmented generation  
 │   ├── multimodal/          # Voice and image processing
-│   ├── api/                 # API route handlers
+│   ├── llm/                 # Multi-LLM provider system
 │   └── utils/               # Shared utilities
 ├── config/                  # Configuration files
 ├── docker/                  # Docker configurations
-├── tests/                   # Test suites
+├── tests/                   # Comprehensive test suites
 ├── docs/                    # Documentation
 └── scripts/                 # Development scripts
 ```
