@@ -147,6 +147,24 @@ class BaseAgent(LLMMixin, StatusMixin, ABC):
             
         return self.create_status_response(status_data)
     
+    async def preload_prompts(self):
+        """
+        预加载智能体提示词（性能优化）
+        
+        在智能体初始化后调用，可以提前加载和缓存提示词
+        """
+        try:
+            if hasattr(self, '_prompt_manager') and self._prompt_manager:
+                await self._prompt_manager.preload_prompts_for_agent(
+                    agent_id=self.agent_id,
+                    agent_type=self.agent_type,
+                    tenant_id=self.tenant_id or "default"
+                )
+                self.logger.debug(f"智能体提示词预加载完成: {self.agent_id}")
+            
+        except Exception as e:
+            self.logger.warning(f"预加载智能体提示词失败: {e}")
+
     def get_metrics(self) -> Dict[str, Any]:
         """获取智能体指标数据"""
         comprehensive_status = self.monitor.get_comprehensive_status()

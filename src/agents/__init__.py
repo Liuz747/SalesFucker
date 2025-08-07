@@ -23,7 +23,7 @@
 from .base import (
     BaseAgent,
     AgentMessage,
-    ConversationState,
+    ThreadState,
     AgentRegistry,
     agent_registry
 )
@@ -32,7 +32,7 @@ from .base import (
 from src.core import Orchestrator
 
 # 导入常量
-from src.utils import (
+from src.libs.types import (
     MessageType,
     ComplianceStatus,
     MarketStrategy,
@@ -55,7 +55,7 @@ __all__ = [
     # 核心基础组件
     "BaseAgent",
     "AgentMessage", 
-    "ConversationState",
+    "ThreadState",
     "AgentRegistry",
     "Orchestrator",
     "agent_registry",

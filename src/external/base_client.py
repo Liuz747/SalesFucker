@@ -1,20 +1,25 @@
 """
-基础HTTP客户端模块（简化版）
+基础HTTP客户端模块
 
 该模块提供外部API调用的基础HTTP客户端，包括认证、重试、
 熔断器等功能。所有外部API客户端都应继承此基类。
 
-注意：当前为简化实现，生产环境建议安装aiohttp获得完整功能。
+核心功能:
+- HTTP请求封装
+- 认证处理
+- 自动重试机制
+- 熔断器保护
+- 错误处理
 """
 
 import asyncio
+import aiohttp
 from typing import Dict, Any, Optional
+from datetime import datetime
 import json
 import time
-from datetime import datetime
 
 from src.utils import get_component_logger, ErrorHandler
-
 
 # 自定义异常
 class ExternalAPIError(Exception):
@@ -72,7 +77,7 @@ class CircuitBreaker:
 
 class BaseClient:
     """
-    基础HTTP客户端（简化版）
+    基础HTTP客户端
     
     提供外部API调用的基础功能，包括认证、重试、熔断器等。
     """
@@ -93,6 +98,9 @@ class BaseClient:
         self.logger = get_component_logger(__name__, "BaseClient")
         self.error_handler = ErrorHandler("external_client")
         
+        # 会话对象
+        self._session: Optional[aiohttp.ClientSession] = None
+        
         # 熔断器
         self.circuit_breaker = CircuitBreaker()
         
@@ -106,15 +114,33 @@ class BaseClient:
         
         self.logger.info(f"基础客户端初始化完成: {base_url}")
     
+    async def _get_session(self) -> aiohttp.ClientSession:
+        """获取或创建HTTP会话"""
+        if self._session is None or self._session.closed:
+            timeout = aiohttp.ClientTimeout(total=self.timeout)
+            connector = aiohttp.TCPConnector(
+                limit=100,  # 连接池大小
+                limit_per_host=30,  # 每个主机的连接数限制
+                enable_cleanup_closed=True
+            )
+            self._session = aiohttp.ClientSession(
+                timeout=timeout,
+                connector=connector,
+                headers={"User-Agent": "MAS-AI-System/1.0.0"}
+            )
+        return self._session
+    
     async def close(self):
         """关闭HTTP会话"""
-        self.logger.debug("客户端会话已关闭")
+        if self._session and not self._session.closed:
+            await self._session.close()
+            self.logger.debug("HTTP会话已关闭")
     
     def _get_headers(self, additional_headers: Optional[Dict[str, str]] = None) -> Dict[str, str]:
         """获取请求头"""
         headers = {
             "Content-Type": "application/json",
-            "User-Agent": "MAS-AI-System/1.0.0"
+            "Accept": "application/json"
         }
         
         if additional_headers:
@@ -127,7 +153,7 @@ class BaseClient:
         endpoint = endpoint.lstrip("/")
         return f"{self.base_url}/{endpoint}"
     
-    async def _mock_request(
+    async def _make_request(
         self,
         method: str,
         url: str,
@@ -135,63 +161,101 @@ class BaseClient:
         data: Optional[Dict[str, Any]] = None,
         params: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
-        """
-        模拟HTTP请求（开发环境使用）
-        
-        注意：这是简化实现，生产环境应使用真实HTTP客户端
-        """
+        """执行HTTP请求"""
         
         # 检查熔断器
         if not self.circuit_breaker.can_execute():
             self.stats["circuit_breaker_trips"] += 1
             raise CircuitBreakerError("熔断器开启，请求被阻止")
         
+        session = await self._get_session()
+        
+        # 准备请求参数
+        request_kwargs = {
+            "headers": headers,
+            "params": params
+        }
+        
+        if data:
+            request_kwargs["json"] = data
+        
         self.stats["total_requests"] += 1
         start_time = time.time()
         
         try:
-            self.logger.debug(f"模拟请求: {method} {url}")
+            self.logger.debug(f"发送请求: {method} {url}")
             
-            # 模拟网络延迟
-            await asyncio.sleep(0.1)
-            
-            # 模拟响应（根据URL路径返回不同的模拟数据）
-            if "devices" in url:
-                if method == "GET":
-                    # 模拟设备查询成功
-                    response_data = {
-                        "device_id": "mock_device_001",
-                        "device_name": "模拟设备",
-                        "tenant_id": "default",
-                        "status": "active",
-                        "capabilities": ["camera", "microphone", "speaker"],
-                        "is_online": True
-                    }
-                else:
-                    response_data = {"success": True, "message": "操作成功"}
-            elif "health" in url:
-                response_data = {"status": "ok", "timestamp": datetime.now().isoformat()}
-            else:
-                response_data = {"message": "模拟响应", "timestamp": datetime.now().isoformat()}
-            
-            response_time = time.time() - start_time
-            
-            self.logger.debug(
-                f"模拟请求成功: {method} {url}, "
-                f"响应时间: {response_time:.3f}s"
-            )
-            
-            self.circuit_breaker.record_success()
-            self.stats["successful_requests"] += 1
-            
-            return response_data
-            
-        except Exception as e:
+            async with session.request(method, url, **request_kwargs) as response:
+                response_time = time.time() - start_time
+                
+                # 读取响应内容
+                try:
+                    if response.content_type == 'application/json':
+                        response_data = await response.json()
+                    else:
+                        text_content = await response.text()
+                        try:
+                            response_data = json.loads(text_content)
+                        except json.JSONDecodeError:
+                            response_data = {"text": text_content}
+                except Exception as e:
+                    self.logger.warning(f"解析响应内容失败: {e}")
+                    response_data = {"error": "无法解析响应内容"}
+                
+                # 检查HTTP状态码
+                if response.status >= 400:
+                    self.logger.warning(
+                        f"请求失败: {method} {url}, 状态码: {response.status}, "
+                        f"响应时间: {response_time:.3f}s"
+                    )
+                    
+                    self.circuit_breaker.record_failure()
+                    self.stats["failed_requests"] += 1
+                    
+                    # 根据状态码确定错误信息
+                    if response.status == 404:
+                        error_message = "资源不存在"
+                    elif response.status == 401:
+                        error_message = "认证失败"
+                    elif response.status == 403:
+                        error_message = "权限不足"
+                    elif response.status == 429:
+                        error_message = "请求频率过高"
+                    elif response.status >= 500:
+                        error_message = "服务器内部错误"
+                    else:
+                        error_message = response_data.get('message', f'HTTP {response.status}')
+                    
+                    raise ExternalAPIError(
+                        error_message,
+                        status_code=response.status,
+                        response_data=response_data
+                    )
+                
+                # 成功响应
+                self.logger.debug(
+                    f"请求成功: {method} {url}, 状态码: {response.status}, "
+                    f"响应时间: {response_time:.3f}s"
+                )
+                
+                self.circuit_breaker.record_success()
+                self.stats["successful_requests"] += 1
+                
+                return response_data
+                
+        except aiohttp.ClientError as e:
             self.circuit_breaker.record_failure()
             self.stats["failed_requests"] += 1
             
-            self.logger.error(f"模拟请求失败: {e}")
-            raise ExternalAPIError(f"请求失败: {str(e)}")
+            self.logger.error(f"网络请求失败: {e}")
+            raise ExternalAPIError(f"网络请求失败: {str(e)}")
+        
+        except asyncio.TimeoutError:
+            self.circuit_breaker.record_failure()
+            self.stats["failed_requests"] += 1
+            
+            self.logger.error(f"请求超时: {url}")
+            raise ExternalAPIError(f"请求超时: {url}")
     
     async def _request_with_retry(
         self,
@@ -221,7 +285,7 @@ class BaseClient:
         
         for attempt in range(self.max_retries + 1):
             try:
-                return await self._mock_request(
+                return await self._make_request(
                     method, url, request_headers, data, params
                 )
                 
@@ -230,7 +294,9 @@ class BaseClient:
                 
                 # 如果是客户端错误（4xx），不重试
                 if e.status_code and 400 <= e.status_code < 500:
-                    break
+                    # 特殊情况：429（频率限制）可以重试
+                    if e.status_code != 429:
+                        break
                 
                 # 如果还有重试机会，等待后重试
                 if attempt < self.max_retries:
@@ -292,7 +358,8 @@ class BaseClient:
         return {
             **self.stats,
             "success_rate": success_rate,
-            "circuit_breaker_state": self.circuit_breaker.state
+            "circuit_breaker_state": self.circuit_breaker.state,
+            "base_url": self.base_url
         }
     
     async def health_check(self) -> bool:
@@ -303,3 +370,11 @@ class BaseClient:
         except Exception as e:
             self.logger.warning(f"健康检查失败: {e}")
             return False
+    
+    async def __aenter__(self):
+        """异步上下文管理器入口"""
+        return self
+    
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """异步上下文管理器出口"""
+        await self.close()

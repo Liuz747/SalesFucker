@@ -19,6 +19,7 @@ from .agent_preferences import get_agent_preferences, get_agent_system_guideline
 from src.llm.multi_llm_client import MultiLLMClient, get_multi_llm_client
 from src.llm.intelligent_router import RoutingStrategy
 from src.llm.provider_config import GlobalProviderConfig
+from src.prompts import get_prompt_manager
 
 
 class LLMMixin(ABC):
@@ -68,6 +69,9 @@ class LLMMixin(ABC):
         # LLM接口
         self.llm_config = llm_config
         self._llm_client: Optional[MultiLLMClient] = None
+        
+        # 提示词管理器
+        self._prompt_manager = get_prompt_manager()
     
     def _initialize_fallback_config(self):
         """初始化降级配置"""
@@ -93,29 +97,73 @@ class LLMMixin(ABC):
         }
         return enhanced
     
-    def _build_system_message(self, context: Optional[Dict[str, Any]] = None) -> str:
-        """构建系统消息"""
-        base_message = f"你是一个专业的{self.agent_type}智能体，负责处理美妆相关的客户咨询。"
-        
-        # 添加上下文信息
-        if context:
-            if context.get("customer_profile"):
-                base_message += f"\n客户信息: {context['customer_profile']}"
+    async def _build_system_message(self, context: Optional[Dict[str, Any]] = None) -> str:
+        """构建系统消息（使用提示词管理器）"""
+        try:
+            # 使用提示词管理器获取系统提示词
+            if hasattr(self, 'tenant_id') and self.tenant_id:
+                system_prompt = await self._prompt_manager.get_system_prompt(
+                    agent_id=self.agent_id,
+                    agent_type=self.agent_type,
+                    tenant_id=self.tenant_id,
+                    context=context
+                )
+            else:
+                # 如果没有tenant_id，使用默认提示词
+                system_prompt = await self._prompt_manager.get_system_prompt(
+                    agent_id=self.agent_id,
+                    agent_type=self.agent_type, 
+                    tenant_id="default",
+                    context=context
+                )
             
-            if context.get("conversation_history"):
-                base_message += f"\n对话历史: {context['conversation_history']}"
+            # 添加上下文信息
+            if context:
+                context_info = []
+                
+                if context.get("customer_profile"):
+                    context_info.append(f"客户信息: {context['customer_profile']}")
+                
+                if context.get("conversation_history"):
+                    context_info.append(f"对话历史: {context['conversation_history']}")
+                
+                if context.get("product_context"):
+                    context_info.append(f"产品信息: {context['product_context']}")
+                
+                if context_info:
+                    system_prompt += "\n\n当前上下文信息：\n" + "\n".join(context_info)
             
-            if context.get("product_context"):
-                base_message += f"\n产品信息: {context['product_context']}"
-        
-        # 添加智能体特定指导
-        guideline = get_agent_system_guideline(self.agent_type)
-        if guideline:
-            base_message += f"\n\n{guideline}"
-        
-        base_message += "\n\n请用中文回复，保持专业和友好的语调。"
-        
-        return base_message
+            # 添加智能体特定指导
+            guideline = get_agent_system_guideline(self.agent_type)
+            if guideline:
+                system_prompt += f"\n\n{guideline}"
+            
+            # 添加通用结尾指导
+            system_prompt += "\n\n请用中文回复，保持专业和友好的语调。"
+            
+            return system_prompt
+            
+        except Exception as e:
+            # 降级处理：使用原来的硬编码方式
+            base_message = f"你是一个专业的{self.agent_type}智能体，负责处理美妆相关的客户咨询。"
+            
+            if context:
+                if context.get("customer_profile"):
+                    base_message += f"\n客户信息: {context['customer_profile']}"
+                
+                if context.get("conversation_history"):
+                    base_message += f"\n对话历史: {context['conversation_history']}"
+                
+                if context.get("product_context"):
+                    base_message += f"\n产品信息: {context['product_context']}"
+            
+            guideline = get_agent_system_guideline(self.agent_type)
+            if guideline:
+                base_message += f"\n\n{guideline}"
+            
+            base_message += "\n\n请用中文回复，保持专业和友好的语调。"
+            
+            return base_message
     
     async def _get_llm_client(self) -> Optional[MultiLLMClient]:
         """获取多LLM客户端实例"""
@@ -199,10 +247,11 @@ class LLMMixin(ABC):
             str: 生成的响应，如果LLM不可用则返回None
         """
         # 构建消息列表
+        system_message = await self._build_system_message(context)
         messages = [
             {
                 "role": "system",
-                "content": self._build_system_message(context)
+                "content": system_message
             },
             {
                 "role": "user",
