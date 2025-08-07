@@ -17,11 +17,11 @@ from typing import Dict, Any, Optional, List
 import logging
 
 from ..dependencies import (
-    get_tenant_id,
     get_orchestrator_service,
     get_request_context,
     get_device_client
 )
+from src.auth import get_jwt_tenant_context, JWTTenantContext
 from ..schemas.conversations import (
     ConversationRequest,
     ConversationStartRequest,
@@ -57,7 +57,7 @@ conversation_handler = ConversationHandler()
 @router.post("/start", response_model=ConversationStartResponse)
 async def start_conversation(
     request: ConversationStartRequest,
-    tenant_id: str = Depends(get_tenant_id),
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
     context: Dict[str, Any] = Depends(get_request_context),
     orchestrator = Depends(get_orchestrator_service),
     device_client = Depends(get_device_client)
@@ -68,16 +68,19 @@ async def start_conversation(
     创建新的对话会话，初始化相关智能体，加载客户档案。
     """
     try:
-        # 验证租户匹配
-        if request.tenant_id != tenant_id:
-            raise HTTPException(status_code=400, detail="租户ID不匹配")
+        # 检查设备访问权限
+        if not tenant_context.can_access_device(request.device_id):
+            raise HTTPException(
+                status_code=403,
+                detail="无权访问该设备"
+            )
         
         # 验证设备存在
-        device_info = await device_client.get_device(request.device_id, tenant_id)
+        device_info = await device_client.get_device(request.device_id, tenant_context.tenant_id)
         if not device_info:
             raise HTTPException(
                 status_code=404,
-                detail=f"设备 {request.device_id} 不存在或不属于租户 {tenant_id}"
+                detail=f"设备 {request.device_id} 不存在或不属于租户 {tenant_context.tenant_id}"
             )
         
         return await conversation_handler.start_conversation(
@@ -94,7 +97,7 @@ async def start_conversation(
 @router.post("/message", response_model=ConversationResponse)
 async def process_message(
     request: ConversationRequest,
-    tenant_id: str = Depends(get_tenant_id),
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
     context: Dict[str, Any] = Depends(get_request_context),
     orchestrator = Depends(get_orchestrator_service),
     device_client = Depends(get_device_client)
@@ -105,16 +108,19 @@ async def process_message(
     通过完整的9智能体多智能体系统处理客户消息，支持多模态输入。
     """
     try:
-        # 验证租户匹配
-        if request.tenant_id != tenant_id:
-            raise HTTPException(status_code=400, detail="租户ID不匹配")
+        # 检查设备访问权限
+        if not tenant_context.can_access_device(request.device_id):
+            raise HTTPException(
+                status_code=403,
+                detail="无权访问该设备"
+            )
         
         # 验证设备存在
-        device_info = await device_client.get_device(request.device_id, tenant_id)
+        device_info = await device_client.get_device(request.device_id, tenant_context.tenant_id)
         if not device_info:
             raise HTTPException(
                 status_code=404,
-                detail=f"设备 {request.device_id} 不存在或不属于租户 {tenant_id}"
+                detail=f"设备 {request.device_id} 不存在或不属于租户 {tenant_context.tenant_id}"
             )
         
         return await conversation_handler.process_message(
@@ -131,7 +137,7 @@ async def process_message(
 @router.get("/{thread_id}/status", response_model=ConversationStatusResponse)
 async def get_conversation_status(
     thread_id: str,
-    tenant_id: str = Depends(get_tenant_id),
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
     include_details: bool = Query(False, description="是否包含详细信息")
 ):
     """
@@ -142,7 +148,7 @@ async def get_conversation_status(
     try:
         return await conversation_handler.get_conversation_status(
             thread_id=thread_id,
-            tenant_id=tenant_id,
+            tenant_id=tenant_context.tenant_id,
             include_details=include_details
         )
         
@@ -157,7 +163,7 @@ async def get_conversation_status(
 async def end_conversation(
     thread_id: str,
     reason: Optional[str] = Query(None, description="结束原因"),
-    tenant_id: str = Depends(get_tenant_id)
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context)
 ):
     """
     结束对话
@@ -167,7 +173,7 @@ async def end_conversation(
     try:
         return await conversation_handler.end_conversation(
             thread_id=thread_id,
-            tenant_id=tenant_id,
+            tenant_id=tenant_context.tenant_id,
             reason=reason
         )
         
@@ -178,7 +184,7 @@ async def end_conversation(
 
 @router.get("/history", response_model=ConversationHistoryResponse)
 async def get_conversation_history(
-    tenant_id: str = Depends(get_tenant_id),
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
     customer_id: Optional[str] = Query(None, description="客户ID"),
     thread_id: Optional[str] = Query(None, description="对话ID"),
     status: Optional[ConversationStatus] = Query(None, description="对话状态"),
@@ -194,7 +200,6 @@ async def get_conversation_history(
     """
     try:
         history_request = ConversationHistoryRequest(
-            tenant_id=tenant_id,
             customer_id=customer_id,
             thread_id=thread_id,
             status=status,
@@ -216,7 +221,7 @@ async def get_conversation_history(
 @router.get("/{thread_id}/messages")
 async def get_conversation_messages(
     thread_id: str,
-    tenant_id: str = Depends(get_tenant_id),
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
     pagination: PaginationRequest = Depends(),
     include_attachments: bool = Query(False, description="是否包含附件信息"),
     include_analysis: bool = Query(False, description="是否包含分析结果")
@@ -229,7 +234,7 @@ async def get_conversation_messages(
     try:
         return await conversation_handler.get_conversation_messages(
             thread_id=thread_id,
-            tenant_id=tenant_id,
+            tenant_id=tenant_context.tenant_id,
             pagination=pagination,
             include_attachments=include_attachments,
             include_analysis=include_analysis
@@ -242,7 +247,7 @@ async def get_conversation_messages(
 
 @router.get("/analytics", response_model=ConversationAnalyticsResponse)
 async def get_conversation_analytics(
-    tenant_id: str = Depends(get_tenant_id),
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
     days: int = Query(30, ge=1, le=365, description="分析天数"),
     customer_id: Optional[str] = Query(None, description="指定客户ID"),
     agent_type: Optional[str] = Query(None, description="指定智能体类型")
@@ -254,7 +259,7 @@ async def get_conversation_analytics(
     """
     try:
         return await conversation_handler.get_conversation_analytics(
-            tenant_id=tenant_id,
+            tenant_id=tenant_context.tenant_id,
             days=days,
             customer_id=customer_id,
             agent_type=agent_type
@@ -269,7 +274,7 @@ async def get_conversation_analytics(
 async def export_conversations(
     request: ConversationExportRequest,
     background_tasks: BackgroundTasks,
-    tenant_id: str = Depends(get_tenant_id)
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context)
 ):
     """
     导出对话记录
@@ -277,9 +282,7 @@ async def export_conversations(
     支持多种格式导出对话记录，包括JSON、CSV、Excel和PDF格式。
     """
     try:
-        # 验证租户匹配
-        if request.tenant_id != tenant_id:
-            raise HTTPException(status_code=400, detail="租户ID不匹配")
+        # JWT认证中已验证租户身份，无需重复检查
         
         return await conversation_handler.export_conversations(
             request=request,
@@ -294,7 +297,7 @@ async def export_conversations(
 @router.get("/export/{export_id}/status")
 async def get_export_status(
     export_id: str,
-    tenant_id: str = Depends(get_tenant_id)
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context)
 ):
     """
     获取导出任务状态
@@ -304,7 +307,7 @@ async def get_export_status(
     try:
         return await conversation_handler.get_export_status(
             export_id=export_id,
-            tenant_id=tenant_id
+            tenant_id=tenant_context.tenant_id
         )
         
     except Exception as e:
@@ -317,7 +320,7 @@ async def get_export_status(
 @router.get("/customer/{customer_id}")
 async def get_customer_conversations(
     customer_id: str,
-    tenant_id: str = Depends(get_tenant_id),
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
     pagination: PaginationRequest = Depends(),
     status: Optional[ConversationStatus] = Query(None, description="对话状态筛选")
 ):
@@ -329,7 +332,7 @@ async def get_customer_conversations(
     try:
         return await conversation_handler.get_customer_conversations(
             customer_id=customer_id,
-            tenant_id=tenant_id,
+            tenant_id=tenant_context.tenant_id,
             pagination=pagination,
             status=status
         )
@@ -342,7 +345,7 @@ async def get_customer_conversations(
 @router.get("/customer/{customer_id}/summary")
 async def get_customer_conversation_summary(
     customer_id: str,
-    tenant_id: str = Depends(get_tenant_id),
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
     days: int = Query(30, ge=1, le=365, description="统计天数")
 ):
     """
@@ -353,7 +356,7 @@ async def get_customer_conversation_summary(
     try:
         return await conversation_handler.get_customer_summary(
             customer_id=customer_id,
-            tenant_id=tenant_id,
+            tenant_id=tenant_context.tenant_id,
             days=days
         )
         
@@ -366,7 +369,7 @@ async def get_customer_conversation_summary(
 
 @router.get("/active")
 async def get_active_conversations(
-    tenant_id: str = Depends(get_tenant_id),
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
     pagination: PaginationRequest = Depends()
 ):
     """
@@ -376,7 +379,7 @@ async def get_active_conversations(
     """
     try:
         return await conversation_handler.get_active_conversations(
-            tenant_id=tenant_id,
+            tenant_id=tenant_context.tenant_id,
             pagination=pagination
         )
         
@@ -387,7 +390,7 @@ async def get_active_conversations(
 
 @router.get("/metrics/real-time")
 async def get_realtime_metrics(
-    tenant_id: str = Depends(get_tenant_id)
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context)
 ):
     """
     获取实时指标
@@ -396,7 +399,7 @@ async def get_realtime_metrics(
     """
     try:
         return await conversation_handler.get_realtime_metrics(
-            tenant_id=tenant_id
+            tenant_id=tenant_context.tenant_id
         )
         
     except Exception as e:
@@ -411,7 +414,7 @@ async def escalate_conversation(
     thread_id: str,
     reason: str = Query(description="升级原因"),
     priority: str = Query("normal", description="优先级", regex="^(low|normal|high|urgent)$"),
-    tenant_id: str = Depends(get_tenant_id)
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context)
 ):
     """
     升级对话到人工处理
@@ -421,7 +424,7 @@ async def escalate_conversation(
     try:
         return await conversation_handler.escalate_conversation(
             thread_id=thread_id,
-            tenant_id=tenant_id,
+            tenant_id=tenant_context.tenant_id,
             reason=reason,
             priority=priority
         )
@@ -436,7 +439,7 @@ async def submit_conversation_feedback(
     thread_id: str,
     rating: int = Query(ge=1, le=5, description="评分（1-5）"),
     feedback: Optional[str] = Query(None, description="反馈内容"),
-    tenant_id: str = Depends(get_tenant_id)
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context)
 ):
     """
     提交对话反馈
@@ -446,7 +449,7 @@ async def submit_conversation_feedback(
     try:
         return await conversation_handler.submit_feedback(
             thread_id=thread_id,
-            tenant_id=tenant_id,
+            tenant_id=tenant_context.tenant_id,
             rating=rating,
             feedback=feedback
         )
@@ -459,7 +462,7 @@ async def submit_conversation_feedback(
 @router.delete("/{thread_id}")
 async def delete_conversation(
     thread_id: str,
-    tenant_id: str = Depends(get_tenant_id),
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
     permanent: bool = Query(False, description="是否永久删除")
 ):
     """
@@ -470,7 +473,7 @@ async def delete_conversation(
     try:
         return await conversation_handler.delete_conversation(
             thread_id=thread_id,
-            tenant_id=tenant_id,
+            tenant_id=tenant_context.tenant_id,
             permanent=permanent
         )
         

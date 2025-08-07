@@ -24,7 +24,7 @@ from ..schemas.prompts import (
     AssistantPromptConfig, PromptCategory, PromptType, PromptLanguage
 )
 from ..handlers.prompt_handler import PromptHandler
-from ..middleware.tenant import get_tenant_id
+from src.auth import get_jwt_tenant_context, JWTTenantContext
 from src.utils import get_endpoint_logger
 
 # 创建路由器
@@ -39,7 +39,7 @@ prompt_handler = PromptHandler()
 async def create_assistant_prompts(
     assistant_id: str = Path(..., description="助理ID"),
     request: PromptCreateRequest = None,
-    tenant_id: str = Depends(get_tenant_id)
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context)
 ) -> PromptConfigResponse:
     """
     为助理配置提示词
@@ -47,14 +47,9 @@ async def create_assistant_prompts(
     创建或更新助理的完整提示词配置，定义其个性、行为和交互方式。
     """
     try:
-        logger.info(f"配置助理提示词: tenant={tenant_id}, assistant={assistant_id}")
+        logger.info(f"配置助理提示词: tenant={tenant_context.tenant_id}, assistant={assistant_id}")
         
-        # 验证租户匹配
-        if request.tenant_id != tenant_id:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="请求中的租户ID与认证租户不匹配"
-            )
+        # JWT认证中已验证租户身份，无需重复检查
         
         # 验证助理ID匹配
         if request.assistant_id != assistant_id:
@@ -85,7 +80,7 @@ async def create_assistant_prompts(
 @router.get("/assistants/{assistant_id}/prompts", response_model=PromptConfigResponse)
 async def get_assistant_prompts(
     assistant_id: str = Path(..., description="助理ID"),
-    tenant_id: str = Depends(get_tenant_id),
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
     version: Optional[str] = Query(None, description="配置版本")
 ) -> PromptConfigResponse:
     """
@@ -94,10 +89,10 @@ async def get_assistant_prompts(
     获取指定助理的提示词配置，包括所有个性化设置和交互规则。
     """
     try:
-        logger.info(f"查询助理提示词: tenant={tenant_id}, assistant={assistant_id}")
+        logger.info(f"查询助理提示词: tenant={tenant_context.tenant_id}, assistant={assistant_id}")
         
         result = await prompt_handler.get_assistant_prompts(
-            assistant_id, tenant_id, version
+            assistant_id, tenant_context.tenant_id, version
         )
         
         if not result:
@@ -124,7 +119,7 @@ async def get_assistant_prompts(
 async def update_assistant_prompts(
     assistant_id: str = Path(..., description="助理ID"),
     request: PromptUpdateRequest = None,
-    tenant_id: str = Depends(get_tenant_id)
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context)
 ) -> PromptConfigResponse:
     """
     更新助理提示词配置
@@ -132,10 +127,10 @@ async def update_assistant_prompts(
     部分或完整更新助理的提示词配置，支持渐进式优化和调整。
     """
     try:
-        logger.info(f"更新助理提示词: tenant={tenant_id}, assistant={assistant_id}")
+        logger.info(f"更新助理提示词: tenant={tenant_context.tenant_id}, assistant={assistant_id}")
         
         result = await prompt_handler.update_assistant_prompts(
-            assistant_id, tenant_id, request
+            assistant_id, tenant_context.tenant_id, request
         )
         
         if not result:
@@ -168,7 +163,7 @@ async def update_assistant_prompts(
 async def test_assistant_prompts(
     assistant_id: str = Path(..., description="助理ID"),
     request: PromptTestRequest = None,
-    tenant_id: str = Depends(get_tenant_id)
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context)
 ) -> PromptTestResponse:
     """
     测试助理提示词效果
@@ -176,10 +171,10 @@ async def test_assistant_prompts(
     在实际应用前测试提示词配置的效果，验证输出质量和行为一致性。
     """
     try:
-        logger.info(f"测试助理提示词: tenant={tenant_id}, assistant={assistant_id}")
+        logger.info(f"测试助理提示词: tenant={tenant_context.tenant_id}, assistant={assistant_id}")
         
         result = await prompt_handler.test_assistant_prompts(
-            assistant_id, tenant_id, request
+            assistant_id, tenant_context.tenant_id, request
         )
         
         logger.info(f"助理提示词测试完成: {assistant_id}, 总体评分: {result.overall_score}")
@@ -203,7 +198,7 @@ async def test_assistant_prompts(
 async def validate_assistant_prompts(
     assistant_id: str = Path(..., description="助理ID"),
     prompt_config: AssistantPromptConfig = None,
-    tenant_id: str = Depends(get_tenant_id)
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context)
 ) -> PromptValidationResponse:
     """
     验证助理提示词配置
@@ -211,10 +206,10 @@ async def validate_assistant_prompts(
     检查提示词配置的有效性、安全性和合规性，提供优化建议。
     """
     try:
-        logger.info(f"验证助理提示词: tenant={tenant_id}, assistant={assistant_id}")
+        logger.info(f"验证助理提示词: tenant={tenant_context.tenant_id}, assistant={assistant_id}")
         
         result = await prompt_handler.validate_assistant_prompts(
-            assistant_id, tenant_id, prompt_config
+            assistant_id, tenant_context.tenant_id, prompt_config
         )
         
         logger.info(f"助理提示词验证完成: {assistant_id}, 有效性: {result.is_valid}")
@@ -244,7 +239,7 @@ async def get_prompt_library(
     sort_order: str = Query("desc", description="排序方向"),
     page: int = Query(1, ge=1, description="页码"),
     page_size: int = Query(20, ge=1, le=100, description="每页大小"),
-    tenant_id: str = Depends(get_tenant_id)
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context)
 ) -> PromptLibraryResponse:
     """
     获取提示词库
@@ -252,7 +247,7 @@ async def get_prompt_library(
     浏览和搜索提示词库，获取预设的提示词模板和示例。
     """
     try:
-        logger.info(f"查询提示词库: tenant={tenant_id}")
+        logger.info(f"查询提示词库: tenant={tenant_context.tenant_id}")
         
         search_request = PromptLibrarySearchRequest(
             category=category,
@@ -282,7 +277,7 @@ async def get_prompt_library(
 async def get_prompt_templates_by_category(
     category: PromptCategory = Path(..., description="提示词分类"),
     language: PromptLanguage = Query(PromptLanguage.CHINESE, description="语言"),
-    tenant_id: str = Depends(get_tenant_id)
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context)
 ) -> PromptLibraryResponse:
     """
     按分类获取提示词模板
@@ -290,7 +285,7 @@ async def get_prompt_templates_by_category(
     获取特定分类的提示词模板，如销售、客服、咨询等。
     """
     try:
-        logger.info(f"查询分类提示词模板: tenant={tenant_id}, category={category}")
+        logger.info(f"查询分类提示词模板: tenant={tenant_context.tenant_id}, category={category}")
         
         search_request = PromptLibrarySearchRequest(
             category=category,
@@ -318,7 +313,7 @@ async def get_prompt_templates_by_category(
 async def clone_assistant_prompts(
     assistant_id: str = Path(..., description="目标助理ID"),
     source_assistant_id: str = Query(..., description="源助理ID"),
-    tenant_id: str = Depends(get_tenant_id),
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
     modify_personality: bool = Query(False, description="是否修改个性化部分")
 ) -> PromptConfigResponse:
     """
@@ -327,10 +322,10 @@ async def clone_assistant_prompts(
     从一个助理克隆提示词配置到另一个助理，支持快速复制和批量配置。
     """
     try:
-        logger.info(f"克隆助理提示词: tenant={tenant_id}, source={source_assistant_id} -> target={assistant_id}")
+        logger.info(f"克隆助理提示词: tenant={tenant_context.tenant_id}, source={source_assistant_id} -> target={assistant_id}")
         
         result = await prompt_handler.clone_assistant_prompts(
-            source_assistant_id, assistant_id, tenant_id, modify_personality
+            source_assistant_id, assistant_id, tenant_context.tenant_id, modify_personality
         )
         
         if not result:
@@ -356,7 +351,7 @@ async def clone_assistant_prompts(
 @router.get("/assistants/{assistant_id}/prompts/history", response_model=List[PromptConfigResponse])
 async def get_prompt_history(
     assistant_id: str = Path(..., description="助理ID"),
-    tenant_id: str = Depends(get_tenant_id),
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
     limit: int = Query(10, ge=1, le=50, description="历史版本数量限制")
 ) -> List[PromptConfigResponse]:
     """
@@ -365,10 +360,10 @@ async def get_prompt_history(
     查看助理提示词配置的历史版本，支持版本回退和对比。
     """
     try:
-        logger.info(f"查询助理提示词历史: tenant={tenant_id}, assistant={assistant_id}")
+        logger.info(f"查询助理提示词历史: tenant={tenant_context.tenant_id}, assistant={assistant_id}")
         
         result = await prompt_handler.get_prompt_history(
-            assistant_id, tenant_id, limit
+            assistant_id, tenant_context.tenant_id, limit
         )
         
         logger.info(f"助理提示词历史查询成功: {assistant_id}, 返回{len(result)}个版本")
@@ -386,7 +381,7 @@ async def get_prompt_history(
 async def rollback_assistant_prompts(
     assistant_id: str = Path(..., description="助理ID"),
     version: str = Query(..., description="回退到的版本"),
-    tenant_id: str = Depends(get_tenant_id)
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context)
 ) -> PromptConfigResponse:
     """
     回退助理提示词配置
@@ -394,10 +389,10 @@ async def rollback_assistant_prompts(
     将助理的提示词配置回退到指定的历史版本。
     """
     try:
-        logger.info(f"回退助理提示词: tenant={tenant_id}, assistant={assistant_id}, version={version}")
+        logger.info(f"回退助理提示词: tenant={tenant_context.tenant_id}, assistant={assistant_id}, version={version}")
         
         result = await prompt_handler.rollback_assistant_prompts(
-            assistant_id, tenant_id, version
+            assistant_id, tenant_context.tenant_id, version
         )
         
         if not result:

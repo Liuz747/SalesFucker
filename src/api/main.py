@@ -20,6 +20,7 @@ import logging
 from .exceptions import APIException
 from .middleware.safety_interceptor import SafetyInterceptor
 from .middleware.tenant_isolation import TenantIsolation
+from .middleware.jwt_middleware import JWTMiddleware
 from .endpoints import (
     agents_router,
     conversations_router,
@@ -52,7 +53,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 添加自定义中间件
+# 添加自定义中间件 (order matters - JWT first for security)
+app.add_middleware(JWTMiddleware, exclude_paths=[
+    "/health",
+    "/docs", 
+    "/openapi.json",
+    "/redoc",
+    "/api/v1/health"
+])
 app.add_middleware(SafetyInterceptor)
 app.add_middleware(TenantIsolation)
 

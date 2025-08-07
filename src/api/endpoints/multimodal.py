@@ -19,9 +19,9 @@ import uuid
 from datetime import datetime
 
 from ..dependencies import (
-    get_tenant_id,
     get_request_context
 )
+from src.auth import get_jwt_tenant_context, JWTTenantContext
 from ..schemas.multimodal import (
     MultimodalRequest,
     VoiceProcessingRequest,
@@ -55,7 +55,7 @@ multimodal_handler = MultimodalHandler()
 @router.post("/voice/upload", response_model=Dict[str, Any])
 async def upload_voice_file(
     background_tasks: BackgroundTasks,
-    tenant_id: str = Form(..., description="租户ID"),
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
     customer_id: Optional[str] = Form(None, description="客户ID"),
     thread_id: Optional[str] = Form(None, description="对话ID"),
     language: str = Form("zh-CN", description="语言代码"),
@@ -80,7 +80,7 @@ async def upload_voice_file(
         
         # 创建处理请求
         processing_request = VoiceProcessingRequest(
-            tenant_id=tenant_id,
+            tenant_id=tenant_context.tenant_id,
             customer_id=customer_id,
             processing_type=ProcessingType.VOICE_TO_TEXT,
             language=language,
@@ -109,7 +109,7 @@ async def upload_voice_file(
 @router.post("/image/upload", response_model=Dict[str, Any])
 async def upload_image_file(
     background_tasks: BackgroundTasks,
-    tenant_id: str = Form(..., description="租户ID"),
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
     customer_id: Optional[str] = Form(None, description="客户ID"),
     thread_id: Optional[str] = Form(None, description="对话ID"),
     analysis_types: List[AnalysisType] = Form([AnalysisType.GENERAL_ANALYSIS], description="分析类型列表"),
@@ -139,7 +139,7 @@ async def upload_image_file(
         
         # 创建处理请求
         processing_request = ImageAnalysisRequest(
-            tenant_id=tenant_id,
+            tenant_id=tenant_context.tenant_id,
             customer_id=customer_id,
             processing_type=ProcessingType.IMAGE_ANALYSIS,
             image_format=image_format,
@@ -169,7 +169,7 @@ async def upload_image_file(
 @router.post("/conversation/multimodal", response_model=Dict[str, Any])
 async def create_multimodal_conversation(
     background_tasks: BackgroundTasks,
-    tenant_id: str = Form(..., description="租户ID"),
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
     customer_id: Optional[str] = Form(None, description="客户ID"),
     thread_id: Optional[str] = Form(None, description="对话ID"),
     text_message: Optional[str] = Form(None, description="文本消息"),
@@ -189,7 +189,7 @@ async def create_multimodal_conversation(
         
         # 处理多模态对话创建
         result = await multimodal_handler.create_multimodal_conversation(
-            tenant_id=tenant_id,
+            tenant_id=tenant_context.tenant_id,
             customer_id=customer_id,
             thread_id=thread_id,
             text_message=text_message,
@@ -210,7 +210,7 @@ async def create_multimodal_conversation(
 async def batch_process_files(
     request: BatchMultimodalRequest,
     background_tasks: BackgroundTasks,
-    tenant_id: str = Depends(get_tenant_id)
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context)
 ):
     """
     批量处理多模态文件
@@ -218,13 +218,12 @@ async def batch_process_files(
     支持批量上传和处理多个文件，提高处理效率。
     """
     try:
-        # 验证租户匹配
-        if request.tenant_id != tenant_id:
-            raise HTTPException(status_code=400, detail="租户ID不匹配")
+        # JWT认证中已验证租户身份，无需重复检查
         
         # 处理批量请求
         result = await multimodal_handler.batch_process_files(
             request=request,
+            tenant_id=tenant_context.tenant_id,
             background_tasks=background_tasks
         )
         
@@ -238,7 +237,7 @@ async def batch_process_files(
 @router.get("/status/{processing_id}", response_model=ProcessingStatusResponse)
 async def get_processing_status(
     processing_id: str,
-    tenant_id: str = Depends(get_tenant_id)
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context)
 ):
     """
     获取处理状态
@@ -248,7 +247,7 @@ async def get_processing_status(
     try:
         result = await multimodal_handler.get_processing_status(
             processing_id=processing_id,
-            tenant_id=tenant_id
+            tenant_id=tenant_context.tenant_id
         )
         
         return result
@@ -263,7 +262,7 @@ async def get_processing_status(
 @router.get("/result/{processing_id}")
 async def get_processing_result(
     processing_id: str,
-    tenant_id: str = Depends(get_tenant_id)
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context)
 ):
     """
     获取处理结果
@@ -273,7 +272,7 @@ async def get_processing_result(
     try:
         result = await multimodal_handler.get_processing_result(
             processing_id=processing_id,
-            tenant_id=tenant_id
+            tenant_id=tenant_context.tenant_id
         )
         
         return result
@@ -314,7 +313,7 @@ async def get_multimodal_capabilities():
 @router.delete("/processing/{processing_id}")
 async def cancel_processing(
     processing_id: str,
-    tenant_id: str = Depends(get_tenant_id)
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context)
 ):
     """
     取消处理任务
@@ -324,7 +323,7 @@ async def cancel_processing(
     try:
         result = await multimodal_handler.cancel_processing(
             processing_id=processing_id,
-            tenant_id=tenant_id
+            tenant_id=tenant_context.tenant_id
         )
         
         return result
@@ -338,7 +337,7 @@ async def cancel_processing(
 
 @router.get("/admin/stats")
 async def get_processing_stats(
-    tenant_id: str = Depends(get_tenant_id),
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
     days: int = Query(7, ge=1, le=30, description="统计天数")
 ):
     """
@@ -348,7 +347,7 @@ async def get_processing_stats(
     """
     try:
         stats = await multimodal_handler.get_processing_stats(
-            tenant_id=tenant_id,
+            tenant_id=tenant_context.tenant_id,
             days=days
         )
         
@@ -361,7 +360,7 @@ async def get_processing_stats(
 
 @router.post("/admin/cleanup")
 async def cleanup_processing_data(
-    tenant_id: str = Depends(get_tenant_id),
+    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
     older_than_days: int = Query(30, ge=1, le=365, description="清理多少天前的数据")
 ):
     """
@@ -371,7 +370,7 @@ async def cleanup_processing_data(
     """
     try:
         result = await multimodal_handler.cleanup_processing_data(
-            tenant_id=tenant_id,
+            tenant_id=tenant_context.tenant_id,
             older_than_days=older_than_days
         )
         

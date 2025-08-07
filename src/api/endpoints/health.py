@@ -18,7 +18,7 @@ import logging
 import asyncio
 from datetime import datetime
 
-from ..dependencies import get_tenant_id
+from src.auth import get_jwt_tenant_context, JWTTenantContext
 from ..schemas.responses import SuccessResponse
 from src.utils import get_component_logger
 
@@ -97,9 +97,16 @@ async def component_health_check(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+async def get_optional_tenant_context() -> Optional[JWTTenantContext]:
+    """Optional JWT tenant context for health endpoints"""
+    try:
+        return await get_jwt_tenant_context()
+    except:
+        return None
+
 @router.get("/metrics")
 async def get_health_metrics(
-    tenant_id: Optional[str] = Depends(get_tenant_id)
+    tenant_context: Optional[JWTTenantContext] = Depends(get_optional_tenant_context)
 ):
     """
     获取健康指标
@@ -107,6 +114,7 @@ async def get_health_metrics(
     返回系统性能和健康相关的指标数据。
     """
     try:
+        tenant_id = tenant_context.tenant_id if tenant_context else None
         metrics = await collect_health_metrics(tenant_id)
         
         return {

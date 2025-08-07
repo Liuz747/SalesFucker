@@ -1,7 +1,7 @@
 """
-销售助理处理器
+AI员工处理器
 
-该模块提供销售助理管理的业务逻辑处理，包括助理的创建、查询、更新、
+该模块提供AI员工管理的业务逻辑处理，包括助理的创建、查询、更新、
 配置和统计等功能。负责协调数据存储、权限验证和业务规则执行。
 
 主要功能:
@@ -29,9 +29,9 @@ from src.libs.constants import StatusConstants
 
 class AssistantHandler(StatusMixin):
     """
-    销售助理处理器
+    AI员工处理器
     
-    处理销售助理相关的业务逻辑，包括CRUD操作、配置管理和统计分析。
+    处理AI员工相关的业务逻辑，包括CRUD操作、配置管理和统计分析。
     """
     
     def __init__(self):
@@ -46,12 +46,12 @@ class AssistantHandler(StatusMixin):
         # 初始化提示词处理器
         self.prompt_handler = PromptHandler()
         
-        self.logger.info("销售助理处理器初始化完成")
+        self.logger.info("AI员工处理器初始化完成")
     
     @with_error_handling(fallback_response=None)
     async def create_assistant(self, request: AssistantCreateRequest) -> AssistantResponse:
         """
-        创建新的销售助理
+        创建新的AI员工
         
         参数:
             request: 助理创建请求
