@@ -26,10 +26,11 @@ from .endpoints import (
     conversations_router,
     llm_management_router,
     multimodal_router,
-    health_router
+    health_router,
+    assistants_router,
+    prompts_router,
+    tenant_router
 )
-from .endpoints.assistants import router as assistants_router
-from .endpoints.prompts import router as prompts_router
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
@@ -37,8 +38,8 @@ logger = logging.getLogger(__name__)
 
 # 创建FastAPI应用
 app = FastAPI(
-    title="MAS化妆品智能体系统API",
-    description="多智能体化妆品营销系统的RESTful API",
+    title="MAS营销智能体系统API",
+    description="多智能体营销系统的RESTful API",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc"
@@ -99,13 +100,14 @@ async def general_exception_handler(request: Request, exc: Exception):
     )
 
 # 注册路由器
-app.include_router(health_router, prefix="/api/v1")
-app.include_router(agents_router, prefix="/api/v1")
-app.include_router(conversations_router, prefix="/api/v1")
-app.include_router(llm_management_router, prefix="/api/v1")
-app.include_router(multimodal_router, prefix="/api/v1")
-app.include_router(assistants_router)
-app.include_router(prompts_router)
+app.include_router(health_router, prefix="/v1")
+app.include_router(agents_router, prefix="/v1")
+app.include_router(conversations_router, prefix="/v1")
+app.include_router(llm_management_router, prefix="/v1")
+app.include_router(multimodal_router, prefix="/v1")
+app.include_router(assistants_router, prefix="/v1")
+app.include_router(prompts_router, prefix="/v1")
+app.include_router(tenant_router, prefix="/v1")
 
 # 根路径健康检查
 @app.get("/")

@@ -5,15 +5,13 @@ Enhanced version of JWT dependencies with caching and performance optimizations
 while maintaining the explicit dependency-based approach.
 """
 
-import asyncio
-from functools import lru_cache
 from typing import Optional, Dict, Any
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-import time
 
 from src.auth.jwt_auth import verify_jwt_token, JWTTenantContext
-from src.utils import get_component_logger
+from src.auth.tenant_manager import get_tenant_manager, TenantManager
+from src.utils import get_component_logger, get_current_datetime
 
 logger = get_component_logger(__name__, "OptimizedAuth")
 
@@ -27,7 +25,7 @@ JWT_CACHE_TTL = 300  # 5 minutes cache
 
 def _clean_expired_cache():
     """Remove expired JWT cache entries"""
-    current_time = time.time()
+    current_time = get_current_datetime()
     expired_keys = [
         token_hash for token_hash, (context, timestamp) in _jwt_cache.items()
         if current_time - timestamp > JWT_CACHE_TTL
@@ -69,7 +67,7 @@ async def get_jwt_tenant_context_cached(
     token_hash = _get_token_hash(token)
     
     # Check cache first
-    current_time = time.time()
+    current_time = get_current_datetime()
     if token_hash in _jwt_cache:
         cached_context, cached_time = _jwt_cache[token_hash]
         if current_time - cached_time < JWT_CACHE_TTL:
@@ -81,7 +79,11 @@ async def get_jwt_tenant_context_cached(
     
     # Verify JWT token
     try:
-        tenant_context = await verify_jwt_token(token)
+        tenant_manager: TenantManager = await get_tenant_manager()
+        verification = await verify_jwt_token(token, tenant_manager)
+        if not verification.is_valid or not verification.tenant_context:
+            raise Exception(verification.error_message or "Invalid token")
+        tenant_context = verification.tenant_context
         
         # Cache the result
         _jwt_cache[token_hash] = (tenant_context, current_time)

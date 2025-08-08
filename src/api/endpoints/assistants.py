@@ -5,12 +5,12 @@ AI员工管理API端点
 配置和统计等功能。支持完整的助理生命周期管理。
 
 主要端点:
-- POST /api/v1/assistants - 创建助理
-- GET /api/v1/assistants - 获取助理列表  
-- GET /api/v1/assistants/{assistant_id} - 获取助理详情
-- PUT /api/v1/assistants/{assistant_id} - 更新助理
-- POST /api/v1/assistants/{assistant_id}/config - 配置助理
-- GET /api/v1/assistants/{assistant_id}/stats - 获取助理统计
+- POST /v1/assistants - 创建助理
+- GET /v1/assistants - 获取助理列表  
+- GET /v1/assistants/{assistant_id} - 获取助理详情
+- PUT /v1/assistants/{assistant_id} - 更新助理
+- POST /v1/assistants/{assistant_id}/config - 配置助理
+- GET /v1/assistants/{assistant_id}/stats - 获取助理统计
 """
 
 from fastapi import APIRouter, HTTPException, Depends, Query, Path, status
@@ -26,7 +26,7 @@ from src.auth import get_jwt_tenant_context, JWTTenantContext
 from src.utils import get_endpoint_logger
 
 # 创建路由器
-router = APIRouter(prefix="/api/v1/assistants", tags=["assistants"])
+router = APIRouter(prefix="/assistants", tags=["assistants"])
 logger = get_endpoint_logger(__name__)
 
 # 初始化处理器

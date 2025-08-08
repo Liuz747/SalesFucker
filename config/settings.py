@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     
     # Multi-tenant Configuration
     enable_multi_tenant: bool = Field(default=True, env="ENABLE_MULTI_TENANT")
+
+    # Admin API
+    admin_api_key: Optional[str] = Field(default=None, env="ADMIN_API_KEY")
     
     class Config:
         env_file = ".env"

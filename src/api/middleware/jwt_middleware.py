@@ -11,6 +11,7 @@ import logging
 from typing import Callable, List, Optional
 
 from src.auth.jwt_auth import verify_jwt_token, JWTTenantContext
+from src.auth.tenant_manager import get_tenant_manager, TenantManager
 from src.utils import get_component_logger
 
 logger = get_component_logger(__name__, "JWTMiddleware")
@@ -108,7 +109,11 @@ class JWTMiddleware:
             
             # Verify JWT token
             try:
-                tenant_context = await verify_jwt_token(token)
+                tenant_manager: TenantManager = await get_tenant_manager()
+                verification = await verify_jwt_token(token, tenant_manager)
+                if not verification.is_valid or verification.tenant_context is None:
+                    raise ValueError(verification.error_message or "invalid token")
+                tenant_context = verification.tenant_context
                 logger.debug(f"JWT verified for tenant: {tenant_context.tenant_id}")
                 
                 # Store tenant context in request state

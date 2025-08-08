@@ -20,6 +20,7 @@ from cryptography.hazmat.primitives import serialization
 
 from .models import JWTTenantContext, JWTVerificationResult, TenantRole
 from .tenant_manager import get_tenant_manager, TenantManager
+from .jwks_cache import get_global_jwks_cache
 from src.utils import get_component_logger
 
 logger = get_component_logger(__name__, "JWTAuth")
@@ -93,17 +94,74 @@ async def verify_jwt_token(
                 verification_details={"tenant_id": tenant_id}
             )
         
-        # 加载RSA公钥
-        try:
-            public_key = serialization.load_pem_public_key(
-                tenant_config.jwt_public_key.encode('utf-8')
-            )
-        except Exception as e:
-            logger.error(f"加载租户公钥失败: {tenant_id}, 错误: {e}")
+        # 选择公钥来源：优先JWKS，其次PEM回退
+        jwks_pem: Optional[bytes] = None
+        selected_public_key = None
+
+        # 校验issuer/audience/alg/kid等
+        expected_iss = tenant_config.issuer or tenant_config.jwt_issuer
+        if unverified_payload.get("iss") != expected_iss:
             return JWTVerificationResult(
                 is_valid=False,
-                error_code="INVALID_PUBLIC_KEY", 
-                error_message="租户公钥格式无效",
+                error_code="INVALID_ISSUER",
+                error_message="JWT issuer 不匹配",
+                verification_details={"tenant_id": tenant_id, "expected": expected_iss, "got": unverified_payload.get("iss")}
+            )
+
+        if tenant_config.jwt_audience and unverified_payload.get("aud") != tenant_config.jwt_audience:
+            return JWTVerificationResult(
+                is_valid=False,
+                error_code="INVALID_AUDIENCE",
+                error_message="JWT audience 不匹配",
+                verification_details={"tenant_id": tenant_id}
+            )
+
+        # kid要求
+        unverified_kid = jwt.get_unverified_header(token).get("kid")
+        if tenant_config.require_kid and not unverified_kid and tenant_config.jwks_uri:
+            return JWTVerificationResult(
+                is_valid=False,
+                error_code="MISSING_KID",
+                error_message="JWT header 缺少kid，且配置为必需",
+                verification_details={"tenant_id": tenant_id}
+            )
+
+        # JWKS优先
+        if tenant_config.jwks_uri and unverified_kid:
+            try:
+                jwks_cache = await get_global_jwks_cache()
+                jwks_pem = await jwks_cache.get_key_pem_by_kid(tenant_config.jwks_uri, unverified_kid)
+            except Exception as e:
+                logger.error(f"获取JWKS失败: {e}")
+                jwks_pem = None
+
+        if jwks_pem:
+            try:
+                selected_public_key = serialization.load_pem_public_key(jwks_pem)
+            except Exception as e:
+                logger.error(f"解析JWKS公钥失败: {e}")
+                selected_public_key = None
+
+        # 回退到PEM配置
+        if selected_public_key is None and tenant_config.jwt_public_key:
+            try:
+                selected_public_key = serialization.load_pem_public_key(
+                    tenant_config.jwt_public_key.encode('utf-8')
+                )
+            except Exception as e:
+                logger.error(f"加载租户PEM公钥失败: {tenant_id}, 错误: {e}")
+                return JWTVerificationResult(
+                    is_valid=False,
+                    error_code="INVALID_PUBLIC_KEY",
+                    error_message="租户公钥无效",
+                    verification_details={"tenant_id": tenant_id}
+                )
+
+        if selected_public_key is None:
+            return JWTVerificationResult(
+                is_valid=False,
+                error_code="PUBLIC_KEY_UNAVAILABLE",
+                error_message="无法获取用于验证的公钥",
                 verification_details={"tenant_id": tenant_id}
             )
         
@@ -111,9 +169,9 @@ async def verify_jwt_token(
         try:
             payload = jwt.decode(
                 token,
-                public_key,
-                algorithms=[tenant_config.jwt_algorithm],
-                issuer=tenant_config.jwt_issuer,
+                selected_public_key,
+                algorithms=tenant_config.allowed_algorithms or [tenant_config.jwt_algorithm],
+                issuer=expected_iss,
                 audience=tenant_config.jwt_audience,
                 options={
                     "require": ["exp", "iat", "iss", "aud", "sub", "jti"],

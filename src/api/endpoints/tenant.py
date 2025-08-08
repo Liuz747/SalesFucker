@@ -5,32 +5,30 @@ These endpoints are used by the backend system to sync tenant information
 and public keys to the AI service. Only accessible with admin API keys.
 
 Flow:
-Backend System → POST /admin/tenants/{tenant_id}/sync → AI Service
+Backend System → POST /tenants/{tenant_id}/sync → AI Service
 """
 
-from fastapi import APIRouter, HTTPException, Depends, status, Header
-from typing import List, Dict, Any, Optional
-from datetime import datetime
-import logging
+from fastapi import APIRouter, HTTPException, Depends, status
+from typing import List, Optional
 
-from ..schemas.admin_tenant import (
+from ..schemas.tenant import (
     TenantSyncRequest,
     TenantSyncResponse, 
     TenantStatusResponse,
     TenantListResponse,
     TenantUpdateRequest
 )
-from ..handlers.admin_tenant_handler import AdminTenantHandler
+from ..handlers.tenant_handler import TenantHandler
 from ..middleware.admin_auth import verify_admin_api_key
-from src.utils import get_component_logger
+from src.utils import get_component_logger, get_current_datetime, format_timestamp
 
 logger = get_component_logger(__name__, "AdminTenantEndpoints")
 
 # Create router with admin prefix
-router = APIRouter(prefix="/admin/tenants", tags=["admin-tenant"])
+router = APIRouter(prefix="/tenants", tags=["tenant"])
 
 # Initialize handler
-admin_tenant_handler = AdminTenantHandler()
+tenant_handler = TenantHandler()
 
 
 @router.post("/{tenant_id}/sync", response_model=TenantSyncResponse)
@@ -60,14 +58,14 @@ async def sync_tenant_from_backend(
             )
         
         # Sync tenant to AI service database
-        result = await admin_tenant_handler.sync_tenant(request)
+        result = await tenant_handler.sync_tenant(request)
         
         logger.info(f"Tenant sync successful: {tenant_id}")
         return TenantSyncResponse(
             tenant_id=tenant_id,
             sync_status="success",
             message="Tenant synced successfully",
-            synced_at=datetime.utcnow(),
+            synced_at=get_current_datetime(),
             features_enabled=request.features,
             public_key_fingerprint=result["public_key_fingerprint"]
         )
@@ -100,7 +98,7 @@ async def get_tenant_status(
     try:
         logger.info(f"Tenant status request: {tenant_id}")
         
-        status_info = await admin_tenant_handler.get_tenant_status(tenant_id)
+        status_info = await tenant_handler.get_tenant_status(tenant_id)
         
         if not status_info:
             raise HTTPException(
@@ -135,13 +133,13 @@ async def update_tenant(
     try:
         logger.info(f"Tenant update request: {tenant_id}")
         
-        result = await admin_tenant_handler.update_tenant(tenant_id, request)
+        result = await tenant_handler.update_tenant(tenant_id, request)
         
         return TenantSyncResponse(
             tenant_id=tenant_id,
             sync_status="updated",
             message="Tenant updated successfully",
-            synced_at=datetime.utcnow(),
+            synced_at=get_current_datetime(),
             features_enabled=result.get("features", []),
             public_key_fingerprint=result.get("public_key_fingerprint")
         )
@@ -175,13 +173,13 @@ async def delete_tenant(
     try:
         logger.info(f"Tenant deletion request: {tenant_id}, force={force}")
         
-        result = await admin_tenant_handler.delete_tenant(tenant_id, force=force)
+        result = await tenant_handler.delete_tenant(tenant_id, force=force)
         
         return {
             "tenant_id": tenant_id,
             "status": "deleted",
             "message": "Tenant removed from AI service",
-            "deleted_at": datetime.utcnow().isoformat(),
+            "deleted_at": get_current_datetime().isoformat(),
             "data_purged": result.get("data_purged", False)
         }
         
@@ -214,7 +212,7 @@ async def list_tenants(
     try:
         logger.info(f"List tenants request: status={status_filter}, limit={limit}, offset={offset}")
         
-        tenants = await admin_tenant_handler.list_tenants(
+        tenants = await tenant_handler.list_tenants(
             status_filter=status_filter,
             limit=limit,
             offset=offset
@@ -244,7 +242,7 @@ async def bulk_sync_tenants(
     try:
         logger.info(f"Bulk sync request for {len(tenants)} tenants")
         
-        results = await admin_tenant_handler.bulk_sync_tenants(tenants)
+        results = await tenant_handler.bulk_sync_tenants(tenants)
         
         successful = sum(1 for r in results if r["status"] == "success")
         failed = len(results) - successful
@@ -254,7 +252,7 @@ async def bulk_sync_tenants(
             "successful": successful,
             "failed": failed,
             "results": results,
-            "synced_at": datetime.utcnow().isoformat()
+            "synced_at": format_timestamp()
         }
         
     except Exception as e:
@@ -276,11 +274,11 @@ async def admin_tenant_health(
     Verifies admin authentication and database connectivity.
     """
     try:
-        health_status = await admin_tenant_handler.health_check()
+        health_status = await tenant_handler.health_check()
         
         return {
             "status": "healthy",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": format_timestamp(),
             "database_connected": health_status["database_connected"],
             "tenant_count": health_status["tenant_count"],
             "admin_auth": "valid"
@@ -290,7 +288,7 @@ async def admin_tenant_health(
         logger.error(f"Admin health check failed: {e}", exc_info=True)
         return {
             "status": "unhealthy",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": format_timestamp(),
             "error": str(e),
             "admin_auth": "valid"
         }

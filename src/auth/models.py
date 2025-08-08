@@ -91,9 +91,26 @@ class TenantConfig(BaseModel):
     tenant_id: str = Field(description="租户标识符")
     tenant_name: str = Field(description="租户名称")
     
-    # JWT配置
-    jwt_public_key: str = Field(description="RSA公钥（PEM格式）")
-    jwt_algorithm: str = Field(default="RS256", description="JWT签名算法")
+    # JWT配置（首选JWKS，PEM为回退方案）
+    issuer: Optional[str] = Field(
+        default=None,
+        description="OIDC颁发者(iss)，优先使用该值与token中的iss严格匹配"
+    )
+    jwks_uri: Optional[str] = Field(
+        default=None,
+        description="JWKS地址(https://.../.well-known/jwks.json)，用于动态获取公钥"
+    )
+    allowed_algorithms: List[str] = Field(
+        default_factory=lambda: ["RS256"], description="允许的签名算法"
+    )
+    require_kid: bool = Field(default=True, description="是否要求JWT header中必须包含kid")
+    jwks_cache_ttl_seconds: int = Field(default=300, description="JWKS缓存TTL(秒)")
+
+    # 兼容旧版（PEM公钥）
+    jwt_public_key: Optional[str] = Field(
+        default=None, description="RSA公钥（PEM格式，作为无JWKS时的回退方案）"
+    )
+    jwt_algorithm: str = Field(default="RS256", description="JWT签名算法（回退路径）")
     jwt_issuer: str = Field(description="期望的JWT颁发者")
     jwt_audience: str = Field(description="期望的JWT受众")
     
