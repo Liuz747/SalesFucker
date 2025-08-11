@@ -11,7 +11,7 @@ import asyncio
 from concurrent.futures import ThreadPoolExecutor
 import json
 
-from ..base import BaseAgent, AgentMessage, ConversationState
+from ..base import BaseAgent, AgentMessage, ThreadState
 from src.llm.intelligent_router import RoutingStrategy
 from src.utils import get_current_datetime, get_processing_time_ms
 
@@ -99,7 +99,7 @@ class MemoryAgent(BaseAgent):
                 context=message.context
             )
     
-    async def process_conversation(self, state: ConversationState) -> ConversationState:
+    async def process_conversation(self, state: ThreadState) -> ThreadState:
         """
         处理对话状态中的记忆管理
         
@@ -109,7 +109,7 @@ class MemoryAgent(BaseAgent):
             state: 当前对话状态
             
         返回:
-            ConversationState: 更新后的对话状态
+            ThreadState: 更新后的对话状态
         """
         start_time = get_current_datetime()
         
@@ -149,7 +149,7 @@ class MemoryAgent(BaseAgent):
             return state
             
         except Exception as e:
-            await self.handle_error(e, {"conversation_id": state.conversation_id})
+            await self.handle_error(e, {"thread_id": state.thread_id})
             
             # 设置错误状态但不影响对话继续
             state.agent_responses[self.agent_id] = {
@@ -312,7 +312,7 @@ class MemoryAgent(BaseAgent):
             self.logger.error(f"客户档案更新失败: {e}")
             return {"success": False, "error": str(e)}
     
-    async def _store_conversation_record(self, state: ConversationState) -> Dict[str, Any]:
+    async def _store_conversation_record(self, state: ThreadState) -> Dict[str, Any]:
         """
         存储对话记录
         
@@ -329,7 +329,7 @@ class MemoryAgent(BaseAgent):
             
             # 构建对话记录
             conversation_record = {
-                "conversation_id": state.conversation_id,
+                "thread_id": state.thread_id,
                 "timestamp": get_current_datetime().isoformat(),
                 "customer_input": state.customer_input,
                 "final_response": state.final_response,
@@ -355,7 +355,7 @@ class MemoryAgent(BaseAgent):
             self.logger.error(f"对话记录存储失败: {e}")
             return {"success": False, "error": str(e)}
     
-    def _extract_profile_updates(self, state: ConversationState) -> Dict[str, Any]:
+    def _extract_profile_updates(self, state: ThreadState) -> Dict[str, Any]:
         """
         从对话状态中提取客户档案更新
         

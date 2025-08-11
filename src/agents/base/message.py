@@ -10,21 +10,14 @@
 - 消息优先级和路由
 """
 
+import uuid
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 from pydantic import BaseModel, Field
-import uuid
 
-from src.utils import (
-    StatusConstants, 
-    MessageConstants,
-    get_current_datetime,
-    MessageType,
-    ComplianceStatus,
-    MarketStrategy,
-    PriorityLevel,
-    InputType
-)
+from src.libs.constants import StatusConstants, MessageConstants
+from src.libs.types import MessageType, ComplianceStatus, MarketStrategy, PriorityLevel, InputType
+from src.utils import get_current_datetime
 
 
 class AgentMessage(BaseModel):
@@ -41,8 +34,10 @@ class AgentMessage(BaseModel):
         message_type: 消息类型(查询/响应/通知/触发/建议)
         context: 消息上下文信息
         tenant_id: 多租户标识符
+        assistant_id: 销售助理标识符
+        device_id: 设备标识符
         customer_id: 客户标识符
-        conversation_id: 对话标识符
+        thread_id: 对话标识符
         session_id: 会话标识符
         sentiment_score: 客户情感分数(-1到1)
         intent_classification: 客户意图分类
@@ -71,8 +66,10 @@ class AgentMessage(BaseModel):
         description="消息上下文信息，包含处理消息所需的环境数据"
     )
     tenant_id: Optional[str] = Field(None, description="多租户标识符，用于区分不同的化妆品品牌")
+    assistant_id: Optional[str] = Field(None, description="销售助理标识符，用于区分租户内不同的销售人员")
+    device_id: Optional[str] = Field(None, description="设备标识符，用于区分销售助理使用的不同终端设备")
     customer_id: Optional[str] = Field(None, description="客户唯一标识符")
-    conversation_id: Optional[str] = Field(None, description="对话会话标识符")
+    thread_id: Optional[str] = Field(None, description="对话会话标识符")
     session_id: Optional[str] = Field(None, description="用户会话标识符")
     
     # 分析上下文
@@ -111,7 +108,7 @@ class AgentMessage(BaseModel):
     )
 
 
-class ConversationState(BaseModel):
+class ThreadState(BaseModel):
     """
     对话状态管理类
     
@@ -119,9 +116,11 @@ class ConversationState(BaseModel):
     和最终响应。支持多智能体协同处理和状态同步。
     
     属性:
-        conversation_id: 对话唯一标识符
+        thread_id: 对话唯一标识符
         session_id: 会话标识符
         tenant_id: 租户标识符
+        assistant_id: 销售助理标识符
+        device_id: 设备标识符
         customer_id: 客户标识符
         customer_input: 客户输入内容
         input_type: 输入类型(文本/语音/图片)
@@ -132,7 +131,7 @@ class ConversationState(BaseModel):
         active_agents: 活跃智能体列表
         agent_responses: 智能体响应集合
         customer_profile: 客户档案信息
-        conversation_history: 对话历史记录
+        thread_history: 对话历史记录
         final_response: 最终响应内容
         response_metadata: 响应元数据
         processing_complete: 处理完成标志
@@ -141,7 +140,7 @@ class ConversationState(BaseModel):
     """
     
     # 标识符
-    conversation_id: str = Field(
+    thread_id: str = Field(
         default_factory=lambda: str(uuid.uuid4()),
         description="对话唯一标识符"
     )
@@ -150,6 +149,8 @@ class ConversationState(BaseModel):
         description="用户会话标识符"
     )
     tenant_id: str = Field(description="多租户标识符")
+    assistant_id: Optional[str] = Field(None, description="销售助理标识符，用于区分租户内不同的销售人员")
+    device_id: Optional[str] = Field(None, description="设备标识符，用于区分销售助理使用的不同终端设备")
     customer_id: Optional[str] = Field(None, description="客户唯一标识符")
     
     # 客户输入
@@ -192,7 +193,7 @@ class ConversationState(BaseModel):
         default_factory=dict,
         description="客户档案信息，包含偏好、历史和个人信息"
     )
-    conversation_history: List[Dict[str, Any]] = Field(
+    thread_history: List[Dict[str, Any]] = Field(
         default_factory=list,
         description="对话历史记录列表"
     )

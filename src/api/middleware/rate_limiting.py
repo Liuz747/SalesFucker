@@ -24,7 +24,7 @@ from src.utils import get_component_logger
 logger = get_component_logger(__name__, "RateLimiting")
 
 
-class RateLimitingMiddleware(BaseHTTPMiddleware):
+class RateLimiting(BaseHTTPMiddleware):
     """
     速率限制中间件
     

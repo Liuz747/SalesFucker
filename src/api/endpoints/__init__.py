@@ -16,11 +16,17 @@ from .conversations import router as conversations_router
 from .llm_management import router as llm_management_router
 from .multimodal import router as multimodal_router
 from .health import router as health_router
+from .assistants import router as assistants_router
+from .prompts import router as prompts_router
+from .tenant import router as tenant_router
 
 __all__ = [
     "agents_router",
     "conversations_router", 
     "llm_management_router",
     "multimodal_router",
-    "health_router"
+    "health_router",
+    "assistants_router",
+    "prompts_router",
+    "tenant_router"
 ]

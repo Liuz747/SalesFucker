@@ -14,12 +14,9 @@
 import asyncio
 from typing import Dict, Any, Callable, Optional
 
-from src.agents.base import ConversationState, agent_registry
-from src.utils import (
-    get_component_logger, 
-    StatusConstants,
-    WorkflowConstants
-)
+from src.agents.base import ThreadState, agent_registry
+from src.utils import get_component_logger
+from src.libs.constants import StatusConstants, WorkflowConstants
 
 
 class NodeProcessor:
@@ -92,7 +89,7 @@ class NodeProcessor:
             return self._apply_fallback(state, node_name, None)
         
         try:
-            conversation_state = ConversationState(**state)
+            conversation_state = ThreadState(**state)
             result_state = await agent.process_conversation(conversation_state)
             
             self.logger.debug(f"节点处理完成: {node_name} ({agent_id})")

@@ -6,7 +6,7 @@ AI建议智能体 - 重构版
 """
 
 from typing import Dict, Any
-from ..base import BaseAgent, AgentMessage, ConversationState
+from ..base import BaseAgent, AgentMessage, ThreadState
 from src.llm.intelligent_router import RoutingStrategy
 from src.utils import get_current_datetime, get_processing_time_ms
 
@@ -84,7 +84,7 @@ class AISuggestionAgent(BaseAgent):
         except Exception as e:
             return await self._handle_processing_error(e, message)
     
-    async def process_conversation(self, state: ConversationState) -> ConversationState:
+    async def process_conversation(self, state: ThreadState) -> ThreadState:
         """
         处理对话状态中的AI建议分析
         
@@ -92,7 +92,7 @@ class AISuggestionAgent(BaseAgent):
             state: 当前对话状态
             
         返回:
-            ConversationState: 更新后的对话状态
+            ThreadState: 更新后的对话状态
         """
         start_time = get_current_datetime()
         
@@ -161,7 +161,7 @@ class AISuggestionAgent(BaseAgent):
         llm_analysis = await self.llm_analyzer.analyze_escalation_context(context_data)
         return self._merge_escalation_analyses(rule_analysis, llm_analysis)
     
-    async def _perform_quality_assessment(self, state: ConversationState) -> Dict[str, Any]:
+    async def _perform_quality_assessment(self, state: ThreadState) -> Dict[str, Any]:
         """执行质量评估"""
         quality_suggestions = await self.quality_assessor.assess_conversation_quality(state)
         conversation_data = {
@@ -178,7 +178,7 @@ class AISuggestionAgent(BaseAgent):
             "combined_score": (self.quality_assessor.calculate_conversation_quality_score(state) + llm_quality.get("quality_score", 0.5)) / 2
         }
     
-    def _prepare_conversation_context(self, state: ConversationState) -> Dict[str, Any]:
+    def _prepare_conversation_context(self, state: ThreadState) -> Dict[str, Any]:
         """准备对话分析上下文"""
         return {
             "sentiment": getattr(state, 'sentiment_analysis', {}),
@@ -212,9 +212,9 @@ class AISuggestionAgent(BaseAgent):
             "decision_basis": "combined_analysis"
         }
     
-    def _update_conversation_state(self, state: ConversationState, 
+    def _update_conversation_state(self, state: ThreadState, 
                                  analysis: Dict[str, Any],
-                                 escalation_analysis: Dict[str, Any]) -> ConversationState:
+                                 escalation_analysis: Dict[str, Any]) -> ThreadState:
         """更新对话状态"""
         # 更新代理响应
         state.agent_responses[self.agent_id] = analysis
@@ -229,10 +229,10 @@ class AISuggestionAgent(BaseAgent):
         
         return state
     
-    def _build_mock_conversation_state(self, context_data: Dict[str, Any]) -> ConversationState:
+    def _build_mock_conversation_state(self, context_data: Dict[str, Any]) -> ThreadState:
         """从上下文数据构建模拟的对话状态"""
         # 这是一个简化的实现，实际使用中可能需要更完整的构建逻辑
-        mock_state = ConversationState()
+        mock_state = ThreadState()
         mock_state.agent_responses = context_data.get("agent_responses", {})
         mock_state.conversation_history = context_data.get("conversation_history", [])
         mock_state.customer_profile = context_data.get("customer_profile", {})
@@ -263,9 +263,9 @@ class AISuggestionAgent(BaseAgent):
         )
     
     async def _handle_conversation_error(self, error: Exception, 
-                                       state: ConversationState) -> ConversationState:
+                                       state: ThreadState) -> ThreadState:
         """处理对话处理错误"""
-        await self.handle_error(error, {"conversation_id": state.conversation_id})
+        await self.handle_error(error, {"thread_id": state.thread_id})
         
         # 设置保守的建议状态
         state.agent_responses[self.agent_id] = {

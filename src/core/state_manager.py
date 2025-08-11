@@ -12,7 +12,7 @@
 
 from typing import Dict, Any, Optional
 
-from src.agents.base import ConversationState
+from src.agents.base import ThreadState
 from src.utils import (
     get_component_logger,
     get_current_datetime,
@@ -20,7 +20,7 @@ from src.utils import (
 )
 
 
-class ConversationStateManager(StatusMixin):
+class ThreadStateManager(StatusMixin):
     """
     对话状态管理器
     
@@ -58,7 +58,7 @@ class ConversationStateManager(StatusMixin):
         customer_input: str, 
         customer_id: Optional[str] = None,
         input_type: str = "text"
-    ) -> ConversationState:
+    ) -> ThreadState:
         """
         创建初始对话状态
         
@@ -70,9 +70,9 @@ class ConversationStateManager(StatusMixin):
             input_type: 输入类型 (text/voice/image)
             
         返回:
-            ConversationState: 初始化的对话状态
+            ThreadState: 初始化的对话状态
         """
-        initial_state = ConversationState(
+        initial_state = ThreadState(
             tenant_id=self.tenant_id,
             customer_id=customer_id,
             customer_input=customer_input,
@@ -90,7 +90,7 @@ class ConversationStateManager(StatusMixin):
         
         return initial_state
     
-    def validate_state(self, state: ConversationState) -> bool:
+    def validate_state(self, state: ThreadState) -> bool:
         """
         验证对话状态的有效性
         
@@ -129,9 +129,9 @@ class ConversationStateManager(StatusMixin):
     
     def create_error_state(
             self, 
-            original_state: ConversationState, 
+            original_state: ThreadState, 
             error: Exception
-    ) -> ConversationState:
+    ) -> ThreadState:
         """
         创建错误状态
         
@@ -142,7 +142,7 @@ class ConversationStateManager(StatusMixin):
             error: 发生的错误
             
         返回:
-            ConversationState: 包含错误信息的状态
+            ThreadState: 包含错误信息的状态
         """
         error_state = original_state.model_copy()
         error_state.error_state = str(error)
@@ -156,7 +156,7 @@ class ConversationStateManager(StatusMixin):
         
         return error_state
     
-    def update_completion_stats(self, state: ConversationState, processing_time_ms: float):
+    def update_completion_stats(self, state: ThreadState, processing_time_ms: float):
         """
         更新完成统计信息
         
@@ -221,7 +221,7 @@ class ConversationStateManager(StatusMixin):
             "last_activity": self.state_stats["last_activity"]
         }
         
-        return self.create_status_response(status_data, "ConversationStateManager")
+        return self.create_status_response(status_data, "ThreadStateManager")
     
     def reset_statistics(self):
         """
@@ -265,7 +265,7 @@ class ConversationStateManager(StatusMixin):
         }
         
         details = {
-            "component": "ConversationStateManager",
+            "component": "ThreadStateManager",
             "total_completed": total_completed
         }
         

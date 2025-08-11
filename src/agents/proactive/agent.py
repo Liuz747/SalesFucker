@@ -7,7 +7,7 @@ Identifies opportunities for proactive customer contact and follow-up.
 
 from typing import Dict, Any, List
 from datetime import datetime, timedelta
-from ..base import BaseAgent, AgentMessage, ConversationState
+from ..base import BaseAgent, AgentMessage, ThreadState
 from src.llm.intelligent_router import RoutingStrategy
 from src.utils import get_current_datetime, get_processing_time_ms
 
@@ -115,7 +115,7 @@ class ProactiveAgent(BaseAgent):
                 context=message.context
             )
     
-    async def process_conversation(self, state: ConversationState) -> ConversationState:
+    async def process_conversation(self, state: ThreadState) -> ThreadState:
         """
         处理对话状态中的主动营销分析
         
@@ -125,7 +125,7 @@ class ProactiveAgent(BaseAgent):
             state: 当前对话状态
             
         返回:
-            ConversationState: 更新后的对话状态
+            ThreadState: 更新后的对话状态
         """
         start_time = get_current_datetime()
         
@@ -154,7 +154,7 @@ class ProactiveAgent(BaseAgent):
             return state
             
         except Exception as e:
-            await self.handle_error(e, {"conversation_id": state.conversation_id})
+            await self.handle_error(e, {"thread_id": state.thread_id})
             
             # 设置降级状态
             state.agent_responses[self.agent_id] = {
@@ -319,7 +319,7 @@ class ProactiveAgent(BaseAgent):
         priority_scores = {"high": 3, "medium": 2, "low": 1}
         return priority_scores.get(priority, 1)
     
-    async def _record_customer_behavior(self, state: ConversationState):
+    async def _record_customer_behavior(self, state: ThreadState):
         """
         记录客户行为
         
@@ -335,7 +335,7 @@ class ProactiveAgent(BaseAgent):
             behavior_record = {
                 "timestamp": get_current_datetime().isoformat(),
                 "type": "conversation",
-                "conversation_id": state.conversation_id,
+                "thread_id": state.thread_id,
                 "customer_input": state.customer_input,
                 "sentiment": state.sentiment_analysis.get("sentiment", "neutral") if state.sentiment_analysis else "neutral",
                 "intent": state.intent_analysis.get("intent", "browsing") if state.intent_analysis else "browsing",
@@ -355,7 +355,7 @@ class ProactiveAgent(BaseAgent):
         except Exception as e:
             self.logger.error(f"客户行为记录失败: {e}")
     
-    async def _analyze_conversation_opportunities(self, state: ConversationState) -> List[Dict[str, Any]]:
+    async def _analyze_conversation_opportunities(self, state: ThreadState) -> List[Dict[str, Any]]:
         """
         分析当前对话的主动营销机会
         

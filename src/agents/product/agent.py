@@ -7,7 +7,7 @@ Provides expert product knowledge and personalized recommendations.
 
 from typing import Dict, Any, List
 import asyncio
-from ..base import BaseAgent, AgentMessage, ConversationState
+from ..base import BaseAgent, AgentMessage, ThreadState
 from src.utils import get_current_datetime, get_processing_time_ms
 from src.llm.intelligent_router import RoutingStrategy
 
@@ -126,7 +126,7 @@ class ProductExpertAgent(BaseAgent):
                 context=message.context
             )
     
-    async def process_conversation(self, state: ConversationState) -> ConversationState:
+    async def process_conversation(self, state: ThreadState) -> ThreadState:
         """
         处理对话状态中的产品推荐
         
@@ -136,7 +136,7 @@ class ProductExpertAgent(BaseAgent):
             state: 当前对话状态
             
         返回:
-            ConversationState: 更新后的对话状态
+            ThreadState: 更新后的对话状态
         """
         start_time = get_current_datetime()
         
@@ -172,7 +172,7 @@ class ProductExpertAgent(BaseAgent):
             return state
             
         except Exception as e:
-            await self.handle_error(e, {"conversation_id": state.conversation_id})
+            await self.handle_error(e, {"thread_id": state.thread_id})
             
             # 使用协调器设置降级推荐
             fallback_response = self.recommendation_coordinator.formatter.create_fallback_response(str(e))

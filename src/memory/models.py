@@ -30,8 +30,10 @@ class MessageStatus(Enum):
 class ConversationMessage:
     """标准化对话消息结构"""
     message_id: str
-    conversation_id: str
+    thread_id: str
     tenant_id: str
+    assistant_id: str
+    device_id: str
     customer_id: str
     message_type: MessageType
     content: Union[str, Dict[str, Any]]

@@ -27,6 +27,8 @@ class SearchAnalytics:
     
     async def search_messages(
         self,
+        assistant_id: str,
+        device_id: str,
         customer_id: Optional[str] = None,
         query_text: Optional[str] = None,
         date_range: Optional[Tuple[datetime, datetime]] = None,
@@ -43,8 +45,12 @@ class SearchAnalytics:
         - 消息类型过滤
         """
         try:
-            # 构建复合查询
-            must_clauses = [{"term": {"tenant_id": self.tenant_id}}]
+            # 构建复合查询 - 强制数据隔离防止跨助理污染
+            must_clauses = [
+                {"term": {"tenant_id": self.tenant_id}},
+                {"term": {"assistant_id": assistant_id}},
+                {"term": {"device_id": device_id}}
+            ]
             
             if customer_id:
                 must_clauses.append({"term": {"customer_id": customer_id}})
@@ -107,6 +113,8 @@ class SearchAnalytics:
     
     async def get_customer_message_stats(
         self,
+        assistant_id: str,
+        device_id: str,
         customer_id: str,
         days: int = 30
     ) -> Dict[str, Any]:
@@ -126,6 +134,8 @@ class SearchAnalytics:
                 "bool": {
                     "must": [
                         {"term": {"tenant_id": self.tenant_id}},
+                        {"term": {"assistant_id": assistant_id}},
+                        {"term": {"device_id": device_id}},
                         {"term": {"customer_id": customer_id}},
                         {"range": {"timestamp": {"gte": start_date.isoformat()}}}
                     ]

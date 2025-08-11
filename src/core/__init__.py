@@ -7,19 +7,19 @@ LangGraph工作流核心模块
 - Orchestrator: 多智能体编排器
 - WorkflowBuilder: LangGraph工作流构建器
 - NodeProcessor: LangGraph节点处理器
-- ConversationStateManager: 对话状态管理器
+- ThreadStateManager: 对话状态管理器
 """
 
 # LangGraph工作流核心组件导入
 from .orchestrator import Orchestrator
 from .workflow import WorkflowBuilder
 from .node_processor import NodeProcessor
-from .state_manager import ConversationStateManager
+from .state_manager import ThreadStateManager
 
 __all__ = [
     # LangGraph工作流组件
     "Orchestrator",
     "WorkflowBuilder",
     "NodeProcessor",
-    "ConversationStateManager"
+    "ThreadStateManager"
 ]

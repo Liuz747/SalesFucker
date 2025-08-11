@@ -79,3 +79,4 @@ agent_memory/
 temp_audio/
 temp_images/
 memory-bank/
+jwt-authentication-migration-plan.md

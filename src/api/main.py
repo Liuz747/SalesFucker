@@ -15,27 +15,36 @@ FastAPI主应用入口
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-import logging
 
+from src.utils import get_component_logger
 from .exceptions import APIException
-from .middleware.safety_interceptor import SafetyInterceptorMiddleware
-from .middleware.tenant_isolation import TenantIsolationMiddleware
+from .middleware import (
+    SafetyInterceptor,
+    TenantIsolation,
+    JWTMiddleware,
+    verify_admin_api_key,
+    get_tenant_context,
+    get_tenant_id
+)
 from .endpoints import (
     agents_router,
     conversations_router,
     llm_management_router,
     multimodal_router,
-    health_router
+    health_router,
+    assistants_router,
+    prompts_router,
+    tenant_router
 )
+from .endpoints.service_auth import router as auth_router
 
 # 配置日志
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = get_component_logger(__name__)
 
 # 创建FastAPI应用
 app = FastAPI(
-    title="MAS化妆品智能体系统API",
-    description="多智能体化妆品营销系统的RESTful API",
+    title="MAS营销智能体系统API",
+    description="多智能体营销系统的RESTful API",
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc"
@@ -50,9 +59,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 添加自定义中间件
-app.add_middleware(SafetyInterceptorMiddleware)
-app.add_middleware(TenantIsolationMiddleware)
+# 添加自定义中间件 (order matters - JWT first for security)
+app.add_middleware(JWTMiddleware, exclude_paths=[
+    "/health",
+    "/docs", 
+    "/openapi.json",
+    "/redoc",
+    "/v1/health"
+])
+app.add_middleware(SafetyInterceptor)
+app.add_middleware(TenantIsolation)
 
 # 全局异常处理
 @app.exception_handler(APIException)
@@ -89,11 +105,15 @@ async def general_exception_handler(request: Request, exc: Exception):
     )
 
 # 注册路由器
-app.include_router(health_router, prefix="/api/v1")
-app.include_router(agents_router, prefix="/api/v1")
-app.include_router(conversations_router, prefix="/api/v1")
-app.include_router(llm_management_router, prefix="/api/v1")
-app.include_router(multimodal_router, prefix="/api/v1")
+app.include_router(health_router, prefix="/v1")
+app.include_router(auth_router, prefix="/v1")
+app.include_router(agents_router, prefix="/v1")
+app.include_router(conversations_router, prefix="/v1")
+app.include_router(llm_management_router, prefix="/v1")
+app.include_router(multimodal_router, prefix="/v1")
+app.include_router(assistants_router, prefix="/v1")
+app.include_router(prompts_router, prefix="/v1")
+app.include_router(tenant_router, prefix="/v1")
 
 # 根路径健康检查
 @app.get("/")

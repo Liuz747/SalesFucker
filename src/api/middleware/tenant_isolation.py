@@ -15,8 +15,7 @@ from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Dict, Any, Optional, Set
-import json
-import logging
+
 from datetime import datetime, timedelta
 
 from src.utils import get_component_logger
@@ -24,7 +23,7 @@ from src.utils import get_component_logger
 logger = get_component_logger(__name__, "TenantIsolation")
 
 
-class TenantIsolationMiddleware(BaseHTTPMiddleware):
+class TenantIsolation(BaseHTTPMiddleware):
     """
     多租户隔离中间件
     
