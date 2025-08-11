@@ -16,11 +16,8 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import Dict, Any, Optional, List
 import logging
 
-from ..dependencies import (
-    get_orchestrator_service,
-    get_agent_registry_service,
-    validate_agent_id
-)
+from src.api.dependencies.orchestrator import get_orchestrator_service
+from src.api.dependencies.agents import get_agent_registry_service, validate_agent_id
 from src.auth import get_jwt_tenant_context, JWTTenantContext
 from ..schemas.agents import (
     AgentTestRequest,

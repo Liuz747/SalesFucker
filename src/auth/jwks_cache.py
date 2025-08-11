@@ -1,8 +1,8 @@
 """
-JWKS Fetching and Caching Utility
+JWKS Fetching and Caching Utility (disabled in prototype)
 
-Lightweight in-memory JWKS cache with ETag/Cache-Control support and
-kid-based key selection for JWT verification.
+Note: For rapid prototype with App-Key flow, JWKS usage is commented out.
+This module remains for future re-enablement.
 """
 
 from __future__ import annotations

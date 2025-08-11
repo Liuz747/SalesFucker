@@ -16,10 +16,7 @@ from fastapi import APIRouter, HTTPException, Depends, Query
 from typing import Dict, Any, Optional, List
 import logging
 
-from ..dependencies import (
-    get_llm_service,
-    validate_provider_access
-)
+from src.api.dependencies.llm import get_llm_service, validate_provider_access
 from src.auth import get_jwt_tenant_context, JWTTenantContext
 from ..schemas.llm import (
     LLMConfigRequest,
@@ -97,7 +94,7 @@ async def configure_provider(
     """
     try:
         # 验证租户对提供商的访问权限
-        await validate_provider_access(tenant_context.tenant_id, provider)
+        await validate_provider_access(provider, tenant_context)
         
         # 设置提供商类型
         config.provider = provider

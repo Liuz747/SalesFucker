@@ -21,7 +21,7 @@ from src.factories import create_agent_set
 from src.utils import get_component_logger
 from src.external import DeviceClient, get_external_config
 from src.auth import get_jwt_tenant_context, JWTTenantContext
-from ..schemas.llm import LLMProviderType
+from .schemas.llm import LLMProviderType
 
 logger = get_component_logger(__name__, "APIDependencies")
 

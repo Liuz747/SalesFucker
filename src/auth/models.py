@@ -153,6 +153,51 @@ class JWTVerificationResult(BaseModel):
     )
 
 
+class ServiceContext(BaseModel):
+    """
+    服务间认证上下文信息
+    
+    该模型包含从服务JWT token中提取的认证信息，
+    用于后端服务向MAS系统的API调用授权。
+    """
+    
+    # JWT标准字段
+    sub: str = Field(description="主体，固定为'backend-service'")
+    iss: str = Field(description="颁发者")
+    aud: str = Field(description="受众")
+    exp: datetime = Field(description="过期时间")
+    iat: datetime = Field(description="颁发时间")
+    jti: str = Field(description="JWT ID")
+    
+    # 服务权限
+    scopes: List[str] = Field(default=[], description="服务权限范围")
+    
+    # 验证元数据
+    token_source: str = Field(description="Token来源")
+    verification_timestamp: datetime = Field(description="验证时间戳")
+    
+    def has_scope(self, scope: str) -> bool:
+        """检查是否具有指定权限范围"""
+        return scope in self.scopes
+    
+    def is_admin(self) -> bool:
+        """检查是否具有管理员权限"""
+        return "backend:admin" in self.scopes
+
+
+class ServiceVerificationResult(BaseModel):
+    """服务JWT验证结果模型"""
+    
+    is_valid: bool = Field(description="是否验证成功")
+    service_context: Optional[ServiceContext] = Field(None, description="服务上下文")
+    error_code: Optional[str] = Field(None, description="错误代码")
+    error_message: Optional[str] = Field(None, description="错误消息")
+    verification_details: Dict[str, Any] = Field(
+        default_factory=dict, 
+        description="验证详细信息"
+    )
+
+
 class SecurityAuditLog(BaseModel):
     """安全审计日志模型"""
     
@@ -178,5 +223,5 @@ class SecurityAuditLog(BaseModel):
     risk_level: str = Field(
         default="low", 
         description="风险级别", 
-        regex="^(low|medium|high|critical)$"
+        pattern="^(low|medium|high|critical)$"
     )

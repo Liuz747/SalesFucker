@@ -18,9 +18,7 @@ import logging
 import uuid
 from datetime import datetime
 
-from ..dependencies import (
-    get_request_context
-)
+from src.api.dependencies.request_context import get_request_context
 from src.auth import get_jwt_tenant_context, JWTTenantContext
 from ..schemas.multimodal import (
     MultimodalRequest,

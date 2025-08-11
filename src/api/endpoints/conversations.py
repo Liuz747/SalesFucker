@@ -16,11 +16,9 @@ from fastapi import APIRouter, HTTPException, Depends, Query, BackgroundTasks
 from typing import Dict, Any, Optional, List
 import logging
 
-from ..dependencies import (
-    get_orchestrator_service,
-    get_request_context,
-    get_device_client
-)
+from src.api.dependencies.orchestrator import get_orchestrator_service
+from src.api.dependencies.request_context import get_request_context
+from src.api.dependencies.devices import get_device_client
 from src.auth import get_jwt_tenant_context, JWTTenantContext
 from ..schemas.conversations import (
     ConversationRequest,
@@ -48,7 +46,7 @@ from src.utils import get_component_logger
 logger = get_component_logger(__name__, "ConversationEndpoints")
 
 # 创建路由器
-router = APIRouter(prefix="/conversations", tags=["conversations"])
+router = APIRouter(prefix="/chat", tags=["chat"])
 
 # 创建处理器实例
 conversation_handler = ConversationHandler()
@@ -291,27 +289,6 @@ async def export_conversations(
         
     except Exception as e:
         logger.error(f"导出对话记录失败: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/export/{export_id}/status")
-async def get_export_status(
-    export_id: str,
-    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context)
-):
-    """
-    获取导出任务状态
-    
-    查询对话导出任务的进度和状态。
-    """
-    try:
-        return await conversation_handler.get_export_status(
-            export_id=export_id,
-            tenant_id=tenant_context.tenant_id
-        )
-        
-    except Exception as e:
-        logger.error(f"获取导出状态失败 {export_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 

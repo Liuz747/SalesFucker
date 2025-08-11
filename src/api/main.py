@@ -15,12 +15,17 @@ FastAPI主应用入口
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-import logging
 
+from src.utils import get_component_logger
 from .exceptions import APIException
-from .middleware.safety_interceptor import SafetyInterceptor
-from .middleware.tenant_isolation import TenantIsolation
-from .middleware.jwt_middleware import JWTMiddleware
+from .middleware import (
+    SafetyInterceptor,
+    TenantIsolation,
+    JWTMiddleware,
+    verify_admin_api_key,
+    get_tenant_context,
+    get_tenant_id
+)
 from .endpoints import (
     agents_router,
     conversations_router,
@@ -31,10 +36,10 @@ from .endpoints import (
     prompts_router,
     tenant_router
 )
+from .endpoints.service_auth import router as auth_router
 
 # 配置日志
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = get_component_logger(__name__)
 
 # 创建FastAPI应用
 app = FastAPI(
@@ -60,7 +65,7 @@ app.add_middleware(JWTMiddleware, exclude_paths=[
     "/docs", 
     "/openapi.json",
     "/redoc",
-    "/api/v1/health"
+    "/v1/health"
 ])
 app.add_middleware(SafetyInterceptor)
 app.add_middleware(TenantIsolation)
@@ -101,6 +106,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 # 注册路由器
 app.include_router(health_router, prefix="/v1")
+app.include_router(auth_router, prefix="/v1")
 app.include_router(agents_router, prefix="/v1")
 app.include_router(conversations_router, prefix="/v1")
 app.include_router(llm_management_router, prefix="/v1")

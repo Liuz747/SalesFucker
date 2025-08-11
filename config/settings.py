@@ -32,9 +32,18 @@ class Settings(BaseSettings):
     
     # Multi-tenant Configuration
     enable_multi_tenant: bool = Field(default=True, env="ENABLE_MULTI_TENANT")
+    # 是否启用JWKS验证（默认关闭，原型阶段仅PEM）
+    enable_jwks: bool = Field(default=False, env="ENABLE_JWKS")
 
     # Admin API
     admin_api_key: Optional[str] = Field(default=None, env="ADMIN_API_KEY")
+
+    # Prototype App-Key based service auth (backend → AI)
+    app_key: Optional[str] = Field(default=None, env="APP_KEY")
+    app_jwt_secret: Optional[str] = Field(default=None, env="APP_JWT_SECRET")
+    app_jwt_issuer: str = Field(default="mas-ai-service", env="APP_JWT_ISSUER")
+    app_jwt_audience: str = Field(default="ai-admin", env="APP_JWT_AUDIENCE")
+    app_token_ttl_seconds: int = Field(default=300, env="APP_TOKEN_TTL_SECONDS")
     
     class Config:
         env_file = ".env"
