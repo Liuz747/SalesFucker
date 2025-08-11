@@ -9,7 +9,7 @@
 """
 
 from fastapi import HTTPException, Header, Depends
-from typing import Optional, Union
+from typing import Optional
 from src.auth.jwt_auth import get_jwt_tenant_context, get_service_context
 from src.auth.models import JWTTenantContext, ServiceContext
 from src.utils import get_component_logger

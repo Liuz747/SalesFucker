@@ -3,7 +3,7 @@
 
 POST /v1/auth/token
     Header: X-App-Key: <app_key>
-    Body (optional): { "scopes": ["tenant:admin"] }
+    Body (optional): { "scopes": ["backend:admin"] }
 返回：短期HS256 JWT（仅用于后端→AI的管理调用）
 """
 
@@ -15,7 +15,7 @@ from fastapi import APIRouter, Header, HTTPException, status, Depends
 
 from config.settings import settings
 from src.utils import get_current_datetime, format_timestamp
-from src.auth.jwt_auth import get_service_context
+from src.auth.jwt_auth import get_service_context, require_service_scopes
 from src.auth.models import ServiceContext
 
 
@@ -91,6 +91,25 @@ async def verify_service_token(
             "scopes": service_context.scopes,
             "verification_time": service_context.verification_timestamp.isoformat(),
             "token_source": service_context.token_source
+        }
+    }
+
+
+@router.get("/admin-test")
+async def test_admin_access(service: ServiceContext = Depends(require_service_scopes("backend:admin"))):
+    """
+    测试管理员权限端点
+    
+    演示如何使用服务管理员权限验证。
+    只有具有 backend:admin 权限的服务JWT才能访问。
+    """
+    return {
+        "status": "success", 
+        "message": "管理员权限验证成功",
+        "admin_info": {
+            "service": service.sub,
+            "scopes": service.scopes,
+            "is_admin": service.is_admin()
         }
     }
 
