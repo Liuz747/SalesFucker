@@ -35,7 +35,6 @@ from ..schemas.llm import (
 from ..schemas.requests import PaginationRequest
 from ..exceptions import (
     LLMProviderException,
-    ConfigurationException,
     ValidationException
 )
 from ..handlers.llm_handler import LLMHandler
@@ -433,7 +432,7 @@ async def get_global_llm_stats(
 
 @router.post("/admin/maintenance")
 async def perform_maintenance(
-    maintenance_type: str = Query(description="维护类型", regex="^(cleanup|optimize|reset)$"),
+    maintenance_type: str = Query(description="维护类型", pattern="^(cleanup|optimize|reset)$"),
     tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
     llm_service = Depends(get_llm_service)
 ):

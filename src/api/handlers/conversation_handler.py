@@ -13,13 +13,11 @@
 """
 
 from typing import Dict, Any, Optional, List
-import asyncio
-import logging
 import uuid
-from datetime import datetime, timedelta
+from datetime import timedelta
 from fastapi import BackgroundTasks
 
-from src.utils import get_component_logger
+from src.utils import get_component_logger, get_current_datetime, get_processing_time_ms
 from ..schemas.conversations import (
     ConversationRequest,
     ConversationStartRequest,
@@ -84,8 +82,8 @@ class ConversationHandler:
                 "customer_id": request.customer_id,
                 "conversation_type": request.conversation_type,
                 "status": ConversationStatus.ACTIVE,
-                "created_at": datetime.now(),
-                "updated_at": datetime.now(),
+                "created_at": get_current_datetime(),
+                "updated_at": get_current_datetime(),
                 "message_count": 0,
                 "customer_profile": request.customer_profile or {}
             }
@@ -184,6 +182,7 @@ class ConversationHandler:
         self,
         request: ConversationRequest,
         context: Dict[str, Any],
+        thread_id: str,
         orchestrator
     ) -> ConversationResponse:
         """
@@ -198,12 +197,6 @@ class ConversationHandler:
             对话响应
         """
         try:
-            thread_id = request.thread_id
-            if not thread_id:
-                # 如果没有提供对话ID，创建新对话
-                thread_id = f"conv_{request.tenant_id}_{uuid.uuid4().hex[:8]}"
-                await self._create_conversation_record(thread_id, request)
-            
             # 验证对话存在
             if thread_id not in self._conversations:
                 raise ConversationException(f"对话不存在: {thread_id}")
@@ -212,7 +205,7 @@ class ConversationHandler:
             message_id = await self._record_message(thread_id, request)
             
             # 处理消息（通过编排器）
-            start_time = datetime.now()
+            start_time = get_current_datetime()
             
             try:
                 # 调用编排器处理消息
@@ -223,8 +216,8 @@ class ConversationHandler:
                     context=request.context or {}
                 )
                 
-                end_time = datetime.now()
-                processing_time = (end_time - start_time).total_seconds() * 1000
+                end_time = get_current_datetime()
+                processing_time = get_processing_time_ms(start_time)
                 
                 # 提取处理结果
                 final_response = result.final_response or "很抱歉，我现在无法处理您的请求。"
@@ -269,7 +262,7 @@ class ConversationHandler:
                 )
                 
             except Exception as processing_error:
-                end_time = datetime.now()
+                end_time = get_current_datetime()
                 processing_time = (end_time - start_time).total_seconds() * 1000
                 
                 # 处理失败情况
@@ -308,8 +301,8 @@ class ConversationHandler:
             "tenant_id": request.tenant_id,
             "customer_id": request.customer_id,
             "status": ConversationStatus.ACTIVE,
-            "created_at": datetime.now(),
-            "updated_at": datetime.now(),
+            "created_at": get_current_datetime(),
+            "updated_at": get_current_datetime(),
             "message_count": 0
         }
         
@@ -327,7 +320,7 @@ class ConversationHandler:
             "sender": "customer",
             "content": request.message,
             "input_type": request.input_type,
-            "timestamp": datetime.now(),
+            "timestamp": get_current_datetime(),
             "attachments": request.attachments or []
         }
         
@@ -335,7 +328,7 @@ class ConversationHandler:
         
         # 更新消息计数
         self._conversations[thread_id]["message_count"] += 1
-        self._conversations[thread_id]["updated_at"] = datetime.now()
+        self._conversations[thread_id]["updated_at"] = get_current_datetime()
         
         return message_id
     
@@ -350,7 +343,7 @@ class ConversationHandler:
             "sender": "agent",
             "content": response,
             "input_type": InputType.TEXT,
-            "timestamp": datetime.now(),
+            "timestamp": get_current_datetime(),
             "agent_responses": result.agent_responses,
             "processing_stats": {
                 "processing_complete": result.processing_complete,
@@ -380,7 +373,7 @@ class ConversationHandler:
         else:
             conversation["status"] = ConversationStatus.ACTIVE
         
-        conversation["updated_at"] = datetime.now()
+        conversation["updated_at"] = get_current_datetime()
     
     def _generate_suggested_actions(self, result) -> List[str]:
         """生成建议操作"""
@@ -467,8 +460,8 @@ class ConversationHandler:
             # 更新状态
             conversation["status"] = ConversationStatus.COMPLETED
             conversation["end_reason"] = reason
-            conversation["ended_at"] = datetime.now()
-            conversation["updated_at"] = datetime.now()
+            conversation["ended_at"] = get_current_datetime()
+            conversation["updated_at"] = get_current_datetime()
             
             self.logger.info(f"对话已结束: {thread_id}")
             
@@ -491,7 +484,7 @@ class ConversationHandler:
         return ConversationHistoryResponse(
             success=True, message="历史获取成功", data=[], conversations=[], 
             total_conversations=0, active_conversations=0, 
-            date_range={"start": datetime.now(), "end": datetime.now()},
+            date_range={"start": get_current_datetime(), "end": get_current_datetime()},
             filter_summary={}, total=0, page=1, size=10, has_next=False
         )
     
@@ -517,7 +510,7 @@ class ConversationHandler:
             success=True, message="导出任务已创建", data={},
             export_id=export_id, download_url=None,
             total_conversations=10, total_messages=50, file_size_mb=2.5,
-            export_status="processing", estimated_completion=datetime.now() + timedelta(minutes=5)
+            export_status="processing", estimated_completion=get_current_datetime() + timedelta(minutes=5)
         )
     
     async def get_export_status(self, export_id: str, tenant_id: str):

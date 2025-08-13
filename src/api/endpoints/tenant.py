@@ -19,7 +19,8 @@ from ..schemas.tenant import (
     TenantUpdateRequest
 )
 from ..handlers.tenant_handler import TenantHandler
-from ..middleware.admin_auth import verify_admin_api_key
+from src.auth.jwt_auth import get_service_context
+from src.auth.models import ServiceContext
 from src.utils import get_component_logger, get_current_datetime, format_timestamp
 
 logger = get_component_logger(__name__, "AdminTenantEndpoints")
@@ -35,7 +36,7 @@ tenant_handler = TenantHandler()
 async def sync_tenant_from_backend(
     tenant_id: str,
     request: TenantSyncRequest,
-    admin_api_key: str = Depends(verify_admin_api_key)
+    service: ServiceContext = Depends(get_service_context)
 ):
     """
     Sync tenant from backend system to AI service
@@ -48,7 +49,7 @@ async def sync_tenant_from_backend(
     This endpoint receives the tenant's PUBLIC key for JWT verification.
     """
     try:
-        logger.info(f"Backend tenant sync request: {tenant_id} from admin key: {admin_api_key[:8]}...")
+        logger.info(f"Backend tenant sync request: {tenant_id} from service: {service.sub}")
         
         # Validate tenant_id matches request
         if request.tenant_id != tenant_id:
@@ -87,7 +88,7 @@ async def sync_tenant_from_backend(
 @router.get("/{tenant_id}/status", response_model=TenantStatusResponse)
 async def get_tenant_status(
     tenant_id: str,
-    admin_api_key: str = Depends(verify_admin_api_key)
+    service: ServiceContext = Depends(get_service_context)
 ):
     """
     Get tenant status from AI service
@@ -122,7 +123,7 @@ async def get_tenant_status(
 async def update_tenant(
     tenant_id: str,
     request: TenantUpdateRequest,
-    admin_api_key: str = Depends(verify_admin_api_key)
+    service: ServiceContext = Depends(get_service_context)
 ):
     """
     Update tenant information
@@ -161,7 +162,7 @@ async def update_tenant(
 @router.delete("/{tenant_id}")
 async def delete_tenant(
     tenant_id: str,
-    admin_api_key: str = Depends(verify_admin_api_key),
+    service: ServiceContext = Depends(get_service_context),
     force: bool = False
 ):
     """
@@ -199,7 +200,7 @@ async def delete_tenant(
 
 @router.get("/", response_model=TenantListResponse)
 async def list_tenants(
-    admin_api_key: str = Depends(verify_admin_api_key),
+    service: ServiceContext = Depends(get_service_context),
     status_filter: Optional[str] = None,
     limit: int = 50,
     offset: int = 0
@@ -231,7 +232,7 @@ async def list_tenants(
 @router.post("/bulk-sync")
 async def bulk_sync_tenants(
     tenants: List[TenantSyncRequest],
-    admin_api_key: str = Depends(verify_admin_api_key)
+    service: ServiceContext = Depends(get_service_context)
 ):
     """
     Bulk sync multiple tenants
@@ -266,7 +267,7 @@ async def bulk_sync_tenants(
 # Health check for admin endpoints
 @router.get("/health")
 async def admin_tenant_health(
-    admin_api_key: str = Depends(verify_admin_api_key)
+    service: ServiceContext = Depends(get_service_context)
 ):
     """
     Health check for admin tenant endpoints

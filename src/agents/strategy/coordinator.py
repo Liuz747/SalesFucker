@@ -8,7 +8,8 @@ Selects and applies Premium, Budget, Youth, or Mature strategies.
 from typing import Dict, Any
 from ..base import BaseAgent, AgentMessage, ThreadState
 from ..sales.sales_strategies import analyze_customer_segment, get_strategy_for_segment, adapt_strategy_to_context
-from src.llm import get_llm_client, get_prompt_manager
+from src.llm import get_multi_llm_client
+from src.prompts import get_prompt_manager
 from src.llm.intelligent_router import RoutingStrategy
 from src.utils import get_current_datetime, get_processing_time_ms
 
@@ -30,7 +31,7 @@ class MarketStrategyCoordinator(BaseAgent):
         )
         
         # LLM integration for strategy refinement
-        self.llm_client = get_llm_client()
+        self.llm_client = get_multi_llm_client()
         self.prompt_manager = get_prompt_manager()
         
         # Strategy definitions for different segments

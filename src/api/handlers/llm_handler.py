@@ -37,7 +37,6 @@ from ..schemas.llm import (
 )
 from ..exceptions import (
     LLMProviderException,
-    ConfigurationException,
     ValidationException
 )
 
@@ -238,7 +237,7 @@ class LLMHandler:
             
         except Exception as e:
             self.logger.error(f"配置提供商失败: {e}", exc_info=True)
-            raise ConfigurationException(f"配置提供商失败: {str(e)}")
+            raise ValidationException(f"配置提供商失败: {str(e)}")
     
     async def _validate_provider_config(self, config: LLMConfigRequest):
         """验证提供商配置"""

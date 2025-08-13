@@ -12,7 +12,7 @@
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 
 class BaseRequest(BaseModel):
@@ -32,10 +32,9 @@ class BaseRequest(BaseModel):
         default_factory=dict, description="请求元数据"
     )
 
-    class Config:
-        """Pydantic配置"""
-
-        json_encoders = {datetime: lambda v: v.isoformat()}
+    model_config = ConfigDict(
+        json_encoders={datetime: lambda v: v.isoformat()}
+    )
 
 
 class PaginationRequest(BaseModel):
@@ -52,7 +51,7 @@ class PaginationRequest(BaseModel):
     sort_by: Optional[str] = Field(None, description="排序字段")
 
     sort_order: Optional[str] = Field(
-        "desc", regex="^(asc|desc)$", description="排序方向：asc或desc"
+        "desc", pattern="^(asc|desc)$", description="排序方向：asc或desc"
     )
 
     @field_validator("page_size")
@@ -74,7 +73,7 @@ class MessageRequest(BaseRequest):
 
     message_type: str = Field(
         description="消息类型",
-        regex="^(query|response|notification|trigger|suggestion)$",
+        pattern="^(query|response|notification|trigger|suggestion)$",
     )
 
     content: str = Field(description="消息内容", min_length=1)
@@ -84,7 +83,7 @@ class MessageRequest(BaseRequest):
     )
 
     priority: str = Field(
-        "medium", regex="^(low|medium|high|urgent)$", description="消息优先级"
+        "medium", pattern="^(low|medium|high|urgent)$", description="消息优先级"
     )
 
 
@@ -128,7 +127,7 @@ class SearchRequest(PaginationRequest, BaseRequest):
 
     search_type: str = Field(
         "semantic",
-        regex="^(keyword|semantic|hybrid)$",
+        pattern="^(keyword|semantic|hybrid)$",
         description="搜索类型：keyword, semantic, hybrid",
     )
 

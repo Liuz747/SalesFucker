@@ -28,9 +28,6 @@ from .base import (
     agent_registry
 )
 
-# 导入LangGraph工作流组件
-from src.core import Orchestrator
-
 # 导入常量
 from src.libs.types import (
     MessageType,
@@ -57,7 +54,6 @@ __all__ = [
     "AgentMessage", 
     "ThreadState",
     "AgentRegistry",
-    "Orchestrator",
     "agent_registry",
     "MessagePriority",
     "MessageType",

@@ -26,7 +26,7 @@ class AgentCreateRequest(BaseRequest):
 
     agent_type: str = Field(
         description="智能体类型",
-        regex="^(compliance|sentiment|intent|sales|product|memory|strategy|proactive|suggestion)$",
+        pattern="^(compliance|sentiment|intent|sales|product|memory|strategy|proactive|suggestion)$",
     )
 
     tenant_id: str = Field(description="租户ID", min_length=3, max_length=50)
@@ -50,6 +50,8 @@ class AgentTestRequest(BaseRequest):
     智能体测试请求模型
     """
 
+    tenant_id: str = Field(description="租户标识符", min_length=1, max_length=100)
+    
     agent_id: Optional[str] = Field(
         None, description="要测试的智能体ID，如果不提供则自动选择"
     )
@@ -58,7 +60,7 @@ class AgentTestRequest(BaseRequest):
 
     test_type: str = Field(
         "functional",
-        regex="^(functional|performance|integration)$",
+        pattern="^(functional|performance|integration)$",
         description="测试类型",
     )
 
@@ -74,6 +76,8 @@ class AgentBatchTestRequest(BaseRequest):
     智能体批量测试请求模型
     """
 
+    tenant_id: str = Field(description="租户标识符", min_length=1, max_length=100)
+    
     agent_ids: List[str] = Field(
         description="要测试的智能体ID列表", min_items=1, max_items=20
     )
@@ -124,7 +128,7 @@ class AgentStatusResponse(SuccessResponse[AgentInfo]):
     """
 
     health_status: str = Field(
-        description="健康状态", regex="^(healthy|warning|critical)$"
+        description="健康状态", pattern="^(healthy|warning|critical)$"
     )
 
     performance_metrics: Dict[str, Any] = Field(description="性能指标")

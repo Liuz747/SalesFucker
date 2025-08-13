@@ -24,6 +24,12 @@ from .validation import (
     validate_market_strategy,
     validate_input_type
 )
+from .response_parser import (
+    parse_structured_response,
+    parse_compliance_response,
+    parse_sentiment_response,
+    parse_intent_response
+)
 
 __all__ = [
     # 时间工具
@@ -47,5 +53,11 @@ __all__ = [
     "validate_message_type",
     "validate_compliance_status",
     "validate_market_strategy",
-    "validate_input_type"
+    "validate_input_type",
+    
+    # 响应解析工具
+    "parse_structured_response",
+    "parse_compliance_response",
+    "parse_sentiment_response",
+    "parse_intent_response"
 ] 

@@ -13,7 +13,7 @@
 from datetime import datetime
 from typing import Any, Dict, Generic, List, Optional, TypeVar
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 T = TypeVar("T")
 
@@ -35,10 +35,9 @@ class BaseResponse(BaseModel):
 
     processing_time_ms: Optional[float] = Field(None, description="处理时间（毫秒）")
 
-    class Config:
-        """Pydantic配置"""
-
-        json_encoders = {datetime: lambda v: v.isoformat()}
+    model_config = ConfigDict(
+        json_encoders={datetime: lambda v: v.isoformat()}
+    )
 
 
 class SuccessResponse(BaseResponse, Generic[T]):
@@ -110,7 +109,7 @@ class StatusResponse(SuccessResponse[Dict[str, Any]]):
     component: str = Field(description="组件名称")
 
     status: str = Field(
-        description="状态", regex="^(healthy|warning|critical|maintenance)$"
+        description="状态", pattern="^(healthy|warning|critical|maintenance)$"
     )
 
     details: Optional[Dict[str, Any]] = Field(None, description="详细状态信息")
@@ -176,7 +175,7 @@ class AsyncTaskResponse(SuccessResponse[Dict[str, Any]]):
     task_id: str = Field(description="任务ID")
 
     task_status: str = Field(
-        description="任务状态", regex="^(pending|running|completed|failed|cancelled)$"
+        description="任务状态", pattern="^(pending|running|completed|failed|cancelled)$"
     )
 
     progress: Optional[float] = Field(None, ge=0, le=100, description="任务进度百分比")

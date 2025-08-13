@@ -5,11 +5,11 @@
 个性化定制，包括提示词配置、测试、验证和库管理等功能。
 
 主要端点:
-- POST /v1/assistants/{assistant_id}/prompts - 配置助理提示词
-- GET /v1/assistants/{assistant_id}/prompts - 获取助理提示词配置
-- PUT /v1/assistants/{assistant_id}/prompts - 更新助理提示词
-- POST /v1/assistants/{assistant_id}/prompts/test - 测试提示词效果
-- POST /v1/assistants/{assistant_id}/prompts/validate - 验证提示词
+- POST /v1/prompts/{assistant_id} - 配置助理提示词
+- GET /v1/prompts/{assistant_id} - 获取助理提示词配置
+- PUT /v1/prompts/{assistant_id} - 更新助理提示词
+- POST /v1/prompts/{assistant_id}/test - 测试提示词效果
+- POST /v1/prompts/{assistant_id}/validate - 验证提示词
 - GET /v1/prompts/library - 获取提示词库
 - GET /v1/prompts/templates - 获取提示词模板
 """
@@ -25,17 +25,17 @@ from ..schemas.prompts import (
 )
 from ..handlers.prompt_handler import PromptHandler
 from src.auth import get_jwt_tenant_context, JWTTenantContext
-from src.utils import get_endpoint_logger
+from src.utils import get_component_logger
 
 # 创建路由器
 router = APIRouter(prefix="/prompts", tags=["prompts"])
-logger = get_endpoint_logger(__name__)
+logger = get_component_logger(__name__)
 
 # 初始化处理器
 prompt_handler = PromptHandler()
 
 
-@router.post("/prompts/{assistant_id}", response_model=PromptConfigResponse)
+@router.post("/{assistant_id}", response_model=PromptConfigResponse)
 async def create_assistant_prompts(
     assistant_id: str = Path(..., description="助理ID"),
     request: PromptCreateRequest = None,
@@ -77,7 +77,7 @@ async def create_assistant_prompts(
         )
 
 
-@router.get("/prompts/{assistant_id}", response_model=PromptConfigResponse)
+@router.get("/{assistant_id}", response_model=PromptConfigResponse)
 async def get_assistant_prompts(
     assistant_id: str = Path(..., description="助理ID"),
     tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
@@ -115,7 +115,7 @@ async def get_assistant_prompts(
         )
 
 
-@router.put("/prompts/{assistant_id}", response_model=PromptConfigResponse)
+@router.put("/{assistant_id}", response_model=PromptConfigResponse)
 async def update_assistant_prompts(
     assistant_id: str = Path(..., description="助理ID"),
     request: PromptUpdateRequest = None,
@@ -159,7 +159,7 @@ async def update_assistant_prompts(
         )
 
 
-@router.post("/prompts/{assistant_id}/test", response_model=PromptTestResponse)
+@router.post("/{assistant_id}/test", response_model=PromptTestResponse)
 async def test_assistant_prompts(
     assistant_id: str = Path(..., description="助理ID"),
     request: PromptTestRequest = None,
@@ -194,7 +194,7 @@ async def test_assistant_prompts(
         )
 
 
-@router.post("/prompts/{assistant_id}/validate", response_model=PromptValidationResponse)
+@router.post("/{assistant_id}/validate", response_model=PromptValidationResponse)
 async def validate_assistant_prompts(
     assistant_id: str = Path(..., description="助理ID"),
     prompt_config: AssistantPromptConfig = None,
@@ -229,7 +229,7 @@ async def validate_assistant_prompts(
         )
 
 
-@router.get("/prompts/library", response_model=PromptLibraryResponse)
+@router.get("/library", response_model=PromptLibraryResponse)
 async def get_prompt_library(
     category: Optional[PromptCategory] = Query(None, description="分类筛选"),
     prompt_type: Optional[PromptType] = Query(None, description="类型筛选"),
@@ -273,7 +273,7 @@ async def get_prompt_library(
         )
 
 
-@router.get("/prompts/templates/{category}", response_model=PromptLibraryResponse)
+@router.get("/templates/{category}", response_model=PromptLibraryResponse)
 async def get_prompt_templates_by_category(
     category: PromptCategory = Path(..., description="提示词分类"),
     language: PromptLanguage = Query(PromptLanguage.CHINESE, description="语言"),
@@ -309,7 +309,7 @@ async def get_prompt_templates_by_category(
         )
 
 
-@router.post("/prompts/{assistant_id}/clone", response_model=PromptConfigResponse)
+@router.post("/{assistant_id}/clone", response_model=PromptConfigResponse)
 async def clone_assistant_prompts(
     assistant_id: str = Path(..., description="目标助理ID"),
     source_assistant_id: str = Query(..., description="源助理ID"),
@@ -348,7 +348,7 @@ async def clone_assistant_prompts(
         )
 
 
-@router.get("/prompts/{assistant_id}/history", response_model=List[PromptConfigResponse])
+@router.get("/{assistant_id}/history", response_model=List[PromptConfigResponse])
 async def get_prompt_history(
     assistant_id: str = Path(..., description="助理ID"),
     tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
@@ -377,7 +377,7 @@ async def get_prompt_history(
         )
 
 
-@router.post("/prompts/{assistant_id}/rollback", response_model=PromptConfigResponse)
+@router.post("/{assistant_id}/rollback", response_model=PromptConfigResponse)
 async def rollback_assistant_prompts(
     assistant_id: str = Path(..., description="助理ID"),
     version: str = Query(..., description="回退到的版本"),

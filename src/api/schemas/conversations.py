@@ -54,8 +54,12 @@ class ConversationRequest(BaseRequest):
     """
     对话处理请求模型
     
-    注意: 租户ID从JWT token中提取，无需在请求体中提供
+    注意: 由后端服务提供租户ID以确保数据隔离
     """
+
+    tenant_id: str = Field(
+        description="租户标识符", min_length=1, max_length=100
+    )
 
     assistant_id: str = Field(
         description="销售助理标识符", min_length=1, max_length=100
@@ -85,7 +89,7 @@ class ConversationRequest(BaseRequest):
     routing_strategy: Optional[str] = Field(
         None,
         description="路由策略",
-        regex="^(cost_optimized|performance_optimized|agent_optimized|round_robin)$",
+        pattern="^(cost_optimized|performance_optimized|agent_optimized|round_robin)$",
     )
 
     # 处理选项
@@ -112,8 +116,9 @@ class ConversationStartRequest(BaseRequest):
     """
     开始新对话请求模型
     
-    注意: 租户ID从JWT token中提取，无需在请求体中提供
+    注意: 由后端服务提供租户ID以确保数据隔离
     """
+    tenant_id: str = Field(description="租户标识符", min_length=1, max_length=100)
     assistant_id: str = Field(description="销售助理ID")
     device_id: str = Field(description="设备ID")
     customer_id: Optional[str] = Field(None, description="客户ID")
@@ -124,7 +129,7 @@ class ConversationStartRequest(BaseRequest):
     conversation_type: str = Field(
         default="general",
         description="对话类型",
-        regex="^(general|consultation|support|sales)$",
+        pattern="^(general|consultation|support|sales)$",
     )
 
 
@@ -132,8 +137,9 @@ class ConversationHistoryRequest(BaseRequest):
     """
     对话历史查询请求模型
     
-    注意: 租户ID从JWT token中提取，无需在请求体中提供
+    注意: 由后端服务提供租户ID以确保数据隔离
     """
+    tenant_id: str = Field(description="租户标识符", min_length=1, max_length=100)
     assistant_id: Optional[str] = Field(None, description="销售助理ID")
     device_id: Optional[str] = Field(None, description="设备ID")
     customer_id: Optional[str] = Field(None, description="客户ID")
@@ -157,7 +163,7 @@ class MessageAttachment(BaseModel):
 
     attachment_id: str = Field(description="附件ID")
     attachment_type: str = Field(
-        description="附件类型", regex="^(image|audio|document)$"
+        description="附件类型", pattern="^(image|audio|document)$"
     )
     file_name: str = Field(description="文件名")
     file_size: Optional[int] = Field(None, description="文件大小（字节）")
@@ -169,7 +175,7 @@ class ConversationMessage(BaseModel):
     """对话消息模型"""
 
     message_id: str = Field(description="消息ID")
-    sender: str = Field(description="发送者", regex="^(customer|agent|system)$")
+    sender: str = Field(description="发送者", pattern="^(customer|agent|system)$")
     content: str = Field(description="消息内容")
     input_type: InputType = Field(description="输入类型")
     timestamp: datetime = Field(description="消息时间")
@@ -330,9 +336,11 @@ class ConversationExportRequest(BaseRequest):
     """
     对话导出请求模型
     
-    注意: 租户ID从JWT token中提取，无需在请求体中提供
+    注意: 由后端服务提供租户ID以确保数据隔离
     """
 
+    tenant_id: str = Field(description="租户标识符", min_length=1, max_length=100)
+    
     # 导出范围
     thread_ids: Optional[List[str]] = Field(None, description="指定对话ID列表")
     assistant_id: Optional[str] = Field(None, description="指定销售助理ID")
@@ -345,7 +353,7 @@ class ConversationExportRequest(BaseRequest):
 
     # 导出选项
     export_format: str = Field(
-        default="json", description="导出格式", regex="^(json|csv|excel|pdf)$"
+        default="json", description="导出格式", pattern="^(json|csv|excel|pdf)$"
     )
 
     include_attachments: bool = Field(False, description="是否包含附件")

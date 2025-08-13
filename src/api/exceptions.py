@@ -113,10 +113,10 @@ class LLMProviderException(APIException):
 class ConversationException(APIException):
     """对话处理异常"""
     
-    def __init__(self, message: str = "对话处理失败", conversation_id: Optional[str] = None):
+    def __init__(self, message: str = "对话处理失败", thread_id: Optional[str] = None):
         details = {}
-        if conversation_id:
-            details["conversation_id"] = conversation_id
+        if thread_id:
+            details["thread_id"] = thread_id
             
         super().__init__(
             status_code=500,

@@ -17,8 +17,8 @@ import asyncio
 import logging
 from datetime import datetime
 
-from src.agents import get_orchestrator, agent_registry
-from src.core.registry import AgentRegistry
+from src.core import get_orchestrator
+from src.agents import agent_registry, AgentRegistry
 from src.utils import get_component_logger
 from ..schemas.agents import (
     AgentTestRequest,

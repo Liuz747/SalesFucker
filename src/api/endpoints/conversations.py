@@ -19,7 +19,8 @@ import logging
 from src.api.dependencies.orchestrator import get_orchestrator_service
 from src.api.dependencies.request_context import get_request_context
 from src.api.dependencies.devices import get_device_client
-from src.auth import get_jwt_tenant_context, JWTTenantContext
+from src.auth.jwt_auth import get_service_context
+from src.auth.models import ServiceContext
 from ..schemas.conversations import (
     ConversationRequest,
     ConversationStartRequest,
@@ -52,10 +53,10 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 conversation_handler = ConversationHandler()
 
 
-@router.post("/start", response_model=ConversationStartResponse)
+@router.post("/new", response_model=ConversationStartResponse)
 async def start_conversation(
     request: ConversationStartRequest,
-    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
+    service: ServiceContext = Depends(get_service_context),
     context: Dict[str, Any] = Depends(get_request_context),
     orchestrator = Depends(get_orchestrator_service),
     device_client = Depends(get_device_client)
@@ -66,19 +67,15 @@ async def start_conversation(
     创建新的对话会话，初始化相关智能体，加载客户档案。
     """
     try:
-        # 检查设备访问权限
-        if not tenant_context.can_access_device(request.device_id):
-            raise HTTPException(
-                status_code=403,
-                detail="无权访问该设备"
-            )
+        # 使用请求中的tenant_id进行数据隔离
+        # (在信任模型下，后端服务负责提供正确的tenant_id)
         
         # 验证设备存在
-        device_info = await device_client.get_device(request.device_id, tenant_context.tenant_id)
+        device_info = await device_client.get_device(request.device_id, request.tenant_id)
         if not device_info:
             raise HTTPException(
                 status_code=404,
-                detail=f"设备 {request.device_id} 不存在或不属于租户 {tenant_context.tenant_id}"
+                detail=f"设备 {request.device_id} 不存在或不属于租户 {request.tenant_id}"
             )
         
         return await conversation_handler.start_conversation(
@@ -92,10 +89,11 @@ async def start_conversation(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/message", response_model=ConversationResponse)
+@router.post("/{thread_id}/message", response_model=ConversationResponse)
 async def process_message(
+    thread_id: str,
     request: ConversationRequest,
-    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
+    service: ServiceContext = Depends(get_service_context),
     context: Dict[str, Any] = Depends(get_request_context),
     orchestrator = Depends(get_orchestrator_service),
     device_client = Depends(get_device_client)
@@ -106,24 +104,21 @@ async def process_message(
     通过完整的9智能体多智能体系统处理客户消息，支持多模态输入。
     """
     try:
-        # 检查设备访问权限
-        if not tenant_context.can_access_device(request.device_id):
-            raise HTTPException(
-                status_code=403,
-                detail="无权访问该设备"
-            )
+        # 使用请求中的tenant_id进行数据隔离
+        # (在信任模型下，后端服务负责提供正确的tenant_id)
         
         # 验证设备存在
-        device_info = await device_client.get_device(request.device_id, tenant_context.tenant_id)
+        device_info = await device_client.get_device(request.device_id, request.tenant_id)
         if not device_info:
             raise HTTPException(
                 status_code=404,
-                detail=f"设备 {request.device_id} 不存在或不属于租户 {tenant_context.tenant_id}"
+                detail=f"设备 {request.device_id} 不存在或不属于租户 {request.tenant_id}"
             )
         
         return await conversation_handler.process_message(
             request=request,
             context=context,
+            thread_id=thread_id,
             orchestrator=orchestrator
         )
         
@@ -135,7 +130,7 @@ async def process_message(
 @router.get("/{thread_id}/status", response_model=ConversationStatusResponse)
 async def get_conversation_status(
     thread_id: str,
-    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
+    service: ServiceContext = Depends(get_service_context),
     include_details: bool = Query(False, description="是否包含详细信息")
 ):
     """
@@ -146,7 +141,7 @@ async def get_conversation_status(
     try:
         return await conversation_handler.get_conversation_status(
             thread_id=thread_id,
-            tenant_id=tenant_context.tenant_id,
+            tenant_id=request.tenant_id,
             include_details=include_details
         )
         
@@ -171,7 +166,7 @@ async def end_conversation(
     try:
         return await conversation_handler.end_conversation(
             thread_id=thread_id,
-            tenant_id=tenant_context.tenant_id,
+            tenant_id=request.tenant_id,
             reason=reason
         )
         
@@ -182,7 +177,7 @@ async def end_conversation(
 
 @router.get("/history", response_model=ConversationHistoryResponse)
 async def get_conversation_history(
-    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
+    service: ServiceContext = Depends(get_service_context),
     customer_id: Optional[str] = Query(None, description="客户ID"),
     thread_id: Optional[str] = Query(None, description="对话ID"),
     status: Optional[ConversationStatus] = Query(None, description="对话状态"),
@@ -219,7 +214,7 @@ async def get_conversation_history(
 @router.get("/{thread_id}/messages")
 async def get_conversation_messages(
     thread_id: str,
-    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
+    service: ServiceContext = Depends(get_service_context),
     pagination: PaginationRequest = Depends(),
     include_attachments: bool = Query(False, description="是否包含附件信息"),
     include_analysis: bool = Query(False, description="是否包含分析结果")
@@ -232,7 +227,7 @@ async def get_conversation_messages(
     try:
         return await conversation_handler.get_conversation_messages(
             thread_id=thread_id,
-            tenant_id=tenant_context.tenant_id,
+            tenant_id=request.tenant_id,
             pagination=pagination,
             include_attachments=include_attachments,
             include_analysis=include_analysis
@@ -245,7 +240,7 @@ async def get_conversation_messages(
 
 @router.get("/analytics", response_model=ConversationAnalyticsResponse)
 async def get_conversation_analytics(
-    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
+    service: ServiceContext = Depends(get_service_context),
     days: int = Query(30, ge=1, le=365, description="分析天数"),
     customer_id: Optional[str] = Query(None, description="指定客户ID"),
     agent_type: Optional[str] = Query(None, description="指定智能体类型")
@@ -257,7 +252,7 @@ async def get_conversation_analytics(
     """
     try:
         return await conversation_handler.get_conversation_analytics(
-            tenant_id=tenant_context.tenant_id,
+            tenant_id=request.tenant_id,
             days=days,
             customer_id=customer_id,
             agent_type=agent_type
@@ -297,7 +292,7 @@ async def export_conversations(
 @router.get("/customer/{customer_id}")
 async def get_customer_conversations(
     customer_id: str,
-    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
+    service: ServiceContext = Depends(get_service_context),
     pagination: PaginationRequest = Depends(),
     status: Optional[ConversationStatus] = Query(None, description="对话状态筛选")
 ):
@@ -309,7 +304,7 @@ async def get_customer_conversations(
     try:
         return await conversation_handler.get_customer_conversations(
             customer_id=customer_id,
-            tenant_id=tenant_context.tenant_id,
+            tenant_id=request.tenant_id,
             pagination=pagination,
             status=status
         )
@@ -322,7 +317,7 @@ async def get_customer_conversations(
 @router.get("/customer/{customer_id}/summary")
 async def get_customer_conversation_summary(
     customer_id: str,
-    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
+    service: ServiceContext = Depends(get_service_context),
     days: int = Query(30, ge=1, le=365, description="统计天数")
 ):
     """
@@ -333,7 +328,7 @@ async def get_customer_conversation_summary(
     try:
         return await conversation_handler.get_customer_summary(
             customer_id=customer_id,
-            tenant_id=tenant_context.tenant_id,
+            tenant_id=request.tenant_id,
             days=days
         )
         
@@ -346,7 +341,7 @@ async def get_customer_conversation_summary(
 
 @router.get("/active")
 async def get_active_conversations(
-    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
+    service: ServiceContext = Depends(get_service_context),
     pagination: PaginationRequest = Depends()
 ):
     """
@@ -356,7 +351,7 @@ async def get_active_conversations(
     """
     try:
         return await conversation_handler.get_active_conversations(
-            tenant_id=tenant_context.tenant_id,
+            tenant_id=request.tenant_id,
             pagination=pagination
         )
         
@@ -390,7 +385,7 @@ async def get_realtime_metrics(
 async def escalate_conversation(
     thread_id: str,
     reason: str = Query(description="升级原因"),
-    priority: str = Query("normal", description="优先级", regex="^(low|normal|high|urgent)$"),
+    priority: str = Query("normal", description="优先级", pattern="^(low|normal|high|urgent)$"),
     tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context)
 ):
     """
@@ -401,7 +396,7 @@ async def escalate_conversation(
     try:
         return await conversation_handler.escalate_conversation(
             thread_id=thread_id,
-            tenant_id=tenant_context.tenant_id,
+            tenant_id=request.tenant_id,
             reason=reason,
             priority=priority
         )
@@ -426,7 +421,7 @@ async def submit_conversation_feedback(
     try:
         return await conversation_handler.submit_feedback(
             thread_id=thread_id,
-            tenant_id=tenant_context.tenant_id,
+            tenant_id=request.tenant_id,
             rating=rating,
             feedback=feedback
         )
@@ -439,7 +434,7 @@ async def submit_conversation_feedback(
 @router.delete("/{thread_id}")
 async def delete_conversation(
     thread_id: str,
-    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
+    service: ServiceContext = Depends(get_service_context),
     permanent: bool = Query(False, description="是否永久删除")
 ):
     """
@@ -450,7 +445,7 @@ async def delete_conversation(
     try:
         return await conversation_handler.delete_conversation(
             thread_id=thread_id,
-            tenant_id=tenant_context.tenant_id,
+            tenant_id=request.tenant_id,
             permanent=permanent
         )
         

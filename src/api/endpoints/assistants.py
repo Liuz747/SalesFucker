@@ -23,11 +23,11 @@ from ..schemas.assistants import (
 )
 from ..handlers.assistant_handler import AssistantHandler
 from src.auth import get_jwt_tenant_context, JWTTenantContext
-from src.utils import get_endpoint_logger
+from src.utils import get_component_logger
 
 # 创建路由器
 router = APIRouter(prefix="/assistants", tags=["assistants"])
-logger = get_endpoint_logger(__name__)
+logger = get_component_logger(__name__)
 
 # 初始化处理器
 assistant_handler = AssistantHandler()
@@ -44,12 +44,12 @@ async def create_assistant(
     创建一个新的AI员工，包括个性配置、专业领域设置和权限分配。
     """
     try:
-        logger.info(f"创建助理请求: tenant={tenant_context.tenant_context.tenant_id}, assistant={request.assistant_id}")
+        logger.info(f"创建助理请求: tenant={tenant_context.tenant_id}, assistant={request.assistant_id}")
         
         # JWT认证中已验证租户身份，无需重复检查
         
         result = await assistant_handler.create_assistant(
-            request, tenant_context.tenant_id=tenant_context.tenant_context.tenant_id
+            request, tenant_context.tenant_id
         )
         
         logger.info(f"助理创建成功: {request.assistant_id}")
@@ -90,11 +90,11 @@ async def list_assistants(
     支持多种筛选条件和排序选项的助理列表查询。
     """
     try:
-        logger.info(f"查询助理列表: tenant={tenant_context.tenant_context.tenant_id}")
+        logger.info(f"查询助理列表: tenant={tenant_context.tenant_id}")
         
         # 构建查询请求
         list_request = AssistantListRequest(
-            tenant_context.tenant_id=tenant_context.tenant_context.tenant_id,
+            tenant_context.tenant_id,
             status=status,
             personality_type=personality_type,
             expertise_level=expertise_level,
@@ -134,10 +134,10 @@ async def get_assistant(
     根据助理ID获取完整的助理信息，包括配置和可选的统计数据。
     """
     try:
-        logger.info(f"查询助理详情: tenant={tenant_context.tenant_context.tenant_id}, assistant={assistant_id}")
+        logger.info(f"查询助理详情: tenant={tenant_context.tenant_id}, assistant={assistant_id}")
         
         result = await assistant_handler.get_assistant(
-            assistant_id, tenant_context.tenant_context.tenant_id, include_stats, include_config
+            assistant_id, tenant_context.tenant_id, include_stats, include_config
         )
         
         if not result:
@@ -172,10 +172,10 @@ async def update_assistant(
     更新指定助理的配置信息，支持部分字段更新。
     """
     try:
-        logger.info(f"更新助理请求: tenant={tenant_context.tenant_context.tenant_id}, assistant={assistant_id}")
+        logger.info(f"更新助理请求: tenant={tenant_context.tenant_id}, assistant={assistant_id}")
         
         result = await assistant_handler.update_assistant(
-            assistant_id, tenant_context.tenant_context.tenant_id, request
+            assistant_id, tenant_context.tenant_id, request
         )
         
         if not result:

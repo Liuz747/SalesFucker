@@ -24,7 +24,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/token")
 async def issue_service_token(
-    x_app_key: str = Header(..., alias="X-App-Key"),  # 必填
+    x_app_key: str = Header(..., alias="X-App-Key"),
     payload: Optional[Dict[str, Any]] = None,
 ):
     # 配置检查
@@ -95,7 +95,7 @@ async def verify_service_token(
     }
 
 
-@router.get("/admin-test")
+@router.get("/test")
 async def test_admin_access(service: ServiceContext = Depends(require_service_scopes("backend:admin"))):
     """
     测试管理员权限端点

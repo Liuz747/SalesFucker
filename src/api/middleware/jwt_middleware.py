@@ -7,6 +7,7 @@ for all API requests and populates request.state with tenant context.
 
 from fastapi import Request, HTTPException, status
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 import logging
 from typing import Callable, List, Optional
 
@@ -17,7 +18,7 @@ from src.utils import get_component_logger
 logger = get_component_logger(__name__, "JWTMiddleware")
 
 
-class JWTMiddleware:
+class JWTMiddleware(BaseHTTPMiddleware):
     """
     JWT Authentication Middleware
     
@@ -27,6 +28,7 @@ class JWTMiddleware:
     
     def __init__(
         self,
+        app,
         exclude_paths: Optional[List[str]] = None,
         exclude_prefixes: Optional[List[str]] = None
     ):
@@ -34,9 +36,11 @@ class JWTMiddleware:
         Initialize JWT middleware
         
         Args:
+            app: FastAPI application instance
             exclude_paths: Exact paths to exclude from JWT verification
             exclude_prefixes: Path prefixes to exclude from JWT verification
         """
+        super().__init__(app)
         self.exclude_paths = exclude_paths or [
             "/health",
             "/docs",
@@ -61,7 +65,7 @@ class JWTMiddleware:
                 
         return False
     
-    async def __call__(self, request: Request, call_next: Callable) -> JSONResponse:
+    async def dispatch(self, request: Request, call_next: Callable) -> JSONResponse:
         """
         Process JWT authentication for the request
         

@@ -11,7 +11,7 @@ LangGraph工作流核心模块
 """
 
 # LangGraph工作流核心组件导入
-from .orchestrator import Orchestrator
+from .orchestrator import Orchestrator, get_orchestrator, shutdown_orchestrator
 from .workflow import WorkflowBuilder
 from .node_processor import NodeProcessor
 from .state_manager import ThreadStateManager
@@ -19,6 +19,8 @@ from .state_manager import ThreadStateManager
 __all__ = [
     # LangGraph工作流组件
     "Orchestrator",
+    "get_orchestrator",
+    "shutdown_orchestrator",
     "WorkflowBuilder",
     "NodeProcessor",
     "ThreadStateManager"

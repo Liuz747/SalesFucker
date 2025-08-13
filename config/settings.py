@@ -35,8 +35,6 @@ class Settings(BaseSettings):
     # 是否启用JWKS验证（默认关闭，原型阶段仅PEM）
     enable_jwks: bool = Field(default=False, env="ENABLE_JWKS")
 
-    # Admin API
-    admin_api_key: Optional[str] = Field(default=None, env="ADMIN_API_KEY")
 
     # Prototype App-Key based service auth (backend → AI)
     app_key: Optional[str] = Field(default=None, env="APP_KEY")

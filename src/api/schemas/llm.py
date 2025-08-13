@@ -54,7 +54,7 @@ class LLMConfigRequest(BaseRequest):
 
     endpoint_url: Optional[str] = Field(None, description="自定义API端点URL")
 
-    model_config: Dict[str, Any] = Field(
+    model_params: Dict[str, Any] = Field(
         default_factory=dict, description="模型配置参数"
     )
 
@@ -85,7 +85,7 @@ class OptimizationRequest(BaseRequest):
     """
 
     optimization_type: str = Field(
-        description="优化类型", regex="^(cost|performance|quality|latency)$"
+        description="优化类型", pattern="^(cost|performance|quality|latency)$"
     )
 
     target_agents: Optional[List[str]] = Field(None, description="目标智能体类型列表")
@@ -137,7 +137,7 @@ class ProviderInfo(BaseModel):
 
     provider: LLMProviderType = Field(description="提供商类型")
     model_name: str = Field(description="模型名称")
-    status: str = Field(description="状态", regex="^(active|inactive|error)$")
+    status: str = Field(description="状态", pattern="^(active|inactive|error)$")
     enabled: bool = Field(description="是否启用")
     priority: int = Field(description="优先级")
 
@@ -147,7 +147,7 @@ class ProviderInfo(BaseModel):
 
     # 配置信息
     rate_limits: Dict[str, int] = Field(default_factory=dict, description="速率限制")
-    model_config: Dict[str, Any] = Field(default_factory=dict, description="模型配置")
+    model_params: Dict[str, Any] = Field(default_factory=dict, description="模型配置")
 
 
 class ProviderMetrics(BaseModel):
@@ -180,7 +180,7 @@ class LLMStatusResponse(SuccessResponse[Dict[str, Any]]):
     """
 
     global_status: str = Field(
-        description="全局状态", regex="^(healthy|warning|critical)$"
+        description="全局状态", pattern="^(healthy|warning|critical)$"
     )
 
     providers: List[ProviderInfo] = Field(description="提供商列表")
@@ -235,7 +235,7 @@ class ProviderHealthResponse(SuccessResponse[List[ProviderMetrics]]):
     """
 
     overall_health: str = Field(
-        description="整体健康状况", regex="^(healthy|warning|critical)$"
+        description="整体健康状况", pattern="^(healthy|warning|critical)$"
     )
 
     unhealthy_providers: List[LLMProviderType] = Field(description="不健康的提供商列表")

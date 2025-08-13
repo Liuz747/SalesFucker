@@ -7,7 +7,9 @@ Identifies purchase intent, conversation stage, and specific customer needs.
 
 from typing import Dict, Any
 from ..base import BaseAgent, AgentMessage, ThreadState
-from src.llm import get_llm_client, get_prompt_manager, parse_structured_response
+from src.llm import get_multi_llm_client
+from src.prompts import get_prompt_manager
+from src.utils import parse_intent_response
 from src.llm.intelligent_router import RoutingStrategy
 from src.utils import get_current_datetime, get_processing_time_ms
 
@@ -29,7 +31,7 @@ class IntentAnalysisAgent(BaseAgent):
         )
         
         # LLM integration
-        self.llm_client = get_llm_client()
+        self.llm_client = get_multi_llm_client()
         self.prompt_manager = get_prompt_manager()
         
         self.logger.info(f"意图分析智能体初始化完成: {self.agent_id}")
@@ -168,7 +170,7 @@ class IntentAnalysisAgent(BaseAgent):
             response = await self.llm_client.chat_completion(messages, temperature=0.3)
             
             # 解析结构化响应
-            intent_result = parse_structured_response(response, "intent")
+            intent_result = parse_intent_response(response)
             
             # 添加额外的分析信息
             intent_result["agent_id"] = self.agent_id

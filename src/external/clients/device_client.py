@@ -12,7 +12,6 @@
 """
 
 from typing import Dict, Any, Optional, List
-from datetime import datetime
 
 from ..base_client import BaseClient, ExternalAPIError
 from ..config import get_external_config

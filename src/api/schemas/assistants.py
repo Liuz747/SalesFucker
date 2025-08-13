@@ -171,7 +171,7 @@ class AssistantConfigRequest(BaseRequest):
 
     config_type: str = Field(
         description="配置类型",
-        regex="^(sales_style|voice_tone|working_hours|permissions|specializations)$",
+        pattern="^(sales_style|voice_tone|working_hours|permissions|specializations)$",
     )
 
     config_data: Dict[str, Any] = Field(description="配置数据")
@@ -203,11 +203,11 @@ class AssistantListRequest(BaseRequest):
     sort_by: str = Field(
         default="created_at",
         description="排序字段",
-        regex="^(created_at|assistant_name|expertise_level|status)$",
+        pattern="^(created_at|assistant_name|expertise_level|status)$",
     )
 
     sort_order: str = Field(
-        default="desc", description="排序方向", regex="^(asc|desc)$"
+        default="desc", description="排序方向", pattern="^(asc|desc)$"
     )
 
     # 分页参数继承自BaseRequest

@@ -115,7 +115,7 @@ class ImageAnalysisRequest(MultimodalRequest):
     )
 
     image_quality: Optional[str] = Field(
-        None, regex="^(low|medium|high)$", description="图像质量要求"
+        None, pattern="^(low|medium|high)$", description="图像质量要求"
     )
 
     max_image_size_mb: float = Field(
@@ -246,7 +246,7 @@ class ProcessingStatusResponse(SuccessResponse[Dict[str, Any]]):
     processing_id: str = Field(description="处理ID")
     status: str = Field(
         description="处理状态",
-        regex="^(pending|processing|completed|failed|cancelled)$",
+        pattern="^(pending|processing|completed|failed|cancelled)$",
     )
 
     progress: float = Field(description="处理进度", ge=0, le=100)

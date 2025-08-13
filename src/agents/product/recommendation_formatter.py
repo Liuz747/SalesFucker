@@ -8,7 +8,7 @@ Recommendation Results Formatter
 import logging
 from typing import Dict, Any, List
 
-from src.llm import get_llm_client
+from src.llm import get_multi_llm_client
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class RecommendationFormatter:
     def __init__(self, tenant_id: str, agent_id: str):
         self.tenant_id = tenant_id
         self.agent_id = agent_id
-        self.llm_client = get_llm_client()
+        self.llm_client = get_multi_llm_client()
         self.logger = logging.getLogger(f"{__name__}.{tenant_id}")
     
     async def format_recommendations(
