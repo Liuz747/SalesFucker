@@ -22,6 +22,7 @@ from .models import JWTTenantContext, JWTVerificationResult, TenantRole, Service
 from .tenant_manager import get_tenant_manager, TenantManager
 from config.settings import settings
 from .jwks_cache import get_global_jwks_cache
+from .key_manager import key_manager
 from src.utils import get_component_logger
 
 logger = get_component_logger(__name__, "JWTAuth")
@@ -448,20 +449,30 @@ async def verify_service_jwt_token(token: str) -> ServiceVerificationResult:
     """
     try:
         # 配置检查
-        if not settings.app_jwt_secret:
+        if not settings.app_key:
             return ServiceVerificationResult(
                 is_valid=False,
                 error_code="SERVICE_AUTH_NOT_CONFIGURED",
                 error_message="服务认证未配置",
-                verification_details={"missing": "app_jwt_secret"}
+                verification_details={"missing": "app_key"}
+            )
+        
+        # 获取公钥用于验证
+        public_key = key_manager.get_public_key(settings.app_key)
+        if not public_key:
+            return ServiceVerificationResult(
+                is_valid=False,
+                error_code="SERVICE_KEY_NOT_FOUND",
+                error_message="服务密钥对未找到或已过期",
+                verification_details={"app_key": settings.app_key}
             )
         
         # 验证JWT签名和声明
         try:
             payload = jwt.decode(
                 token,
-                settings.app_jwt_secret,
-                algorithms=["HS256"],
+                public_key,
+                algorithms=["RS256"],
                 issuer=settings.app_jwt_issuer,
                 audience=settings.app_jwt_audience,
                 options={

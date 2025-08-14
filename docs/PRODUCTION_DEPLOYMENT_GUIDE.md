@@ -73,11 +73,6 @@ REDIS_PASSWORD=redis_password
 
 ### 4. Production Security Settings
 ```env
-# Security Configuration
-SECRET_KEY=your_production_secret_key
-JWT_SECRET_KEY=your_jwt_secret_key
-ENCRYPTION_KEY=your_encryption_key
-
 # CORS Configuration
 ALLOWED_ORIGINS=https://yourdomain.com,https://admin.yourdomain.com
 ALLOWED_HOSTS=yourdomain.com,admin.yourdomain.com

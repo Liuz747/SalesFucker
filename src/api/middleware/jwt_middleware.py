@@ -1,18 +1,16 @@
 """
-JWT Authentication Middleware
+JWT认证中间件
 
-Centralized JWT token verification middleware that processes authentication
-for all API requests and populates request.state with tenant context.
+轻量级中间件，用于验证后端服务JWT令牌。
+自动为除认证路径外的所有端点验证服务认证。
 """
 
 from fastapi import Request, HTTPException, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-import logging
 from typing import Callable, List, Optional
 
-from src.auth.jwt_auth import verify_jwt_token, JWTTenantContext
-from src.auth.tenant_manager import get_tenant_manager, TenantManager
+from src.auth import get_service_context, ServiceContext
 from src.utils import get_component_logger
 
 logger = get_component_logger(__name__, "JWTMiddleware")
@@ -20,10 +18,9 @@ logger = get_component_logger(__name__, "JWTMiddleware")
 
 class JWTMiddleware(BaseHTTPMiddleware):
     """
-    JWT Authentication Middleware
+    JWT认证中间件
     
-    Processes JWT tokens for all requests and populates request.state
-    with authenticated tenant context.
+    验证后端服务JWT令牌并在request.state中填充服务上下文。
     """
     
     def __init__(
@@ -33,164 +30,123 @@ class JWTMiddleware(BaseHTTPMiddleware):
         exclude_prefixes: Optional[List[str]] = None
     ):
         """
-        Initialize JWT middleware
+        初始化JWT中间件
         
-        Args:
-            app: FastAPI application instance
-            exclude_paths: Exact paths to exclude from JWT verification
-            exclude_prefixes: Path prefixes to exclude from JWT verification
+        参数:
+            app: FastAPI应用实例
+            exclude_paths: 需要排除JWT验证的具体路径
+            exclude_prefixes: 需要排除JWT验证的路径前缀
         """
         super().__init__(app)
-        self.exclude_paths = exclude_paths or [
-            "/health",
-            "/docs",
-            "/openapi.json",
-            "/redoc"
-        ]
-        self.exclude_prefixes = exclude_prefixes or [
-            "/static/",
-            "/assets/"
-        ]
+        self.exclude_paths = exclude_paths
+        self.exclude_prefixes = exclude_prefixes
     
     def should_exclude_path(self, path: str) -> bool:
-        """Check if path should be excluded from JWT verification"""
-        # Exact path matches
-        if path in self.exclude_paths:
+        """检查路径是否应排除JWT验证"""
+        # 精确路径匹配
+        if self.exclude_paths and path in self.exclude_paths:
             return True
             
-        # Prefix matches
-        for prefix in self.exclude_prefixes:
-            if path.startswith(prefix):
-                return True
+        # 前缀匹配
+        if self.exclude_prefixes:
+            for prefix in self.exclude_prefixes:
+                if path.startswith(prefix):
+                    return True
                 
         return False
     
     async def dispatch(self, request: Request, call_next: Callable) -> JSONResponse:
         """
-        Process JWT authentication for the request
+        处理请求的JWT认证
         
-        Args:
-            request: FastAPI request object
-            call_next: Next middleware/endpoint in chain
+        参数:
+            request: FastAPI请求对象
+            call_next: 链中的下一个中间件/端点
             
-        Returns:
-            Response from next handler or JWT error response
+        返回:
+            来自下一个处理器的响应或JWT错误响应
         """
         try:
-            # Skip JWT verification for excluded paths
+            # 跳过排除路径的JWT验证
             if self.should_exclude_path(request.url.path):
-                logger.debug(f"Skipping JWT verification for: {request.url.path}")
+                logger.debug(f"跳过JWT验证路径: {request.url.path}")
                 return await call_next(request)
             
-            # Extract JWT token from Authorization header
+            # 从Authorization头中提取JWT令牌
             authorization = request.headers.get("Authorization")
             if not authorization:
-                logger.warning(f"Missing Authorization header: {request.url.path}")
+                logger.warning(f"缺少Authorization头: {request.url.path}")
                 return JSONResponse(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     content={
                         "error": "authentication_required",
-                        "message": "Missing Authorization header",
-                        "details": "Please provide a valid JWT token in the Authorization header"
+                        "message": "缺少Authorization头",
+                        "details": "请在Authorization头中提供有效的JWT令牌"
                     }
                 )
             
-            # Validate Bearer token format
+            # 验证Bearer令牌格式
             try:
-                scheme, token = authorization.split(" ", 1)
+                scheme, _ = authorization.split(" ", 1)
                 if scheme.lower() != "bearer":
-                    raise ValueError("Invalid authorization scheme")
+                    raise ValueError("无效的认证方案")
             except ValueError:
-                logger.warning(f"Invalid Authorization header format: {request.url.path}")
+                logger.warning(f"无效的Authorization头格式: {request.url.path}")
                 return JSONResponse(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     content={
                         "error": "invalid_token_format",
-                        "message": "Invalid Authorization header format",
-                        "details": "Use 'Bearer <token>' format"
+                        "message": "无效的Authorization头格式",
+                        "details": "请使用 'Bearer <token>' 格式"
                     }
                 )
             
-            # Verify JWT token
+            # 验证JWT令牌
             try:
-                tenant_manager: TenantManager = await get_tenant_manager()
-                verification = await verify_jwt_token(token, tenant_manager)
-                if not verification.is_valid or verification.tenant_context is None:
-                    raise ValueError(verification.error_message or "invalid token")
-                tenant_context = verification.tenant_context
-                logger.debug(f"JWT verified for tenant: {tenant_context.tenant_id}")
+                service_context: ServiceContext = await get_service_context(authorization)
                 
-                # Store tenant context in request state
-                request.state.tenant_context = tenant_context
+                logger.debug(f"JWT验证成功: {service_context.sub}")
+                
+                # 在请求状态中存储服务上下文
+                request.state.service_context = service_context
                 request.state.authenticated = True
                 
-                # Add tenant_id to request for backward compatibility
-                request.state.tenant_id = tenant_context.tenant_id
-                
+            except HTTPException as http_exc:
+                logger.warning(f"服务JWT验证失败: {http_exc.detail}")
+                return JSONResponse(
+                    status_code=http_exc.status_code,
+                    content=http_exc.detail if isinstance(http_exc.detail, dict) else {
+                        "error": "SERVICE_AUTHENTICATION_FAILED",
+                        "message": str(http_exc.detail)
+                    }
+                )
             except Exception as jwt_error:
-                logger.error(f"JWT verification failed: {jwt_error}")
+                logger.error(f"JWT验证失败: {jwt_error}")
                 return JSONResponse(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     content={
                         "error": "invalid_token",
-                        "message": "JWT token verification failed",
+                        "message": "JWT令牌验证失败",
                         "details": str(jwt_error)
                     }
                 )
             
-            # Process request with authenticated context
+            # 使用已认证的上下文处理请求
             response = await call_next(request)
             
-            # Add security headers to response
-            response.headers["X-Tenant-ID"] = tenant_context.tenant_id
+            # 添加安全头到响应
+            response.headers["X-Service-Authenticated"] = "true"
             response.headers["X-Auth-Method"] = "JWT"
             
             return response
             
         except Exception as e:
-            logger.error(f"JWT middleware error: {e}", exc_info=True)
+            logger.error(f"JWT中间件错误: {e}", exc_info=True)
             return JSONResponse(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 content={
                     "error": "authentication_error",
-                    "message": "Authentication processing failed",
-                    "details": "Please try again or contact support"
+                    "message": "认证处理失败",
+                    "details": "请重试或联系技术支持"
                 }
             )
-
-
-def get_tenant_context(request: Request) -> JWTTenantContext:
-    """
-    Helper function to extract tenant context from request state
-    
-    Args:
-        request: FastAPI request object with authenticated state
-        
-    Returns:
-        JWTTenantContext from the authenticated JWT token
-        
-    Raises:
-        HTTPException: If no authenticated context found
-    """
-    if not hasattr(request.state, 'tenant_context'):
-        logger.error("No tenant context found in request state")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required but no tenant context found"
-        )
-    
-    return request.state.tenant_context
-
-
-def get_tenant_id(request: Request) -> str:
-    """
-    Helper function to extract tenant ID from request state
-    
-    Args:
-        request: FastAPI request object with authenticated state
-        
-    Returns:
-        Tenant ID string from the authenticated JWT token
-    """
-    tenant_context = get_tenant_context(request)
-    return tenant_context.tenant_id

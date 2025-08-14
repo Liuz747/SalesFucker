@@ -13,8 +13,7 @@
 """
 
 from fastapi import APIRouter, HTTPException, Depends, Query, BackgroundTasks
-from typing import Dict, Any, Optional, List
-import logging
+from typing import Dict, Any, Optional
 
 from src.api.dependencies.orchestrator import get_orchestrator_service
 from src.api.dependencies.request_context import get_request_context
@@ -81,7 +80,8 @@ async def start_conversation(
         return await conversation_handler.start_conversation(
             request=request,
             context=context,
-            orchestrator=orchestrator
+            orchestrator=orchestrator,
+            tenant_id=request.tenant_id
         )
         
     except Exception as e:
@@ -119,7 +119,8 @@ async def process_message(
             request=request,
             context=context,
             thread_id=thread_id,
-            orchestrator=orchestrator
+            orchestrator=orchestrator,
+            tenant_id=request.tenant_id
         )
         
     except Exception as e:
@@ -130,6 +131,7 @@ async def process_message(
 @router.get("/{thread_id}/status", response_model=ConversationStatusResponse)
 async def get_conversation_status(
     thread_id: str,
+    tenant_id: str = Query(description="租户标识符"),
     service: ServiceContext = Depends(get_service_context),
     include_details: bool = Query(False, description="是否包含详细信息")
 ):
@@ -141,7 +143,7 @@ async def get_conversation_status(
     try:
         return await conversation_handler.get_conversation_status(
             thread_id=thread_id,
-            tenant_id=request.tenant_id,
+            tenant_id=tenant_id,
             include_details=include_details
         )
         
@@ -155,8 +157,9 @@ async def get_conversation_status(
 @router.post("/{thread_id}/end")
 async def end_conversation(
     thread_id: str,
+    tenant_id: str = Query(description="租户标识符"),
     reason: Optional[str] = Query(None, description="结束原因"),
-    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context)
+    service: ServiceContext = Depends(get_service_context)
 ):
     """
     结束对话
@@ -166,7 +169,7 @@ async def end_conversation(
     try:
         return await conversation_handler.end_conversation(
             thread_id=thread_id,
-            tenant_id=request.tenant_id,
+            tenant_id=tenant_id,
             reason=reason
         )
         
@@ -177,6 +180,7 @@ async def end_conversation(
 
 @router.get("/history", response_model=ConversationHistoryResponse)
 async def get_conversation_history(
+    tenant_id: str = Query(description="租户标识符"),
     service: ServiceContext = Depends(get_service_context),
     customer_id: Optional[str] = Query(None, description="客户ID"),
     thread_id: Optional[str] = Query(None, description="对话ID"),
@@ -201,6 +205,17 @@ async def get_conversation_history(
             include_agent_responses=include_agent_responses
         )
         
+        # 构建历史查询请求
+        history_request = ConversationHistoryRequest(
+            tenant_id=tenant_id,
+            customer_id=customer_id,
+            thread_id=thread_id,
+            status=status,
+            input_type=input_type,
+            include_messages=include_messages,
+            include_agent_responses=include_agent_responses
+        )
+        
         return await conversation_handler.get_conversation_history(
             request=history_request,
             pagination=pagination
@@ -214,6 +229,7 @@ async def get_conversation_history(
 @router.get("/{thread_id}/messages")
 async def get_conversation_messages(
     thread_id: str,
+    tenant_id: str = Query(description="租户标识符"),
     service: ServiceContext = Depends(get_service_context),
     pagination: PaginationRequest = Depends(),
     include_attachments: bool = Query(False, description="是否包含附件信息"),
@@ -227,7 +243,7 @@ async def get_conversation_messages(
     try:
         return await conversation_handler.get_conversation_messages(
             thread_id=thread_id,
-            tenant_id=request.tenant_id,
+            tenant_id=tenant_id,
             pagination=pagination,
             include_attachments=include_attachments,
             include_analysis=include_analysis
@@ -240,6 +256,7 @@ async def get_conversation_messages(
 
 @router.get("/analytics", response_model=ConversationAnalyticsResponse)
 async def get_conversation_analytics(
+    tenant_id: str = Query(description="租户标识符"),
     service: ServiceContext = Depends(get_service_context),
     days: int = Query(30, ge=1, le=365, description="分析天数"),
     customer_id: Optional[str] = Query(None, description="指定客户ID"),
@@ -252,7 +269,7 @@ async def get_conversation_analytics(
     """
     try:
         return await conversation_handler.get_conversation_analytics(
-            tenant_id=request.tenant_id,
+            tenant_id=tenant_id,
             days=days,
             customer_id=customer_id,
             agent_type=agent_type
@@ -267,7 +284,7 @@ async def get_conversation_analytics(
 async def export_conversations(
     request: ConversationExportRequest,
     background_tasks: BackgroundTasks,
-    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context)
+    service: ServiceContext = Depends(get_service_context)
 ):
     """
     导出对话记录
@@ -279,7 +296,8 @@ async def export_conversations(
         
         return await conversation_handler.export_conversations(
             request=request,
-            background_tasks=background_tasks
+            background_tasks=background_tasks,
+            tenant_id=request.tenant_id
         )
         
     except Exception as e:
@@ -292,6 +310,7 @@ async def export_conversations(
 @router.get("/customer/{customer_id}")
 async def get_customer_conversations(
     customer_id: str,
+    tenant_id: str = Query(description="租户标识符"),
     service: ServiceContext = Depends(get_service_context),
     pagination: PaginationRequest = Depends(),
     status: Optional[ConversationStatus] = Query(None, description="对话状态筛选")
@@ -304,7 +323,7 @@ async def get_customer_conversations(
     try:
         return await conversation_handler.get_customer_conversations(
             customer_id=customer_id,
-            tenant_id=request.tenant_id,
+            tenant_id=tenant_id,
             pagination=pagination,
             status=status
         )
@@ -317,6 +336,7 @@ async def get_customer_conversations(
 @router.get("/customer/{customer_id}/summary")
 async def get_customer_conversation_summary(
     customer_id: str,
+    tenant_id: str = Query(description="租户标识符"),
     service: ServiceContext = Depends(get_service_context),
     days: int = Query(30, ge=1, le=365, description="统计天数")
 ):
@@ -328,7 +348,7 @@ async def get_customer_conversation_summary(
     try:
         return await conversation_handler.get_customer_summary(
             customer_id=customer_id,
-            tenant_id=request.tenant_id,
+            tenant_id=tenant_id,
             days=days
         )
         
@@ -341,6 +361,7 @@ async def get_customer_conversation_summary(
 
 @router.get("/active")
 async def get_active_conversations(
+    tenant_id: str = Query(description="租户标识符"),
     service: ServiceContext = Depends(get_service_context),
     pagination: PaginationRequest = Depends()
 ):
@@ -351,7 +372,7 @@ async def get_active_conversations(
     """
     try:
         return await conversation_handler.get_active_conversations(
-            tenant_id=request.tenant_id,
+            tenant_id=tenant_id,
             pagination=pagination
         )
         
@@ -362,7 +383,8 @@ async def get_active_conversations(
 
 @router.get("/metrics/real-time")
 async def get_realtime_metrics(
-    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context)
+    tenant_id: str = Query(description="租户标识符"),
+    service: ServiceContext = Depends(get_service_context)
 ):
     """
     获取实时指标
@@ -371,7 +393,7 @@ async def get_realtime_metrics(
     """
     try:
         return await conversation_handler.get_realtime_metrics(
-            tenant_id=tenant_context.tenant_id
+            tenant_id=tenant_id
         )
         
     except Exception as e:
@@ -384,9 +406,10 @@ async def get_realtime_metrics(
 @router.post("/{thread_id}/escalate")
 async def escalate_conversation(
     thread_id: str,
+    tenant_id: str = Query(description="租户标识符"),
     reason: str = Query(description="升级原因"),
     priority: str = Query("normal", description="优先级", pattern="^(low|normal|high|urgent)$"),
-    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context)
+    service: ServiceContext = Depends(get_service_context)
 ):
     """
     升级对话到人工处理
@@ -396,7 +419,7 @@ async def escalate_conversation(
     try:
         return await conversation_handler.escalate_conversation(
             thread_id=thread_id,
-            tenant_id=request.tenant_id,
+            tenant_id=tenant_id,
             reason=reason,
             priority=priority
         )
@@ -409,9 +432,10 @@ async def escalate_conversation(
 @router.post("/{thread_id}/feedback")
 async def submit_conversation_feedback(
     thread_id: str,
+    tenant_id: str = Query(description="租户标识符"),
     rating: int = Query(ge=1, le=5, description="评分（1-5）"),
     feedback: Optional[str] = Query(None, description="反馈内容"),
-    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context)
+    service: ServiceContext = Depends(get_service_context)
 ):
     """
     提交对话反馈
@@ -421,7 +445,7 @@ async def submit_conversation_feedback(
     try:
         return await conversation_handler.submit_feedback(
             thread_id=thread_id,
-            tenant_id=request.tenant_id,
+            tenant_id=tenant_id,
             rating=rating,
             feedback=feedback
         )
@@ -434,6 +458,7 @@ async def submit_conversation_feedback(
 @router.delete("/{thread_id}")
 async def delete_conversation(
     thread_id: str,
+    tenant_id: str = Query(description="租户标识符"),
     service: ServiceContext = Depends(get_service_context),
     permanent: bool = Query(False, description="是否永久删除")
 ):
@@ -445,7 +470,7 @@ async def delete_conversation(
     try:
         return await conversation_handler.delete_conversation(
             thread_id=thread_id,
-            tenant_id=request.tenant_id,
+            tenant_id=tenant_id,
             permanent=permanent
         )
         

@@ -4,7 +4,8 @@
 
 from fastapi import HTTPException, Depends
 
-from src.auth import get_jwt_tenant_context, JWTTenantContext
+from src.auth.jwt_auth import get_service_context
+from src.auth.models import ServiceContext
 from src.external.clients.device_client import DeviceClient
 from src.external.config import get_external_config
 
@@ -20,17 +21,18 @@ async def get_device_client() -> DeviceClient:
 
 async def validate_device_access(
     device_id: str,
-    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
+    service: ServiceContext = Depends(get_service_context),
     device_client: DeviceClient = Depends(get_device_client),
 ) -> str:
     """校验设备归属与存在性"""
-    if not tenant_context.can_access_device(device_id):
-        raise HTTPException(status_code=403, detail={"error": "DEVICE_ACCESS_DENIED", "message": f"租户无权访问设备 {device_id}"})
+    # In trust model, backend service manages all device access
+    # Device access validation will be implemented in future versions
 
     try:
-        info = await device_client.get_device(device_id, tenant_context.tenant_id)
+        # Note: Will need tenant_id from request context
+        info = await device_client.get_device(device_id, "default_tenant")
         if not info:
-            raise HTTPException(status_code=404, detail={"error": "DEVICE_NOT_FOUND", "message": f"设备 {device_id} 不存在或不属于租户 {tenant_context.tenant_id}"})
+            raise HTTPException(status_code=404, detail={"error": "DEVICE_NOT_FOUND", "message": f"设备 {device_id} 不存在"})
         return device_id
     except HTTPException:
         raise

@@ -44,6 +44,8 @@ class LLMConfigRequest(BaseRequest):
     LLM配置请求模型
     """
 
+    tenant_id: str = Field(description="租户标识符", min_length=1, max_length=100)
+
     provider: LLMProviderType = Field(description="LLM提供商")
 
     model_name: str = Field(description="模型名称", min_length=1)
@@ -70,6 +72,8 @@ class ProviderStatusRequest(BaseRequest):
     提供商状态请求模型
     """
 
+    tenant_id: str = Field(description="租户标识符", min_length=1, max_length=100)
+
     provider: Optional[LLMProviderType] = Field(
         None, description="指定提供商，为空则查询所有"
     )
@@ -83,6 +87,8 @@ class OptimizationRequest(BaseRequest):
     """
     优化请求模型
     """
+
+    tenant_id: str = Field(description="租户标识符", min_length=1, max_length=100)
 
     optimization_type: str = Field(
         description="优化类型", pattern="^(cost|performance|quality|latency)$"
@@ -99,6 +105,8 @@ class RoutingConfigRequest(BaseRequest):
     """
     路由配置请求模型
     """
+
+    tenant_id: str = Field(description="租户标识符", min_length=1, max_length=100)
 
     strategy: RoutingStrategy = Field(description="路由策略")
 
@@ -117,6 +125,8 @@ class CostBudgetRequest(BaseRequest):
     """
     成本预算请求模型
     """
+
+    tenant_id: str = Field(description="租户标识符", min_length=1, max_length=100)
 
     monthly_budget: float = Field(ge=0, description="月度预算（美元）")
 

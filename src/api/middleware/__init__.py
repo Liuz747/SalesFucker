@@ -12,13 +12,11 @@ API中间件模块
 from .safety_interceptor import SafetyInterceptor
 from .tenant_isolation import TenantIsolation
 from .rate_limiting import RateLimiting
-from .jwt_middleware import JWTMiddleware, get_tenant_context, get_tenant_id
+from .jwt_middleware import JWTMiddleware
 
 __all__ = [
     "SafetyInterceptor",
     "TenantIsolation", 
     "RateLimiting",
-    "JWTMiddleware",
-    "get_tenant_context",
-    "get_tenant_id"
+    "JWTMiddleware"
 ]

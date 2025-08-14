@@ -21,9 +21,7 @@ from .exceptions import APIException
 from .middleware import (
     SafetyInterceptor,
     TenantIsolation,
-    JWTMiddleware,
-    get_tenant_context,
-    get_tenant_id
+    JWTMiddleware
 )
 from .endpoints import (
     agents_router,
@@ -66,6 +64,10 @@ app.add_middleware(JWTMiddleware, exclude_paths=[
     "/openapi.json",
     "/redoc",
     "/v1/health"
+], exclude_prefixes=[
+    "/v1/auth",
+    "/static/",
+    "/assets/"
 ])
 app.add_middleware(SafetyInterceptor)
 app.add_middleware(TenantIsolation)

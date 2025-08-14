@@ -4,7 +4,7 @@
 POST /v1/auth/token
     Header: X-App-Key: <app_key>
     Body (optional): { "scopes": ["backend:admin"] }
-返回：短期HS256 JWT（仅用于后端→AI的管理调用）
+返回：JWT token (MAS内部管理密钥对)
 """
 
 from datetime import timedelta
@@ -17,6 +17,7 @@ from config.settings import settings
 from src.utils import get_current_datetime, format_timestamp
 from src.auth.jwt_auth import get_service_context, require_service_scopes
 from src.auth.models import ServiceContext
+from src.auth.key_manager import key_manager
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -28,12 +29,12 @@ async def issue_service_token(
     payload: Optional[Dict[str, Any]] = None,
 ):
     # 配置检查
-    if not settings.app_key or not settings.app_jwt_secret:
+    if not settings.app_key:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
                 "error": "APP_AUTH_NOT_CONFIGURED",
-                "message": "App-Key 或 JWT 密钥未配置",
+                "message": "App-Key 未配置",
             },
         )
 
@@ -44,9 +45,14 @@ async def issue_service_token(
             detail={"error": "INVALID_APP_KEY", "message": "无效或缺失 App-Key"},
         )
 
-    # 生成短期服务令牌
+    # 检查是否需要生成新密钥对
+    if not key_manager.is_key_valid(x_app_key):
+        # 生成新的RSA密钥对
+        key_manager.generate_key_pair(x_app_key, 30)
+
+    # 生成JWT声明
     now = get_current_datetime()
-    exp = now + timedelta(seconds=settings.app_token_ttl_seconds)
+    exp = now + timedelta(seconds=settings.app_token_ttl)
     body_scopes: List[str] = []
     if payload and isinstance(payload, dict):
         body_scopes = list(payload.get("scopes", []))
@@ -61,12 +67,19 @@ async def issue_service_token(
         "jti": f"svc_{int(now.timestamp())}",
     }
 
-    token = jwt.encode(claims, settings.app_jwt_secret, algorithm="HS256")
+    # 获取私钥用于签名JWT  
+    import json
+    key_file = key_manager._get_key_file_path(x_app_key)
+    with open(key_file, 'r') as f:
+        key_data = json.load(f)
+        private_key = key_data["private_key"]
+
+    token = jwt.encode(claims, private_key, algorithm="RS256")
 
     return {
         "access_token": token,
         "token_type": "bearer",
-        "expires_in": settings.app_token_ttl_seconds,
+        "expires_in": settings.app_token_ttl,
         "issued_at": format_timestamp(now),
         "scopes": claims["scope"],
     }

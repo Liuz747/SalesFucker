@@ -22,7 +22,8 @@ from ..schemas.assistants import (
     AssistantStatsResponse, AssistantOperationResponse
 )
 from ..handlers.assistant_handler import AssistantHandler
-from src.auth import get_jwt_tenant_context, JWTTenantContext
+from src.auth.jwt_auth import get_service_context
+from src.auth.models import ServiceContext
 from src.utils import get_component_logger
 
 # 创建路由器
@@ -36,7 +37,7 @@ assistant_handler = AssistantHandler()
 @router.post("/", response_model=AssistantResponse, status_code=status.HTTP_201_CREATED)
 async def create_assistant(
     request: AssistantCreateRequest,
-    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context)
+    service: ServiceContext = Depends(get_service_context)
 ) -> AssistantResponse:
     """
     创建新的AI员工
@@ -44,12 +45,12 @@ async def create_assistant(
     创建一个新的AI员工，包括个性配置、专业领域设置和权限分配。
     """
     try:
-        logger.info(f"创建助理请求: tenant={tenant_context.tenant_id}, assistant={request.assistant_id}")
+        logger.info(f"创建助理请求: tenant={request.tenant_id}, assistant={request.assistant_id}")
         
         # JWT认证中已验证租户身份，无需重复检查
         
         result = await assistant_handler.create_assistant(
-            request, tenant_context.tenant_id
+            request, request.tenant_id
         )
         
         logger.info(f"助理创建成功: {request.assistant_id}")
@@ -71,7 +72,7 @@ async def create_assistant(
 
 @router.get("/", response_model=AssistantListResponse)
 async def list_assistants(
-    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
+    service: ServiceContext = Depends(get_service_context),
     status: Optional[str] = Query(None, description="助理状态筛选"),
     personality_type: Optional[str] = Query(None, description="个性类型筛选"),
     expertise_level: Optional[str] = Query(None, description="专业等级筛选"),
@@ -90,11 +91,11 @@ async def list_assistants(
     支持多种筛选条件和排序选项的助理列表查询。
     """
     try:
-        logger.info(f"查询助理列表: tenant={tenant_context.tenant_id}")
+        logger.info(f"查询助理列表: tenant={request.tenant_id}")
         
         # 构建查询请求
         list_request = AssistantListRequest(
-            tenant_context.tenant_id,
+            request.tenant_id,
             status=status,
             personality_type=personality_type,
             expertise_level=expertise_level,
@@ -124,7 +125,7 @@ async def list_assistants(
 @router.get("/{assistant_id}", response_model=AssistantResponse)
 async def get_assistant(
     assistant_id: str = Path(..., description="助理ID"),
-    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
+    service: ServiceContext = Depends(get_service_context),
     include_stats: bool = Query(False, description="是否包含统计信息"),
     include_config: bool = Query(True, description="是否包含配置信息")
 ) -> AssistantResponse:
@@ -134,10 +135,10 @@ async def get_assistant(
     根据助理ID获取完整的助理信息，包括配置和可选的统计数据。
     """
     try:
-        logger.info(f"查询助理详情: tenant={tenant_context.tenant_id}, assistant={assistant_id}")
+        logger.info(f"查询助理详情: tenant={request.tenant_id}, assistant={assistant_id}")
         
         result = await assistant_handler.get_assistant(
-            assistant_id, tenant_context.tenant_id, include_stats, include_config
+            assistant_id, request.tenant_id, include_stats, include_config
         )
         
         if not result:
@@ -164,7 +165,7 @@ async def get_assistant(
 async def update_assistant(
     assistant_id: str = Path(..., description="助理ID"),
     request: AssistantUpdateRequest = None,
-    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context)
+    service: ServiceContext = Depends(get_service_context)
 ) -> AssistantResponse:
     """
     更新助理信息
@@ -172,10 +173,10 @@ async def update_assistant(
     更新指定助理的配置信息，支持部分字段更新。
     """
     try:
-        logger.info(f"更新助理请求: tenant={tenant_context.tenant_id}, assistant={assistant_id}")
+        logger.info(f"更新助理请求: tenant={request.tenant_id}, assistant={assistant_id}")
         
         result = await assistant_handler.update_assistant(
-            assistant_id, tenant_context.tenant_id, request
+            assistant_id, request.tenant_id, request
         )
         
         if not result:
@@ -208,7 +209,7 @@ async def update_assistant(
 async def configure_assistant(
     assistant_id: str = Path(..., description="助理ID"),
     request: AssistantConfigRequest = None,
-    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context)
+    service: ServiceContext = Depends(get_service_context)
 ) -> AssistantOperationResponse:
     """
     配置助理设置
@@ -216,10 +217,10 @@ async def configure_assistant(
     更新助理的特定配置项，如销售风格、权限等。
     """
     try:
-        logger.info(f"配置助理请求: tenant={tenant_context.tenant_id}, assistant={assistant_id}")
+        logger.info(f"配置助理请求: tenant={request.tenant_id}, assistant={assistant_id}")
         
         result = await assistant_handler.configure_assistant(
-            assistant_id, tenant_context.tenant_id, request
+            assistant_id, request.tenant_id, request
         )
         
         if not result.success:
@@ -251,7 +252,7 @@ async def configure_assistant(
 @router.get("/{assistant_id}/stats", response_model=AssistantStatsResponse)
 async def get_assistant_stats(
     assistant_id: str = Path(..., description="助理ID"),
-    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
+    service: ServiceContext = Depends(get_service_context),
     days: int = Query(30, ge=1, le=365, description="统计天数"),
     include_trends: bool = Query(True, description="是否包含趋势数据"),
     include_devices: bool = Query(True, description="是否包含设备统计")
@@ -262,10 +263,10 @@ async def get_assistant_stats(
     获取助理的详细统计数据，包括对话数、客户满意度、设备使用等。
     """
     try:
-        logger.info(f"查询助理统计: tenant={tenant_context.tenant_id}, assistant={assistant_id}")
+        logger.info(f"查询助理统计: tenant={request.tenant_id}, assistant={assistant_id}")
         
         result = await assistant_handler.get_assistant_stats(
-            assistant_id, tenant_context.tenant_id, days, include_trends, include_devices
+            assistant_id, request.tenant_id, days, include_trends, include_devices
         )
         
         if not result:
@@ -291,7 +292,7 @@ async def get_assistant_stats(
 @router.post("/{assistant_id}/activate", response_model=AssistantOperationResponse)
 async def activate_assistant(
     assistant_id: str = Path(..., description="助理ID"),
-    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context)
+    service: ServiceContext = Depends(get_service_context)
 ) -> AssistantOperationResponse:
     """
     激活助理
@@ -299,9 +300,9 @@ async def activate_assistant(
     将助理状态设置为活跃，允许处理客户对话。
     """
     try:
-        logger.info(f"激活助理请求: tenant={tenant_context.tenant_id}, assistant={assistant_id}")
+        logger.info(f"激活助理请求: tenant={request.tenant_id}, assistant={assistant_id}")
         
-        result = await assistant_handler.activate_assistant(assistant_id, tenant_context.tenant_id)
+        result = await assistant_handler.activate_assistant(assistant_id, request.tenant_id)
         
         if not result.success:
             logger.warning(f"助理激活失败: {assistant_id}")
@@ -326,7 +327,7 @@ async def activate_assistant(
 @router.post("/{assistant_id}/deactivate", response_model=AssistantOperationResponse)
 async def deactivate_assistant(
     assistant_id: str = Path(..., description="助理ID"),
-    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context)
+    service: ServiceContext = Depends(get_service_context)
 ) -> AssistantOperationResponse:
     """
     停用助理
@@ -334,9 +335,9 @@ async def deactivate_assistant(
     将助理状态设置为非活跃，停止处理新的客户对话。
     """
     try:
-        logger.info(f"停用助理请求: tenant={tenant_context.tenant_id}, assistant={assistant_id}")
+        logger.info(f"停用助理请求: tenant={request.tenant_id}, assistant={assistant_id}")
         
-        result = await assistant_handler.deactivate_assistant(assistant_id, tenant_context.tenant_id)
+        result = await assistant_handler.deactivate_assistant(assistant_id, request.tenant_id)
         
         if not result.success:
             logger.warning(f"助理停用失败: {assistant_id}")
@@ -361,7 +362,7 @@ async def deactivate_assistant(
 @router.delete("/{assistant_id}", response_model=AssistantOperationResponse)
 async def delete_assistant(
     assistant_id: str = Path(..., description="助理ID"),
-    tenant_context: JWTTenantContext = Depends(get_jwt_tenant_context),
+    service: ServiceContext = Depends(get_service_context),
     force: bool = Query(False, description="是否强制删除（即使有活跃对话）")
 ) -> AssistantOperationResponse:
     """
@@ -370,9 +371,9 @@ async def delete_assistant(
     删除指定的助理及其相关配置。如有活跃对话需要强制删除标志。
     """
     try:
-        logger.info(f"删除助理请求: tenant={tenant_context.tenant_id}, assistant={assistant_id}, force={force}")
+        logger.info(f"删除助理请求: tenant={request.tenant_id}, assistant={assistant_id}, force={force}")
         
-        result = await assistant_handler.delete_assistant(assistant_id, tenant_context.tenant_id, force)
+        result = await assistant_handler.delete_assistant(assistant_id, request.tenant_id, force)
         
         if not result.success:
             logger.warning(f"助理删除失败: {assistant_id}")

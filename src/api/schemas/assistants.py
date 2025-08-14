@@ -130,6 +130,8 @@ class AssistantUpdateRequest(BaseRequest):
     更新AI员工请求模型
     """
 
+    tenant_id: str = Field(description="租户标识符", min_length=1, max_length=100)
+
     assistant_name: Optional[str] = Field(
         None, description="助理姓名", min_length=1, max_length=100
     )
@@ -168,6 +170,8 @@ class AssistantConfigRequest(BaseRequest):
     """
     助理配置请求模型
     """
+
+    tenant_id: str = Field(description="租户标识符", min_length=1, max_length=100)
 
     config_type: str = Field(
         description="配置类型",

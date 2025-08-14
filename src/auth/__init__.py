@@ -10,12 +10,13 @@ JWT认证模块
 - tenant_manager: 租户配置和密钥管理
 """
 
-from .models import JWTTenantContext, TenantConfig
+from .models import JWTTenantContext, TenantConfig, ServiceContext
 from .jwt_auth import (
     get_jwt_tenant_context,
     verify_jwt_token,
     JWTVerificationError,
-    TenantAccessError
+    TenantAccessError,
+    get_service_context
 )
 from .tenant_manager import TenantManager, get_tenant_manager
 
@@ -27,5 +28,7 @@ __all__ = [
     "JWTVerificationError",
     "TenantAccessError",
     "TenantManager",
-    "get_tenant_manager"
+    "get_tenant_manager",
+    "ServiceContext",
+    "get_service_context"
 ]
