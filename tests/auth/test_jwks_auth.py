@@ -20,8 +20,8 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 
 from infra.auth.jwt_auth import verify_jwt_token
-from infra.auth.models import TenantConfig
-from api.tenant_manager import get_tenant_manager, TenantManager
+from models.tenant import TenantConfig
+from api.dependencies.tenant_manager import get_tenant_manager, TenantManager
 from config.settings import settings
 
 

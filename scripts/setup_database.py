@@ -20,8 +20,8 @@ from infra.db.connection import (
     test_database_connection,
     close_database_connections
 )
-from infra.db.models import Base
-from api.tenant_manager import get_tenant_manager
+from models.tenant import Base
+from api.dependencies.tenant_manager import get_tenant_manager
 from src.utils import get_component_logger
 from config.settings import settings
 

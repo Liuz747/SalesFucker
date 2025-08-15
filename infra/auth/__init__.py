@@ -10,9 +10,9 @@ JWT认证模块
 - tenant_manager: 租户配置和密钥管理
 """
 
-from .models import ServiceContext
+from .jwt_auth import ServiceContext
 from .jwt_auth import get_service_context
-from .tenant_manager import TenantManager, get_tenant_manager
+from api.dependencies.tenant_manager import TenantManager, get_tenant_manager
 
 __all__ = [
     "TenantManager",

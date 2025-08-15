@@ -16,7 +16,7 @@ from fastapi import APIRouter, Header, HTTPException, status, Depends
 from config.settings import settings
 from src.utils import get_current_datetime, format_timestamp
 from infra.auth.jwt_auth import get_service_context, require_service_scopes
-from infra.auth.models import ServiceContext
+from infra.auth.jwt_auth import ServiceContext
 from infra.auth.key_manager import key_manager
 
 

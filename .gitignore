@@ -65,7 +65,6 @@ data/vector_store/
 data/temp/
 
 # Model artifacts
-models/
 *.pkl
 *.joblib
 

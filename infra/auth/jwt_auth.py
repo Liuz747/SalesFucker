@@ -12,13 +12,71 @@ JWT认证核心模块
 """
 
 import jwt
-from typing import Optional
+from datetime import datetime
+from typing import Optional, List, Dict, Any
 from fastapi import HTTPException, Header, Depends
+from pydantic import BaseModel, Field
 
 from config.settings import settings
 from src.utils import get_component_logger, get_current_datetime, format_datetime
-from .models import ServiceContext, ServiceVerificationResult
 from .key_manager import key_manager
+
+
+class ServiceContext(BaseModel):
+    """
+    服务间认证上下文
+    
+    从JWT token中提取的服务认证信息，用于后端服务
+    向MAS系统的API调用授权验证。
+    """
+    
+    # JWT标准字段
+    sub: str = Field(description="主体，固定为'backend-service'")
+    iss: str = Field(description="JWT颁发者")
+    aud: str = Field(description="JWT受众")
+    exp: datetime = Field(description="JWT过期时间")
+    iat: datetime = Field(description="JWT颁发时间")
+    jti: str = Field(description="JWT唯一标识")
+    
+    # 服务权限
+    scopes: List[str] = Field(default=[], description="服务权限范围列表")
+    
+    # 验证元数据
+    token_source: str = Field(description="Token来源")
+    verification_timestamp: datetime = Field(description="验证时间戳")
+    
+    def has_scope(self, scope: str) -> bool:
+        """
+        检查是否具有指定权限范围
+        """
+        return scope in self.scopes
+    
+    def is_admin(self) -> bool:
+        """
+        检查是否具有管理员权限
+        """
+        return "backend:admin" in self.scopes
+
+
+class ServiceVerificationResult(BaseModel):
+    """
+    服务JWT验证结果模型
+    
+    JWT token验证的完整结果，包含验证状态、
+    服务上下文和错误信息。
+    """
+    
+    is_valid: bool = Field(description="是否验证成功")
+    service_context: Optional[ServiceContext] = Field(
+        None, 
+        description="验证成功时的服务上下文"
+    )
+    error_code: Optional[str] = Field(None, description="错误代码")
+    error_message: Optional[str] = Field(None, description="错误消息")
+    verification_details: Dict[str, Any] = Field(
+        default_factory=dict, 
+        description="验证详细信息"
+    )
 
 logger = get_component_logger(__name__, "JWTAuth")
 

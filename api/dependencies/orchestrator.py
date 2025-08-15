@@ -5,7 +5,7 @@
 from fastapi import HTTPException, Depends
 
 from infra.auth.jwt_auth import get_service_context
-from infra.auth.models import ServiceContext
+from infra.auth.jwt_auth import ServiceContext
 from src.utils import get_component_logger
 from src.core.orchestrator import get_orchestrator
 

@@ -16,12 +16,12 @@ from datetime import datetime, timedelta
 from typing import Dict, Optional, List, Any
 from contextlib import asynccontextmanager
 
-from sqlalchemy import select, update, delete
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from infra.auth.models import TenantConfig, SecurityAuditLog
+from models.tenant import TenantConfig, SecurityAuditLog
 from infra.db.connection import database_session
-from infra.db.models import TenantModel, SecurityAuditLogModel
+from models.tenant import TenantModel, SecurityAuditLogModel
 from src.utils import get_component_logger, get_current_datetime, format_timestamp
 
 logger = get_component_logger(__name__, "TenantManager")
