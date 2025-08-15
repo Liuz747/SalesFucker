@@ -14,22 +14,20 @@
 
 import uuid
 from datetime import datetime
-from enum import Enum
+from enum import StrEnum
 from typing import Dict, List, Optional, Any
 
 from pydantic import BaseModel, Field
 from sqlalchemy import (
-    Column, String, Boolean, DateTime, Integer, Text, Index
+    Column, String, Boolean, DateTime, Integer, Index
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import func
 
-# SQLAlchemy基础模型
-Base = declarative_base()
+from models.base import Base
 
 
-class TenantRole(str, Enum):
+class TenantRole(StrEnum):
     """租户角色枚举"""
     ADMIN = "admin"          # 管理员
     OPERATOR = "operator"    # 操作员
@@ -103,44 +101,6 @@ class TenantConfig(BaseModel):
     # 统计信息
     last_access: Optional[datetime] = Field(None, description="最后访问时间")
     total_requests: int = Field(default=0, description="总请求数")
-
-
-
-class SecurityAuditLog(BaseModel):
-    """
-    安全审计日志业务模型
-    
-    记录系统安全相关的事件信息，用于安全监控、合规审计和风险分析。
-    """
-    
-    # 基本标识
-    log_id: str = Field(description="日志唯一标识")
-    tenant_id: str = Field(description="租户ID")
-    
-    # 事件信息
-    event_type: str = Field(description="事件类型")
-    event_timestamp: datetime = Field(description="事件发生时间")
-    
-    # 请求信息
-    client_ip: str = Field(description="客户端IP地址")
-    user_agent: Optional[str] = Field(None, description="用户代理字符串")
-    request_id: Optional[str] = Field(None, description="请求ID")
-    
-    # 认证信息
-    jwt_subject: Optional[str] = Field(None, description="JWT主体")
-    jwt_issuer: Optional[str] = Field(None, description="JWT颁发者")
-    authentication_result: str = Field(description="认证结果")
-    
-    # 详细信息
-    details: Dict[str, Any] = Field(
-        default_factory=dict, 
-        description="事件详细信息"
-    )
-    risk_level: str = Field(
-        default="low", 
-        description="风险级别：low/medium/high/critical", 
-        pattern="^(low|medium|high|critical)$"
-    )
 
 
 class TenantModel(Base):
@@ -285,104 +245,4 @@ class TenantModel(Base):
         self.is_active = config.is_active
         self.last_access = config.last_access
         self.total_requests = config.total_requests
-        # updated_at字段会自动更新
 
-
-class SecurityAuditLogModel(Base):
-    """
-    安全审计日志数据库模型
-    
-    对应SecurityAuditLog业务模型的PostgreSQL存储结构。
-    支持高效的时间范围查询和风险级别筛选。
-    """
-    __tablename__ = "security_audit_logs"
-    
-    # 主键和标识
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    log_id = Column(String(255), unique=True, nullable=False, index=True)
-    tenant_id = Column(String(255), nullable=False, index=True)
-    
-    # 事件信息
-    event_type = Column(String(100), nullable=False, index=True)
-    event_timestamp = Column(DateTime(timezone=True), nullable=False, index=True)
-    
-    # 请求信息
-    client_ip = Column(String(45), nullable=False)  # 支持IPv6地址
-    user_agent = Column(Text, nullable=True)
-    request_id = Column(String(255), nullable=True, index=True)
-    
-    # 认证信息
-    jwt_subject = Column(String(255), nullable=True)
-    jwt_issuer = Column(String(255), nullable=True)
-    authentication_result = Column(String(50), nullable=False)
-    
-    # 详细信息和风险级别
-    details = Column(JSONB, nullable=False, default=dict)
-    risk_level = Column(String(20), nullable=False, default="low", index=True)
-    
-    # 创建时间（自动设置）
-    created_at = Column(
-        DateTime(timezone=True), 
-        nullable=False, 
-        server_default=func.now()
-    )
-    
-    # 数据库索引优化
-    __table_args__ = (
-        Index('idx_audit_tenant_event', 'tenant_id', 'event_type'),
-        Index('idx_audit_timestamp', 'event_timestamp'),
-        Index('idx_audit_risk', 'risk_level'),
-        Index('idx_audit_client_ip', 'client_ip'),
-    )
-    
-    def to_business_model(self) -> SecurityAuditLog:
-        """
-        转换为业务模型
-        
-        将数据库模型转换为业务逻辑使用的Pydantic模型。
-        
-        返回:
-            SecurityAuditLog: 业务模型实例
-        """
-        return SecurityAuditLog(
-            log_id=self.log_id,
-            tenant_id=self.tenant_id,
-            event_type=self.event_type,
-            event_timestamp=self.event_timestamp,
-            client_ip=self.client_ip,
-            user_agent=self.user_agent,
-            request_id=self.request_id,
-            jwt_subject=self.jwt_subject,
-            jwt_issuer=self.jwt_issuer,
-            authentication_result=self.authentication_result,
-            details=self.details or {},
-            risk_level=self.risk_level
-        )
-    
-    @classmethod
-    def from_business_model(cls, log: SecurityAuditLog) -> "SecurityAuditLogModel":
-        """
-        从业务模型创建数据库模型
-        
-        将业务模型转换为数据库模型实例，用于数据持久化。
-        
-        参数:
-            log: SecurityAuditLog业务模型实例
-            
-        返回:
-            SecurityAuditLogModel: 数据库模型实例
-        """
-        return cls(
-            log_id=log.log_id,
-            tenant_id=log.tenant_id,
-            event_type=log.event_type,
-            event_timestamp=log.event_timestamp,
-            client_ip=log.client_ip,
-            user_agent=log.user_agent,
-            request_id=log.request_id,
-            jwt_subject=log.jwt_subject,
-            jwt_issuer=log.jwt_issuer,
-            authentication_result=log.authentication_result,
-            details=log.details,
-            risk_level=log.risk_level
-        )

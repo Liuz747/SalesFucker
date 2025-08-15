@@ -12,15 +12,11 @@
 from .tenant import (
     TenantRole,
     TenantConfig, 
-    SecurityAuditLog,
-    TenantModel,
-    SecurityAuditLogModel
+    TenantModel
 )
 
 __all__ = [
     "TenantRole",
     "TenantConfig",
-    "SecurityAuditLog",
-    "TenantModel",
-    "SecurityAuditLogModel"
+    "TenantModel"
 ]
