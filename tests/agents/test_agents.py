@@ -44,7 +44,7 @@ from src.llm.provider_config import (
 from src.llm.base_provider import LLMRequest, LLMResponse, RequestType, ProviderError
 from src.llm.intelligent_router import RoutingStrategy, RoutingContext
 from src.llm.cost_optimizer import CostOptimizer
-from src.llm.failover_system import FailoverSystem
+# Failover system removed - now using simple retry logic in MultiLLMClient
 
 
 class TestAgentSystemCore:

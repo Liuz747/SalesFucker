@@ -89,3 +89,6 @@ def downgrade() -> None:
     op.drop_index('idx_tenant_active', table_name='tenants')
     op.drop_index('idx_tenant_id', table_name='tenants')
     op.drop_table('tenants')
+
+
+
