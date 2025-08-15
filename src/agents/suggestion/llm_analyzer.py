@@ -9,7 +9,7 @@ from typing import Dict, Any
 import json
 import logging
 from src.llm import get_multi_llm_client
-from src.utils import get_component_logger
+from utils import get_component_logger
 
 
 class LLMAnalyzer:

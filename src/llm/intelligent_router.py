@@ -29,7 +29,7 @@ from .provider_config import (
     ProviderHealth
 )
 from .provider_manager import ProviderManager
-from src.utils import get_component_logger, ErrorHandler
+from utils import get_component_logger, ErrorHandler
 
 
 # Integrated models (from intelligent_router_modules/models.py)

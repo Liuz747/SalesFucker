@@ -11,7 +11,7 @@
 - error_handling: 错误处理装饰器
 - validation: 数据验证工具
 
-注意: 类型定义、常量和性能配置已移至 src/libs/ 目录
+注意: 类型定义、常量和性能配置已移至 libs/ 目录
 """
 
 from .time_utils import get_current_datetime, get_processing_time_ms, format_timestamp, format_datetime

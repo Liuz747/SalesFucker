@@ -31,7 +31,7 @@ from ..schemas.llm import (
     LLMProviderType
 )
 from ..handlers.llm_handler import LLMHandler
-from src.utils import get_component_logger
+from utils import get_component_logger
 
 logger = get_component_logger(__name__, "LLMEndpoints")
 

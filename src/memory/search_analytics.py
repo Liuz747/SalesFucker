@@ -7,7 +7,7 @@ from datetime import datetime, timedelta
 from elasticsearch import AsyncElasticsearch
 
 from .models import ConversationMessage, MessageType
-from src.utils import get_component_logger
+from utils import get_component_logger
 
 
 class SearchAnalytics:

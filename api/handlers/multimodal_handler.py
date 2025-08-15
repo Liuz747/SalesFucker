@@ -22,7 +22,7 @@ from datetime import datetime, timedelta
 from fastapi import UploadFile, BackgroundTasks
 import mimetypes
 
-from src.utils import get_component_logger
+from utils import get_component_logger
 from ..schemas.multimodal import (
     VoiceProcessingRequest,
     ImageAnalysisRequest,

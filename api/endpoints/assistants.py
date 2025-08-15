@@ -22,7 +22,7 @@ from ..schemas.assistants import (
     AssistantStatsResponse, AssistantOperationResponse
 )
 from ..handlers.assistant_handler import AssistantHandler
-from src.utils import get_component_logger
+from utils import get_component_logger
 
 # 创建路由器
 router = APIRouter(prefix="/assistants", tags=["assistants"])

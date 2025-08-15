@@ -11,7 +11,7 @@ from typing import Dict, Any, List
 from datetime import datetime
 
 from src.agents.base import BaseAgent, AgentMessage, ConversationState
-from src.utils import get_current_datetime, get_processing_time_ms
+from utils import get_current_datetime, get_processing_time_ms
 
 # 导入重构后的模块
 from .recommendation_engine import RAGRecommendationEngine

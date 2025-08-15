@@ -10,7 +10,7 @@ from api.schemas.tenant import (
     TenantStatusResponse,
     TenantListResponse,
 )
-from src.utils import get_current_datetime
+from utils import get_current_datetime
 
 
 class TenantHandler:

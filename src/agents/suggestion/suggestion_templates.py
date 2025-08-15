@@ -6,7 +6,7 @@
 """
 
 from typing import Dict, Any, List
-from src.utils import get_component_logger
+from utils import get_component_logger
 
 
 class SuggestionTemplateManager:

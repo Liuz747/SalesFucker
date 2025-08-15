@@ -19,7 +19,7 @@ from datetime import datetime
 import json
 import time
 
-from src.utils import get_component_logger, ErrorHandler
+from utils import get_component_logger, ErrorHandler
 
 # 自定义异常
 class ExternalAPIError(Exception):

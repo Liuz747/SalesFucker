@@ -19,7 +19,7 @@ import time
 import logging
 from collections import defaultdict, deque
 
-from src.utils import get_component_logger
+from utils import get_component_logger
 
 logger = get_component_logger(__name__, "RateLimiting")
 

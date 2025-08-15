@@ -18,7 +18,7 @@ from collections import defaultdict
 
 from .base_provider import LLMRequest, LLMResponse
 from .provider_config import GlobalProviderConfig
-from src.utils import get_component_logger, ErrorHandler
+from utils import get_component_logger, ErrorHandler
 
 
 class SessionManager:

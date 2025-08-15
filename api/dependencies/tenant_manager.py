@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.tenant import TenantConfig, TenantModel
 from infra.db.connection import database_session
-from src.utils import get_component_logger, get_current_datetime, format_timestamp
+from utils import get_component_logger, get_current_datetime, format_timestamp
 
 logger = get_component_logger(__name__, "TenantManager")
 

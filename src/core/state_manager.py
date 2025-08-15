@@ -13,7 +13,7 @@
 from typing import Dict, Any, Optional
 
 from src.agents.base import ThreadState
-from src.utils import (
+from utils import (
     get_component_logger,
     get_current_datetime,
     StatusMixin

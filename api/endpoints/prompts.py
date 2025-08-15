@@ -24,7 +24,7 @@ from ..schemas.prompts import (
     AssistantPromptConfig, PromptCategory, PromptType, PromptLanguage
 )
 from ..handlers.prompt_handler import PromptHandler
-from src.utils import get_component_logger
+from utils import get_component_logger
 
 # 创建路由器
 router = APIRouter(prefix="/prompts", tags=["prompts"])

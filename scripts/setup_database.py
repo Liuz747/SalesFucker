@@ -22,7 +22,7 @@ from infra.db.connection import (
 )
 from models.tenant import Base
 from api.dependencies.tenant_manager import get_tenant_manager
-from src.utils import get_component_logger
+from utils import get_component_logger
 from config.settings import settings
 
 logger = get_component_logger(__name__, "DatabaseSetup")

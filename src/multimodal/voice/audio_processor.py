@@ -20,7 +20,7 @@ from pathlib import Path
 import subprocess
 import json
 
-from src.utils import (
+from utils import (
     get_current_datetime,
     get_processing_time_ms,
     LoggerMixin,

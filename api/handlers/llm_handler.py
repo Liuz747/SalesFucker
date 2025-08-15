@@ -17,7 +17,7 @@ import asyncio
 import logging
 from datetime import datetime, timedelta
 
-from src.utils import get_component_logger
+from utils import get_component_logger
 from ..schemas.llm import (
     LLMConfigRequest,
     ProviderStatusRequest,

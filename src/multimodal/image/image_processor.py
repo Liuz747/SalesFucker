@@ -19,7 +19,7 @@ from typing import Dict, Any, Optional, Tuple
 from pathlib import Path
 import base64
 
-from src.utils import (
+from utils import (
     get_current_datetime,
     get_processing_time_ms,
     LoggerMixin,

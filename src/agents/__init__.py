@@ -29,7 +29,7 @@ from .base import (
 )
 
 # 导入常量
-from src.libs.types import (
+from libs.types import (
     MessageType,
     ComplianceStatus,
     MarketStrategy,

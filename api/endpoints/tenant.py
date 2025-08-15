@@ -19,7 +19,7 @@ from ..schemas.tenant import (
     TenantUpdateRequest
 )
 from ..handlers.tenant_handler import TenantHandler
-from src.utils import get_component_logger, get_current_datetime, format_timestamp
+from utils import get_component_logger, get_current_datetime, format_timestamp
 
 logger = get_component_logger(__name__, "AdminTenantEndpoints")
 

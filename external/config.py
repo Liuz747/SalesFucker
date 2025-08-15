@@ -9,7 +9,7 @@ import os
 from typing import Optional
 from dataclasses import dataclass
 
-from src.utils import get_component_logger
+from utils import get_component_logger
 
 logger = get_component_logger(__name__, "ExternalConfig")
 

@@ -19,7 +19,7 @@ import json
 import re
 import logging
 
-from src.utils import get_component_logger
+from utils import get_component_logger
 
 logger = get_component_logger(__name__, "SafetyInterceptor")
 

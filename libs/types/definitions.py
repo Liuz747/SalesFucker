@@ -13,7 +13,7 @@
 
 from enum import Enum
 
-from src.libs.constants import MessageConstants, StatusConstants, WorkflowConstants
+from libs.constants import MessageConstants, StatusConstants, WorkflowConstants
 
 
 class MessageType(str, Enum):

@@ -9,7 +9,7 @@ from elasticsearch import AsyncElasticsearch
 
 from .models import ConversationMessage, MessageType
 from .index_manager import IndexManager
-from src.utils import get_component_logger
+from utils import get_component_logger
 
 
 class StorageOperations:

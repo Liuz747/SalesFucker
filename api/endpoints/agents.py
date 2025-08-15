@@ -33,7 +33,7 @@ from ..exceptions import (
     AgentUnavailableException
 )
 from ..handlers.agent_handler import AgentHandler
-from src.utils import get_component_logger
+from utils import get_component_logger
 
 logger = get_component_logger(__name__, "AgentEndpoints")
 

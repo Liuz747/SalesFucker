@@ -15,7 +15,7 @@ import asyncio
 from typing import Dict, Optional
 import aioredis
 from elasticsearch import AsyncElasticsearch
-from src.utils import get_component_logger
+from utils import get_component_logger
 
 
 class DatabaseConnectionManager:

@@ -19,7 +19,7 @@ from typing import Dict, Any, Optional, List, Tuple
 from datetime import datetime, timedelta
 import redis.asyncio as redis
 
-from src.utils import (
+from utils import (
     get_current_datetime,
     LoggerMixin,
     with_error_handling,

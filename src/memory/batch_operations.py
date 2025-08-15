@@ -16,7 +16,7 @@ import json
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 from elasticsearch import AsyncElasticsearch
-from src.utils import get_component_logger
+from utils import get_component_logger
 
 
 class BatchOperationManager:

@@ -15,7 +15,7 @@ import time
 from typing import Dict, Any, List
 from datetime import datetime, timedelta
 from dataclasses import dataclass, field
-from src.utils import get_component_logger
+from utils import get_component_logger
 
 
 @dataclass

@@ -18,7 +18,7 @@ from datetime import datetime
 import hashlib
 import aiofiles
 
-from src.utils import (
+from utils import (
     get_current_datetime,
     get_processing_time_ms,
     LoggerMixin,

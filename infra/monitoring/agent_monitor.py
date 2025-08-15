@@ -14,7 +14,7 @@
 from typing import Dict, Any, Optional
 from dataclasses import dataclass, field
 
-from src.utils import get_current_datetime, get_processing_time_ms
+from utils import get_current_datetime, get_processing_time_ms
 
 
 @dataclass
