@@ -17,7 +17,7 @@ import uuid
 from datetime import timedelta
 from fastapi import BackgroundTasks
 
-from src.utils import get_component_logger, get_current_datetime, get_processing_time_ms
+from utils import get_component_logger, get_current_datetime, get_processing_time_ms
 from ..schemas.conversations import (
     ConversationRequest,
     ConversationStartRequest,

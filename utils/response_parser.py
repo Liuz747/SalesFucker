@@ -14,7 +14,7 @@
 import json
 import re
 from typing import Dict, Any, List, Optional, Union
-from src.utils import get_component_logger
+from utils import get_component_logger
 
 
 logger = get_component_logger(__name__, "ResponseParser")

@@ -12,7 +12,7 @@
 """
 
 from typing import Dict, Any, List, Optional
-from src.utils import get_current_datetime, InputType
+from utils import get_current_datetime, InputType
 
 
 class EmotionFusionManager:

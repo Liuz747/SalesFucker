@@ -31,7 +31,6 @@ class Settings(BaseSettings):
     postgres_db: str = Field(default="mas_tenants", env="POSTGRES_DB")
     postgres_user: str = Field(default="mas_user", env="POSTGRES_USER")
     postgres_password: str = Field(default="", env="POSTGRES_PASSWORD")
-    postgres_ssl_mode: str = Field(default="prefer", env="POSTGRES_SSL_MODE")
     
     @property
     def postgres_url(self) -> str:
@@ -39,7 +38,6 @@ class Settings(BaseSettings):
         return (
             f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
-            f"?sslmode={self.postgres_ssl_mode}"
         )
     
     # LLM Provider API Keys

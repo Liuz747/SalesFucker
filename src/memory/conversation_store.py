@@ -20,7 +20,7 @@ from .models import ConversationMessage, MessageType
 from .storage_operations import StorageOperations
 from .search_analytics import SearchAnalytics
 from .index_manager import IndexManager
-from src.utils import get_component_logger
+from utils import get_component_logger
 
 # 重新导出模型，保持向后兼容
 from .models import MessageType, MessageStatus, ConversationMessage

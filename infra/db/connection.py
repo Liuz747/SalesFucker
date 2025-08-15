@@ -5,7 +5,6 @@
 支持异步操作和连接池优化。
 """
 
-import asyncio
 from typing import AsyncGenerator, Optional
 from contextlib import asynccontextmanager
 
@@ -15,10 +14,9 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine
 )
-from sqlalchemy.pool import NullPool
 
 from config.settings import settings
-from src.utils import get_component_logger
+from utils import get_component_logger
 
 logger = get_component_logger(__name__, "Database")
 

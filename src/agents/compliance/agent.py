@@ -19,7 +19,7 @@ from .rule_manager import ComplianceRuleManager
 from .checker import ComplianceChecker
 from .audit import ComplianceAuditor
 from .metrics import ComplianceMetricsManager
-from src.utils import get_current_datetime, get_processing_time_ms, format_timestamp, parse_compliance_response
+from utils import get_current_datetime, get_processing_time_ms, format_timestamp, parse_compliance_response
 from src.llm import get_multi_llm_client
 from src.prompts import get_prompt_manager
 from src.llm.intelligent_router import RoutingStrategy

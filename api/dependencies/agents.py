@@ -5,7 +5,7 @@
 from fastapi import HTTPException, Depends
 
 from infra.auth.jwt_auth import get_service_context
-from infra.auth.models import ServiceContext
+from infra.auth.jwt_auth import ServiceContext
 from src.agents.base.registry import AgentRegistry
 from src.agents.base.registry import agent_registry as global_registry
 

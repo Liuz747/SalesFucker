@@ -11,7 +11,7 @@ from ..sales.sales_strategies import analyze_customer_segment, get_strategy_for_
 from src.llm import get_multi_llm_client
 from src.prompts import get_prompt_manager
 from src.llm.intelligent_router import RoutingStrategy
-from src.utils import get_current_datetime, get_processing_time_ms
+from utils import get_current_datetime, get_processing_time_ms
 
 
 class MarketStrategyCoordinator(BaseAgent):

@@ -19,7 +19,7 @@ from .templates import (
     get_default_prompt, get_agent_default_prompts, 
     AgentType, PromptType, DEFAULT_PROMPTS
 )
-from src.utils import get_component_logger
+from utils import get_component_logger
 
 
 class PromptManager:

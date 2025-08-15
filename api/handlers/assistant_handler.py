@@ -23,8 +23,8 @@ from ..schemas.assistants import (
 )
 from ..schemas.prompts import AssistantPromptConfig, PromptCreateRequest
 from .prompt_handler import PromptHandler
-from src.utils import get_component_logger, with_error_handling, StatusMixin
-from src.libs.constants import StatusConstants
+from utils import get_component_logger, with_error_handling, StatusMixin
+from libs.constants import StatusConstants
 
 
 class AssistantHandler(StatusMixin):

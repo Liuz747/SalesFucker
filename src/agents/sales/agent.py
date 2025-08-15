@@ -15,7 +15,7 @@ from typing import Dict, Any, Optional
 
 from ..base import BaseAgent, AgentMessage, ThreadState
 from .sales_strategies import get_sales_strategies, analyze_customer_segment, get_strategy_for_segment, adapt_strategy_to_context
-from src.utils import format_timestamp
+from utils import format_timestamp
 from src.llm.intelligent_router import RoutingStrategy
 
 

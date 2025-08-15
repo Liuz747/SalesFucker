@@ -19,7 +19,7 @@ from datetime import datetime
 
 from src.core import get_orchestrator
 from src.agents import agent_registry, AgentRegistry
-from src.utils import get_component_logger
+from utils import get_component_logger
 from ..schemas.agents import (
     AgentTestRequest,
     AgentBatchTestRequest,

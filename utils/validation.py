@@ -10,7 +10,7 @@
 - 其他数据格式验证
 """
 
-from src.libs.constants import MessageConstants, StatusConstants, WorkflowConstants
+from libs.constants import MessageConstants, StatusConstants, WorkflowConstants
 
 
 def validate_message_type(message_type: str) -> bool:

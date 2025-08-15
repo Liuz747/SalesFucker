@@ -18,7 +18,7 @@ import uuid
 import mimetypes
 from pathlib import Path
 
-from src.utils import (
+from utils import (
     get_current_datetime,
     ProcessingStatus,
     ProcessingType,

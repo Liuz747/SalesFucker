@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 
 from .base_provider import LLMRequest, LLMResponse
 from .provider_config import ProviderType, CostConfig
-from src.utils import get_component_logger, ErrorHandler
+from utils import get_component_logger, ErrorHandler
 
 
 # 集成的数据模型 (原 models.py)

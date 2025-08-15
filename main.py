@@ -18,7 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from config.settings import settings
-from src.utils import get_component_logger
+from utils import get_component_logger
 from api.exceptions import APIException
 from api.middleware import (
     SafetyInterceptor,

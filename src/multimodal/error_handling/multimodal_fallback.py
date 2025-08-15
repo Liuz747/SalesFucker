@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 from enum import Enum
 import traceback
 
-from src.utils import (
+from utils import (
     get_current_datetime,
     get_processing_time_ms,
     LoggerMixin,

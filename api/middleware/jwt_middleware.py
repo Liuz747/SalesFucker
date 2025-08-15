@@ -11,7 +11,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from typing import Callable, List, Optional
 
 from infra.auth import get_service_context, ServiceContext
-from src.utils import get_component_logger
+from utils import get_component_logger
 
 logger = get_component_logger(__name__, "JWTMiddleware")
 

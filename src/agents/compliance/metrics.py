@@ -14,7 +14,7 @@
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-from src.utils import (
+from utils import (
     get_component_logger,
     get_current_datetime,
     get_processing_time_ms,

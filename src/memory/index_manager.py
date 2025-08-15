@@ -4,7 +4,7 @@ Elasticsearch索引管理模块
 
 from typing import Dict, Any
 from elasticsearch import AsyncElasticsearch
-from src.utils import get_component_logger
+from utils import get_component_logger
 
 
 class IndexManager:

@@ -9,7 +9,7 @@
 - constants: 系统常量定义库  
 - types: 类型定义库
 
-注意: 这些库从 src/utils/ 移动而来，以更好地反映其复杂性和业务完整性
+注意: 这些库从 utils/ 移动而来，以更好地反映其复杂性和业务完整性
 """
 
 from . import performance

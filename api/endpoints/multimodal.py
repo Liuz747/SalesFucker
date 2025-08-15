@@ -38,7 +38,7 @@ from ..exceptions import (
     ValidationException
 )
 from ..handlers.multimodal_handler import MultimodalHandler
-from src.utils import get_component_logger
+from utils import get_component_logger
 
 logger = get_component_logger(__name__, "MultimodalEndpoints")
 

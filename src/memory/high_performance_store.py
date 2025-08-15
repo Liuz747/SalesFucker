@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from contextlib import asynccontextmanager
 import aioredis
 from elasticsearch import AsyncElasticsearch
-from src.utils import get_component_logger
+from utils import get_component_logger
 
 
 @dataclass

@@ -16,13 +16,12 @@ from datetime import datetime, timedelta
 from typing import Dict, Optional, List, Any
 from contextlib import asynccontextmanager
 
-from sqlalchemy import select, update, delete
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from infra.auth.models import TenantConfig, SecurityAuditLog
+from models.tenant import TenantConfig, TenantModel
 from infra.db.connection import database_session
-from infra.db.models import TenantModel, SecurityAuditLogModel
-from src.utils import get_component_logger, get_current_datetime, format_timestamp
+from utils import get_component_logger, get_current_datetime, format_timestamp
 
 logger = get_component_logger(__name__, "TenantManager")
 
@@ -221,7 +220,7 @@ class TenantManager:
             stats["total_requests"] += 1
             
             # 按日统计
-            date_key = access_time.date().isoformat()
+            date_key = format_timestamp(access_time.date())
             stats["daily_requests"][date_key] = (
                 stats["daily_requests"].get(date_key, 0) + 1
             )
@@ -236,7 +235,7 @@ class TenantManager:
             cutoff_date = (access_time - timedelta(days=30)).date()
             stats["daily_requests"] = {
                 k: v for k, v in stats["daily_requests"].items()
-                if datetime.fromisoformat(k).date() >= cutoff_date
+                if format_timestamp(k).date() >= cutoff_date
             }
         
         # 异步更新数据库中的访问记录
@@ -262,61 +261,6 @@ class TenantManager:
     async def get_access_stats(self, tenant_id: str) -> Optional[Dict[str, Any]]:
         """获取租户访问统计"""
         return self._access_stats.get(tenant_id)
-    
-    async def log_security_event(
-        self,
-        tenant_id: str,
-        event_type: str,
-        client_ip: str,
-        details: Dict[str, Any],
-        risk_level: str = "low"
-    ) -> None:
-        """
-        记录安全事件到PostgreSQL
-        
-        参数:
-            tenant_id: 租户ID
-            event_type: 事件类型
-            client_ip: 客户端IP
-            details: 事件详情
-            risk_level: 风险级别
-        """
-        try:
-            audit_log = SecurityAuditLog(
-                log_id=f"{tenant_id}_{int(format_timestamp())}_{event_type}",
-                tenant_id=tenant_id,
-                event_type=event_type,
-                event_timestamp=get_current_datetime(),
-                client_ip=client_ip,
-                user_agent=details.get("user_agent"),
-                request_id=details.get("request_id"),
-                jwt_subject=details.get("jwt_subject"),
-                jwt_issuer=details.get("jwt_issuer"),
-                authentication_result=details.get("auth_result", "unknown"),
-                details=details,
-                risk_level=risk_level
-            )
-            
-            # 保存到PostgreSQL
-            await self._save_security_audit_log(audit_log)
-            
-            logger.info(
-                f"安全事件记录 - 租户: {tenant_id}, 事件: {event_type}, "
-                f"风险: {risk_level}, IP: {client_ip}"
-            )
-            
-        except Exception as e:
-            logger.error(f"记录安全事件失败: {e}")
-    
-    async def _save_security_audit_log(self, audit_log: SecurityAuditLog) -> None:
-        """保存安全审计日志到PostgreSQL"""
-        try:
-            async with database_session() as session:
-                log_model = SecurityAuditLogModel.from_business_model(audit_log)
-                session.add(log_model)
-                await session.commit()
-        except Exception as e:
-            logger.error(f"保存安全审计日志失败: {e}")
     
     async def invalidate_cache(self, tenant_id: str) -> None:
         """使指定租户的缓存失效"""
@@ -385,14 +329,14 @@ class TenantManager:
                 "total_tenants": tenant_count,
                 "cache_hit_rate": self._calculate_cache_hit_rate(),
                 "total_access_records": len(self._access_stats),
-                "timestamp": get_current_datetime().isoformat()
+                "timestamp": format_timestamp(get_current_datetime())
             }
         except Exception as e:
             logger.error(f"健康检查失败: {e}")
             return {
                 "status": "unhealthy",
                 "error": str(e),
-                "timestamp": get_current_datetime().isoformat()
+                "timestamp": format_timestamp(get_current_datetime())
             }
     
     def _calculate_cache_hit_rate(self) -> float:

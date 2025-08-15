@@ -1,0 +1,22 @@
+"""
+模型包
+
+包含MAS系统中使用的所有数据模型，采用简化的单文件结构。
+每个文件包含相关业务的所有模型（Pydantic业务模型 + SQLAlchemy数据库模型）。
+
+模型文件:
+- tenant.py: 租户管理相关的所有模型（业务模型 + 数据库模型）
+"""
+
+# 导出常用模型以便使用
+from .tenant import (
+    TenantRole,
+    TenantConfig, 
+    TenantModel
+)
+
+__all__ = [
+    "TenantRole",
+    "TenantConfig",
+    "TenantModel"
+]

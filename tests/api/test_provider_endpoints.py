@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 from fastapi import status
 
 from main import app
-from src.utils import format_timestamp
+from utils import format_timestamp
 
 
 class TestMultiLLMProviderEndpoints:

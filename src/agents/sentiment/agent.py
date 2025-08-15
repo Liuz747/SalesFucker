@@ -9,9 +9,9 @@ from typing import Dict, Any
 from ..base import BaseAgent, AgentMessage, ThreadState
 from src.llm import get_multi_llm_client
 from src.prompts import get_prompt_manager
-from src.utils import parse_sentiment_response
+from utils import parse_sentiment_response
 from src.llm.intelligent_router import RoutingStrategy
-from src.utils import get_current_datetime, get_processing_time_ms
+from utils import get_current_datetime, get_processing_time_ms
 
 
 class SentimentAnalysisAgent(BaseAgent):

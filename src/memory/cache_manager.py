@@ -16,7 +16,7 @@ import asyncio
 from typing import Dict, Any, Optional
 from datetime import datetime
 import aioredis
-from src.utils import get_component_logger
+from utils import get_component_logger
 
 
 class MultiLevelCacheManager:

@@ -24,7 +24,7 @@ from .provider_config import (
     ProviderCredentials,
     ModelConfig
 )
-from src.utils import get_component_logger
+from utils import get_component_logger
 
 
 class ConfigValidationError(Exception):

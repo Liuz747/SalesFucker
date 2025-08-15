@@ -24,7 +24,7 @@ from .intelligent_router import IntelligentRouter, RoutingContext, RoutingStrate
 from .cost_optimizer import CostOptimizer
 from .provider_config import GlobalProviderConfig, ProviderType
 from .client_components import SessionManager, StatsCollector
-from src.utils import get_component_logger, ErrorHandler
+from utils import get_component_logger, ErrorHandler
 
 
 class MultiLLMClient:

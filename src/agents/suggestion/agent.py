@@ -8,7 +8,7 @@ AI建议智能体 - 重构版
 from typing import Dict, Any
 from ..base import BaseAgent, AgentMessage, ThreadState
 from src.llm.intelligent_router import RoutingStrategy
-from src.utils import get_current_datetime, get_processing_time_ms
+from utils import get_current_datetime, get_processing_time_ms
 
 from .escalation_analyzer import EscalationAnalyzer
 from .quality_assessor import QualityAssessor

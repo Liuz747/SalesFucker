@@ -31,7 +31,7 @@ from .providers import (
     GeminiProvider,
     DeepSeekProvider
 )
-from src.utils import get_component_logger, ErrorHandler
+from utils import get_component_logger, ErrorHandler
 
 
 class ProviderManager:

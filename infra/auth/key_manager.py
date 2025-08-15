@@ -13,7 +13,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
 
-from src.utils import get_current_datetime, format_timestamp, format_datetime
+from utils import get_current_datetime, format_timestamp, format_datetime
 
 
 class ServiceKeyManager:

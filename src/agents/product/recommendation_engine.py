@@ -17,7 +17,7 @@ from src.rag import (
     ProductSearch,
     SearchQuery
 )
-from src.utils import get_current_datetime, get_processing_time_ms
+from utils import get_current_datetime, get_processing_time_ms
 
 logger = logging.getLogger(__name__)
 

@@ -6,7 +6,7 @@ from typing import Dict, Any
 from fastapi import Request, Depends
 
 from infra.auth.jwt_auth import get_service_context
-from infra.auth.models import ServiceContext
+from infra.auth.jwt_auth import ServiceContext
 
 
 async def get_request_context(

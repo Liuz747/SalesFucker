@@ -23,8 +23,8 @@ from ..schemas.prompts import (
     AssistantPromptConfig, PromptLibraryItem,
     PromptCategory, PromptType, PromptLanguage
 )
-from src.utils import get_component_logger, with_error_handling, StatusMixin
-from src.libs.constants import StatusConstants
+from utils import get_component_logger, with_error_handling, StatusMixin
+from libs.constants import StatusConstants
 
 
 class PromptHandler(StatusMixin):

@@ -19,9 +19,9 @@ import asyncio
 from datetime import datetime
 
 from ..schemas.responses import SuccessResponse
-from src.utils import get_component_logger
+from utils import get_component_logger
 from infra.auth.jwt_auth import get_service_context
-from infra.auth.models import ServiceContext
+from infra.auth.jwt_auth import ServiceContext
 
 logger = get_component_logger(__name__, "HealthEndpoints")
 

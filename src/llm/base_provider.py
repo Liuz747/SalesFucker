@@ -26,7 +26,7 @@ from .provider_config import (
     ModelConfig,
     ProviderHealth
 )
-from src.utils import get_component_logger, ErrorHandler
+from utils import get_component_logger, ErrorHandler
 
 
 class RequestType(str, Enum):

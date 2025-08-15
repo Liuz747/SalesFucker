@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from typing import Dict, Any, Optional, List
 
-from infra.auth.models import TenantConfig
-from api.tenant_manager import get_tenant_manager, TenantManager
+from models.tenant import TenantConfig
+from api.dependencies.tenant_manager import get_tenant_manager, TenantManager
 from api.schemas.tenant import (
     TenantSyncRequest,
     TenantUpdateRequest,
     TenantStatusResponse,
     TenantListResponse,
 )
-from src.utils import get_current_datetime
+from utils import get_current_datetime
 
 
 class TenantHandler:
