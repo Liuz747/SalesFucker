@@ -16,7 +16,7 @@ from typing import Dict, Any, Optional
 
 from .message import AgentMessage, ThreadState
 from src.utils import get_component_logger, ErrorHandler, StatusMixin
-from src.infra.monitoring import AgentMonitor
+from infra.monitoring import AgentMonitor
 from src.llm import RoutingStrategy, GlobalProviderConfig, LLMMixin
 
 class BaseAgent(LLMMixin, StatusMixin, ABC):

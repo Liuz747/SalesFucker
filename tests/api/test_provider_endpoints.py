@@ -9,12 +9,12 @@
 """
 
 import pytest
-from unittest.mock import Mock, patch, AsyncMock
-from datetime import datetime
+from unittest.mock import Mock, patch
 from fastapi.testclient import TestClient
 from fastapi import status
 
 from main import app
+from src.utils import format_timestamp
 
 
 class TestMultiLLMProviderEndpoints:
@@ -36,14 +36,14 @@ class TestMultiLLMProviderEndpoints:
             "providers": {
                 "openai": {
                     "status": "healthy",
-                    "last_check": datetime.now().isoformat(),
+                    "last_check": format_timestamp(),
                     "latency_ms": 800,
                     "success_rate": 0.98,
                     "models": ["gpt-4", "gpt-3.5-turbo"],
                 },
                 "anthropic": {
                     "status": "healthy",
-                    "last_check": datetime.now().isoformat(),
+                    "last_check": format_timestamp(),
                     "latency_ms": 600,
                     "success_rate": 0.99,
                     "models": ["claude-3-opus", "claude-3-sonnet"],

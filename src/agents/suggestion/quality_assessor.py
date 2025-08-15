@@ -7,7 +7,7 @@
 
 from typing import Dict, Any, List
 import logging
-from ..base import ConversationState
+from ..base import ThreadState
 from src.utils import get_component_logger
 
 
@@ -42,7 +42,7 @@ class QualityAssessor:
         
         self.logger.info(f"质量评估器初始化完成: tenant_id={tenant_id}")
     
-    async def assess_conversation_quality(self, state: ConversationState) -> List[Dict[str, Any]]:
+    async def assess_conversation_quality(self, state: ThreadState) -> List[Dict[str, Any]]:
         """
         分析对话质量并提供改进建议
         
@@ -76,7 +76,7 @@ class QualityAssessor:
         self.logger.info(f"生成了 {len(filtered_suggestions)} 条质量改进建议")
         return filtered_suggestions
     
-    def _assess_response_efficiency(self, state: ConversationState) -> List[Dict[str, Any]]:
+    def _assess_response_efficiency(self, state: ThreadState) -> List[Dict[str, Any]]:
         """评估响应效率"""
         suggestions = []
         
@@ -104,7 +104,7 @@ class QualityAssessor:
         
         return suggestions
     
-    def _assess_system_reliability(self, state: ConversationState) -> List[Dict[str, Any]]:
+    def _assess_system_reliability(self, state: ThreadState) -> List[Dict[str, Any]]:
         """评估系统可靠性"""
         suggestions = []
         
@@ -130,7 +130,7 @@ class QualityAssessor:
         
         return suggestions
     
-    def _assess_personalization_level(self, state: ConversationState) -> List[Dict[str, Any]]:
+    def _assess_personalization_level(self, state: ThreadState) -> List[Dict[str, Any]]:
         """评估个性化程度"""
         suggestions = []
         
@@ -156,7 +156,7 @@ class QualityAssessor:
         
         return suggestions
     
-    def _assess_response_accuracy(self, state: ConversationState) -> List[Dict[str, Any]]:
+    def _assess_response_accuracy(self, state: ThreadState) -> List[Dict[str, Any]]:
         """评估响应准确性"""
         suggestions = []
         
@@ -196,7 +196,7 @@ class QualityAssessor:
         max_suggestions = 10
         return suggestions[:max_suggestions]
     
-    def calculate_conversation_quality_score(self, state: ConversationState) -> float:
+    def calculate_conversation_quality_score(self, state: ThreadState) -> float:
         """
         计算对话质量分数
         

@@ -36,8 +36,6 @@ REDIS_URL=redis://localhost:6379
 OPENAI_API_KEY=your_openai_api_key_here
 OPENAI_MODEL=gpt-4-turbo
 
-# Multi-tenant Configuration
-ENABLE_MULTI_TENANT=true
 EOL
     echo "⚠️  Please update the OPENAI_API_KEY in .env file"
 fi

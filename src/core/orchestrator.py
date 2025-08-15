@@ -255,4 +255,44 @@ class Orchestrator(StatusMixin):
         返回:
             Dict[str, str]: 节点到智能体的映射关系
         """
-        return self.node_mapping.copy() 
+        return self.node_mapping.copy()
+
+
+# 全局编排器实例管理
+_orchestrator_instances: Dict[str, Orchestrator] = {}
+
+
+def get_orchestrator(tenant_id: str) -> Orchestrator:
+    """
+    获取或创建租户编排器实例
+    
+    参数:
+        tenant_id: 租户标识符
+        
+    返回:
+        Orchestrator: 租户编排器实例
+    """
+    if tenant_id not in _orchestrator_instances:
+        _orchestrator_instances[tenant_id] = Orchestrator(tenant_id)
+    
+    return _orchestrator_instances[tenant_id]
+
+
+def shutdown_orchestrator(tenant_id: Optional[str] = None):
+    """
+    关闭编排器实例
+    
+    参数:
+        tenant_id: 租户标识符，如果为None则关闭所有实例
+    """
+    global _orchestrator_instances
+    
+    if tenant_id is None:
+        # 关闭所有实例
+        for orchestrator in _orchestrator_instances.values():
+            orchestrator.reset_statistics()
+        _orchestrator_instances.clear()
+    elif tenant_id in _orchestrator_instances:
+        # 关闭特定租户实例
+        _orchestrator_instances[tenant_id].reset_statistics()
+        del _orchestrator_instances[tenant_id] 

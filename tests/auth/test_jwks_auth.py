@@ -19,9 +19,9 @@ import jwt
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 
-from src.auth.jwt_auth import verify_jwt_token
-from src.auth.models import TenantConfig
-from src.auth.tenant_manager import get_tenant_manager, TenantManager
+from infra.auth.jwt_auth import verify_jwt_token
+from infra.auth.models import TenantConfig
+from api.tenant_manager import get_tenant_manager, TenantManager
 from config.settings import settings
 
 

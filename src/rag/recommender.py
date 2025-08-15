@@ -8,7 +8,7 @@ from enum import Enum
 
 from .search import ProductSearch, SearchQuery, SearchResult
 from .vector_db import MilvusDB
-from src.infra.cache import get_redis_client
+from infra.cache import get_redis_client
 
 
 class RecommendationType(Enum):

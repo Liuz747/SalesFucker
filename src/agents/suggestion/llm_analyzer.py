@@ -8,7 +8,7 @@ LLM分析器
 from typing import Dict, Any
 import json
 import logging
-from src.llm import get_llm_client
+from src.llm import get_multi_llm_client
 from src.utils import get_component_logger
 
 
@@ -25,7 +25,7 @@ class LLMAnalyzer:
         self.logger = get_component_logger(f"llm_analyzer_{tenant_id}")
         
         # LLM客户端
-        self.llm_client = get_llm_client()
+        self.llm_client = get_multi_llm_client()
         
         # 分析配置
         self.analysis_config = {

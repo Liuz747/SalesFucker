@@ -36,6 +36,7 @@ class PromptType(StrEnum):
     PRODUCT_RECOMMENDATION = "product_recommendation"
     OBJECTION_HANDLING = "objection_handling"
     CLOSING = "closing"
+    CONTENT_ANALYSIS = "content_analysis"
 
 
 # 默认提示词模板配置
@@ -229,7 +230,28 @@ DEFAULT_PROMPTS = {
                                 - 维护公司品牌形象
 
                                 请严格审查对话内容，确保所有信息真实、合规、负责任。
-                                """
+                                """,
+        
+        PromptType.CONTENT_ANALYSIS: """
+                                    请分析以下客户输入的合规性，输出JSON格式结果：
+                                    
+                                    客户输入: {customer_input}
+                                    
+                                    请检查是否存在以下违规情况：
+                                    - 不当言论（侮辱、攻击性语言）
+                                    - 违法内容（涉及违禁品、不实宣传）
+                                    - 敏感信息（个人隐私、敏感数据）
+                                    - 恶意行为（垃圾信息、恶意攻击）
+                                    
+                                    请输出以下格式的JSON：
+                                    {{
+                                        "status": "approved/flagged/blocked",
+                                        "violations": ["违规内容列表"],
+                                        "severity": "low/medium/high",
+                                        "user_message": "用户提示消息",
+                                        "recommended_action": "proceed/review/block"
+                                    }}
+                                    """
     },
 
     AgentType.MARKETING: {
