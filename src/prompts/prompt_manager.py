@@ -48,7 +48,7 @@ class PromptManager:
         self._prompt_handler = None
         if self.enable_api_integration:
             try:
-                from src.api.handlers.prompt_handler import PromptHandler
+                from api.handlers.prompt_handler import PromptHandler
                 self._prompt_handler = PromptHandler()
                 self.logger.info("提示词处理器集成已启用")
             except Exception as e:

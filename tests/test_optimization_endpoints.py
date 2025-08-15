@@ -17,8 +17,8 @@ from fastapi.testclient import TestClient
 from fastapi import status
 import json
 
-from src.api.multi_llm_endpoints import router as multi_llm_router
-from src.api.multi_llm_provider_handlers import OptimizationHandler
+from api.multi_llm_endpoints import router as multi_llm_router
+from api.multi_llm_provider_handlers import OptimizationHandler
 from main import app
 
 

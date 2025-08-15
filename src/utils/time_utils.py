@@ -57,7 +57,7 @@ def format_timestamp(dt: Optional[datetime] = None) -> str:
         dt = get_current_datetime()
     return dt.isoformat()
 
-def format_datatime(dt: Optional[str] = None) -> datetime:
+def format_datetime(dt: str) -> datetime:
     """
     格式化ISO格式字符串为时间戳
     

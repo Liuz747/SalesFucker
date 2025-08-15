@@ -6,7 +6,7 @@ import hashlib
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 
-from src.infra.cache import get_redis_client
+from infra.cache import get_redis_client
 from src.llm import get_multi_llm_client
 
 

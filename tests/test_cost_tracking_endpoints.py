@@ -18,8 +18,8 @@ from fastapi.testclient import TestClient
 from fastapi import status
 import json
 
-from src.api.multi_llm_endpoints import router as multi_llm_router
-from src.api.multi_llm_handlers import MultiLLMAPIHandler
+from api.multi_llm_endpoints import router as multi_llm_router
+from api.multi_llm_handlers import MultiLLMAPIHandler
 from src.llm.cost_optimizer.models import CostRecord, UsageMetrics
 from main import app
 

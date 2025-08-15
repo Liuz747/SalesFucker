@@ -27,10 +27,10 @@ from fastapi.testclient import TestClient
 from fastapi import status
 import json
 
-from src.api.multi_llm_endpoints import router as multi_llm_router
-from src.api.multi_llm_admin_endpoints import router as admin_router
-from src.api.multi_llm_handlers import MultiLLMAPIHandler
-from src.api.multi_llm_provider_handlers import (
+from api.multi_llm_endpoints import router as multi_llm_router
+from api.multi_llm_admin_endpoints import router as admin_router
+from api.multi_llm_handlers import MultiLLMAPIHandler
+from api.multi_llm_provider_handlers import (
     ProviderManagementHandler, OptimizationHandler
 )
 from src.llm.provider_config import ProviderType, GlobalProviderConfig

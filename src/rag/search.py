@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 from .embedding import EmbeddingGenerator, EmbeddingResult
 from .vector_db import MilvusDB, SearchResult
-from src.infra.cache import get_redis_client
+from infra.cache import get_redis_client
 
 
 @dataclass

@@ -14,7 +14,7 @@
 注意: 类型定义、常量和性能配置已移至 src/libs/ 目录
 """
 
-from .time_utils import get_current_datetime, get_processing_time_ms, format_timestamp, format_datatime
+from .time_utils import get_current_datetime, get_processing_time_ms, format_timestamp, format_datetime
 from .logger_utils import get_component_logger, LoggerMixin
 from .status_mixin import StatusMixin
 from .error_handling import with_error_handling, with_fallback, ErrorHandler
@@ -36,7 +36,7 @@ __all__ = [
     "get_current_datetime",
     "get_processing_time_ms", 
     "format_timestamp",
-    "format_datatime",
+    "format_datetime",
     # 日志工具
     "get_component_logger",
     "LoggerMixin",

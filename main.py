@@ -1,18 +1,139 @@
 """
-FastAPI Main Application Entry Point
+FastAPI主应用入口
 
-Entry point for the MAS Cosmetic Agent System API.
-Creates a minimal app for uvicorn while the full app is in src/api/main.py.
+该模块是整个API服务的入口点，负责创建FastAPI应用实例、
+注册路由器、配置中间件和异常处理。
+
+核心功能:
+- FastAPI应用初始化
+- 路由器注册和管理
+- 中间件配置
+- 全局异常处理
+- API文档配置
 """
 
 import uvicorn
-from config.settings import settings
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
+from config.settings import settings
+from src.utils import get_component_logger
+from api.exceptions import APIException
+from api.middleware import (
+    SafetyInterceptor,
+    TenantIsolation,
+    JWTMiddleware
+)
+from api.endpoints import (
+    agents_router,
+    conversations_router,
+    llm_management_router,
+    multimodal_router,
+    health_router,
+    assistants_router,
+    prompts_router,
+    tenant_router
+)
+from api.endpoints.service_auth import router as auth_router
+
+# 配置日志
+logger = get_component_logger(__name__)
+
+# 创建FastAPI应用
+app = FastAPI(
+    title="MAS营销智能体系统API",
+    description="多智能体营销系统的RESTful API",
+    version="1.0.0",
+    docs_url="/docs",
+    redoc_url="/redoc"
+)
+
+# 配置CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # 生产环境应限制具体域名
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# 添加自定义中间件 (order matters - JWT first for security)
+app.add_middleware(JWTMiddleware, exclude_paths=[
+    "/",
+    "/health",
+    "/docs", 
+    "/openapi.json",
+    "/redoc",
+    "/v1/health",
+    "/v1/auth/token",
+], exclude_prefixes=[
+    "/static/",
+    "/assets/"
+])
+app.add_middleware(SafetyInterceptor)
+app.add_middleware(TenantIsolation)
+
+# 全局异常处理
+@app.exception_handler(APIException)
+async def api_exception_handler(request: Request, exc: APIException):
+    """处理自定义API异常"""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "error": {
+                "code": exc.error_code,
+                "message": exc.message,
+                "details": exc.details
+            },
+            "timestamp": exc.timestamp.isoformat(),
+            "path": str(request.url)
+        }
+    )
+
+@app.exception_handler(Exception)
+async def general_exception_handler(request: Request, exc: Exception):
+    """处理未捕获的异常"""
+    logger.error(f"未捕获异常: {exc}", exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": {
+                "code": "INTERNAL_SERVER_ERROR",
+                "message": "服务器内部错误",
+                "details": None
+            },
+            "timestamp": None,
+            "path": str(request.url)
+        }
+    )
+
+# 注册路由器
+app.include_router(health_router, prefix="/v1")
+app.include_router(auth_router, prefix="/v1")
+app.include_router(agents_router, prefix="/v1")
+app.include_router(conversations_router, prefix="/v1")
+app.include_router(llm_management_router, prefix="/v1")
+app.include_router(multimodal_router, prefix="/v1")
+app.include_router(assistants_router, prefix="/v1")
+app.include_router(prompts_router, prefix="/v1")
+app.include_router(tenant_router, prefix="/v1")
+
+# 根路径健康检查
+@app.get("/")
+async def root():
+    """根路径健康检查"""
+    return {
+        "service": "MAS化妆品智能体系统",
+        "status": "运行中",
+        "version": "1.0.0",
+        "docs": "/docs"
+    }
 
 def main():
     """Main entry point for the application."""
     uvicorn.run(
-        "src.api.main:app",  # Point directly to src.api.main:app
+        "main:app",
         host=settings.api_host,
         port=settings.api_port,
         reload=settings.debug,

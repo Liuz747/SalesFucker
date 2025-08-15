@@ -25,6 +25,23 @@ class Settings(BaseSettings):
     elasticsearch_url: str = Field(default="http://localhost:9200", env="ELASTICSEARCH_URL")
     redis_url: str = Field(default="redis://localhost:6379", env="REDIS_URL")
     
+    # PostgreSQL Configuration (for tenant management)
+    postgres_host: str = Field(default="localhost", env="POSTGRES_HOST")
+    postgres_port: int = Field(default=5432, env="POSTGRES_PORT")
+    postgres_db: str = Field(default="mas_tenants", env="POSTGRES_DB")
+    postgres_user: str = Field(default="mas_user", env="POSTGRES_USER")
+    postgres_password: str = Field(default="", env="POSTGRES_PASSWORD")
+    postgres_ssl_mode: str = Field(default="prefer", env="POSTGRES_SSL_MODE")
+    
+    @property
+    def postgres_url(self) -> str:
+        """构建PostgreSQL连接URL"""
+        return (
+            f"postgresql+asyncpg://{self.postgres_user}:{self.postgres_password}"
+            f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
+            f"?sslmode={self.postgres_ssl_mode}"
+        )
+    
     # LLM Provider API Keys
     openai_api_key: str = Field(default="", env="OPENAI_API_KEY")
     anthropic_api_key: str = Field(default="", env="ANTHROPIC_API_KEY")
