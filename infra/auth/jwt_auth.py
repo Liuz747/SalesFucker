@@ -18,7 +18,7 @@ from fastapi import HTTPException, Header, Depends
 from pydantic import BaseModel, Field
 
 from config.settings import settings
-from utils import get_component_logger, get_current_datetime, format_datetime
+from utils import get_component_logger, get_current_datetime, format_datetime, format_datetime_int
 from .key_manager import key_manager
 
 
@@ -151,8 +151,8 @@ async def verify_service_jwt_token(token: str) -> ServiceVerificationResult:
         
         # 构建服务上下文
         current_time = get_current_datetime()
-        issued_at = format_datetime(payload.get("iat"))
-        exp_time = format_datetime(payload.get("exp"))
+        issued_at = format_datetime_int(payload.get("iat"))
+        exp_time = format_datetime_int(payload.get("exp"))
         
         service_context = ServiceContext(
             sub=payload.get("sub"),
