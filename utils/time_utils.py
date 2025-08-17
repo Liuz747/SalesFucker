@@ -8,7 +8,7 @@
 - 处理时间计算
 """
 
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 from typing import Optional
 
@@ -68,3 +68,16 @@ def format_datetime(dt: str) -> datetime:
         str: ISO格式时间戳 (e.g., "2024-01-15T10:30:45.123456+08:00")
     """
     return datetime.fromisoformat(dt)
+
+
+def format_datetime_int(dt: int) -> datetime:
+    """
+    格式化ISO格式字符串的时间戳为 datetime
+
+    参数:
+        dt: 要格式化的时间，为None则使用当前Shanghai时间
+
+    返回:
+        str: ISO格式时间戳 (e.g., "2024-01-15T10:30:45.123456+08:00")
+    """
+    return datetime.utcfromtimestamp(dt).replace(tzinfo=timezone(timedelta(hours=8)))

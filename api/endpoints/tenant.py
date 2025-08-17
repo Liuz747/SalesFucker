@@ -46,7 +46,7 @@ async def sync_tenant(
     This endpoint receives the tenant's PUBLIC key for JWT verification.
     """
     try:
-        logger.info(f"Backend tenant sync request: {tenant_id}")
+        logger.info(f"Backend tenant sync request: {tenant_id} \n param: {request}")
         
         # Validate tenant_id matches request
         if request.tenant_id != tenant_id:
@@ -65,7 +65,7 @@ async def sync_tenant(
             message="Tenant synced successfully",
             synced_at=get_current_datetime(),
             features_enabled=request.features,
-            public_key_fingerprint=result["public_key_fingerprint"]
+            # public_key_fingerprint=result["public_key_fingerprint"]
         )
         
     except ValueError as e:
