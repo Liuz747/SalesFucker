@@ -38,19 +38,3 @@ class DeploymentConfig(BaseSettings):
         description="部署环境标识（如 'PRODUCTION', 'DEVELOPMENT'），默认为生产环境",
         default="PRODUCTION",
     )
-
-    # 日志记录配置
-    LOG_LEVEL: str = Field(
-        description="日志记录级别（DEBUG, INFO, WARNING, ERROR, CRITICAL）",
-        default="INFO",
-    )
-
-    LOG_FILE: str = Field(
-        description="日志文件存储路径",
-        default="logs/mas.log",
-    )
-
-    ENABLE_REQUEST_LOGGING: bool = Field(
-        description="启用请求和响应体日志记录",
-        default=False,
-    )

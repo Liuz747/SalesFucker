@@ -8,11 +8,10 @@ from pydantic_settings import SettingsConfigDict
 
 from .deploy import DeploymentConfig
 from .storage import StorageConfig
-from .feature import LLMConfig
-from .service import AuthConfig
+from .service import ServiceConfig
 
 
-class AppConfig(DeploymentConfig, StorageConfig, LLMConfig, AuthConfig):
+class AppConfig(DeploymentConfig, StorageConfig, ServiceConfig):
     """
     集成配置类
     
