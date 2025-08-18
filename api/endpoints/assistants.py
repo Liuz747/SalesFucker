@@ -48,7 +48,7 @@ async def create_assistant(
         # JWT认证中已验证租户身份，无需重复检查
         
         result = await assistant_handler.create_assistant(
-            request, request.tenant_id
+            request
         )
         
         logger.info(f"助理创建成功: {request.assistant_id}")
