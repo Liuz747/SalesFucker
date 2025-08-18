@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine
 )
 
-from config.settings import settings
+from config import settings
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "Database")
@@ -35,7 +35,7 @@ async def get_database_engine() -> AsyncEngine:
     global _engine
     
     if _engine is None:
-        logger.info(f"初始化PostgreSQL连接: {settings.postgres_host}:{settings.postgres_port}")
+        logger.info(f"初始化PostgreSQL连接: {settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}")
         
         _engine = create_async_engine(
             settings.postgres_url,
@@ -51,7 +51,7 @@ async def get_database_engine() -> AsyncEngine:
                     "application_name": "mas-tenant-service",
                 }
             },
-            echo=settings.debug,  # 开发环境下显示SQL
+            echo=settings.DEBUG,  # 开发环境下显示SQL
         )
         
         logger.info("PostgreSQL引擎初始化完成")

@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from models.tenant import TenantConfig, TenantModel
 from infra.db.connection import database_session
-from utils import get_component_logger, get_current_datetime, format_timestamp
+from utils import get_component_logger, get_current_datetime, to_isoformat
 
 logger = get_component_logger(__name__, "TenantManager")
 
@@ -220,7 +220,7 @@ class TenantManager:
             stats["total_requests"] += 1
             
             # 按日统计
-            date_key = format_timestamp(access_time.date())
+            date_key = to_isoformat(access_time.date())
             stats["daily_requests"][date_key] = (
                 stats["daily_requests"].get(date_key, 0) + 1
             )
@@ -235,7 +235,7 @@ class TenantManager:
             cutoff_date = (access_time - timedelta(days=30)).date()
             stats["daily_requests"] = {
                 k: v for k, v in stats["daily_requests"].items()
-                if format_timestamp(k).date() >= cutoff_date
+                if to_isoformat(k).date() >= cutoff_date
             }
         
         # 异步更新数据库中的访问记录
@@ -329,14 +329,14 @@ class TenantManager:
                 "total_tenants": tenant_count,
                 "cache_hit_rate": self._calculate_cache_hit_rate(),
                 "total_access_records": len(self._access_stats),
-                "timestamp": format_timestamp(get_current_datetime())
+                "timestamp": to_isoformat(get_current_datetime())
             }
         except Exception as e:
             logger.error(f"健康检查失败: {e}")
             return {
                 "status": "unhealthy",
                 "error": str(e),
-                "timestamp": format_timestamp(get_current_datetime())
+                "timestamp": to_isoformat(get_current_datetime())
             }
     
     def _calculate_cache_hit_rate(self) -> float:

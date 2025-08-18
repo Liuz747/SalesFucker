@@ -8,7 +8,7 @@
 - 处理时间计算
 """
 
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
 from typing import Optional
 
@@ -43,7 +43,7 @@ def get_processing_time_ms(start_time: datetime) -> float:
     return (datetime.now(SHANGHAI_TZ) - start_time).total_seconds() * 1000
 
 
-def format_timestamp(dt: Optional[datetime] = None) -> str:
+def to_isoformat(dt: Optional[datetime] = None) -> str:
     """
     格式化时间戳为ISO格式字符串
     
@@ -57,7 +57,8 @@ def format_timestamp(dt: Optional[datetime] = None) -> str:
         dt = get_current_datetime()
     return dt.isoformat()
 
-def format_datetime(dt: str) -> datetime:
+
+def from_isoformat(dt: str) -> datetime:
     """
     格式化ISO格式字符串为时间戳
     
@@ -68,3 +69,16 @@ def format_datetime(dt: str) -> datetime:
         str: ISO格式时间戳 (e.g., "2024-01-15T10:30:45.123456+08:00")
     """
     return datetime.fromisoformat(dt)
+
+
+def from_timestamp(timestamp: int) -> datetime:
+    """
+    将时间戳转换为Shanghai时区的datetime对象
+
+    参数:
+        timestamp: 时间戳（整数，秒级）
+
+    返回:
+        datetime: Shanghai时区的datetime对象
+    """
+    return datetime.fromtimestamp(timestamp, tz=SHANGHAI_TZ)

@@ -19,7 +19,7 @@ from ..schemas.tenant import (
     TenantUpdateRequest
 )
 from ..handlers.tenant_handler import TenantHandler
-from utils import get_component_logger, get_current_datetime, format_timestamp
+from utils import get_component_logger, get_current_datetime, to_isoformat
 
 logger = get_component_logger(__name__, "AdminTenantEndpoints")
 
@@ -46,7 +46,7 @@ async def sync_tenant(
     This endpoint receives the tenant's PUBLIC key for JWT verification.
     """
     try:
-        logger.info(f"Backend tenant sync request: {tenant_id}")
+        logger.info(f"Backend tenant sync request: {tenant_id} \n param: {request}")
         
         # Validate tenant_id matches request
         if request.tenant_id != tenant_id:
@@ -64,8 +64,7 @@ async def sync_tenant(
             sync_status="success",
             message="Tenant synced successfully",
             synced_at=get_current_datetime(),
-            features_enabled=request.features,
-            public_key_fingerprint=result["public_key_fingerprint"]
+            features_enabled=request.features
         )
         
     except ValueError as e:
@@ -250,7 +249,7 @@ async def bulk_sync_tenants(
             "successful": successful,
             "failed": failed,
             "results": results,
-            "synced_at": format_timestamp()
+            "synced_at": to_isoformat()
         }
         
     except Exception as e:
@@ -276,7 +275,7 @@ async def admin_tenant_health(
         
         return {
             "status": "healthy",
-            "timestamp": format_timestamp(),
+            "timestamp": to_isoformat(),
             "database_connected": health_status["database_connected"],
             "tenant_count": health_status["tenant_count"],
             "admin_auth": "valid"
@@ -286,7 +285,7 @@ async def admin_tenant_health(
         logger.error(f"Admin health check failed: {e}", exc_info=True)
         return {
             "status": "unhealthy",
-            "timestamp": format_timestamp(),
+            "timestamp": to_isoformat(),
             "error": str(e),
             "admin_auth": "valid"
         }

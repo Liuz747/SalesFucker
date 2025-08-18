@@ -37,7 +37,7 @@ target_metadata = Base.metadata
 def get_url():
     """获取数据库URL"""
     try:
-        from config.settings import settings
+        from config import settings
         return settings.postgres_url
     except ImportError:
         # 如果无法导入settings，使用默认值

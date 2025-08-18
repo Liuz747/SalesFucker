@@ -17,7 +17,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from config.settings import settings
+from config import settings
 from utils import get_component_logger
 from api.exceptions import APIException
 from api.middleware import (
@@ -124,9 +124,9 @@ app.include_router(tenant_router, prefix="/v1")
 async def root():
     """根路径健康检查"""
     return {
-        "service": "MAS化妆品智能体系统",
+        "service": settings.APP_NAME,
         "status": "运行中",
-        "version": "1.0.0",
+        "version": "0.2.0",
         "docs": "/docs"
     }
 
@@ -134,10 +134,10 @@ def main():
     """Main entry point for the application."""
     uvicorn.run(
         "main:app",
-        host=settings.api_host,
-        port=settings.api_port,
-        reload=settings.debug,
-        log_level="info" if not settings.debug else "debug"
+        host=settings.APP_HOST,
+        port=settings.APP_PORT,
+        reload=settings.DEBUG,
+        log_level="info" if not settings.DEBUG else "debug"
     )
 
 

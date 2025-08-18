@@ -20,10 +20,10 @@ from infra.db.connection import (
     test_database_connection,
     close_database_connections
 )
+from config import settings
 from models.tenant import Base
 from api.dependencies.tenant_manager import get_tenant_manager
 from utils import get_component_logger
-from config.settings import settings
 
 logger = get_component_logger(__name__, "DatabaseSetup")
 
@@ -95,8 +95,8 @@ async def verify_setup():
 async def main():
     """主函数"""
     logger.info("=== MAS 数据库初始化脚本 ===")
-    logger.info(f"PostgreSQL Host: {settings.postgres_host}")
-    logger.info(f"Database: {settings.postgres_db}")
+    logger.info(f"PostgreSQL Host: {settings.POSTGRES_HOST}")
+    logger.info(f"Database: {settings.POSTGRES_DB}")
     
     try:
         # Step 1: 测试数据库连接

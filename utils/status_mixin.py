@@ -10,7 +10,7 @@
 """
 
 from typing import Dict, Any
-from .time_utils import format_timestamp
+from .time_utils import to_isoformat
 
 
 class StatusMixin:
@@ -25,14 +25,14 @@ class StatusMixin:
         """创建标准化状态响应"""
         return {
             **status_data,
-            "timestamp": format_timestamp(),
+            "timestamp": to_isoformat(),
             "component": component_name or self.__class__.__name__
         }
     
     def create_metrics_response(self, metrics: Dict[str, Any] = None, details: Dict[str, Any] = None) -> Dict[str, Any]:
         """创建指标数据响应（不包含主观状态判断）"""
         response = {
-            "timestamp": format_timestamp(),
+            "timestamp": to_isoformat(),
             "component": self.__class__.__name__
         }
         if metrics:
@@ -45,7 +45,7 @@ class StatusMixin:
         """创建标准化错误响应"""
         response = {
             "error": error_message,
-            "timestamp": format_timestamp(),
+            "timestamp": to_isoformat(),
             "component": self.__class__.__name__
         }
         if error_type:
@@ -58,7 +58,7 @@ class StatusMixin:
         """创建标准化成功响应"""
         response = {
             "success": True,
-            "timestamp": format_timestamp(),
+            "timestamp": to_isoformat(),
             "component": self.__class__.__name__
         }
         if message:

@@ -13,7 +13,7 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.backends import default_backend
 
-from utils import get_current_datetime, format_timestamp, format_datetime
+from utils import get_current_datetime, to_isoformat, from_isoformat
 
 
 class ServiceKeyManager:
@@ -77,8 +77,8 @@ class ServiceKeyManager:
             "app_key": app_key,
             "public_key": public_pem.decode('utf-8'),
             "private_key": private_pem.decode('utf-8'),
-            "created_at": format_timestamp(now),
-            "expires_at": format_timestamp(expires_at),
+            "created_at": to_isoformat(now),
+            "expires_at": to_isoformat(expires_at),
             "status": "active"
         }
         
@@ -115,7 +115,7 @@ class ServiceKeyManager:
                 key_data = json.load(f)
             
             # Check expiration
-            expires_at = format_datetime(key_data["expires_at"])
+            expires_at = from_isoformat(key_data["expires_at"])
             if get_current_datetime() > expires_at:
                 return None
             
@@ -180,7 +180,7 @@ class ServiceKeyManager:
                 with open(key_file, 'r') as f:
                     key_data = json.load(f)
                 
-                expires_at = format_datetime(key_data["expires_at"])
+                expires_at = from_isoformat(key_data["expires_at"])
                 if get_current_datetime() > expires_at:
                     os.remove(key_file)
                     cleaned += 1
