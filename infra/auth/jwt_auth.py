@@ -17,8 +17,8 @@ from typing import Optional, List, Dict, Any
 from fastapi import HTTPException, Header, Depends
 from pydantic import BaseModel, Field
 
-from config.settings import settings
-from utils import get_component_logger, get_current_datetime, format_datetime, format_datetime_int
+from config import settings
+from utils import get_component_logger, get_current_datetime, from_timestamp
 from .key_manager import key_manager
 
 
@@ -93,7 +93,7 @@ async def verify_service_jwt_token(token: str) -> ServiceVerificationResult:
     """
     try:
         # 配置检查
-        if not settings.app_key:
+        if not settings.APP_KEY:
             return ServiceVerificationResult(
                 is_valid=False,
                 error_code="SERVICE_AUTH_NOT_CONFIGURED",
@@ -102,13 +102,13 @@ async def verify_service_jwt_token(token: str) -> ServiceVerificationResult:
             )
         
         # 获取公钥用于验证
-        public_key = key_manager.get_public_key(settings.app_key)
+        public_key = key_manager.get_public_key(settings.APP_KEY)
         if not public_key:
             return ServiceVerificationResult(
                 is_valid=False,
                 error_code="SERVICE_KEY_NOT_FOUND",
                 error_message="服务密钥对未找到或已过期",
-                verification_details={"app_key": settings.app_key}
+                verification_details={"app_key": settings.APP_KEY}
             )
         
         # 验证JWT签名和声明
@@ -117,8 +117,8 @@ async def verify_service_jwt_token(token: str) -> ServiceVerificationResult:
                 token,
                 public_key,
                 algorithms=["RS256"],
-                issuer=settings.app_jwt_issuer,
-                audience=settings.app_jwt_audience,
+                issuer=settings.APP_JWT_ISSUER,
+                audience=settings.APP_JWT_AUDIENCE,
                 options={
                     "require": ["exp", "iat", "iss", "aud", "sub", "jti"],
                     "verify_exp": True,
@@ -151,8 +151,8 @@ async def verify_service_jwt_token(token: str) -> ServiceVerificationResult:
         
         # 构建服务上下文
         current_time = get_current_datetime()
-        issued_at = format_datetime_int(payload.get("iat"))
-        exp_time = format_datetime_int(payload.get("exp"))
+        issued_at = from_timestamp(payload.get("iat"))
+        exp_time = from_timestamp(payload.get("exp"))
         
         service_context = ServiceContext(
             sub=payload.get("sub"),

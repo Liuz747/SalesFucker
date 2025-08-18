@@ -79,7 +79,7 @@ graph LR
 
 4. **运行应用程序**
    ```bash
-   uv run python main.py
+   uv run main.py
    ```
 
 ### 手动部署
@@ -88,7 +88,7 @@ graph LR
 
 1. **安装依赖包**
    ```bash
-   uv sync --all-extras
+   uv sync
    ```
 
 2. **启动基础设施服务**
@@ -98,7 +98,7 @@ graph LR
 
 3. **启动 API 服务器**
    ```bash
-   uv run python main.py
+   uv run main.py
    ```
 
 ## 📁 项目结构

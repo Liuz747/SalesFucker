@@ -4,7 +4,7 @@ Redis客户端工厂
 import asyncio
 import redis.asyncio as redis
 from typing import Optional
-from config.settings import settings
+from config import settings
 
 
 class RedisClientManager:
@@ -20,7 +20,7 @@ class RedisClientManager:
             async with self._lock:
                 if self._client is None:
                     self._client = redis.from_url(
-                        settings.redis_url, 
+                        settings.REDIS_URL, 
                         decode_responses=True
                     )
         return self._client
@@ -42,7 +42,7 @@ def get_redis_client() -> redis.Redis:
     
     返回一个Redis客户端实例，使用默认配置
     """
-    return redis.from_url(settings.redis_url, decode_responses=True)
+    return redis.from_url(settings.REDIS_URL, decode_responses=True)
 
 
 async def get_redis_client_async() -> redis.Redis:

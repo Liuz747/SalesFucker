@@ -22,7 +22,6 @@ from cryptography.hazmat.primitives import serialization
 from infra.auth.jwt_auth import verify_jwt_token
 from models.tenant import TenantConfig
 from api.dependencies.tenant_manager import get_tenant_manager, TenantManager
-from config.settings import settings
 
 
 def _b64url(data: bytes) -> str:
@@ -58,7 +57,7 @@ def _gen_rsa_keypair():
 @pytest.mark.asyncio
 async def test_verify_with_jwks(monkeypatch):
     """Verify token using JWKS kid selection."""
-    settings.enable_jwks = True
+    enable_jwks = True
     priv_pem, pub_pem, jwk = _gen_rsa_keypair()
     jwks_uri = "https://issuer.example.com/.well-known/jwks.json"
     issuer = "https://issuer.example.com/"
@@ -167,7 +166,6 @@ async def test_verify_with_pem_fallback():
 @pytest.mark.asyncio
 async def test_invalid_issuer_rejected(monkeypatch):
     """Invalid issuer must be rejected."""
-    settings.enable_jwks = True
     priv_pem, pub_pem, jwk = _gen_rsa_keypair()
     jwks_uri = "https://issuer.example.com/.well-known/jwks.json"
     issuer = "https://issuer.example.com/"
@@ -226,7 +224,6 @@ async def test_invalid_issuer_rejected(monkeypatch):
 @pytest.mark.asyncio
 async def test_missing_kid_when_required(monkeypatch):
     """Missing kid should fail when JWKS is configured and kid required."""
-    settings.enable_jwks = True
     priv_pem, pub_pem, jwk = _gen_rsa_keypair()
     jwks_uri = "https://issuer.example.com/.well-known/jwks.json"
     issuer = "https://issuer.example.com/"

@@ -18,7 +18,7 @@ from utils import (
     get_component_logger,
     get_current_datetime,
     get_processing_time_ms,
-    format_timestamp,
+    to_isoformat,
     with_error_handling
 )
 
@@ -146,7 +146,7 @@ class ComplianceMetricsManager:
             "processing_metrics": self.get_performance_stats(),
             "audit_log_size": audit_log_size,
             "is_active": is_active,
-            "last_check": format_timestamp(self.start_time)
+            "last_check": to_isoformat(self.start_time)
         }
     
     def _format_uptime(self, uptime_seconds: float) -> str:
@@ -250,7 +250,7 @@ class ComplianceMetricsManager:
             "average_response_time": avg_time,
             "total_checks": self.processing_metrics["total_checks"],
             "uptime_seconds": get_processing_time_ms(self.start_time),
-            "timestamp": format_timestamp()
+            "timestamp": to_isoformat()
         }
     
     def reset_metrics(self):

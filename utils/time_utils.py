@@ -43,7 +43,7 @@ def get_processing_time_ms(start_time: datetime) -> float:
     return (datetime.now(SHANGHAI_TZ) - start_time).total_seconds() * 1000
 
 
-def format_timestamp(dt: Optional[datetime] = None) -> str:
+def to_isoformat(dt: Optional[datetime] = None) -> str:
     """
     格式化时间戳为ISO格式字符串
     
@@ -57,7 +57,8 @@ def format_timestamp(dt: Optional[datetime] = None) -> str:
         dt = get_current_datetime()
     return dt.isoformat()
 
-def format_datetime(dt: str) -> datetime:
+
+def from_isoformat(dt: str) -> datetime:
     """
     格式化ISO格式字符串为时间戳
     
@@ -70,14 +71,14 @@ def format_datetime(dt: str) -> datetime:
     return datetime.fromisoformat(dt)
 
 
-def format_datetime_int(dt: int) -> datetime:
+def from_timestamp(timestamp: int) -> datetime:
     """
-    格式化ISO格式字符串的时间戳为 datetime
+    将时间戳转换为Shanghai时区的datetime对象
 
     参数:
-        dt: 要格式化的时间，为None则使用当前Shanghai时间
+        timestamp: 时间戳（整数，秒级）
 
     返回:
-        str: ISO格式时间戳 (e.g., "2024-01-15T10:30:45.123456+08:00")
+        datetime: Shanghai时区的datetime对象
     """
-    return datetime.utcfromtimestamp(dt).replace(tzinfo=timezone(timedelta(hours=8)))
+    return datetime.fromtimestamp(timestamp, tz=SHANGHAI_TZ)

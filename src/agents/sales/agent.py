@@ -15,7 +15,7 @@ from typing import Dict, Any, Optional
 
 from ..base import BaseAgent, AgentMessage, ThreadState
 from .sales_strategies import get_sales_strategies, analyze_customer_segment, get_strategy_for_segment, adapt_strategy_to_context
-from utils import format_timestamp
+from utils import to_isoformat
 from src.llm.intelligent_router import RoutingStrategy
 
 
@@ -68,7 +68,7 @@ class SalesAgent(BaseAgent):
                 "sales_response": sales_response,
                 "agent_type": "sales",
                 "processing_agent": self.agent_id,
-                "response_timestamp": format_timestamp()
+                "response_timestamp": to_isoformat()
             }
             
             return await self.send_message(

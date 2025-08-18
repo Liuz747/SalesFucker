@@ -13,8 +13,8 @@ from typing import List, Optional, Dict, Any
 import jwt
 from fastapi import APIRouter, Header, HTTPException, status, Depends
 
-from config.settings import settings
-from utils import get_current_datetime, format_timestamp
+from config import settings
+from utils import get_current_datetime, to_isoformat
 from infra.auth.jwt_auth import get_service_context, require_service_scopes
 from infra.auth.jwt_auth import ServiceContext
 from infra.auth.key_manager import key_manager
@@ -29,7 +29,7 @@ async def issue_service_token(
     payload: Optional[Dict[str, Any]] = None,
 ):
     # 配置检查
-    if not settings.app_key:
+    if not settings.APP_KEY:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
@@ -39,7 +39,7 @@ async def issue_service_token(
         )
 
     # App-Key 校验
-    if x_app_key != settings.app_key:
+    if x_app_key != settings.APP_KEY:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"error": "INVALID_APP_KEY", "message": "无效或缺失 App-Key"},
@@ -52,14 +52,14 @@ async def issue_service_token(
 
     # 生成JWT声明
     now = get_current_datetime()
-    exp = now + timedelta(seconds=settings.app_token_ttl)
+    exp = now + timedelta(seconds=settings.APP_TOKEN_TTL)
     body_scopes: List[str] = []
     if payload and isinstance(payload, dict):
         body_scopes = list(payload.get("scopes", []))
 
     claims = {
-        "iss": settings.app_jwt_issuer,
-        "aud": settings.app_jwt_audience,
+        "iss": settings.APP_JWT_ISSUER,
+        "aud": settings.APP_JWT_AUDIENCE,
         "sub": "backend-service",
         "scope": body_scopes or ["backend:admin"],
         "iat": int(now.timestamp()),
@@ -79,8 +79,8 @@ async def issue_service_token(
     return {
         "access_token": token,
         "token_type": "bearer",
-        "expires_in": settings.app_token_ttl,
-        "issued_at": format_timestamp(now),
+        "expires_in": settings.APP_TOKEN_TTL,
+        "issued_at": to_isoformat(now),
         "scopes": claims["scope"],
     }
 
