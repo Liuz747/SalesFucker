@@ -142,7 +142,8 @@ class TenantModel(Base):
     updated_at = Column(
         DateTime(timezone=True), 
         nullable=False, 
-        server_default=func.now(), 
+        server_default=func.now(),
+        # postgre 不支持 on update, 需要触发器，暂不创建
         onupdate=func.now()
     )
     
