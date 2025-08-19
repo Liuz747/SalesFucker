@@ -155,10 +155,12 @@ class BaseAgent(LLMMixin, StatusMixin, ABC):
         """
         try:
             if hasattr(self, '_prompt_manager') and self._prompt_manager:
+                if not self.tenant_id:
+                    raise ValueError(f"Agent {self.agent_id} requires tenant_id for prompt loading")
                 await self._prompt_manager.preload_prompts_for_agent(
                     agent_id=self.agent_id,
                     agent_type=self.agent_type,
-                    tenant_id=self.tenant_id or "default"
+                    tenant_id=self.tenant_id
                 )
                 self.logger.debug(f"智能体提示词预加载完成: {self.agent_id}")
             

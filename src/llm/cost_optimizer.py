@@ -316,8 +316,10 @@ class CostOptimizer:
             # 租户成本分解
             tenant_breakdown = defaultdict(float)
             for record in filtered_records:
-                tenant_key = record.tenant_id or "default"
-                tenant_breakdown[tenant_key] += record.cost
+                if not record.tenant_id:
+                    self.logger.warning("Cost record missing tenant_id, skipping")
+                    continue
+                tenant_breakdown[record.tenant_id] += record.cost
             
             # 成本趋势分析 (集成分析器功能)
             cost_trends = self._calculate_cost_trends(filtered_records, start_time, end_time)
@@ -529,12 +531,14 @@ class CostOptimizer:
     # 集成的预算监控功能 (原 BudgetMonitor)
     async def _check_budget_alerts(self, cost_record: CostRecord):
         """检查预算告警"""
-        tenant_id = cost_record.tenant_id or "default"
-        
-        if tenant_id not in self.cost_configs:
+        if not cost_record.tenant_id:
+            self.logger.warning("Cost record missing tenant_id for budget check")
+            return
+            
+        if cost_record.tenant_id not in self.cost_configs:
             return
         
-        cost_config = self.cost_configs[tenant_id]
+        cost_config = self.cost_configs[cost_record.tenant_id]
         
         # 计算当日成本（简化估算）
         today_cost = cost_record.cost * 100  # 估算当日总成本
