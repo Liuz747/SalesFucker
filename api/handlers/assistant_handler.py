@@ -15,16 +15,23 @@ import uuid
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 
+from ..schemas import SuccessResponse
 from ..schemas.assistants import (
     AssistantCreateRequest, AssistantUpdateRequest, AssistantConfigRequest,
     AssistantListRequest, AssistantResponse, AssistantListResponse,
     AssistantStatsResponse, AssistantOperationResponse,
     AssistantStatus, PersonalityType, ExpertiseLevel
 )
+from models.assistant import AssistantModel, AssistantOrmModel
+
+from service.assistant_service import AssistantService
 from ..schemas.prompts import AssistantPromptConfig, PromptCreateRequest
 from .prompt_handler import PromptHandler
 from utils import get_component_logger, with_error_handling, StatusMixin
 from libs.constants import StatusConstants
+from ..schemas.responses import PaginatedResponse, SuccessResponse
+
+logger = get_component_logger(__name__, "AssistantHandler")
 
 
 class AssistantHandler(StatusMixin):
@@ -33,23 +40,23 @@ class AssistantHandler(StatusMixin):
     
     处理AI员工相关的业务逻辑，包括CRUD操作、配置管理和统计分析。
     """
-    
+
     def __init__(self):
         """初始化助理处理器"""
         super().__init__()
         self.logger = get_component_logger(__name__)
-        
+
         # 模拟数据存储（实际应用中应该使用数据库）
         self._assistants_store: Dict[str, Dict[str, Any]] = {}
         self._assistant_stats: Dict[str, Dict[str, Any]] = {}
-        
+
         # 初始化提示词处理器
         self.prompt_handler = PromptHandler()
-        
+
         self.logger.info("AI员工处理器初始化完成")
-    
+
     @with_error_handling(fallback_response=None)
-    async def create_assistant(self, request: AssistantCreateRequest) -> AssistantResponse:
+    async def create_assistant(self, request: AssistantCreateRequest) -> SuccessResponse[AssistantModel]:
         """
         创建新的AI员工
         
@@ -64,46 +71,70 @@ class AssistantHandler(StatusMixin):
             assistant_key = f"{request.tenant_id}:{request.assistant_id}"
             if assistant_key in self._assistants_store:
                 raise ValueError(f"助理ID {request.assistant_id} 已存在")
-            
+
             # 创建助理数据
             now = datetime.utcnow()
-            assistant_data = {
-                "assistant_id": request.assistant_id,
-                "assistant_name": request.assistant_name,
-                "tenant_id": request.tenant_id,
-                "status": AssistantStatus.ACTIVE,
-                "personality_type": request.personality_type,
-                "expertise_level": request.expertise_level,
-                "sales_style": request.sales_style or self._get_default_sales_style(request.personality_type),
-                "voice_tone": request.voice_tone or self._get_default_voice_tone(request.personality_type),
-                "specializations": request.specializations or [],
-                "working_hours": request.working_hours or self._get_default_working_hours(),
-                "max_concurrent_customers": request.max_concurrent_customers,
-                "permissions": request.permissions or self._get_default_permissions(request.expertise_level),
-                "profile": request.profile or {},
-                "created_at": now,
-                "updated_at": now,
-                "last_active_at": None,
-                "registered_devices": []
-            }
-            
+            # assistant_data = {
+            #     "assistant_id": request.assistant_id,
+            #     "assistant_name": request.assistant_name,
+            #     "tenant_id": request.tenant_id,
+            #     "status": AssistantStatus.ACTIVE,
+            #     "personality_type": request.personality_type,
+            #     "expertise_level": request.expertise_level,
+            #     "sales_style": request.sales_style or self._get_default_sales_style(request.personality_type),
+            #     "voice_tone": request.voice_tone or self._get_default_voice_tone(request.personality_type),
+            #     "specializations": request.specializations or [],
+            #     "working_hours": request.working_hours or self._get_default_working_hours(),
+            #     "max_concurrent_customers": request.max_concurrent_customers,
+            #     "permissions": request.permissions or self._get_default_permissions(request.expertise_level),
+            #     "profile": request.profile or {},
+            #     "created_at": now,
+            #     "updated_at": now,
+            #     "last_active_at": None,
+            #     "registered_devices": []
+            # }
+            assistant_data = AssistantModel(
+                assistant_id=request.assistant_id,
+                assistant_name=request.assistant_name,
+                tenant_id=request.tenant_id,
+                # status=AssistantStatus.ACTIVE,
+                personality_type=request.personality_type,
+                expertise_level=request.expertise_level,
+                sales_style=request.sales_style or self._get_default_sales_style(request.personality_type),
+                voice_tone=request.voice_tone or self._get_default_voice_tone(request.personality_type),
+                specializations=request.specializations or [],
+                working_hours=request.working_hours or self._get_default_working_hours(),
+                max_concurrent_customers=request.max_concurrent_customers,
+                permissions=request.permissions or self._get_default_permissions(request.expertise_level),
+                profile=request.profile or {},
+                created_at=now,
+                updated_at=now,
+                is_active=True,
+                last_active_at=None,
+                registered_devices=[]
+            )
+
             # 存储助理数据
-            self._assistants_store[assistant_key] = assistant_data
-            
-            # 处理提示词配置（如果提供）
-            if request.prompt_config:
-                try:
-                    prompt_request = PromptCreateRequest(
-                        assistant_id=request.assistant_id,
-                        tenant_id=request.tenant_id,
-                        prompt_config=request.prompt_config
-                    )
-                    await self.prompt_handler.create_assistant_prompts(prompt_request)
-                    self.logger.info(f"助理 {request.assistant_id} 提示词配置创建成功")
-                except Exception as e:
-                    self.logger.warning(f"助理 {request.assistant_id} 提示词配置创建失败: {e}")
-                    # 不阻止助理创建，只记录警告
-            
+            # self._assistants_store[assistant_key] = assistant_data
+            status = await AssistantService.save(assistant_data)
+
+            if 1 != 2:
+                # todo 先跳过提示词配置
+
+                # 处理提示词配置（如果提供）
+                if request.prompt_config:
+                    try:
+                        prompt_request = PromptCreateRequest(
+                            assistant_id=request.assistant_id,
+                            tenant_id=request.tenant_id,
+                            prompt_config=request.prompt_config
+                        )
+                        # await self.prompt_handler.create_assistant_prompts(prompt_request)
+                        self.logger.info(f"助理 {request.assistant_id} 提示词配置创建成功")
+                    except Exception as e:
+                        self.logger.warning(f"助理 {request.assistant_id} 提示词配置创建失败: {e}")
+                        # 不阻止助理创建，只记录警告
+
             # 初始化统计数据
             self._assistant_stats[assistant_key] = {
                 "total_conversations": 0,
@@ -113,23 +144,32 @@ class AssistantHandler(StatusMixin):
                 "activity_by_hour": {},
                 "device_usage": {}
             }
-            
+
             self.logger.info(f"助理创建成功: {request.assistant_id}")
-            
-            return AssistantResponse(
+
+            return SuccessResponse(
                 success=True,
                 message="助理创建成功",
-                data={},
-                **assistant_data,
-                current_customers=0,
-                total_conversations=0,
-                average_rating=0.0
+                data=assistant_data,
+                # **assistant_data,
+                # current_customers=0,
+                # total_conversations=0,
+                # average_rating=0.0
             )
-            
+            # return AssistantResponse(
+            #     success=True,
+            #     message="助理创建成功",
+            #     data={},
+            #     **assistant_data,
+            #     current_customers=0,
+            #     total_conversations=0,
+            #     average_rating=0.0
+            # )
+
         except Exception as e:
             self.logger.error(f"助理创建失败: {e}")
             raise
-    
+
     @with_error_handling(fallback_response=None)
     async def list_assistants(self, request: AssistantListRequest) -> AssistantListResponse:
         """
@@ -147,41 +187,41 @@ class AssistantHandler(StatusMixin):
                 k: v for k, v in self._assistants_store.items()
                 if v["tenant_id"] == request.tenant_id
             }
-            
+
             # 应用筛选条件
             filtered_assistants = []
             for key, assistant in tenant_assistants.items():
                 # 状态筛选
                 if request.status and assistant["status"] != request.status:
                     continue
-                
+
                 # 个性类型筛选
                 if request.personality_type and assistant["personality_type"] != request.personality_type:
                     continue
-                
+
                 # 专业等级筛选
                 if request.expertise_level and assistant["expertise_level"] != request.expertise_level:
                     continue
-                
+
                 # 专业领域筛选
                 if request.specialization:
                     if request.specialization not in assistant["specializations"]:
                         continue
-                
+
                 # 搜索筛选
                 if request.search:
                     search_text = request.search.lower()
-                    if not (search_text in assistant["assistant_name"].lower() or 
-                           search_text in assistant["assistant_id"].lower()):
+                    if not (search_text in assistant["assistant_name"].lower() or
+                            search_text in assistant["assistant_id"].lower()):
                         continue
-                
+
                 # 添加统计信息
                 if request.include_stats:
                     stats = self._assistant_stats.get(key, {})
                     assistant = {**assistant, **stats}
-                
+
                 filtered_assistants.append(assistant)
-            
+
             # 排序
             reverse = request.sort_order == "desc"
             if request.sort_by == "created_at":
@@ -191,30 +231,30 @@ class AssistantHandler(StatusMixin):
             elif request.sort_by == "expertise_level":
                 level_order = {"junior": 1, "intermediate": 2, "senior": 3, "expert": 4}
                 filtered_assistants.sort(
-                    key=lambda x: level_order.get(x["expertise_level"], 0), 
+                    key=lambda x: level_order.get(x["expertise_level"], 0),
                     reverse=reverse
                 )
-            
+
             # 分页
             total_count = len(filtered_assistants)
             start_idx = (request.page - 1) * request.page_size
             end_idx = start_idx + request.page_size
             paginated_assistants = filtered_assistants[start_idx:end_idx]
-            
+
             # 计算统计信息
             status_distribution = {}
             expertise_distribution = {}
-            
+
             for assistant in tenant_assistants.values():
                 status = assistant["status"]
                 expertise = assistant["expertise_level"]
                 status_distribution[status] = status_distribution.get(status, 0) + 1
                 expertise_distribution[expertise] = expertise_distribution.get(expertise, 0) + 1
-            
+
             active_count = status_distribution.get(AssistantStatus.ACTIVE, 0)
-            
+
             self.logger.info(f"助理列表查询成功: 返回{len(paginated_assistants)}/{total_count}条记录")
-            
+
             return AssistantListResponse(
                 success=True,
                 message="助理列表查询成功",
@@ -233,18 +273,18 @@ class AssistantHandler(StatusMixin):
                 page_size=request.page_size,
                 pages=(total_count + request.page_size - 1) // request.page_size
             )
-            
+
         except Exception as e:
             self.logger.error(f"助理列表查询失败: {e}")
             raise
-    
+
     @with_error_handling(fallback_response=None)
     async def get_assistant(
-        self, 
-        assistant_id: str, 
-        tenant_id: str,
-        include_stats: bool = False,
-        include_config: bool = True
+            self,
+            assistant_id: str,
+            tenant_id: str,
+            include_stats: bool = False,
+            include_config: bool = True
     ) -> Optional[AssistantResponse]:
         """
         获取助理详细信息
@@ -261,17 +301,17 @@ class AssistantHandler(StatusMixin):
         try:
             assistant_key = f"{tenant_id}:{assistant_id}"
             assistant = self._assistants_store.get(assistant_key)
-            
+
             if not assistant:
                 return None
-            
+
             # 添加统计信息
             if include_stats:
                 stats = self._assistant_stats.get(assistant_key, {})
                 assistant = {**assistant, **stats}
-            
+
             self.logger.info(f"助理详情查询成功: {assistant_id}")
-            
+
             return AssistantResponse(
                 success=True,
                 message="助理详情查询成功",
@@ -281,17 +321,17 @@ class AssistantHandler(StatusMixin):
                 total_conversations=assistant.get("total_conversations", 0),
                 average_rating=assistant.get("average_rating", 0.0)
             )
-            
+
         except Exception as e:
             self.logger.error(f"助理详情查询失败: {e}")
             raise
-    
+
     @with_error_handling(fallback_response=None)
     async def update_assistant(
-        self, 
-        assistant_id: str, 
-        tenant_id: str, 
-        request: AssistantUpdateRequest
+            self,
+            assistant_id: str,
+            tenant_id: str,
+            request: AssistantUpdateRequest
     ) -> Optional[AssistantResponse]:
         """
         更新助理信息
@@ -307,10 +347,10 @@ class AssistantHandler(StatusMixin):
         try:
             assistant_key = f"{tenant_id}:{assistant_id}"
             assistant = self._assistants_store.get(assistant_key)
-            
+
             if not assistant:
                 return None
-            
+
             # 更新字段
             update_fields = {}
             if request.assistant_name is not None:
@@ -335,10 +375,10 @@ class AssistantHandler(StatusMixin):
                 update_fields["profile"] = {**assistant["profile"], **request.profile}
             if request.status is not None:
                 update_fields["status"] = request.status
-            
+
             # 更新时间戳
             update_fields["updated_at"] = datetime.utcnow()
-            
+
             # 处理提示词配置更新（如果提供）
             if request.prompt_config:
                 try:
@@ -364,13 +404,13 @@ class AssistantHandler(StatusMixin):
                 except Exception as e:
                     self.logger.warning(f"助理 {assistant_id} 提示词配置更新失败: {e}")
                     # 不阻止助理更新，只记录警告
-            
+
             # 应用更新
             assistant.update(update_fields)
             self._assistants_store[assistant_key] = assistant
-            
+
             self.logger.info(f"助理更新成功: {assistant_id}")
-            
+
             return AssistantResponse(
                 success=True,
                 message="助理更新成功",
@@ -380,17 +420,17 @@ class AssistantHandler(StatusMixin):
                 total_conversations=assistant.get("total_conversations", 0),
                 average_rating=assistant.get("average_rating", 0.0)
             )
-            
+
         except Exception as e:
             self.logger.error(f"助理更新失败: {e}")
             raise
-    
+
     @with_error_handling(fallback_response=None)
     async def configure_assistant(
-        self, 
-        assistant_id: str, 
-        tenant_id: str, 
-        request: AssistantConfigRequest
+            self,
+            assistant_id: str,
+            tenant_id: str,
+            request: AssistantConfigRequest
     ) -> AssistantOperationResponse:
         """
         配置助理设置
@@ -406,7 +446,7 @@ class AssistantHandler(StatusMixin):
         try:
             assistant_key = f"{tenant_id}:{assistant_id}"
             assistant = self._assistants_store.get(assistant_key)
-            
+
             if not assistant:
                 return AssistantOperationResponse(
                     success=False,
@@ -416,11 +456,11 @@ class AssistantHandler(StatusMixin):
                     operation="configure",
                     result_data={"error": "助理不存在"}
                 )
-            
+
             # 应用配置更新
             config_type = request.config_type
             config_data = request.config_data
-            
+
             if config_type in assistant:
                 if request.merge_mode:
                     # 合并模式
@@ -435,13 +475,13 @@ class AssistantHandler(StatusMixin):
                     assistant[config_type] = config_data
             else:
                 assistant[config_type] = config_data
-            
+
             # 更新时间戳
             assistant["updated_at"] = datetime.utcnow()
             self._assistants_store[assistant_key] = assistant
-            
+
             self.logger.info(f"助理配置成功: {assistant_id}, 配置类型: {config_type}")
-            
+
             return AssistantOperationResponse(
                 success=True,
                 message="助理配置成功",
@@ -450,19 +490,19 @@ class AssistantHandler(StatusMixin):
                 operation="configure",
                 result_data={"config_type": config_type, "updated": True}
             )
-            
+
         except Exception as e:
             self.logger.error(f"助理配置失败: {e}")
             raise
-    
+
     @with_error_handling(fallback_response=None)
     async def get_assistant_stats(
-        self, 
-        assistant_id: str, 
-        tenant_id: str, 
-        days: int = 30,
-        include_trends: bool = True,
-        include_devices: bool = True
+            self,
+            assistant_id: str,
+            tenant_id: str,
+            days: int = 30,
+            include_trends: bool = True,
+            include_devices: bool = True
     ) -> Optional[AssistantStatsResponse]:
         """
         获取助理统计信息
@@ -480,12 +520,12 @@ class AssistantHandler(StatusMixin):
         try:
             assistant_key = f"{tenant_id}:{assistant_id}"
             assistant = self._assistants_store.get(assistant_key)
-            
+
             if not assistant:
                 return None
-            
+
             stats = self._assistant_stats.get(assistant_key, {})
-            
+
             # 生成模拟统计数据
             trends_data = {}
             if include_trends:
@@ -494,13 +534,13 @@ class AssistantHandler(StatusMixin):
                     "satisfaction": [4.2, 4.3, 4.1, 4.4, 4.5, 4.3, 4.6],
                     "response_time": [2.1, 1.8, 2.3, 1.9, 1.7, 2.0, 1.6]
                 }
-            
+
             device_usage = {}
             if include_devices:
                 device_usage = stats.get("device_usage", {})
-            
+
             self.logger.info(f"助理统计查询成功: {assistant_id}")
-            
+
             return AssistantStatsResponse(
                 success=True,
                 message="助理统计查询成功",
@@ -517,20 +557,21 @@ class AssistantHandler(StatusMixin):
                 device_usage=device_usage,
                 trends=trends_data
             )
-            
+
         except Exception as e:
             self.logger.error(f"助理统计查询失败: {e}")
             raise
-    
+
     async def activate_assistant(self, assistant_id: str, tenant_id: str) -> AssistantOperationResponse:
         """激活助理"""
         return await self._change_assistant_status(assistant_id, tenant_id, AssistantStatus.ACTIVE, "activate")
-    
+
     async def deactivate_assistant(self, assistant_id: str, tenant_id: str) -> AssistantOperationResponse:
         """停用助理"""
         return await self._change_assistant_status(assistant_id, tenant_id, AssistantStatus.INACTIVE, "deactivate")
-    
-    async def delete_assistant(self, assistant_id: str, tenant_id: str, force: bool = False) -> AssistantOperationResponse:
+
+    async def delete_assistant(self, assistant_id: str, tenant_id: str,
+                               force: bool = False) -> AssistantOperationResponse:
         """
         删除助理
         
@@ -545,7 +586,7 @@ class AssistantHandler(StatusMixin):
         try:
             assistant_key = f"{tenant_id}:{assistant_id}"
             assistant = self._assistants_store.get(assistant_key)
-            
+
             if not assistant:
                 return AssistantOperationResponse(
                     success=False,
@@ -555,11 +596,11 @@ class AssistantHandler(StatusMixin):
                     operation="delete",
                     result_data={"error": "助理不存在"}
                 )
-            
+
             # 检查是否有活跃对话（模拟检查）
             stats = self._assistant_stats.get(assistant_key, {})
             current_customers = stats.get("current_customers", 0)
-            
+
             if current_customers > 0 and not force:
                 return AssistantOperationResponse(
                     success=False,
@@ -569,14 +610,14 @@ class AssistantHandler(StatusMixin):
                     operation="delete",
                     result_data={"error": "有活跃对话", "active_conversations": current_customers}
                 )
-            
+
             # 删除助理数据
             del self._assistants_store[assistant_key]
             if assistant_key in self._assistant_stats:
                 del self._assistant_stats[assistant_key]
-            
+
             self.logger.info(f"助理删除成功: {assistant_id}")
-            
+
             return AssistantOperationResponse(
                 success=True,
                 message="助理删除成功",
@@ -586,23 +627,23 @@ class AssistantHandler(StatusMixin):
                 result_data={"deleted": True, "force": force},
                 affected_conversations=current_customers
             )
-            
+
         except Exception as e:
             self.logger.error(f"助理删除失败: {e}")
             raise
-    
+
     async def _change_assistant_status(
-        self, 
-        assistant_id: str, 
-        tenant_id: str, 
-        new_status: AssistantStatus,
-        operation: str
+            self,
+            assistant_id: str,
+            tenant_id: str,
+            new_status: AssistantStatus,
+            operation: str
     ) -> AssistantOperationResponse:
         """改变助理状态的通用方法"""
         try:
             assistant_key = f"{tenant_id}:{assistant_id}"
             assistant = self._assistants_store.get(assistant_key)
-            
+
             if not assistant:
                 return AssistantOperationResponse(
                     success=False,
@@ -612,18 +653,18 @@ class AssistantHandler(StatusMixin):
                     operation=operation,
                     result_data={"error": "助理不存在"}
                 )
-            
+
             previous_status = assistant["status"]
             assistant["status"] = new_status
             assistant["updated_at"] = datetime.utcnow()
-            
+
             if new_status == AssistantStatus.ACTIVE:
                 assistant["last_active_at"] = datetime.utcnow()
-            
+
             self._assistants_store[assistant_key] = assistant
-            
+
             self.logger.info(f"助理状态变更成功: {assistant_id}, {previous_status} -> {new_status}")
-            
+
             return AssistantOperationResponse(
                 success=True,
                 message=f"助理{operation}成功",
@@ -634,11 +675,11 @@ class AssistantHandler(StatusMixin):
                 new_status=new_status,
                 result_data={"status_changed": True}
             )
-            
+
         except Exception as e:
             self.logger.error(f"助理状态变更失败: {e}")
             raise
-    
+
     def _get_default_sales_style(self, personality_type: PersonalityType) -> Dict[str, Any]:
         """获取默认销售风格配置"""
         styles = {
@@ -669,7 +710,7 @@ class AssistantHandler(StatusMixin):
             }
         }
         return styles.get(personality_type, styles[PersonalityType.PROFESSIONAL])
-    
+
     def _get_default_voice_tone(self, personality_type: PersonalityType) -> Dict[str, Any]:
         """获取默认语音语调配置"""
         tones = {
@@ -705,7 +746,7 @@ class AssistantHandler(StatusMixin):
             }
         }
         return tones.get(personality_type, tones[PersonalityType.PROFESSIONAL])
-    
+
     def _get_default_working_hours(self) -> Dict[str, Any]:
         """获取默认工作时间配置"""
         return {
@@ -723,26 +764,26 @@ class AssistantHandler(StatusMixin):
                 {"start": "12:00", "end": "13:00", "name": "午休"}
             ]
         }
-    
+
     def _get_default_permissions(self, expertise_level: ExpertiseLevel) -> List[str]:
         """根据专业等级获取默认权限"""
         base_permissions = ["view_products", "chat_with_customers", "access_basic_analytics"]
-        
+
         if expertise_level in [ExpertiseLevel.INTERMEDIATE, ExpertiseLevel.SENIOR, ExpertiseLevel.EXPERT]:
             base_permissions.extend(["create_promotions", "access_customer_history"])
-        
+
         if expertise_level in [ExpertiseLevel.SENIOR, ExpertiseLevel.EXPERT]:
             base_permissions.extend(["manage_inventory", "access_advanced_analytics", "train_junior_staff"])
-        
+
         if expertise_level == ExpertiseLevel.EXPERT:
             base_permissions.extend(["system_configuration", "manage_team", "access_all_data"])
-        
+
         return base_permissions
-    
+
     async def get_assistant_with_prompt_config(
-        self, 
-        assistant_id: str, 
-        tenant_id: str
+            self,
+            assistant_id: str,
+            tenant_id: str
     ) -> Optional[Dict[str, Any]]:
         """
         获取助理信息及其提示词配置
@@ -759,7 +800,7 @@ class AssistantHandler(StatusMixin):
             assistant = await self.get_assistant_details(assistant_id, tenant_id)
             if not assistant:
                 return None
-            
+
             # 获取提示词配置
             try:
                 prompt_config = await self.prompt_handler.get_assistant_prompts(
@@ -767,14 +808,15 @@ class AssistantHandler(StatusMixin):
                 )
                 if prompt_config:
                     assistant_data = assistant.dict() if hasattr(assistant, 'dict') else assistant
-                    assistant_data["prompt_config"] = prompt_config.config.dict() if hasattr(prompt_config.config, 'dict') else prompt_config.config
+                    assistant_data["prompt_config"] = prompt_config.config.dict() if hasattr(prompt_config.config,
+                                                                                             'dict') else prompt_config.config
                     return assistant_data
             except Exception as e:
                 self.logger.warning(f"获取助理 {assistant_id} 提示词配置失败: {e}")
-            
+
             # 返回不含提示词配置的助理信息
             return assistant.dict() if hasattr(assistant, 'dict') else assistant
-            
+
         except Exception as e:
             self.logger.error(f"获取助理详细信息失败: {e}")
             return None

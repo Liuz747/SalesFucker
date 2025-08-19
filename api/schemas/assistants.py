@@ -67,7 +67,7 @@ class AssistantCreateRequest(BaseRequest):
     # 助理配置
     personality_type: PersonalityType = Field(
         default=PersonalityType.PROFESSIONAL,
-        description="助理个性类型（可选，优先使用prompt_config）",
+        description="助理个性类型（可选，优先使用 prompt_config）",
     )
 
     expertise_level: ExpertiseLevel = Field(
