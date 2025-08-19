@@ -1,48 +1,63 @@
-from __future__ import annotations
+"""
+租户管理服务
 
+该模块提供租户配置管理、业务设置和访问统计等核心功能。
+
+核心功能:
+- 租户配置的CRUD操作
+- 业务设置和功能开关管理
+- 访问统计和审计日志
+- 租户状态监控
+- API请求处理和响应转换
+"""
+
+from datetime import datetime
 from typing import Dict, Any, Optional, List
 
-from models.tenant import TenantConfig
-from api.dependencies.tenant_manager import get_tenant_manager, TenantManager
-from api.schemas.tenant import (
+from models.tenant import (
+    TenantConfig,
     TenantSyncRequest,
     TenantUpdateRequest,
     TenantStatusResponse,
     TenantListResponse,
 )
-from utils import get_current_datetime
+from service.tenant_service import TenantService
+from utils import get_component_logger, get_current_datetime, to_isoformat
+
+logger = get_component_logger(__name__, "TenantHandler")
 
 
 class TenantHandler:
+    
+    def __init__(self):
+        self._access_stats: Dict[str, Dict[str, Any]] = {}
+
     async def sync_tenant(self, request: TenantSyncRequest) -> Dict[str, Any]:
-        manager: TenantManager = await get_tenant_manager()
-        existing = await manager.get_tenant_config(request.tenant_id)
+        """同步租户配置"""
+        existing = await self.get_tenant_config(request.tenant_id)
         cfg = existing or TenantConfig(
             tenant_id=request.tenant_id,
-            tenant_name=request.tenant_name or request.tenant_id,
+            tenant_name=request.tenant_name,
             created_at=get_current_datetime(),
             updated_at=get_current_datetime(),
         )
 
-        # Update basic tenant fields
-        if request.tenant_name:
-            cfg.tenant_name = request.tenant_name
         cfg.is_active = request.is_active
 
         # Update features if provided
         if request.features:
             cfg.feature_flags = {feature: True for feature in request.features}
 
-        ok = await manager.save_tenant_config(cfg)
+        status = await self.save_tenant_config(cfg)
         return {
-            "status": "success" if ok else "failed",
+            "status": "success" if status else "failed",
             "tenant_id": cfg.tenant_id,
             "features_enabled": request.features or [],
         }
 
     async def get_tenant_status(self, tenant_id: str) -> Optional[TenantStatusResponse]:
-        manager: TenantManager = await get_tenant_manager()
-        cfg = await manager.get_tenant_config(tenant_id)
+        """获取租户状态"""
+        cfg = await self.get_tenant_config(tenant_id)
         if not cfg:
             return None
         return TenantStatusResponse(
@@ -54,8 +69,8 @@ class TenantHandler:
         )
 
     async def update_tenant(self, tenant_id: str, request: TenantUpdateRequest) -> Dict[str, Any]:
-        manager: TenantManager = await get_tenant_manager()
-        cfg = await manager.get_tenant_config(tenant_id)
+        """更新租户配置"""
+        cfg = await self.get_tenant_config(tenant_id)
         if not cfg:
             raise ValueError("Tenant not found")
         
@@ -65,45 +80,54 @@ class TenantHandler:
         if request.features:
             cfg.feature_flags = {feature: True for feature in request.features}
             
-        ok = await manager.save_tenant_config(cfg)
+        status = await self.save_tenant_config(cfg)
         return {
-            "status": "updated" if ok else "failed",
+            "status": "updated" if status else "failed",
             "features": request.features or [],
         }
 
     async def delete_tenant(self, tenant_id: str, force: bool = False) -> Dict[str, Any]:
-        # Placeholder for persistence-backed deletion; for now, invalidate cache
-        manager: TenantManager = await get_tenant_manager()
-        await manager.invalidate_cache(tenant_id)
-        return {"data_purged": force}
+        """删除租户"""
+        try:
+            flag = await TenantService.delete(tenant_id)
+            return {"status": "deleted" if flag else "failed", "data_purged": force}
+        except Exception as e:
+            logger.error(f"删除租户失败: {tenant_id}, 错误: {e}")
+            return {"status": "failed", "error": str(e)}
 
     async def list_tenants(
         self, status_filter: Optional[str], limit: int, offset: int
     ) -> TenantListResponse:
-        manager: TenantManager = await get_tenant_manager()
-        ids = await manager.get_all_tenants()
-        items: List[Dict[str, Any]] = []
-        for tid in ids:
-            cfg = await manager.get_tenant_config(tid)
-            if not cfg:
-                continue
-            if status_filter == "active" and not cfg.is_active:
-                continue
-            if status_filter == "inactive" and cfg.is_active:
-                continue
-            items.append(
-                {
-                    "tenant_id": cfg.tenant_id,
-                    "tenant_name": cfg.tenant_name,
-                    "is_active": cfg.is_active,
-                    "updated_at": cfg.updated_at,
-                    "features_enabled": list(cfg.feature_flags.keys()) if cfg.feature_flags else [],
-                }
-            )
-        total = len(items)
-        return TenantListResponse(total=total, tenants=items[offset : offset + limit])
+        
+        """获取租户列表"""
+        try:
+            ids = await TenantService.get_all_tenants()
+            items: List[Dict[str, Any]] = []
+            for tid in ids:
+                cfg = await self.get_tenant_config(tid)
+                if not cfg:
+                    continue
+                if status_filter == "active" and not cfg.is_active:
+                    continue
+                if status_filter == "inactive" and cfg.is_active:
+                    continue
+                items.append(
+                    {
+                        "tenant_id": cfg.tenant_id,
+                        "tenant_name": cfg.tenant_name,
+                        "is_active": cfg.is_active,
+                        "updated_at": cfg.updated_at,
+                        "features_enabled": list(cfg.feature_flags.keys()) if cfg.feature_flags else [],
+                    }
+                )
+            total = len(items)
+            return TenantListResponse(total=total, tenants=items[offset : offset + limit])
+        except Exception as e:
+            logger.error(f"获取租户列表失败: {e}")
+            return TenantListResponse(total=0, tenants=[])
 
     async def bulk_sync_tenants(self, tenants: List[TenantSyncRequest]) -> List[Dict[str, Any]]:
+        """批量同步租户"""
         results = []
         for req in tenants:
             try:
@@ -113,6 +137,117 @@ class TenantHandler:
         return results
 
     async def health_check(self) -> Dict[str, Any]:
-        manager: TenantManager = await get_tenant_manager()
-        stats = await manager.health_check()
-        return {"database_connected": True, "tenant_count": stats.get("cached_tenants", 0)}
+        """健康检查"""
+        try:
+            # 使用仓库层进行健康检查
+            db_stats = await TenantService.health_check()
+            
+            return {
+                "status": "healthy" if db_stats["database_connected"] else "unhealthy",
+                "database_connected": db_stats["database_connected"],
+                "total_tenants": db_stats["total_tenants"],
+                "active_tenants": db_stats["active_tenants"],
+                "total_access_records": len(self._access_stats),
+                "timestamp": to_isoformat(get_current_datetime())
+            }
+        except Exception as e:
+            logger.error(f"健康检查失败: {e}")
+            return {
+                "status": "unhealthy",
+                "error": str(e),
+                "timestamp": to_isoformat(get_current_datetime())
+            }
+    
+    async def get_tenant_config(self, tenant_id: str) -> Optional[TenantConfig]:
+        """
+        获取租户配置
+        
+        参数:
+            tenant_id: 租户ID
+            
+        返回:
+            TenantConfig: 租户配置，不存在则返回None
+        """
+        try:
+            return await TenantService.get_tenant_by_id(tenant_id)
+        except Exception as e:
+            logger.error(f"获取租户配置失败: {tenant_id}, 错误: {e}")
+            return None
+    
+    async def save_tenant_config(self, config: TenantConfig) -> bool:
+        """
+        保存租户配置到PostgreSQL
+        
+        参数:
+            config: 租户配置
+            
+        返回:
+            bool: 是否保存成功
+        """
+        try:
+            # 更新时间戳
+            config.updated_at = get_current_datetime()
+            
+            # 保存到数据库
+            flag = await TenantService.save(config)
+            
+            if flag:
+                logger.info(f"租户配置已更新: {config.tenant_id}")
+            
+            return flag
+                
+        except Exception as e:
+            logger.error(f"保存租户配置失败: {config.tenant_id}, 错误: {e}")
+            return False
+    
+    async def record_access(self, tenant_id: str, access_time: datetime) -> None:
+        """
+        记录租户访问
+        
+        参数:
+            tenant_id: 租户ID
+            access_time: 访问时间
+        """
+        # 内存统计（用于实时监控）
+        if tenant_id not in self._access_stats:
+            self._access_stats[tenant_id] = {
+                "first_access": access_time,
+                "last_access": access_time,
+                "total_requests": 0,
+                "daily_requests": {},
+                "hourly_requests": {}
+            }
+        
+        stats = self._access_stats[tenant_id]
+        stats["last_access"] = access_time
+        stats["total_requests"] += 1
+        
+        # 按日统计
+        date_key = to_isoformat(access_time.date())
+        stats["daily_requests"][date_key] = (
+            stats["daily_requests"].get(date_key, 0) + 1
+        )
+        
+        # 按小时统计
+        hour_key = access_time.strftime("%Y-%m-%d %H:00")
+        stats["hourly_requests"][hour_key] = (
+            stats["hourly_requests"].get(hour_key, 0) + 1
+        )
+        
+        # 清理超过30天的旧统计数据
+        from datetime import timedelta
+        cutoff_date = (access_time - timedelta(days=30)).date()
+        stats["daily_requests"] = {
+            k: v for k, v in stats["daily_requests"].items()
+            if to_isoformat(k).date() >= cutoff_date
+        }
+        
+        # 异步更新数据库中的访问记录
+        try:
+            await TenantService.update_access_stats(tenant_id, access_time)
+        except Exception as e:
+            logger.error(f"更新租户访问记录失败: {tenant_id}, 错误: {e}")
+    
+    async def get_access_stats(self, tenant_id: str) -> Optional[Dict[str, Any]]:
+        """获取租户访问统计"""
+        return self._access_stats.get(tenant_id)

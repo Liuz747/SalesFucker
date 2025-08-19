@@ -8,10 +8,10 @@ Flow:
 Backend System → POST /tenants/{tenant_id}/sync → AI Service
 """
 
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, status
 from typing import List, Optional
 
-from ..schemas.tenant import (
+from models.tenant import (
     TenantSyncRequest,
     TenantSyncResponse, 
     TenantStatusResponse,
@@ -56,7 +56,7 @@ async def sync_tenant(
             )
         
         # Sync tenant to AI service database
-        result = await tenant_handler.sync_tenant(request)
+        await tenant_handler.sync_tenant(request)
         
         logger.info(f"Tenant sync successful: {tenant_id}")
         return TenantSyncResponse(

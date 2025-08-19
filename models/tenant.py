@@ -7,9 +7,7 @@
 主要模型:
 - TenantRole: 租户角色枚举
 - TenantConfig: 租户配置业务模型 
-- SecurityAuditLog: 安全审计日志
 - TenantModel: 租户数据库模型
-- SecurityAuditLogModel: 审计日志数据库模型
 """
 
 import uuid
@@ -222,7 +220,7 @@ class TenantModel(Base):
             last_access=config.last_access,
             total_requests=config.total_requests
         )
-    
+
     def update_from_business_model(self, config: TenantConfig) -> None:
         """
         从业务模型更新数据库模型
@@ -247,3 +245,36 @@ class TenantModel(Base):
         self.last_access = config.last_access
         self.total_requests = config.total_requests
 
+
+# API Request/Response Schemas
+class TenantSyncRequest(BaseModel):
+    tenant_id: str = Field(description="租户ID")
+    tenant_name: str = Field(description="租户名称")
+    features: Optional[List[str]] = Field(default=None, description="启用的功能")
+    is_active: bool = Field(default=True, description="是否激活")
+
+
+class TenantUpdateRequest(BaseModel):
+    features: Optional[List[str]] = Field(None, description="功能列表")
+    is_active: Optional[bool] = Field(None, description="是否激活")
+
+
+class TenantSyncResponse(BaseModel):
+    tenant_id: str
+    sync_status: str
+    message: str
+    synced_at: datetime
+    features_enabled: Optional[List[str]] = None
+
+
+class TenantStatusResponse(BaseModel):
+    tenant_id: str
+    tenant_name: Optional[str] = None
+    is_active: bool
+    updated_at: Optional[datetime] = None
+    last_access: Optional[datetime] = None
+
+
+class TenantListResponse(BaseModel):
+    total: int
+    tenants: List[Dict[str, Any]]

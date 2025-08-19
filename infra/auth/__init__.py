@@ -12,11 +12,8 @@ JWT认证模块
 
 from .jwt_auth import ServiceContext
 from .jwt_auth import get_service_context
-from api.dependencies.tenant_manager import TenantManager, get_tenant_manager
 
 __all__ = [
-    "TenantManager",
-    "get_tenant_manager",
     "ServiceContext",
     "get_service_context"
 ]
