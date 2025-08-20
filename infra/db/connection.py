@@ -35,7 +35,7 @@ async def get_database_engine() -> AsyncEngine:
     global _engine
     
     if _engine is None:
-        logger.info(f"初始化PostgreSQL连接: {settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}")
+        logger.info(f"初始化PostgreSQL连接: {settings.DB_HOST}:{settings.DB_PORT}")
         
         _engine = create_async_engine(
             settings.postgres_url,
@@ -116,7 +116,7 @@ async def database_session() -> AsyncGenerator[AsyncSession, None]:
         await session.close()
 
 
-async def close_database_connections():
+async def close_db_connections():
     """关闭数据库连接"""
     global _engine, _session_factory
     
@@ -127,7 +127,7 @@ async def close_database_connections():
         logger.info("数据库连接已关闭")
 
 
-async def test_database_connection() -> bool:
+async def test_db_connection() -> bool:
     """
     测试数据库连接
     

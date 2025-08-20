@@ -17,9 +17,6 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from config import settings
-from utils import get_component_logger
-from api.exceptions import APIException
 from api.middleware import (
     SafetyInterceptor,
     TenantIsolation,
@@ -27,6 +24,7 @@ from api.middleware import (
 )
 from api.endpoints import (
     agents_router,
+    auth_router,
     conversations_router,
     llm_management_router,
     multimodal_router,
@@ -35,7 +33,9 @@ from api.endpoints import (
     prompts_router,
     tenant_router
 )
-from api.endpoints.service_auth import router as auth_router
+from config import settings
+from utils import get_component_logger
+from api.exceptions import APIException
 
 # 配置日志
 logger = get_component_logger(__name__)

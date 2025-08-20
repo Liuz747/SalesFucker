@@ -155,6 +155,43 @@ mas-v0.2/
 - `./scripts/docker-dev.sh logs` - 查看服务日志
 - `./scripts/docker-dev.sh status` - 检查服务状态
 
+### 数据库迁移
+
+```bash
+# 运行数据库迁移（应用 schema 更改）
+python scripts/database.py
+
+# 生成新的迁移文件（添加新模型后）
+python scripts/database.py generate "描述更改"
+```
+
+**团队协作工作流程:**
+
+1. **添加新模型时** (模型创建者):
+   ```bash
+   # 1. 创建新的模型文件
+   touch models/user.py
+   
+   # 2. 生成迁移文件
+   python scripts/database.py generate "add user table"
+   
+   # 3. 提交代码和迁移文件
+   git add models/user.py migrations/versions/002_add_user_table.py
+   git commit -m "Add user model and migration"
+   git push
+   ```
+
+2. **拉取更改时** (其他开发者):
+   ```bash
+   # 1. 拉取最新代码
+   git pull origin main
+   
+   # 2. 应用数据库迁移
+   python scripts/database.py
+   
+   # 完成！本地数据库现在与最新 schema 同步
+   ```
+
 ### 运行测试
 
 ```bash
@@ -166,20 +203,6 @@ uv run pytest tests/test_agents.py
 
 # 运行覆盖率测试
 uv run pytest --cov=src
-```
-
-### 代码质量检查
-
-```bash
-# 代码格式化
-uv run black .
-uv run isort .
-
-# 类型检查
-uv run mypy src/
-
-# 代码规范检查
-uv run flake8 src/
 ```
 
 ## 🌐 API 接口

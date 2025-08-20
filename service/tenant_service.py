@@ -17,7 +17,7 @@ from typing import Optional, List
 from sqlalchemy import select, update
 
 from models.tenant import TenantConfig, TenantModel
-from infra.db.connection import database_session, test_database_connection
+from infra.db.connection import database_session, test_db_connection
 from utils import get_component_logger, get_current_datetime
 
 logger = get_component_logger(__name__, "TenantService")
@@ -32,7 +32,23 @@ class TenantService:
     """
     
     @staticmethod
-    async def get_tenant_by_id(tenant_id: str) -> Optional[TenantConfig]:
+    async def _get_tenant_by_id(session, tenant_id: str) -> Optional[TenantModel]:
+        """
+        获取租户数据库模型
+        
+        参数:
+            session: 数据库会话
+            tenant_id: 租户ID
+            
+        返回:
+            TenantModel: 租户数据库模型，不存在则返回None
+        """
+        stmt = select(TenantModel).where(TenantModel.tenant_id == tenant_id)
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
+    
+    @staticmethod
+    async def query(tenant_id: str) -> Optional[TenantConfig]:
         """
         根据ID获取租户配置
         
@@ -44,12 +60,10 @@ class TenantService:
         """
         try:
             async with database_session() as session:
-                stmt = select(TenantModel).where(TenantModel.tenant_id == tenant_id)
-                result = await session.execute(stmt)
-                tenant_model = result.scalar_one_or_none()
+                tenant_model = await TenantService._get_tenant_by_id(session, tenant_id)
                 
                 if tenant_model:
-                    return tenant_model.to_business_model()
+                    return tenant_model.to_config()
                 
                 return None
 
@@ -71,17 +85,15 @@ class TenantService:
         try:
             async with database_session() as session:
                 # 查找现有租户
-                stmt = select(TenantModel).where(TenantModel.tenant_id == config.tenant_id)
-                result = await session.execute(stmt)
-                existing_tenant = result.scalar_one_or_none()
+                existing_tenant = await TenantService._get_tenant_by_id(session, config.tenant_id)
                 
                 if existing_tenant:
                     # 更新现有租户
-                    existing_tenant.update_from_business_model(config)
+                    existing_tenant.update(config)
                     logger.debug(f"更新租户: {config.tenant_id}")
                 else:
                     # 创建新租户
-                    new_tenant = TenantModel.from_business_model(config)
+                    new_tenant = config.to_model()
                     session.add(new_tenant)
                     logger.debug(f"创建租户: {config.tenant_id}")
                 
@@ -109,7 +121,7 @@ class TenantService:
                 stmt = (
                     update(TenantModel)
                     .where(TenantModel.tenant_id == tenant_id)
-                    .values(is_active=False, updated_at=get_current_datetime())
+                    .values(status=0, updated_at=get_current_datetime())
                 )
                 result = await session.execute(stmt)
                 await session.commit()
@@ -136,7 +148,7 @@ class TenantService:
         """
         try:
             async with database_session() as session:
-                stmt = select(TenantModel.tenant_id).where(TenantModel.is_active == True)
+                stmt = select(TenantModel.tenant_id).where(TenantModel.status == 1)
                 result = await session.execute(stmt)
                 tenant_ids = [row[0] for row in result.fetchall()]
                 
@@ -207,7 +219,7 @@ class TenantService:
         """
         try:
             # 测试数据库连接
-            db_healthy = await test_database_connection()
+            db_healthy = await test_db_connection()
             
             if db_healthy:
                 # 获取租户统计

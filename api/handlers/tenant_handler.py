@@ -34,26 +34,33 @@ class TenantHandler:
 
     async def sync_tenant(self, request: TenantSyncRequest) -> Dict[str, Any]:
         """同步租户配置"""
-        existing = await self.get_tenant_config(request.tenant_id)
-        cfg = existing or TenantConfig(
-            tenant_id=request.tenant_id,
-            tenant_name=request.tenant_name,
-            created_at=get_current_datetime(),
-            updated_at=get_current_datetime(),
-        )
+        try:
+            existing = await self.get_tenant_config(request.tenant_id)
+            cfg = existing or TenantConfig(
+                tenant_id=request.tenant_id,
+                tenant_name=request.tenant_name,
+                created_at=get_current_datetime(),
+                updated_at=get_current_datetime(),
+            )
 
-        cfg.is_active = request.is_active
+            cfg.status = request.status
 
-        # Update features if provided
-        if request.features:
-            cfg.feature_flags = {feature: True for feature in request.features}
+            # Update features if provided
+            if request.features:
+                cfg.feature_flags = {feature: True for feature in request.features}
 
-        status = await self.save_tenant_config(cfg)
-        return {
-            "status": "success" if status else "failed",
-            "tenant_id": cfg.tenant_id,
-            "features_enabled": request.features or [],
-        }
+            status = await self.save_tenant_config(cfg)
+            if not status:
+                raise ValueError(f"Failed to save tenant configuration for {cfg.tenant_id}")
+                
+            return {
+                "status": "success",
+                "tenant_id": cfg.tenant_id,
+                "features_enabled": request.features or [],
+            }
+        except Exception as e:
+            logger.error(f"租户同步失败: {request.tenant_id}, 错误: {e}")
+            raise
 
     async def get_tenant_status(self, tenant_id: str) -> Optional[TenantStatusResponse]:
         """获取租户状态"""
@@ -63,7 +70,7 @@ class TenantHandler:
         return TenantStatusResponse(
             tenant_id=cfg.tenant_id,
             tenant_name=cfg.tenant_name,
-            is_active=cfg.is_active,
+            status=cfg.status,
             updated_at=cfg.updated_at,
             last_access=cfg.last_access,
         )
@@ -74,8 +81,8 @@ class TenantHandler:
         if not cfg:
             raise ValueError("Tenant not found")
         
-        if request.is_active is not None:
-            cfg.is_active = request.is_active
+        if request.status is not None:
+            cfg.status = request.status
         
         if request.features:
             cfg.feature_flags = {feature: True for feature in request.features}
@@ -107,15 +114,15 @@ class TenantHandler:
                 cfg = await self.get_tenant_config(tid)
                 if not cfg:
                     continue
-                if status_filter == "active" and not cfg.is_active:
+                if status_filter == "active" and not cfg.status:
                     continue
-                if status_filter == "inactive" and cfg.is_active:
+                if status_filter == "inactive" and cfg.status:
                     continue
                 items.append(
                     {
                         "tenant_id": cfg.tenant_id,
                         "tenant_name": cfg.tenant_name,
-                        "is_active": cfg.is_active,
+                        "status": cfg.status,
                         "updated_at": cfg.updated_at,
                         "features_enabled": list(cfg.feature_flags.keys()) if cfg.feature_flags else [],
                     }
@@ -167,12 +174,15 @@ class TenantHandler:
             
         返回:
             TenantConfig: 租户配置，不存在则返回None
+            
+        异常:
+            数据库连接异常将被传播，业务异常返回None
         """
         try:
-            return await TenantService.get_tenant_by_id(tenant_id)
+            return await TenantService.query(tenant_id)
         except Exception as e:
             logger.error(f"获取租户配置失败: {tenant_id}, 错误: {e}")
-            return None
+            raise
     
     async def save_tenant_config(self, config: TenantConfig) -> bool:
         """
@@ -184,21 +194,18 @@ class TenantHandler:
         返回:
             bool: 是否保存成功
         """
-        try:
-            # 更新时间戳
-            config.updated_at = get_current_datetime()
-            
-            # 保存到数据库
-            flag = await TenantService.save(config)
-            
-            if flag:
-                logger.info(f"租户配置已更新: {config.tenant_id}")
-            
-            return flag
-                
-        except Exception as e:
-            logger.error(f"保存租户配置失败: {config.tenant_id}, 错误: {e}")
-            return False
+        # 更新时间戳
+        config.updated_at = get_current_datetime()
+        
+        # 保存到数据库 - 让异常向上传播
+        flag = await TenantService.save(config)
+        
+        if flag:
+            logger.info(f"租户配置已更新: {config.tenant_id}")
+        else:
+            logger.error(f"保存租户配置失败: {config.tenant_id}")
+        
+        return flag
     
     async def record_access(self, tenant_id: str, access_time: datetime) -> None:
         """

@@ -314,29 +314,28 @@ kubectl get ingress -n mas-cosmetic-agent
 #### Database Setup
 ```sql
 -- 1. Create dedicated database
-CREATE DATABASE mas_tenants;
+CREATE DATABASE mas;
 
 -- 2. Create dedicated user
 CREATE USER mas_user WITH PASSWORD 'your-secure-password';
 
 -- 3. Grant permissions
-GRANT ALL PRIVILEGES ON DATABASE mas_tenants TO mas_user;
+GRANT ALL PRIVILEGES ON DATABASE mas TO mas_user;
 GRANT ALL ON SCHEMA public TO mas_user;
 
 -- 4. Enable UUID extension
-\c mas_tenants
+\c mas
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 ```
 
 #### Environment Configuration
 ```bash
 # PostgreSQL Configuration
-POSTGRES_HOST=your-database-instance.region.provider.com
-POSTGRES_PORT=5432
-POSTGRES_DB=mas_tenants
+DB_HOST=your-database-instance.region.provider.com
+DB_PORT=5432
+DB_NAME=mas
 POSTGRES_USER=mas_user
-POSTGRES_PASSWORD=your-secure-password-here
-POSTGRES_SSL_MODE=require
+POSTGRES_PWD=your-secure-password-here
 
 # Other Database Configuration
 ELASTICSEARCH_URL=http://your-vps-ip:9200
@@ -411,8 +410,8 @@ collection = Collection("product_embeddings", schema)
 # Instance: PostgreSQL 15, 2 vCPU, 4GB RAM, 20GB SSD
 
 # Environment Variables for Alibaba Cloud
-POSTGRES_HOST=rm-xxxxx.pg.rds.aliyuncs.com
-POSTGRES_PORT=5432
+DB_HOST=rm-xxxxx.pg.rds.aliyuncs.com
+DB_PORT=5432
 ELASTICSEARCH_URL=http://your-ecs-ip:9200
 REDIS_URL=redis://your-ecs-ip:6379
 ```
@@ -426,8 +425,8 @@ REDIS_URL=redis://your-ecs-ip:6379
 # Instance: PostgreSQL 15, Basic Edition
 
 # Environment Variables for Tencent Cloud
-POSTGRES_HOST=postgres-xxxxx.sql.tencentcdb.com
-POSTGRES_PORT=5432
+DB_HOST=postgres-xxxxx.sql.tencentcdb.com
+DB_PORT=5432
 ELASTICSEARCH_URL=http://your-cvm-ip:9200
 REDIS_URL=redis://your-cvm-ip:6379
 ```
@@ -486,13 +485,13 @@ BACKUP_DIR="/opt/backups"
 DATE=$(date +%Y%m%d_%H%M%S)
 
 # Database backup
-pg_dump -h $POSTGRES_HOST -U $POSTGRES_USER -d $POSTGRES_DB > $BACKUP_DIR/mas_tenants_$DATE.sql
+pg_dump -h $DB_HOST -U $POSTGRES_USER -d $DB_NAME > $BACKUP_DIR/mas_$DATE.sql
 
 # Elasticsearch backup
 curl -X PUT "localhost:9200/_snapshot/backup_repo/snapshot_$DATE?wait_for_completion=true"
 
 # Keep last 7 days of backups
-find $BACKUP_DIR -name "mas_tenants_*.sql" -mtime +7 -delete
+find $BACKUP_DIR -name "mas_*.sql" -mtime +7 -delete
 ```
 
 ### Troubleshooting
