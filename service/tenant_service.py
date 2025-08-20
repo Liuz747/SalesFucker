@@ -49,7 +49,7 @@ class TenantService:
                 tenant_model = result.scalar_one_or_none()
                 
                 if tenant_model:
-                    return tenant_model.to_business_model()
+                    return tenant_model.to_config()
                 
                 return None
 
@@ -77,11 +77,11 @@ class TenantService:
                 
                 if existing_tenant:
                     # 更新现有租户
-                    existing_tenant.update_from_business_model(config)
+                    existing_tenant.update(config)
                     logger.debug(f"更新租户: {config.tenant_id}")
                 else:
                     # 创建新租户
-                    new_tenant = TenantModel.from_business_model(config)
+                    new_tenant = config.to_model()
                     session.add(new_tenant)
                     logger.debug(f"创建租户: {config.tenant_id}")
                 

@@ -116,7 +116,7 @@ async def database_session() -> AsyncGenerator[AsyncSession, None]:
         await session.close()
 
 
-async def close_database_connections():
+async def close_db_connections():
     """关闭数据库连接"""
     global _engine, _session_factory
     

@@ -21,9 +21,9 @@ from models.tenant import (
 from ..handlers.tenant_handler import TenantHandler
 from utils import get_component_logger, get_current_datetime, to_isoformat
 
-logger = get_component_logger(__name__, "AdminTenantEndpoints")
+logger = get_component_logger(__name__, "TenantEndpoints")
 
-# Create router with admin prefix
+# Create router with prefix
 router = APIRouter(prefix="/tenants", tags=["tenant"])
 
 # Initialize handler

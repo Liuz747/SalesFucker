@@ -10,16 +10,15 @@
 - TenantModel: 租户数据库模型
 """
 
-import uuid
 from datetime import datetime
 from enum import StrEnum
 from typing import Dict, List, Optional, Any
 
-from pydantic import BaseModel, Field
 from sqlalchemy import (
     Column, String, Boolean, DateTime, Integer, Index
 )
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from pydantic import BaseModel, Field
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.sql import func
 
 from models.base import Base
@@ -44,94 +43,92 @@ class TenantConfig(BaseModel):
     # 基本信息
     tenant_id: str = Field(description="租户标识符")
     tenant_name: str = Field(description="租户名称")
+    status: int = Field(default=1, description="状态：1-活跃，0-禁用")
+    
+    # 业务信息
+    industry: int = Field(default=1, description="行业类型：1-美容诊所，2-化妆品公司等")
+    company_size: Optional[int] = Field(default=1, description="公司规模：1-小型，2-中型，3-大型") 
+    area_id: int = Field(default=1, description="地区ID")
+    
+    # 服务配置
+    user_count: int = Field(default=0, description="用户数量")
+    expires_at: Optional[datetime] = Field(None, description="过期时间")
+    
+    # 审计字段
+    created_at: datetime = Field(description="创建时间")
+    updated_at: datetime = Field(description="最后更新时间")
+    creator: int = Field(default=1, description="创建者ID")
+    editor: Optional[int] = Field(None, description="编辑者ID")
+    deleted: bool = Field(default=False, description="删除标记")
     
     # 业务配置
-    brand_settings: Dict[str, Any] = Field(
-        default_factory=dict, 
-        description="品牌设置（logo、颜色、主题等）"
-    )
-    ai_model_preferences: Dict[str, str] = Field(
-        default_factory=dict, 
-        description="AI模型偏好设置"
-    )
-    compliance_settings: Dict[str, bool] = Field(
-        default_factory=dict, 
-        description="合规设置（GDPR、数据保留等）"
-    )
     feature_flags: Dict[str, bool] = Field(
         default_factory=dict, 
         description="功能开关配置"
     )
-    
-    # 访问控制
-    allowed_origins: List[str] = Field(
-        default=[], 
-        description="允许的来源域名列表"
-    )
-    rate_limit_config: Dict[str, int] = Field(
-        default_factory=lambda: {
-            "per_minute": 100, 
-            "per_hour": 3600, 
-            "per_day": 10000
-        },
-        description="速率限制配置"
-    )
-    
-    # 功能开关
-    enable_audit_logging: bool = Field(
-        default=True, 
-        description="是否启用审计日志"
-    )
-    enable_rate_limiting: bool = Field(
-        default=True, 
-        description="是否启用速率限制"
-    )
-    enable_device_validation: bool = Field(
-        default=True, 
-        description="是否启用设备验证"
-    )
-    
-    # 状态信息
-    is_active: bool = Field(default=True, description="租户是否激活")
-    created_at: datetime = Field(description="创建时间")
-    updated_at: datetime = Field(description="最后更新时间")
-    
-    # 统计信息
+    # 统计信息（兼容性保留）
     last_access: Optional[datetime] = Field(None, description="最后访问时间")
-    total_requests: int = Field(default=0, description="总请求数")
+    
+    # 便利属性
+    @property
+    def is_active(self) -> bool:
+        """租户是否激活（基于status字段）"""
+        return self.status == 1
+    
+    def to_model(self) -> 'TenantModel':
+        """
+        转换为数据库模型
+        
+        将业务模型转换为数据库模型实例，用于数据持久化。
+        处理字段映射和数据类型转换。
+        
+        返回:
+            TenantModel: 数据库模型实例
+        """
+        return TenantModel(
+            tenant_id=self.tenant_id,
+            tenant_name=self.tenant_name,
+            status=self.status,
+            industry=self.industry,
+            company_size=self.company_size,
+            area_id=self.area_id,
+            user_count=self.user_count,
+            expires_at=self.expires_at,
+            creator=self.creator,
+            editor=self.editor,
+            deleted=self.deleted,
+            feature_flags=self.feature_flags,
+            created_at=func.now(),
+            updated_at=func.now()
+        )
 
 
 class TenantModel(Base):
     """
-    租户配置数据库模型
+    租户数据库模型
     
-    对应TenantConfig业务模型的PostgreSQL存储结构。
-    使用JSONB字段存储复杂配置，支持高效查询和索引。
+    对应实际数据库中的tenant表结构
     """
     __tablename__ = "tenants"
     
-    # 主键和基本标识
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    # 主键
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    
+    # 基本信息
     tenant_id = Column(String(255), unique=True, nullable=False, index=True)
     tenant_name = Column(String(500), nullable=False)
+    status = Column(Integer, nullable=False, default=1)
     
-    # 业务配置（使用JSONB存储复杂配置）
-    brand_settings = Column(JSONB, nullable=False, default=dict)
-    ai_model_preferences = Column(JSONB, nullable=False, default=dict)
-    compliance_settings = Column(JSONB, nullable=False, default=dict)
-    feature_flags = Column(JSONB, nullable=False, default=dict)
+    # 业务信息
+    industry = Column(Integer, nullable=False)
+    company_size = Column(Integer, nullable=True)
+    area_id = Column(Integer, nullable=False)
     
-    # 访问控制
-    allowed_origins = Column(JSONB, nullable=False, default=list)
-    rate_limit_config = Column(JSONB, nullable=False, default=dict)
+    # 服务配置
+    user_count = Column(Integer, nullable=False, default=0)
+    expires_at = Column(DateTime, nullable=True)
     
-    # 功能开关
-    enable_audit_logging = Column(Boolean, nullable=False, default=True)
-    enable_rate_limiting = Column(Boolean, nullable=False, default=True)
-    enable_device_validation = Column(Boolean, nullable=False, default=True)
-    
-    # 状态信息
-    is_active = Column(Boolean, nullable=False, default=True)
+    # 审计字段
     created_at = Column(
         DateTime(timezone=True), 
         nullable=False, 
@@ -141,22 +138,25 @@ class TenantModel(Base):
         DateTime(timezone=True), 
         nullable=False, 
         server_default=func.now(),
-        # postgre 不支持 on update, 需要触发器，暂不创建
         onupdate=func.now()
     )
+    creator = Column(Integer, nullable=False)
+    editor = Column(Integer, nullable=True)
+
+    deleted = Column(Boolean, nullable=False, default=False)
     
-    # 统计信息
-    last_access = Column(DateTime(timezone=True), nullable=True)
-    total_requests = Column(Integer, nullable=False, default=0)
+    # 扩展配置（新增JSONB字段用于存储复杂配置）
+    feature_flags = Column(JSONB, nullable=True, default=dict)
     
     # 数据库索引优化
     __table_args__ = (
         Index('idx_tenant_id', 'tenant_id'),
-        Index('idx_tenant_active', 'is_active'),
-        Index('idx_tenant_updated', 'updated_at'),
+        Index('idx_tenant_status', 'status'),
+        Index('idx_tenant_industry', 'industry'),
+        Index('idx_tenant_deleted', 'deleted'),
     )
     
-    def to_business_model(self) -> TenantConfig:
+    def to_config(self) -> TenantConfig:
         """
         转换为业务模型
         
@@ -169,81 +169,34 @@ class TenantModel(Base):
         return TenantConfig(
             tenant_id=self.tenant_id,
             tenant_name=self.tenant_name,
-            brand_settings=self.brand_settings or {},
-            ai_model_preferences=self.ai_model_preferences or {},
-            compliance_settings=self.compliance_settings or {},
+            status=self.status,
+            industry=self.industry,
+            company_size=self.company_size,
+            area_id=self.area_id,
+            user_count=self.user_count,
+            expires_at=self.expires_at,
             feature_flags=self.feature_flags or {},
-            allowed_origins=self.allowed_origins or [],
-            rate_limit_config=self.rate_limit_config or {
-                "per_minute": 100, 
-                "per_hour": 3600, 
-                "per_day": 10000
-            },
-            enable_audit_logging=self.enable_audit_logging,
-            enable_rate_limiting=self.enable_rate_limiting,
-            enable_device_validation=self.enable_device_validation,
-            is_active=self.is_active,
             created_at=self.created_at,
             updated_at=self.updated_at,
-            last_access=self.last_access,
-            total_requests=self.total_requests
+            creator=self.creator,
+            editor=self.editor,
+            deleted=self.deleted,
+            last_access=None
         )
     
-    @classmethod
-    def from_business_model(cls, config: TenantConfig) -> "TenantModel":
+    def update(self, config: TenantConfig):
         """
-        从业务模型创建数据库模型
+        从业务配置更新数据库模型
         
-        将业务模型转换为数据库模型实例，用于数据持久化。
+        使用业务配置更新现有数据库模型实例，保持数据库追踪状态。
         
         参数:
-            config: TenantConfig业务模型实例
-            
-        返回:
-            TenantModel: 数据库模型实例
-        """
-        return cls(
-            tenant_id=config.tenant_id,
-            tenant_name=config.tenant_name,
-            brand_settings=config.brand_settings,
-            ai_model_preferences=config.ai_model_preferences,
-            compliance_settings=config.compliance_settings,
-            feature_flags=config.feature_flags,
-            allowed_origins=config.allowed_origins,
-            rate_limit_config=config.rate_limit_config,
-            enable_audit_logging=config.enable_audit_logging,
-            enable_rate_limiting=config.enable_rate_limiting,
-            enable_device_validation=config.enable_device_validation,
-            is_active=config.is_active,
-            created_at=config.created_at,
-            updated_at=config.updated_at,
-            last_access=config.last_access,
-            total_requests=config.total_requests
-        )
-
-    def update_from_business_model(self, config: TenantConfig) -> None:
-        """
-        从业务模型更新数据库模型
-        
-        使用业务模型的数据更新当前数据库模型实例。
-        updated_at字段会自动更新。
-        
-        参数:
-            config: TenantConfig业务模型实例
+            config: TenantConfig业务配置实例
         """
         self.tenant_name = config.tenant_name
-        self.brand_settings = config.brand_settings
-        self.ai_model_preferences = config.ai_model_preferences
-        self.compliance_settings = config.compliance_settings
+        self.status = 1 if config.is_active else 0
         self.feature_flags = config.feature_flags
-        self.allowed_origins = config.allowed_origins
-        self.rate_limit_config = config.rate_limit_config
-        self.enable_audit_logging = config.enable_audit_logging
-        self.enable_rate_limiting = config.enable_rate_limiting
-        self.enable_device_validation = config.enable_device_validation
-        self.is_active = config.is_active
-        self.last_access = config.last_access
-        self.total_requests = config.total_requests
+        self.updated_at = func.now()
 
 
 # API Request/Response Schemas
