@@ -27,7 +27,7 @@ migrations/
 
 ### 核心组件
 
-**`scripts/migrate.py`** - 迁移脚本
+**`scripts/database.py`** - 迁移脚本
 - `upgrade()` - 应用迁移到数据库
 - `revision(message)` - 生成新的迁移文件
 
@@ -46,7 +46,7 @@ migrations/
 
 ```bash
 # 应用所有待执行的迁移
-python scripts/migrate.py
+python scripts/database.py
 
 # 如果数据库已是最新版本，输出：
 # INFO: Current revision matches head, no migrations to apply
@@ -56,10 +56,10 @@ python scripts/migrate.py
 
 ```bash
 # 生成带自定义消息的迁移
-python scripts/migrate.py generate "add user table"
+python scripts/database.py generate "add user table"
 
 # 生成默认消息的迁移
-python scripts/migrate.py generate
+python scripts/database.py generate
 ```
 
 ## 👥 团队协作工作流程
@@ -83,7 +83,7 @@ class UserModel(Base):
 
 **步骤 2: 生成迁移文件**
 ```bash
-python scripts/migrate.py generate "add user table"
+python scripts/database.py generate "add user table"
 ```
 
 这会创建类似以下的迁移文件：
@@ -117,7 +117,7 @@ git pull origin main
 
 **步骤 2: 应用数据库迁移**
 ```bash
-python scripts/migrate.py
+python scripts/database.py
 ```
 
 **输出示例：**
@@ -221,7 +221,7 @@ postgres_url = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PWD}@{DB_HOST}:{
 ```bash
 # 合并代码后重新生成迁移
 git pull origin main
-python scripts/migrate.py generate "merge conflicts resolution"
+python scripts/database.py generate "merge conflicts resolution"
 ```
 
 ### 问题 2: 数据库连接失败
@@ -249,9 +249,9 @@ python scripts/migrate.py generate "merge conflicts resolution"
 
 ```bash
 # 描述性命名
-python scripts/migrate.py generate "add user authentication"
-python scripts/migrate.py generate "add product catalog tables"
-python scripts/migrate.py generate "update customer profile schema"
+python scripts/database.py generate "add user authentication"
+python scripts/database.py generate "add product catalog tables"
+python scripts/database.py generate "update customer profile schema"
 ```
 
 ### 2. 模型设计原则
@@ -281,7 +281,7 @@ class UserModel(Base):
 ```bash
 # 生产环境迁移
 git pull origin main
-python scripts/migrate.py  # 应用迁移
+python scripts/database.py  # 应用迁移
 python main.py            # 启动应用
 ```
 
