@@ -9,18 +9,25 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - MILVUS_HOST=milvus-standalone
-      - MILVUS_PORT=19530
-      - ELASTICSEARCH_URL=http://elasticsearch:9200
-      - REDIS_URL=redis://redis:6379
+      - MILVUS_HOST=${MILVUS_HOST}
+      - MILVUS_PORT=${MILVUS_PORT}
+      - ELASTICSEARCH_URL=${ELASTICSEARCH_URL}
+      - REDIS_URL=${REDIS_URL}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - DEBUG=true
+      - DB_HOST=${DB_HOST}
+      - DB_PORT=${DB_PORT}
+      - DB_NAME=${DB_NAME}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PWD=${POSTGRES_PWD}
     depends_on:
       - milvus-standalone
       - elasticsearch
       - redis
     volumes:
-      - ../src:/app/src
+      - ../api:/app/api
+      - ../infra:/app/infra
+      - ../models:/app/models
+      - ../scripts:/app/scripts
       - ../config:/app/config
     networks:
       - mas-network

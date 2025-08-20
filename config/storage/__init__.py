@@ -26,29 +26,29 @@ class StorageConfig(BaseSettings):
     )
 
     # PostgreSQL 配置
-    POSTGRES_HOST: str = Field(
+    DB_HOST: str = Field(
         description="PostgreSQL 服务器主机地址，用于租户管理",
         default="localhost",
     )
 
-    POSTGRES_PORT: int = Field(
+    DB_PORT: int = Field(
         description="PostgreSQL 服务器端口号",
         default=5432,
     )
 
-    POSTGRES_DB: str = Field(
+    DB_NAME: str = Field(
         description="PostgreSQL 数据库名称",
-        default="mas_tenants",
+        default="mas",
     )
 
     POSTGRES_USER: str = Field(
         description="PostgreSQL 数据库用户名",
-        default="mas_user",
+        default="postgres",
     )
 
-    POSTGRES_PASSWORD: str = Field(
+    POSTGRES_PWD: str = Field(
         description="PostgreSQL 数据库密码",
-        default="mas_pass",
+        default=None,
     )
 
     # Milvus 配置
@@ -66,6 +66,6 @@ class StorageConfig(BaseSettings):
     def postgres_url(self) -> str:
         """构建PostgreSQL连接URL"""
         return (
-            f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}"
-            f"@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+            f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PWD}"
+            f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
         )

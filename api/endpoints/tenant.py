@@ -74,11 +74,20 @@ async def sync_tenant(
             detail=str(e)
         )
     except Exception as e:
+        error_msg = str(e).lower()
         logger.error(f"Tenant sync failed for {tenant_id}: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Tenant sync failed"
-        )
+        
+        # Provide specific error messages for database issues
+        if "connection" in error_msg or "database" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Database not available: {str(e)}"
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Tenant sync failed"
+            )
 
 
 @router.get("/{tenant_id}/status", response_model=TenantStatusResponse)

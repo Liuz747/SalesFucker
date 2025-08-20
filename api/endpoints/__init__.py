@@ -18,10 +18,12 @@ from .multimodal import router as multimodal_router
 from .health import router as health_router
 from .assistants import router as assistants_router
 from .prompts import router as prompts_router
+from .service_auth import router as auth_router
 from .tenant import router as tenant_router
 
 __all__ = [
     "agents_router",
+    "auth_router",
     "conversations_router", 
     "llm_management_router",
     "multimodal_router",

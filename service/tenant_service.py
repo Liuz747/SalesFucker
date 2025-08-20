@@ -17,7 +17,7 @@ from typing import Optional, List
 from sqlalchemy import select, update
 
 from models.tenant import TenantConfig, TenantModel
-from infra.db.connection import database_session, test_database_connection
+from infra.db.connection import database_session, test_db_connection
 from utils import get_component_logger, get_current_datetime
 
 logger = get_component_logger(__name__, "TenantService")
@@ -207,7 +207,7 @@ class TenantService:
         """
         try:
             # 测试数据库连接
-            db_healthy = await test_database_connection()
+            db_healthy = await test_db_connection()
             
             if db_healthy:
                 # 获取租户统计

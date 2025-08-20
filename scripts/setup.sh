@@ -39,11 +39,11 @@ DEEPSEEK_API_KEY=your_deepseek_api_key_here
 
 # === 数据库配置 ===
 # PostgreSQL 数据库配置
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
-POSTGRES_DB=mas_tenants
-POSTGRES_USER=mas_user
-POSTGRES_PASSWORD=mas_pass
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=mas
+POSTGRES_USER=postgres
+POSTGRES_PWD=postgres
 
 # === Memory & RAG Configuration ===
 # Elasticsearch

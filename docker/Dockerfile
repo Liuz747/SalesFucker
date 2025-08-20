@@ -16,7 +16,10 @@ ENV PATH="/root/.cargo/bin:$PATH"
 # Copy project files
 COPY pyproject.toml uv.lock* ./
 COPY main.py ./
-COPY src/ ./src/
+COPY api/ ./api/
+COPY infra/ ./infra/
+COPY models/ ./models/
+COPY scripts/ ./scripts/
 COPY config/ ./config/
 
 # Install dependencies
@@ -30,4 +33,4 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # Run the application
-CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"] 
+CMD ["uv", "run", "main.py"] 
