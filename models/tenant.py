@@ -49,17 +49,15 @@ class TenantConfig(BaseModel):
     industry: int = Field(default=1, description="行业类型：1-美容诊所，2-化妆品公司等")
     company_size: Optional[int] = Field(default=1, description="公司规模：1-小型，2-中型，3-大型") 
     area_id: int = Field(default=1, description="地区ID")
-    
-    # 服务配置
     user_count: int = Field(default=0, description="用户数量")
     expires_at: Optional[datetime] = Field(None, description="过期时间")
     
     # 审计字段
-    created_at: datetime = Field(description="创建时间")
-    updated_at: datetime = Field(description="最后更新时间")
     creator: int = Field(default=1, description="创建者ID")
     editor: Optional[int] = Field(None, description="编辑者ID")
     deleted: bool = Field(default=False, description="删除标记")
+    created_at: datetime = Field(description="创建时间")
+    updated_at: datetime = Field(description="最后更新时间")
     
     # 业务配置
     feature_flags: Dict[str, bool] = Field(
@@ -94,10 +92,10 @@ class TenantConfig(BaseModel):
             area_id=self.area_id,
             user_count=self.user_count,
             expires_at=self.expires_at,
+            feature_flags=self.feature_flags,
             creator=self.creator,
             editor=self.editor,
             deleted=self.deleted,
-            feature_flags=self.feature_flags,
             created_at=func.now(),
             updated_at=func.now()
         )
@@ -123,8 +121,6 @@ class TenantModel(Base):
     industry = Column(Integer, nullable=False)
     company_size = Column(Integer, nullable=True)
     area_id = Column(Integer, nullable=False)
-    
-    # 服务配置
     user_count = Column(Integer, nullable=False, default=0)
     expires_at = Column(DateTime, nullable=True)
     
@@ -142,8 +138,8 @@ class TenantModel(Base):
     )
     creator = Column(Integer, nullable=False)
     editor = Column(Integer, nullable=True)
-
     deleted = Column(Boolean, nullable=False, default=False)
+    last_access = Column(DateTime, nullable=True)
     
     # 扩展配置（新增JSONB字段用于存储复杂配置）
     feature_flags = Column(JSONB, nullable=True, default=dict)
@@ -176,12 +172,12 @@ class TenantModel(Base):
             user_count=self.user_count,
             expires_at=self.expires_at,
             feature_flags=self.feature_flags or {},
-            created_at=self.created_at,
-            updated_at=self.updated_at,
             creator=self.creator,
             editor=self.editor,
             deleted=self.deleted,
-            last_access=None
+            last_access=self.last_access,
+            created_at=self.created_at,
+            updated_at=self.updated_at
         )
     
     def update(self, config: TenantConfig):
@@ -194,8 +190,14 @@ class TenantModel(Base):
             config: TenantConfig业务配置实例
         """
         self.tenant_name = config.tenant_name
-        self.status = 1 if config.is_active else 0
+        self.status = config.status
+        self.industry = config.industry
+        self.company_size = config.company_size
+        self.area_id = config.area_id
+        self.user_count = config.user_count
+        self.expires_at = config.expires_at
         self.feature_flags = config.feature_flags
+        self.last_access = config.last_access
         self.updated_at = func.now()
 
 

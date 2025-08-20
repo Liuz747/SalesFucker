@@ -43,7 +43,7 @@ class TenantHandler:
                 updated_at=get_current_datetime(),
             )
 
-            cfg.is_active = request.is_active
+            cfg.status = request.status
 
             # Update features if provided
             if request.features:
@@ -70,7 +70,7 @@ class TenantHandler:
         return TenantStatusResponse(
             tenant_id=cfg.tenant_id,
             tenant_name=cfg.tenant_name,
-            is_active=cfg.is_active,
+            status=cfg.status,
             updated_at=cfg.updated_at,
             last_access=cfg.last_access,
         )
@@ -81,8 +81,8 @@ class TenantHandler:
         if not cfg:
             raise ValueError("Tenant not found")
         
-        if request.is_active is not None:
-            cfg.is_active = request.is_active
+        if request.status is not None:
+            cfg.status = request.status
         
         if request.features:
             cfg.feature_flags = {feature: True for feature in request.features}
@@ -114,15 +114,15 @@ class TenantHandler:
                 cfg = await self.get_tenant_config(tid)
                 if not cfg:
                     continue
-                if status_filter == "active" and not cfg.is_active:
+                if status_filter == "active" and not cfg.status:
                     continue
-                if status_filter == "inactive" and cfg.is_active:
+                if status_filter == "inactive" and cfg.status:
                     continue
                 items.append(
                     {
                         "tenant_id": cfg.tenant_id,
                         "tenant_name": cfg.tenant_name,
-                        "is_active": cfg.is_active,
+                        "status": cfg.status,
                         "updated_at": cfg.updated_at,
                         "features_enabled": list(cfg.feature_flags.keys()) if cfg.feature_flags else [],
                     }
@@ -179,7 +179,7 @@ class TenantHandler:
             数据库连接异常将被传播，业务异常返回None
         """
         try:
-            return await TenantService.get_tenant_by_id(tenant_id)
+            return await TenantService.query(tenant_id)
         except Exception as e:
             logger.error(f"获取租户配置失败: {tenant_id}, 错误: {e}")
             raise
