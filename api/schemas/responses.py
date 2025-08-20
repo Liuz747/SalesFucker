@@ -87,6 +87,12 @@ class PaginatedResponse(SuccessResponse[List[T]]):
 
     pagination: Dict[str, Any] = Field(description="分页信息")
 
+# todo 不确定要如何使用分页信息，先这样调整了。
+    total: int = Field(description="分页信息")
+    page: int = Field(description="分页信息")
+    page_size: int = Field(description="分页信息")
+    pages :int = Field(description="分页信息")
+
     def __init__(self, **data):
         # 确保pagination字段有标准结构
         if "pagination" in data and isinstance(data["pagination"], dict):

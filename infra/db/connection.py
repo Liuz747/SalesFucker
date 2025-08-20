@@ -8,6 +8,7 @@
 from typing import AsyncGenerator, Optional
 from contextlib import asynccontextmanager
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
@@ -137,7 +138,7 @@ async def test_db_connection() -> bool:
     try:
         engine = await get_database_engine()
         async with engine.begin() as conn:
-            result = await conn.execute("SELECT 1")
+            result = await conn.execute(text("SELECT 1"))
             row = result.fetchone()
             return row[0] == 1
     except Exception as e:

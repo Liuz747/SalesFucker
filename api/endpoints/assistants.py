@@ -19,7 +19,7 @@ from typing import List, Optional
 from ..schemas.assistants import (
     AssistantCreateRequest, AssistantUpdateRequest, AssistantConfigRequest,
     AssistantListRequest, AssistantResponse, AssistantListResponse,
-    AssistantStatsResponse, AssistantOperationResponse
+    AssistantStatsResponse, AssistantOperationResponse, AssistantStatus
 )
 from ..handlers.assistant_handler import AssistantHandler
 from utils import get_component_logger
@@ -73,7 +73,7 @@ async def create_assistant(
 @router.get("/", response_model=AssistantListResponse)
 async def list_assistants(
         tenant_id: str = Query(..., description="租户标识符"),
-        status: Optional[str] = Query(None, description="助理状态筛选"),
+        status: Optional[AssistantStatus] = Query(None, description="助理状态筛选"),
         personality_type: Optional[str] = Query(None, description="个性类型筛选"),
         expertise_level: Optional[str] = Query(None, description="专业等级筛选"),
         specialization: Optional[str] = Query(None, description="专业领域筛选"),
@@ -95,7 +95,7 @@ async def list_assistants(
 
         # 构建查询请求
         list_request = AssistantListRequest(
-            tenant_id,
+            tenant_id=tenant_id,
             status=status,
             personality_type=personality_type,
             expertise_level=expertise_level,
@@ -122,13 +122,13 @@ async def list_assistants(
         )
 
 
-@router.get("/{assistant_id}", response_model=AssistantResponse)
+@router.get("/{assistant_id}", response_model=Optional[SuccessResponse[AssistantModel]])
 async def get_assistant(
         assistant_id: str = Path(..., description="助理ID"),
         tenant_id: str = Query(..., description="租户标识符"),
         include_stats: bool = Query(False, description="是否包含统计信息"),
         include_config: bool = Query(True, description="是否包含配置信息")
-) -> AssistantResponse:
+) -> Optional[SuccessResponse[AssistantModel]]:
     """
     获取助理详细信息
     
@@ -148,7 +148,7 @@ async def get_assistant(
                 detail="助理不存在"
             )
 
-        logger.info(f"助理详情查询成功: {assistant_id}")
+        logger.error(f"助理详情查询成功: {assistant_id} {type(result)}")
         return result
 
     except HTTPException:

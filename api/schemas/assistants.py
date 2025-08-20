@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field, field_validator
 
 from .prompts import AssistantPromptConfig
-from .requests import BaseRequest
+from .requests import BaseRequest, PaginationRequest
 from .responses import PaginatedResponse, SuccessResponse
 
 
@@ -185,7 +185,7 @@ class AssistantConfigRequest(BaseRequest):
     )
 
 
-class AssistantListRequest(BaseRequest):
+class AssistantListRequest(PaginationRequest):
     """
     助理列表查询请求模型
     """

@@ -268,10 +268,14 @@ class AssistantHandler(StatusMixin):
                     "total": total_count,
                     "filtered": len(filtered_assistants)
                 },
+
+                # todo 不确定分页信息使用哪些属性，先按照程序能运行写了
                 total=total_count,
                 page=request.page,
                 page_size=request.page_size,
-                pages=(total_count + request.page_size - 1) // request.page_size
+                pages=(total_count + request.page_size - 1) // request.page_size,
+
+                pagination={}
             )
 
         except Exception as e:
@@ -285,7 +289,7 @@ class AssistantHandler(StatusMixin):
             tenant_id: str,
             include_stats: bool = False,
             include_config: bool = True
-    ) -> Optional[AssistantResponse]:
+    ) -> Optional[SuccessResponse[AssistantModel]]:
         """
         获取助理详细信息
         
@@ -300,7 +304,7 @@ class AssistantHandler(StatusMixin):
         """
         try:
             assistant_key = f"{tenant_id}:{assistant_id}"
-            assistant = self._assistants_store.get(assistant_key)
+            assistant = await AssistantService.get_assistant_by_id(assistant_id)
 
             if not assistant:
                 return None
@@ -312,14 +316,14 @@ class AssistantHandler(StatusMixin):
 
             self.logger.info(f"助理详情查询成功: {assistant_id}")
 
-            return AssistantResponse(
+            return SuccessResponse(
                 success=True,
                 message="助理详情查询成功",
-                data={},
-                **assistant,
-                current_customers=assistant.get("current_customers", 0),
-                total_conversations=assistant.get("total_conversations", 0),
-                average_rating=assistant.get("average_rating", 0.0)
+                data=assistant,
+
+                # current_customers=assistant.get("current_customers", 0),
+                # total_conversations=assistant.get("total_conversations", 0),
+                # average_rating=assistant.get("average_rating", 0.0)
             )
 
         except Exception as e:
