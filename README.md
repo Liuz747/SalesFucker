@@ -159,10 +159,10 @@ mas-v0.2/
 
 ```bash
 # 运行数据库迁移（应用 schema 更改）
-python scripts/migrate.py
+python scripts/database.py
 
 # 生成新的迁移文件（添加新模型后）
-python scripts/migrate.py generate "描述更改"
+python scripts/database.py generate "描述更改"
 ```
 
 **团队协作工作流程:**
@@ -173,7 +173,7 @@ python scripts/migrate.py generate "描述更改"
    touch models/user.py
    
    # 2. 生成迁移文件
-   python scripts/migrate.py generate "add user table"
+   python scripts/database.py generate "add user table"
    
    # 3. 提交代码和迁移文件
    git add models/user.py migrations/versions/002_add_user_table.py
@@ -187,7 +187,7 @@ python scripts/migrate.py generate "描述更改"
    git pull origin main
    
    # 2. 应用数据库迁移
-   python scripts/migrate.py
+   python scripts/database.py
    
    # 完成！本地数据库现在与最新 schema 同步
    ```

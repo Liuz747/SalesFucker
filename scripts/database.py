@@ -15,7 +15,7 @@ from alembic.config import Config
 from infra.db.connection import test_db_connection
 from utils import get_component_logger
 
-logger = get_component_logger(__name__, "DatabaseMigration")
+logger = get_component_logger(__name__, "Database")
 
 async def upgrade():
     """运行数据库迁移"""
