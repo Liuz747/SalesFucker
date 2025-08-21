@@ -12,10 +12,15 @@ sys.path.insert(0, str(project_root))
 
 from alembic import command
 from alembic.config import Config
-from infra.db.connection import test_db_connection
+from infra.db import test_db_connection, get_engine
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "Database")
+
+def run_upgrade(connection, cfg, revision):
+    """在给定连接上运行数据库迁移"""
+    cfg.attributes["connection"] = connection
+    command.upgrade(cfg, revision)
 
 async def upgrade():
     """运行数据库迁移"""
@@ -26,26 +31,41 @@ async def upgrade():
         if not await test_db_connection():
             raise Exception("数据库连接失败")
 
-        # Run Alembic migrations
+        # 使用异步引擎和连接共享模式
+        engine = await get_engine()
         cfg = Config("migrations/alembic.ini")
-        command.upgrade(cfg, "head")
+        
+        async with engine.begin() as conn:
+            await conn.run_sync(run_upgrade, cfg, "head")
 
-        logger.info("✅ 数据库迁移完成")
         return True
 
     except Exception as e:
         logger.error(f"❌ 数据库迁移失败: {e}")
         return False
 
-def revision(message: str):
+
+def run_revision(connection, cfg, message):
+    """在给定连接上运行迁移文件生成"""
+    cfg.attributes["connection"] = connection
+    command.revision(cfg, autogenerate=True, message=message)
+
+async def revision(message: str):
     """生成新的迁移文件"""
     try:
         logger.info(f"生成迁移文件: {message}")
 
-        cfg = Config("migrations/alembic.ini")
-        command.revision(cfg, autogenerate=True, message=message)
+        # Test connection first
+        if not await test_db_connection():
+            raise Exception("数据库连接失败")
 
-        logger.info("✅ 迁移文件生成完成")
+        # 使用异步引擎和连接共享模式
+        engine = await get_engine()
+        cfg = Config("migrations/alembic.ini")
+        
+        async with engine.begin() as conn:
+            await conn.run_sync(run_revision, cfg, message)
+        
         return True
 
     except Exception as e:
@@ -53,11 +73,10 @@ def revision(message: str):
         return False
 
 async def main():
-    """主函数"""
     if len(sys.argv) > 1:
         if sys.argv[1] == "revision":
             message = sys.argv[2] if len(sys.argv) > 2 else "Auto-generated migration"
-            flag = revision(message)
+            flag = await revision(message)
         else:
             logger.error("未知命令，支持: revision <message>")
             flag = False

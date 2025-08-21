@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine
 )
+from sqlalchemy import text
 
 from config import settings
 from utils import get_component_logger
@@ -25,7 +26,7 @@ _engine: Optional[AsyncEngine] = None
 _session_factory: Optional[async_sessionmaker[AsyncSession]] = None
 
 
-async def get_database_engine() -> AsyncEngine:
+async def get_engine() -> AsyncEngine:
     """
     获取数据库引擎实例
     
@@ -48,7 +49,7 @@ async def get_database_engine() -> AsyncEngine:
             connect_args={
                 "command_timeout": 30,
                 "server_settings": {
-                    "application_name": "mas-tenant-service",
+                    "application_name": "mas-service",
                 }
             },
             echo=settings.DEBUG,  # 开发环境下显示SQL
@@ -69,7 +70,7 @@ async def get_session_factory() -> async_sessionmaker[AsyncSession]:
     global _session_factory
     
     if _session_factory is None:
-        engine = await get_database_engine()
+        engine = await get_engine()
         _session_factory = async_sessionmaker(
             engine,
             class_=AsyncSession,
@@ -81,7 +82,7 @@ async def get_session_factory() -> async_sessionmaker[AsyncSession]:
     return _session_factory
 
 
-async def get_database_session() -> AsyncSession:
+async def get_session() -> AsyncSession:
     """
     获取数据库会话实例（FastAPI依赖）
     
@@ -135,9 +136,9 @@ async def test_db_connection() -> bool:
         bool: 连接是否成功
     """
     try:
-        engine = await get_database_engine()
+        engine = await get_engine()
         async with engine.begin() as conn:
-            result = await conn.execute("SELECT 1")
+            result = await conn.execute(text("SELECT 1"))
             row = result.fetchone()
             return row[0] == 1
     except Exception as e:

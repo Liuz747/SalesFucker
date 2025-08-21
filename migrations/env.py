@@ -1,13 +1,12 @@
 """
 Alembic环境配置
 
-该文件配置Alembic迁移环境，支持异步PostgreSQL数据库操作。
+该文件配置Alembic迁移环境，使用同步连接与Alembic命令行工具兼容。
 """
 
 import asyncio
 from logging.config import fileConfig
 from sqlalchemy import pool
-from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
@@ -60,7 +59,7 @@ def run_migrations_offline():
         context.run_migrations()
 
 
-def do_run_migrations(connection: Connection):
+def do_run_migrations(connection):
     context.configure(connection=connection, target_metadata=metadata)
 
     with context.begin_transaction():
@@ -71,11 +70,11 @@ async def run_async_migrations():
     """In this scenario we need to create an Engine
     and associate a connection with the context.
     """
-    configuration = config.get_section(config.config_ini_section)
-    configuration["sqlalchemy.url"] = settings.postgres_url
+    cfg = config.get_section(config.config_ini_section)
+    cfg["sqlalchemy.url"] = settings.postgres_url
     
     connectable = async_engine_from_config(
-        configuration,
+        cfg,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
@@ -88,7 +87,15 @@ async def run_async_migrations():
 
 def run_migrations_online():
     """Run migrations in 'online' mode."""
-    asyncio.run(run_async_migrations())
+    
+    connectable = config.attributes.get("connection", None)
+
+    if connectable is None:
+        # No existing connection, run async migrations
+        asyncio.run(run_async_migrations())
+    else:
+        # Use existing connection (for programmatic API use)
+        do_run_migrations(connectable)
 
 
 if context.is_offline_mode():
