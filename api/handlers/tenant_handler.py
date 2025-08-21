@@ -32,18 +32,27 @@ class TenantHandler:
     def __init__(self):
         self._access_stats: Dict[str, Dict[str, Any]] = {}
 
-    async def sync_tenant(self, request: TenantSyncRequest) -> Dict[str, Any]:
+    async def sync_tenant(self, request: TenantSyncRequest) -> None:
         """同步租户配置"""
         try:
-            existing = await self.get_tenant_config(request.tenant_id)
-            cfg = existing or TenantConfig(
-                tenant_id=request.tenant_id,
-                tenant_name=request.tenant_name,
-                created_at=get_current_datetime(),
-                updated_at=get_current_datetime(),
-            )
-
-            cfg.status = request.status
+            exist = await self.get_tenant_config(request.tenant_id)
+            if not exist:
+                cfg = TenantConfig(
+                    tenant_id=request.tenant_id,
+                    tenant_name=request.tenant_name,
+                    status=request.status,
+                    industry=request.industry,
+                    area_id=request.area_id,
+                    creator=request.creator,
+                    company_size=request.company_size,
+                )
+            else:
+                cfg = exist
+                cfg.status = request.status
+                cfg.tenant_name = request.tenant_name
+                cfg.industry = request.industry
+                cfg.area_id = request.area_id
+                cfg.company_size = request.company_size
 
             # Update features if provided
             if request.features:
@@ -52,12 +61,6 @@ class TenantHandler:
             status = await self.save_tenant_config(cfg)
             if not status:
                 raise ValueError(f"Failed to save tenant configuration for {cfg.tenant_id}")
-                
-            return {
-                "status": "success",
-                "tenant_id": cfg.tenant_id,
-                "features_enabled": request.features or [],
-            }
         except Exception as e:
             logger.error(f"租户同步失败: {request.tenant_id}, 错误: {e}")
             raise
@@ -133,15 +136,6 @@ class TenantHandler:
             logger.error(f"获取租户列表失败: {e}")
             return TenantListResponse(total=0, tenants=[])
 
-    async def bulk_sync_tenants(self, tenants: List[TenantSyncRequest]) -> List[Dict[str, Any]]:
-        """批量同步租户"""
-        results = []
-        for req in tenants:
-            try:
-                results.append(await self.sync_tenant(req))
-            except Exception as e:
-                results.append({"status": "failed", "error": str(e)})
-        return results
 
     async def health_check(self) -> Dict[str, Any]:
         """健康检查"""
@@ -194,9 +188,6 @@ class TenantHandler:
         返回:
             bool: 是否保存成功
         """
-        # 更新时间戳
-        config.updated_at = get_current_datetime()
-        
         # 保存到数据库 - 让异常向上传播
         flag = await TenantService.save(config)
         

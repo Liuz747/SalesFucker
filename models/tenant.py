@@ -56,22 +56,14 @@ class TenantConfig(BaseModel):
     creator: int = Field(default=1, description="创建者ID")
     editor: Optional[int] = Field(None, description="编辑者ID")
     deleted: bool = Field(default=False, description="删除标记")
-    created_at: datetime = Field(description="创建时间")
-    updated_at: datetime = Field(description="最后更新时间")
+    created_at: Optional[datetime] = Field(None, description="创建时间")
+    updated_at: Optional[datetime] = Field(None, description="最后更新时间")
     
     # 业务配置
     feature_flags: Dict[str, bool] = Field(
         default_factory=dict, 
         description="功能开关配置"
     )
-    # 统计信息（兼容性保留）
-    last_access: Optional[datetime] = Field(None, description="最后访问时间")
-    
-    # 便利属性
-    @property
-    def is_active(self) -> bool:
-        """租户是否激活（基于status字段）"""
-        return self.status == 1
     
     def to_model(self) -> 'TenantModel':
         """
@@ -139,7 +131,6 @@ class TenantModel(Base):
     creator = Column(Integer, nullable=False)
     editor = Column(Integer, nullable=True)
     deleted = Column(Boolean, nullable=False, default=False)
-    last_access = Column(DateTime, nullable=True)
     
     # 扩展配置（新增JSONB字段用于存储复杂配置）
     feature_flags = Column(JSONB, nullable=True, default=dict)
@@ -175,7 +166,6 @@ class TenantModel(Base):
             creator=self.creator,
             editor=self.editor,
             deleted=self.deleted,
-            last_access=self.last_access,
             created_at=self.created_at,
             updated_at=self.updated_at
         )
@@ -197,7 +187,6 @@ class TenantModel(Base):
         self.user_count = config.user_count
         self.expires_at = config.expires_at
         self.feature_flags = config.feature_flags
-        self.last_access = config.last_access
         self.updated_at = func.now()
 
 
@@ -205,18 +194,21 @@ class TenantModel(Base):
 class TenantSyncRequest(BaseModel):
     tenant_id: str = Field(description="租户ID")
     tenant_name: str = Field(description="租户名称")
+    status: int = Field(default=1, description="状态：1-活跃，0-禁用")
+    industry: int = Field(default=1, description="行业类型：1-美容诊所，2-化妆品公司等")
+    area_id: int = Field(default=1, description="地区ID")
+    creator: int = Field(default=1, description="创建者ID")
+    company_size: Optional[int] = Field(default=1, description="公司规模：1-小型，2-中型，3-大型")
     features: Optional[List[str]] = Field(default=None, description="启用的功能")
-    is_active: bool = Field(default=True, description="是否激活")
 
 
 class TenantUpdateRequest(BaseModel):
     features: Optional[List[str]] = Field(None, description="功能列表")
-    is_active: Optional[bool] = Field(None, description="是否激活")
+    status: Optional[int] = Field(None, description="状态：1-活跃，0-禁用")
 
 
 class TenantSyncResponse(BaseModel):
     tenant_id: str
-    sync_status: str
     message: str
     synced_at: datetime
     features_enabled: Optional[List[str]] = None
@@ -225,9 +217,8 @@ class TenantSyncResponse(BaseModel):
 class TenantStatusResponse(BaseModel):
     tenant_id: str
     tenant_name: Optional[str] = None
-    is_active: bool
+    status: int
     updated_at: Optional[datetime] = None
-    last_access: Optional[datetime] = None
 
 
 class TenantListResponse(BaseModel):

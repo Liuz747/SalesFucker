@@ -18,7 +18,7 @@ from sqlalchemy import select, update
 
 from models.tenant import TenantConfig, TenantModel
 from infra.db.connection import database_session, test_db_connection
-from utils import get_component_logger, get_current_datetime
+from utils import get_component_logger
 
 logger = get_component_logger(__name__, "TenantService")
 
@@ -121,7 +121,7 @@ class TenantService:
                 stmt = (
                     update(TenantModel)
                     .where(TenantModel.tenant_id == tenant_id)
-                    .values(status=0, updated_at=get_current_datetime())
+                    .values(status=0)
                 )
                 result = await session.execute(stmt)
                 await session.commit()
