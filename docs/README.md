@@ -168,20 +168,6 @@ uv run pytest tests/test_agents.py
 uv run pytest --cov=src
 ```
 
-### Code Quality Checks
-
-```bash
-# Code formatting
-uv run black .
-uv run isort .
-
-# Type checking
-uv run mypy src/
-
-# Code linting
-uv run flake8 src/
-```
-
 ## 🌐 API Interface
 
 After startup, API services will be available at:

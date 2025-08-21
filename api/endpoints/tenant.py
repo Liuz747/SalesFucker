@@ -8,10 +8,10 @@ Flow:
 Backend System → POST /tenants/{tenant_id}/sync → AI Service
 """
 
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, status
 from typing import List, Optional
 
-from ..schemas.tenant import (
+from models.tenant import (
     TenantSyncRequest,
     TenantSyncResponse, 
     TenantStatusResponse,
@@ -21,9 +21,9 @@ from ..schemas.tenant import (
 from ..handlers.tenant_handler import TenantHandler
 from utils import get_component_logger, get_current_datetime, to_isoformat
 
-logger = get_component_logger(__name__, "AdminTenantEndpoints")
+logger = get_component_logger(__name__, "TenantEndpoints")
 
-# Create router with admin prefix
+# Create router with prefix
 router = APIRouter(prefix="/tenants", tags=["tenant"])
 
 # Initialize handler
@@ -56,7 +56,7 @@ async def sync_tenant(
             )
         
         # Sync tenant to AI service database
-        result = await tenant_handler.sync_tenant(request)
+        await tenant_handler.sync_tenant(request)
         
         logger.info(f"Tenant sync successful: {tenant_id}")
         return TenantSyncResponse(
@@ -74,11 +74,20 @@ async def sync_tenant(
             detail=str(e)
         )
     except Exception as e:
+        error_msg = str(e).lower()
         logger.error(f"Tenant sync failed for {tenant_id}: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Tenant sync failed"
-        )
+        
+        # Provide specific error messages for database issues
+        if "connection" in error_msg or "database" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Database not available: {str(e)}"
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Tenant sync failed"
+            )
 
 
 @router.get("/{tenant_id}/status", response_model=TenantStatusResponse)

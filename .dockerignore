@@ -1,0 +1,23 @@
+.env
+*.env.*
+
+# Logs
+logs
+*.log*
+
+# IDE
+.idea
+.cursor
+.claude
+
+# venv
+.venv
+
+*.md
+
+# misc
+.DS_Store
+
+# Python
+__pycache__/
+build/

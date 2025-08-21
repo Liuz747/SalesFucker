@@ -31,7 +31,19 @@ def get_component_logger(component_name: str, identifier: Optional[str] = None) 
     else:
         logger_name = component_name
     
-    return logging.getLogger(logger_name)
+    l = logging.getLogger(logger_name)
+    # 创建handler，设置级别为debug
+    handler = logging.StreamHandler()
+    handler.setLevel(logging.DEBUG)
+
+    # 创建formatter并添加到handler中
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - Line %(lineno)d - %(message)s')
+    handler.setFormatter(formatter)
+
+    # 将handler添加到logger中
+    l.addHandler(handler)
+
+    return l
 
 
 def get_agent_logger(agent_id: str) -> logging.Logger:

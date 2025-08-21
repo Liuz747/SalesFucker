@@ -8,12 +8,14 @@
 from typing import AsyncGenerator, Optional
 from contextlib import asynccontextmanager
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,
     async_sessionmaker,
     create_async_engine
 )
+from sqlalchemy import text
 
 from config import settings
 from utils import get_component_logger
@@ -25,7 +27,7 @@ _engine: Optional[AsyncEngine] = None
 _session_factory: Optional[async_sessionmaker[AsyncSession]] = None
 
 
-async def get_database_engine() -> AsyncEngine:
+async def get_engine() -> AsyncEngine:
     """
     获取数据库引擎实例
     
@@ -35,7 +37,7 @@ async def get_database_engine() -> AsyncEngine:
     global _engine
     
     if _engine is None:
-        logger.info(f"初始化PostgreSQL连接: {settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}")
+        logger.info(f"初始化PostgreSQL连接: {settings.DB_HOST}:{settings.DB_PORT}")
         
         _engine = create_async_engine(
             settings.postgres_url,
@@ -48,7 +50,7 @@ async def get_database_engine() -> AsyncEngine:
             connect_args={
                 "command_timeout": 30,
                 "server_settings": {
-                    "application_name": "mas-tenant-service",
+                    "application_name": "mas-service",
                 }
             },
             echo=settings.DEBUG,  # 开发环境下显示SQL
@@ -69,7 +71,7 @@ async def get_session_factory() -> async_sessionmaker[AsyncSession]:
     global _session_factory
     
     if _session_factory is None:
-        engine = await get_database_engine()
+        engine = await get_engine()
         _session_factory = async_sessionmaker(
             engine,
             class_=AsyncSession,
@@ -81,7 +83,7 @@ async def get_session_factory() -> async_sessionmaker[AsyncSession]:
     return _session_factory
 
 
-async def get_database_session() -> AsyncSession:
+async def get_session() -> AsyncSession:
     """
     获取数据库会话实例（FastAPI依赖）
     
@@ -116,7 +118,7 @@ async def database_session() -> AsyncGenerator[AsyncSession, None]:
         await session.close()
 
 
-async def close_database_connections():
+async def close_db_connections():
     """关闭数据库连接"""
     global _engine, _session_factory
     
@@ -127,7 +129,7 @@ async def close_database_connections():
         logger.info("数据库连接已关闭")
 
 
-async def test_database_connection() -> bool:
+async def test_db_connection() -> bool:
     """
     测试数据库连接
     
@@ -135,9 +137,9 @@ async def test_database_connection() -> bool:
         bool: 连接是否成功
     """
     try:
-        engine = await get_database_engine()
+        engine = await get_engine()
         async with engine.begin() as conn:
-            result = await conn.execute("SELECT 1")
+            result = await conn.execute(text("SELECT 1"))
             row = result.fetchone()
             return row[0] == 1
     except Exception as e:

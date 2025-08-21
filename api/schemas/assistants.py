@@ -19,7 +19,7 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field, field_validator
 
 from .prompts import AssistantPromptConfig
-from .requests import BaseRequest
+from .requests import BaseRequest, PaginationRequest
 from .responses import PaginatedResponse, SuccessResponse
 
 
@@ -67,7 +67,7 @@ class AssistantCreateRequest(BaseRequest):
     # 助理配置
     personality_type: PersonalityType = Field(
         default=PersonalityType.PROFESSIONAL,
-        description="助理个性类型（可选，优先使用prompt_config）",
+        description="助理个性类型（可选，优先使用 prompt_config）",
     )
 
     expertise_level: ExpertiseLevel = Field(
@@ -185,7 +185,7 @@ class AssistantConfigRequest(BaseRequest):
     )
 
 
-class AssistantListRequest(BaseRequest):
+class AssistantListRequest(PaginationRequest):
     """
     助理列表查询请求模型
     """

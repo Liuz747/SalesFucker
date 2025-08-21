@@ -17,8 +17,13 @@ async def get_orchestrator_service(
 ):
     """获取租户编排器实例"""
     try:
-        # Note: Will need tenant_id from request context in future
-        return get_orchestrator("default_tenant")
+        # Extract tenant_id from service context
+        if not service.tenant_id:
+            raise HTTPException(
+                status_code=400,
+                detail={"error": "MISSING_TENANT_ID", "message": "Tenant ID is required"}
+            )
+        return get_orchestrator(service.tenant_id)
     except Exception as e:
         logger.error(f"获取编排器失败，错误: {e}")
         raise HTTPException(
