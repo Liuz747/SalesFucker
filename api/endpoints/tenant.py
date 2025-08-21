@@ -9,7 +9,7 @@ Backend System → POST /tenants/{tenant_id}/sync → AI Service
 """
 
 from fastapi import APIRouter, HTTPException, status
-from typing import List, Optional
+from typing import Optional
 
 from models.tenant import (
     TenantSyncRequest,
@@ -42,8 +42,6 @@ async def sync_tenant(
     - New company registers (creates tenant)
     - Company updates their information
     - Company changes status (active/inactive)
-    
-    This endpoint receives the tenant's PUBLIC key for JWT verification.
     """
     try:
         logger.info(f"Backend tenant sync request: {tenant_id} \n param: {request}")
@@ -61,7 +59,6 @@ async def sync_tenant(
         logger.info(f"Tenant sync successful: {tenant_id}")
         return TenantSyncResponse(
             tenant_id=tenant_id,
-            sync_status="success",
             message="Tenant synced successfully",
             synced_at=get_current_datetime(),
             features_enabled=request.features
@@ -86,7 +83,7 @@ async def sync_tenant(
         else:
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Tenant sync failed"
+                detail=f"Tenant sync failed: {str(e)}"
             )
 
 
@@ -127,8 +124,7 @@ async def get_tenant_status(
 @router.put("/{tenant_id}", response_model=TenantSyncResponse)
 async def update_tenant(
     tenant_id: str,
-    request: TenantUpdateRequest,
-
+    request: TenantUpdateRequest
 ):
     """
     Update tenant information
@@ -143,11 +139,9 @@ async def update_tenant(
         
         return TenantSyncResponse(
             tenant_id=tenant_id,
-            sync_status="updated",
             message="Tenant updated successfully",
             synced_at=get_current_datetime(),
-            features_enabled=result.get("features", []),
-            public_key_fingerprint=result.get("public_key_fingerprint")
+            features_enabled=result.get("features", [])
         )
         
     except ValueError as e:
@@ -167,7 +161,6 @@ async def update_tenant(
 @router.delete("/{tenant_id}")
 async def delete_tenant(
     tenant_id: str,
-
     force: bool = False
 ):
     """
@@ -231,41 +224,6 @@ async def list_tenants(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve tenant list"
-        )
-
-
-@router.post("/bulk-sync")
-async def bulk_sync_tenants(
-    tenants: List[TenantSyncRequest],
-
-):
-    """
-    Bulk sync multiple tenants
-    
-    Used during initial deployment or bulk operations.
-    Processes multiple tenant sync requests in parallel.
-    """
-    try:
-        logger.info(f"Bulk sync request for {len(tenants)} tenants")
-        
-        results = await tenant_handler.bulk_sync_tenants(tenants)
-        
-        successful = sum(1 for r in results if r["status"] == "success")
-        failed = len(results) - successful
-        
-        return {
-            "total_tenants": len(tenants),
-            "successful": successful,
-            "failed": failed,
-            "results": results,
-            "synced_at": to_isoformat()
-        }
-        
-    except Exception as e:
-        logger.error(f"Bulk sync failed: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Bulk tenant sync failed"
         )
 
 

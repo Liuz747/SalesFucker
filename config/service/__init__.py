@@ -16,7 +16,7 @@ class AuthConfig(BaseSettings):
     # 服务身份验证配置
     APP_KEY: str = Field(
         description="后端服务应用密钥，用于服务间身份验证",
-        default="123",
+        default=None,
     )
 
     APP_JWT_ISSUER: str = Field(
