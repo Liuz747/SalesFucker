@@ -8,6 +8,7 @@
 from typing import AsyncGenerator, Optional
 from contextlib import asynccontextmanager
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
     AsyncEngine,
     AsyncSession,

@@ -142,11 +142,13 @@ class JWTMiddleware(BaseHTTPMiddleware):
             
         except Exception as e:
             logger.error(f"JWT中间件错误: {e}", exc_info=True)
-            return JSONResponse(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                content={
-                    "error": "authentication_error",
-                    "message": "认证处理失败",
-                    "details": "请重试或联系技术支持"
-                }
-            )
+
+            # 此处 return JSONResponse，会把所有接口非 200 信息全部吞掉
+            # return JSONResponse(
+            #     status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            #     content={
+            #         "error": "authentication_error",
+            #         "message": "认证处理失败",
+            #         "details": "请重试或联系技术支持"
+            #     }
+            # )
