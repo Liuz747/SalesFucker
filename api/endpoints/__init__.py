@@ -20,6 +20,7 @@ from .assistants import router as assistants_router
 from .prompts import router as prompts_router
 from .service_auth import router as auth_router
 from .tenant import router as tenant_router
+from .test import router as test_router
 
 __all__ = [
     "agents_router",
@@ -30,5 +31,6 @@ __all__ = [
     "health_router",
     "assistants_router",
     "prompts_router",
-    "tenant_router"
+    "tenant_router",
+    "test_router"
 ]

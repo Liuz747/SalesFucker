@@ -31,7 +31,8 @@ from api.endpoints import (
     health_router,
     assistants_router,
     prompts_router,
-    tenant_router
+    tenant_router,
+    test_router
 )
 from config import settings
 from utils import get_component_logger
@@ -67,6 +68,8 @@ app.add_middleware(JWTMiddleware, exclude_paths=[
     "/redoc",
     "/v1/health",
     "/v1/auth/token",
+    "/v1/test/chat",
+    "/v1/test/config"
 ], exclude_prefixes=[
     "/static/",
     "/assets/"
@@ -110,6 +113,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 # 注册路由器
 app.include_router(health_router, prefix="/v1")
+app.include_router(test_router, prefix="/v1")
 app.include_router(auth_router, prefix="/v1")
 app.include_router(agents_router, prefix="/v1")
 app.include_router(conversations_router, prefix="/v1")
