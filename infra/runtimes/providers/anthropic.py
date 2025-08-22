@@ -1,20 +1,40 @@
+"""
+Anthropic供应商实现
+
+提供Anthropic Claude系列模型的调用功能。
+支持Claude-3.5-Sonnet、Claude-3.5-Haiku等模型。
+"""
+
 import anthropic
-import google.genai as genai
 
 from infra.runtimes.providers import BaseProvider
 from infra.runtimes.entities import LLMRequest, LLMResponse, ProviderConfig
 
 
 class AnthropicProvider(BaseProvider):
+    """Anthropic供应商实现类"""
+    
     def __init__(self, config: ProviderConfig):
+        """
+        初始化Anthropic供应商
+        
+        参数:
+            config: Anthropic配置
+        """
         super().__init__(config)
         self.client = anthropic.AsyncAnthropic(api_key=config.api_key)
 
     async def chat(self, request: LLMRequest) -> LLMResponse:
-        # Track request
-        self.stats["requests"] += 1
+        """
+        发送聊天请求到Anthropic
         
-        # Convert OpenAI format to Anthropic format
+        参数:
+            request: LLM请求
+            
+        返回:
+            LLMResponse: Anthropic响应
+        """
+        # 将OpenAI格式转换为Anthropic格式
         messages = self._convert_messages(request.messages)
 
         response = await self.client.messages.create(
@@ -36,12 +56,20 @@ class AnthropicProvider(BaseProvider):
         )
 
     def _convert_messages(self, messages):
-        """Convert OpenAI format to Anthropic format"""
-        # Anthropic doesn't use system messages in the same way
+        """
+        将OpenAI格式转换为Anthropic格式
+        
+        参数:
+            messages: OpenAI格式的消息列表
+            
+        返回:
+            list: Anthropic格式的消息列表
+        """
+        # Anthropic对系统消息的处理方式不同
         converted = []
         for msg in messages:
             if msg["role"] == "system":
-                # Skip system messages or convert to user message
+                # 跳过系统消息或转换为用户消息
                 continue
             converted.append({
                 "role": msg["role"],
@@ -50,8 +78,17 @@ class AnthropicProvider(BaseProvider):
         return converted
 
     def _calculate_cost(self, usage, model: str) -> float:
-        """Calculate cost for Anthropic"""
-        # Simple cost calculation for Anthropic
+        """
+        计算Anthropic请求成本
+        
+        参数:
+            usage: 令牌使用情况
+            model: 模型名称
+            
+        返回:
+            float: 请求成本(美元)
+        """
+        # Anthropic简单成本计算
         costs = {
             "claude-3-5-sonnet-20241022": {"input": 0.003, "output": 0.015},
             "claude-3-5-haiku-20241022": {"input": 0.00025, "output": 0.00125},

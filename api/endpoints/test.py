@@ -20,17 +20,12 @@ async def test_chat(request: ChatRequest):
         config = LLMConfig()
         client = LLMClient(config)
         
-        # Debug: check available providers
-        stats = client.get_stats()
-        if not stats.get("available_providers"):
-            return {"error": "No available providers", "stats": stats}
-        
         llm_request = LLMRequest(
             messages=[
                 {"role": "user", "content": request.message}
             ],
-            # model="claude-3-5-sonnet-20241022",
-            model="gpt-4o-mini",
+            model="claude-3-5-sonnet-20241022",
+            # model="gpt-4o-mini",
             temperature=0.7,
             max_tokens=4000
         )
@@ -43,15 +38,12 @@ async def test_chat(request: ChatRequest):
             "provider": response.provider,
             "model": response.model,
             "usage": response.usage,
-            "cost": response.cost,
-            "stats": stats
+            "cost": response.cost
         }
         
     except Exception as e:
-        import traceback
         return {
-            "error": str(e),
-            "traceback": traceback.format_exc()
+            "error": str(e)
         }
 
 

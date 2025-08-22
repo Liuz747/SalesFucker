@@ -1,4 +1,11 @@
-from typing import Dict, Any
+"""
+LLM客户端
+
+统一的LLM客户端，支持多供应商智能路由和简单故障转移。
+专为快速启动设计，无复杂功能。
+"""
+
+from typing import Dict
 
 from infra.runtimes.providers import OpenAIProvider, AnthropicProvider, BaseProvider
 from infra.runtimes.entities import LLMRequest, LLMResponse, ProviderType
@@ -6,42 +13,66 @@ from infra.runtimes.routing import SimpleRouter
 from infra.runtimes.config import LLMConfig
 
 class LLMClient:
-    """Simplified unified LLM client"""
+    """统一LLM客户端"""
 
     def __init__(self, config: LLMConfig):
+        """
+        初始化LLM客户端
+        
+        参数:
+            config: LLM配置对象
+        """
         self.config = config
         self.providers: Dict[ProviderType, BaseProvider] = {}
         self.router = SimpleRouter(config.routing_config)
         self._initialize_providers()
 
     def _initialize_providers(self):
-        """Initialize enabled providers"""
+        """初始化已启用的供应商"""
         if self.config.openai and self.config.openai.enabled:
             self.providers[ProviderType.OPENAI] = OpenAIProvider(self.config.openai)
         if self.config.anthropic and self.config.anthropic.enabled:
             self.providers[ProviderType.ANTHROPIC] = AnthropicProvider(self.config.anthropic)
-        # etc.
+        # 其他供应商可在此添加
 
     async def chat(self, request: LLMRequest) -> LLMResponse:
-        """Main chat interface with intelligent routing"""
+        """
+        主要聊天接口，带智能路由
+        
+        参数:
+            request: LLM请求对象
+            
+        返回:
+            LLMResponse: LLM响应对象
+        """
         try:
-            # Route to best provider
+            # 路由到最佳供应商
             provider_type = self.router.route(request, list(self.providers.keys()))
             provider = self.providers[provider_type]
 
-            # Make request
+            # 发送请求
             response = await provider.chat(request)
 
-            # Update routing stats
-            self.router.record_success(provider_type, response)
             return response
 
         except Exception as e:
-            # Simple fallback
+            # 简单故障转移
             return await self._handle_fallback(request, e)
 
     async def _handle_fallback(self, request: LLMRequest, error: Exception) -> LLMResponse:
-        """Simple fallback logic"""
+        """
+        简单故障转移逻辑
+        
+        参数:
+            request: 原始请求
+            error: 发生的错误
+            
+        返回:
+            LLMResponse: 成功的响应
+            
+        异常:
+            Exception: 所有供应商都失败时抛出
+        """
         for provider_type, provider in self.providers.items():
             try:
                 return await provider.chat(request)
@@ -49,10 +80,3 @@ class LLMClient:
                 continue
         raise Exception("All providers failed")
 
-    def get_stats(self) -> Dict[str, Any]:
-        """Simple stats"""
-        return {
-            "available_providers": list(self.providers.keys()),
-            "routing_stats": self.router.get_stats(),
-            "total_requests": sum(p.stats.get("requests", 0) for p in self.providers.values())
-        }

@@ -1,3 +1,10 @@
+"""
+OpenAI供应商实现
+
+提供OpenAI GPT系列模型的调用功能。
+支持GPT-4o、GPT-4o-mini等模型。
+"""
+
 import openai
 
 from infra.runtimes.providers import BaseProvider
@@ -5,14 +12,28 @@ from infra.runtimes.entities import LLMRequest, LLMResponse, ProviderConfig
 
 
 class OpenAIProvider(BaseProvider):
+    """OpenAI供应商实现类"""
+    
     def __init__(self, config: ProviderConfig):
+        """
+        初始化OpenAI供应商
+        
+        参数:
+            config: OpenAI配置
+        """
         super().__init__(config)
         self.client = openai.AsyncOpenAI(api_key=config.api_key)
 
     async def chat(self, request: LLMRequest) -> LLMResponse:
-        # Track request
-        self.stats["requests"] += 1
+        """
+        发送聊天请求到OpenAI
         
+        参数:
+            request: LLM请求
+            
+        返回:
+            LLMResponse: OpenAI响应
+        """
         response = await self.client.chat.completions.create(
             model=request.model or "gpt-4o-mini",
             messages=request.messages,
@@ -33,7 +54,17 @@ class OpenAIProvider(BaseProvider):
         )
 
     def _calculate_cost(self, usage, model: str) -> float:
-        # Simple cost calculation
+        """
+        计算OpenAI请求成本
+        
+        参数:
+            usage: 令牌使用情况
+            model: 模型名称
+            
+        返回:
+            float: 请求成本(美元)
+        """
+        # 简单成本计算
         costs = {
             "gpt-4o": {"input": 0.005, "output": 0.015},
             "gpt-4o-mini": {"input": 0.00015, "output": 0.0006},

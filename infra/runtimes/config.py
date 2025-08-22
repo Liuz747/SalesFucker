@@ -1,11 +1,20 @@
-import os
+"""
+LLM配置加载器
+
+从环境变量和配置文件加载LLM供应商配置。
+支持OpenAI、Anthropic等多个供应商的配置管理。
+"""
+
 from typing import Optional, Dict, Any
 
 from infra.runtimes.entities import ProviderConfig
+from config import settings
 
 class LLMConfig:
+    """LLM配置管理器"""
 
     def __init__(self):
+        """初始化配置加载器"""
         self.openai = self._load_openai_config()
         self.anthropic = self._load_anthropic_config()
         # self.gemini = self._load_gemini_config()
@@ -13,7 +22,13 @@ class LLMConfig:
         self.routing_config = self._load_routing_config()
 
     def _load_openai_config(self) -> Optional[ProviderConfig]:
-        api_key = os.getenv("OPENAI_API_KEY")
+        """
+        加载OpenAI配置
+        
+        返回:
+            Optional[ProviderConfig]: OpenAI配置，如果API密钥不存在则返回None
+        """
+        api_key = settings.OPENAI_API_KEY
         if not api_key:
             return None
 
@@ -24,7 +39,13 @@ class LLMConfig:
         )
 
     def _load_anthropic_config(self) -> Optional[ProviderConfig]:
-        api_key = os.getenv("ANTHROPIC_API_KEY")
+        """
+        加载Anthropic配置
+        
+        返回:
+            Optional[ProviderConfig]: Anthropic配置，如果API密钥不存在则返回None
+        """
+        api_key = settings.ANTHROPIC_API_KEY
         if not api_key:
             return None
 
@@ -34,12 +55,18 @@ class LLMConfig:
             enabled=True
         )
 
-    # Similar for other providers...
+    # 其他供应商配置方法类似...
 
     def _load_routing_config(self) -> Dict[str, Any]:
+        """
+        加载路由配置
+        
+        返回:
+            Dict[str, Any]: 路由配置字典
+        """
         return {
-            "default_provider": os.getenv("DEFAULT_LLM_PROVIDER", "openai"),
-            "fallback_provider": os.getenv("FALLBACK_LLM_PROVIDER", "anthropic"),
+            "default_provider": settings.DEFAULT_LLM_PROVIDER,
+            "fallback_provider": settings.FALLBACK_LLM_PROVIDER,
             "enable_chinese_routing": True,
             "enable_vision_routing": True
         }

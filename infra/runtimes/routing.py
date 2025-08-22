@@ -1,62 +1,90 @@
+"""
+简单路由器
+
+提供基本的LLM请求路由功能，支持中文内容检测、视觉内容路由等。
+专为快速启动设计，避免过度工程化。
+"""
+
 from typing import List, Dict, Any
-from infra.runtimes.entities import ProviderType, LLMRequest, LLMResponse
+from infra.runtimes.entities import ProviderType, LLMRequest
 
 class SimpleRouter:
-    """Dead simple routing - no over-engineering"""
+    """简单路由器 - 避免过度工程化"""
 
     def __init__(self, config: Dict[str, Any] = None):
+        """
+        初始化路由器
+        
+        参数:
+            config: 路由配置字典
+        """
         self.config = config or {}
         self.stats: Dict[ProviderType, Dict[str, Any]] = {}
 
-        # Simple rules
+        # 简单路由规则
         self.chinese_providers = [ProviderType.DEEPSEEK, ProviderType.OPENAI]
         self.vision_providers = [ProviderType.OPENAI, ProviderType.ANTHROPIC]
 
     def route(self, request: LLMRequest, available_providers: List[ProviderType]) -> ProviderType:
-        """Simple routing logic"""
+        """
+        简单路由逻辑
+        
+        参数:
+            request: LLM请求
+            available_providers: 可用供应商列表
+            
+        返回:
+            ProviderType: 选择的供应商类型
+        """
 
-        # Rule 0: Model-based routing (highest priority)
+        # 规则0: 基于模型的路由 (最高优先级)
         if request.model:
             if "claude" in request.model.lower() and ProviderType.ANTHROPIC in available_providers:
                 return ProviderType.ANTHROPIC
             elif "gpt" in request.model.lower() and ProviderType.OPENAI in available_providers:
                 return ProviderType.OPENAI
 
-        # Rule 1: Chinese content -> prefer DeepSeek/OpenAI
+        # 规则1: 中文内容 -> 偏好DeepSeek/OpenAI
         if self._is_chinese_content(request):
             for provider in self.chinese_providers:
                 if provider in available_providers:
                     return provider
 
-        # Rule 2: Vision content -> OpenAI/Anthropic
+        # 规则2: 视觉内容 -> OpenAI/Anthropic
         if self._has_vision_content(request):
             for provider in self.vision_providers:
                 if provider in available_providers:
                     return provider
 
-        # Rule 3: Default to first available
+        # 规则3: 默认使用第一个可用供应商
         return available_providers[0] if available_providers else ProviderType.OPENAI
 
     def _is_chinese_content(self, request: LLMRequest) -> bool:
-        """Simple Chinese detection"""
+        """
+        简单中文检测
+        
+        参数:
+            request: LLM请求
+            
+        返回:
+            bool: 是否包含中文内容
+        """
         text = " ".join([msg.get("content", "") for msg in request.messages])
         return any('\u4e00' <= char <= '\u9fff' for char in text)
 
     def _has_vision_content(self, request: LLMRequest) -> bool:
-        """Check for image content"""
+        """
+        检查是否包含图像内容
+        
+        参数:
+            request: LLM请求
+            
+        返回:
+            bool: 是否包含图像内容
+        """
         for msg in request.messages:
             if isinstance(msg.get("content"), list):
                 return True
         return False
 
-    def record_success(self, provider: ProviderType, response: LLMResponse):
-        """Record success for simple stats"""
-        if provider not in self.stats:
-            self.stats[provider] = {"requests": 0, "total_cost": 0}
-
-        self.stats[provider]["requests"] += 1
-        self.stats[provider]["total_cost"] += response.cost
-
-    def get_stats(self) -> Dict[str, Any]:
-        return dict(self.stats)
 
