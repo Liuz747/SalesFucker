@@ -24,7 +24,6 @@ from .llm import (
     CostAnalysisResponse,
     LLMConfigRequest,
     LLMStatusResponse,
-    OptimizationRequest,
     ProviderStatusRequest,
 )
 from .multimodal import (
@@ -66,7 +65,6 @@ __all__ = [
     # LLM管理模型
     "LLMConfigRequest",
     "ProviderStatusRequest",
-    "OptimizationRequest",
     "LLMStatusResponse",
     "CostAnalysisResponse",
     # 多模态模型

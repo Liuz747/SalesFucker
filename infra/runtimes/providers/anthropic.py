@@ -49,10 +49,11 @@ class AnthropicProvider(BaseProvider):
             provider="anthropic",
             model=response.model,
             usage={
-                "prompt_tokens": response.usage.input_tokens,
-                "completion_tokens": response.usage.output_tokens,
+                "input_tokens": response.usage.input_tokens,
+                "output_tokens": response.usage.output_tokens,
             },
-            cost=self._calculate_cost(response.usage, response.model)
+            cost=self._calculate_cost(response.usage, response.model),
+            chat_id=request.chat_id
         )
 
     def _convert_messages(self, messages):

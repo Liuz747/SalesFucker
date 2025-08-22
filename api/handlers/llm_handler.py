@@ -12,28 +12,17 @@ LLM管理业务逻辑处理器
 - 性能优化和对比分析
 """
 
-from typing import Dict, Any, Optional, List
-import asyncio
-import logging
+from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 
 from utils import get_component_logger
 from ..schemas.llm import (
     LLMConfigRequest,
     ProviderStatusRequest,
-    OptimizationRequest,
-    RoutingConfigRequest,
-    CostBudgetRequest,
     LLMStatusResponse,
     CostAnalysisResponse,
-    OptimizationResponse,
-    ProviderHealthResponse,
-    ModelCapabilitiesResponse,
-    RoutingStatsResponse,
     LLMProviderType,
     ProviderInfo,
-    ProviderMetrics,
-    RoutingStrategy
 )
 from ..exceptions import (
     LLMProviderException,
@@ -94,9 +83,6 @@ class LLMHandler:
                     if provider_info:
                         providers_info.append(provider_info)
             
-            # 计算全局状态
-            global_status = self._calculate_global_status(providers_info)
-            
             # 获取路由配置
             routing_config = await self._get_routing_config(tenant_id, llm_service)
             
@@ -114,7 +100,6 @@ class LLMHandler:
                     "tenant_id": tenant_id,
                     "timestamp": datetime.now().isoformat()
                 },
-                global_status=global_status,
                 providers=providers_info,
                 routing_config=routing_config,
                 system_metrics=system_metrics
@@ -169,24 +154,10 @@ class LLMHandler:
         }
         return endpoint_mapping.get(provider, "")
     
-    def _calculate_global_status(self, providers: List[ProviderInfo]) -> str:
-        """计算全局状态"""
-        if not providers:
-            return "critical"
-        
-        active_providers = [p for p in providers if p.status == "active" and p.enabled]
-        
-        if len(active_providers) == 0:
-            return "critical"
-        elif len(active_providers) < len(providers) * 0.5:
-            return "warning"
-        else:
-            return "healthy"
-    
     async def _get_routing_config(self, tenant_id: str, llm_service) -> Dict[str, Any]:
         """获取路由配置"""
         return {
-            "strategy": RoutingStrategy.AGENT_OPTIMIZED.value,
+            "strategy": "AGENT_OPTIMIZED",
             "fallback_provider": LLMProviderType.OPENAI.value,
             "health_check_interval": 60,
             "last_updated": datetime.now().isoformat()
@@ -253,146 +224,6 @@ class LLMHandler:
         for field in provider_required:
             if field == "api_key" and not config.api_key:
                 raise ValidationException(f"提供商 {config.provider.value} 需要 API 密钥")
-    
-    async def get_provider_capabilities(
-        self,
-        provider: LLMProviderType,
-        model_name: Optional[str],
-        tenant_id: str,
-        llm_service
-    ) -> ModelCapabilitiesResponse:
-        """获取提供商能力信息"""
-        try:
-            # 模拟能力数据
-            capabilities_data = self._get_mock_capabilities(provider, model_name)
-            
-            return ModelCapabilitiesResponse(
-                success=True,
-                message="提供商能力信息获取成功",
-                data={"provider": provider.value, "model": model_name or "default"},
-                provider=provider,
-                model_name=model_name or self._get_default_model(provider),
-                capabilities=capabilities_data["capabilities"],
-                limitations=capabilities_data["limitations"],
-                max_context_length=capabilities_data["max_context_length"],
-                supported_languages=capabilities_data["supported_languages"],
-                pricing=capabilities_data["pricing"],
-                benchmarks=capabilities_data.get("benchmarks")
-            )
-            
-        except Exception as e:
-            self.logger.error(f"获取提供商能力失败: {e}", exc_info=True)
-            raise ValidationException(f"获取提供商能力失败: {str(e)}")
-    
-    def _get_mock_capabilities(self, provider: LLMProviderType, model_name: Optional[str]) -> Dict[str, Any]:
-        """获取模拟能力数据"""
-        base_capabilities = {
-            LLMProviderType.OPENAI: {
-                "capabilities": ["text_generation", "code_generation", "analysis", "translation"],
-                "limitations": ["rate_limits", "context_length"],
-                "max_context_length": 128000,
-                "supported_languages": ["zh", "en", "ja", "ko", "fr", "de", "es"],
-                "pricing": {"input_tokens": 0.01, "output_tokens": 0.03},
-                "benchmarks": {"speed": 0.85, "quality": 0.92, "cost_efficiency": 0.78}
-            },
-            LLMProviderType.ANTHROPIC: {
-                "capabilities": ["text_generation", "analysis", "reasoning", "safety"],
-                "limitations": ["rate_limits", "regional_availability"],
-                "max_context_length": 200000,
-                "supported_languages": ["zh", "en", "ja", "fr", "de", "es"],
-                "pricing": {"input_tokens": 0.008, "output_tokens": 0.024},
-                "benchmarks": {"speed": 0.80, "quality": 0.95, "cost_efficiency": 0.82}
-            },
-            LLMProviderType.GEMINI: {
-                "capabilities": ["text_generation", "multimodal", "code_generation"],
-                "limitations": ["beta_features", "rate_limits"],
-                "max_context_length": 1000000,
-                "supported_languages": ["zh", "en", "ja", "ko", "hi"],
-                "pricing": {"input_tokens": 0.00125, "output_tokens": 0.00375},
-                "benchmarks": {"speed": 0.75, "quality": 0.88, "cost_efficiency": 0.90}
-            },
-            LLMProviderType.DEEPSEEK: {
-                "capabilities": ["text_generation", "code_generation", "chinese_optimized"],
-                "limitations": ["regional_availability", "english_performance"],
-                "max_context_length": 64000,
-                "supported_languages": ["zh", "en"],
-                "pricing": {"input_tokens": 0.0014, "output_tokens": 0.0028},
-                "benchmarks": {"speed": 0.88, "quality": 0.85, "cost_efficiency": 0.95}
-            }
-        }
-        
-        return base_capabilities.get(provider, {})
-    
-    async def get_providers_health(
-        self,
-        tenant_id: str,
-        time_range_hours: int,
-        llm_service
-    ) -> ProviderHealthResponse:
-        """获取所有提供商健康状况"""
-        try:
-            # 模拟健康数据
-            providers_metrics = []
-            unhealthy_providers = []
-            
-            for provider in LLMProviderType:
-                metrics = self._generate_mock_metrics(provider, time_range_hours)
-                providers_metrics.append(metrics)
-                
-                # 检查是否不健康
-                if metrics.failed_requests / metrics.total_requests > 0.05:
-                    unhealthy_providers.append(provider)
-            
-            overall_health = "healthy" if not unhealthy_providers else "warning"
-            if len(unhealthy_providers) >= 2:
-                overall_health = "critical"
-            
-            alerts = []
-            if unhealthy_providers:
-                alerts.append({
-                    "type": "high_failure_rate",
-                    "providers": [p.value for p in unhealthy_providers],
-                    "message": "某些提供商故障率过高"
-                })
-            
-            return ProviderHealthResponse(
-                success=True,
-                message="提供商健康状况获取成功",
-                data=providers_metrics,
-                overall_health=overall_health,
-                unhealthy_providers=unhealthy_providers,
-                alerts=alerts if alerts else None
-            )
-            
-        except Exception as e:
-            self.logger.error(f"获取提供商健康状况失败: {e}", exc_info=True)
-            raise ValidationException(f"获取提供商健康状况失败: {str(e)}")
-    
-    def _generate_mock_metrics(self, provider: LLMProviderType, hours: int) -> ProviderMetrics:
-        """生成模拟指标数据"""
-        import random
-        
-        total_requests = random.randint(100, 1000) * hours
-        success_rate = random.uniform(0.95, 0.99)
-        successful_requests = int(total_requests * success_rate)
-        failed_requests = total_requests - successful_requests
-        
-        return ProviderMetrics(
-            provider=provider,
-            total_requests=total_requests,
-            successful_requests=successful_requests,
-            failed_requests=failed_requests,
-            average_latency_ms=random.uniform(500, 1500),
-            p95_latency_ms=random.uniform(1000, 2500),
-            p99_latency_ms=random.uniform(2000, 4000),
-            total_cost_usd=round(random.uniform(10, 100), 2),
-            cost_per_request=round(random.uniform(0.01, 0.05), 4),
-            token_usage={"input_tokens": random.randint(50000, 200000), "output_tokens": random.randint(20000, 80000)},
-            time_range={
-                "start": datetime.now() - timedelta(hours=hours),
-                "end": datetime.now()
-            }
-        )
     
     async def get_cost_analysis(
         self,
@@ -477,44 +308,6 @@ class LLMHandler:
             ]
         }
     
-    # 其他方法的实现...
-    async def set_cost_budget(self, tenant_id: str, budget_request: CostBudgetRequest, llm_service) -> Dict[str, Any]:
-        """设置成本预算"""
-        return {"success": True, "message": "预算设置成功", "budget": budget_request.monthly_budget}
-    
-    async def get_routing_stats(self, tenant_id: str, days: int, agent_type: Optional[str], llm_service) -> RoutingStatsResponse:
-        """获取路由统计"""
-        # 模拟实现
-        return RoutingStatsResponse(
-            success=True,
-            message="路由统计获取成功",
-            data={},
-            current_strategy=RoutingStrategy.AGENT_OPTIMIZED,
-            routing_distribution={LLMProviderType.OPENAI: 0.4, LLMProviderType.ANTHROPIC: 0.35, LLMProviderType.GEMINI: 0.15, LLMProviderType.DEEPSEEK: 0.10},
-            agent_routing_stats={},
-            routing_efficiency=0.85,
-            failover_events=3,
-            time_range={"start": datetime.now() - timedelta(days=days), "end": datetime.now()}
-        )
-    
-    async def configure_routing(self, tenant_id: str, routing_config: RoutingConfigRequest, llm_service) -> Dict[str, Any]:
-        """配置路由策略"""
-        return {"success": True, "message": "路由配置成功", "strategy": routing_config.strategy.value}
-    
-    async def optimize_usage(self, tenant_id: str, optimization_request: OptimizationRequest, llm_service) -> OptimizationResponse:
-        """优化使用策略"""
-        return OptimizationResponse(
-            success=True,
-            message="优化建议生成成功",
-            data={},
-            optimization_type=optimization_request.optimization_type,
-            recommendations=[{"type": "cost", "action": "switch_provider", "description": "建议使用更便宜的模型"}],
-            estimated_savings={"monthly": 150.0},
-            applied=not optimization_request.dry_run,
-            rollback_available=True,
-            impact_assessment={"performance_impact": "minimal", "quality_impact": "low"}
-        )
-    
     async def test_provider(self, provider: LLMProviderType, test_message: str, model_name: Optional[str], tenant_id: str, llm_service) -> Dict[str, Any]:
         """测试提供商"""
         return {
@@ -525,31 +318,7 @@ class LLMHandler:
             "test_response": "This is a test response from the provider."
         }
     
-    async def remove_provider_config(self, provider: LLMProviderType, tenant_id: str, llm_service) -> Dict[str, Any]:
-        """移除提供商配置"""
-        return {"success": True, "message": f"提供商 {provider.value} 配置已移除"}
-    
     async def toggle_provider(self, provider: LLMProviderType, enabled: bool, tenant_id: str, llm_service) -> Dict[str, Any]:
         """启用/禁用提供商"""
         action = "启用" if enabled else "禁用"
         return {"success": True, "message": f"提供商 {provider.value} 已{action}"}
-    
-    async def batch_test_providers(self, providers: List[LLMProviderType], test_message: str, tenant_id: str, llm_service) -> Dict[str, Any]:
-        """批量测试提供商"""
-        results = []
-        for provider in providers:
-            result = await self.test_provider(provider, test_message, None, tenant_id, llm_service)
-            results.append(result)
-        return {"success": True, "test_results": results}
-    
-    async def compare_models(self, providers: List[LLMProviderType], criteria: List[str], tenant_id: str, llm_service) -> Dict[str, Any]:
-        """模型对比分析"""
-        return {"success": True, "comparison": "模型对比分析结果", "criteria": criteria}
-    
-    async def get_global_stats(self, tenant_id: str, days: int, llm_service) -> Dict[str, Any]:
-        """获取全局统计"""
-        return {"success": True, "stats": "全局统计数据"}
-    
-    async def perform_maintenance(self, maintenance_type: str, tenant_id: str, llm_service) -> Dict[str, Any]:
-        """执行维护操作"""
-        return {"success": True, "message": f"维护操作 {maintenance_type} 执行成功"}

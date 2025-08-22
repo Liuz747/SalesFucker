@@ -47,10 +47,11 @@ class OpenAIProvider(BaseProvider):
             provider="openai",
             model=response.model,
             usage={
-                "prompt_tokens": response.usage.prompt_tokens,
-                "completion_tokens": response.usage.completion_tokens,
+                "input_tokens": response.usage.prompt_tokens,
+                "output_tokens": response.usage.completion_tokens,
             },
-            cost=self._calculate_cost(response.usage, response.model)
+            cost=self._calculate_cost(response.usage, response.model),
+            chat_id=request.chat_id
         )
 
     def _calculate_cost(self, usage, model: str) -> float:

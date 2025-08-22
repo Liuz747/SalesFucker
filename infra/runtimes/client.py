@@ -25,9 +25,9 @@ class LLMClient:
         self.config = config
         self.providers: Dict[ProviderType, BaseProvider] = {}
         self.router = SimpleRouter(config.routing_config)
-        self._initialize_providers()
+        self._init()
 
-    def _initialize_providers(self):
+    def _init(self):
         """初始化已启用的供应商"""
         if self.config.openai and self.config.openai.enabled:
             self.providers[ProviderType.OPENAI] = OpenAIProvider(self.config.openai)
@@ -37,7 +37,7 @@ class LLMClient:
 
     async def chat(self, request: LLMRequest) -> LLMResponse:
         """
-        主要聊天接口，带智能路由
+        主要聊天接口，支持显式和智能路由
         
         参数:
             request: LLM请求对象
@@ -46,37 +46,20 @@ class LLMClient:
             LLMResponse: LLM响应对象
         """
         try:
-            # 路由到最佳供应商
-            provider_type = self.router.route(request, list(self.providers.keys()))
+            # 直接使用ProviderType枚举
+            provider_type = ProviderType(request.provider.lower())
+            if provider_type not in self.providers:
+                raise Exception(f"指定的供应商不可用: {request.provider}")
+            
             provider = self.providers[provider_type]
-
+            
             # 发送请求
             response = await provider.chat(request)
-
             return response
 
+        except ValueError:
+            raise Exception(f"无效的供应商: {request.provider}")
         except Exception as e:
-            # 简单故障转移
-            return await self._handle_fallback(request, e)
+            raise e
 
-    async def _handle_fallback(self, request: LLMRequest, error: Exception) -> LLMResponse:
-        """
-        简单故障转移逻辑
-        
-        参数:
-            request: 原始请求
-            error: 发生的错误
-            
-        返回:
-            LLMResponse: 成功的响应
-            
-        异常:
-            Exception: 所有供应商都失败时抛出
-        """
-        for provider_type, provider in self.providers.items():
-            try:
-                return await provider.chat(request)
-            except Exception:
-                continue
-        raise Exception("All providers failed")
 

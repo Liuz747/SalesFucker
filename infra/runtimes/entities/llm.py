@@ -4,8 +4,10 @@ from dataclasses import dataclass
 
 @dataclass
 class LLMRequest:
+    chat_id: Optional[str]
     messages: List[Dict[str, str]]
-    model: Optional[str] = None
+    model: str
+    provider: str = "openai"
     temperature: float = 0.7
     max_tokens: Optional[int] = None
     stream: bool = False
@@ -13,6 +15,7 @@ class LLMRequest:
 
 @dataclass 
 class LLMResponse:
+    chat_id: str
     content: str
     provider: str
     model: str

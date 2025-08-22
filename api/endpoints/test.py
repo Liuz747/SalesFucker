@@ -1,5 +1,6 @@
 """简单LLM测试端点"""
-
+import uuid
+from typing import Optional
 from fastapi import APIRouter
 from pydantic import BaseModel
 
@@ -11,7 +12,9 @@ router = APIRouter(prefix="/test", tags=["test"])
 
 class ChatRequest(BaseModel):
     message: str
-
+    provider: str
+    model: str
+    chat_id: Optional[str] = None
 
 @router.post("/chat")
 async def test_chat(request: ChatRequest):
@@ -20,12 +23,19 @@ async def test_chat(request: ChatRequest):
         config = LLMConfig()
         client = LLMClient(config)
         
+        # 生成对话ID
+        if request.chat_id:
+            chat_id = request.chat_id
+        else:
+            chat_id = str(uuid.uuid4())
+        
         llm_request = LLMRequest(
             messages=[
                 {"role": "user", "content": request.message}
             ],
-            model="claude-3-5-sonnet-20241022",
-            # model="gpt-4o-mini",
+            chat_id=chat_id,
+            model=request.model,
+            provider=request.provider,
             temperature=0.7,
             max_tokens=4000
         )
@@ -33,7 +43,7 @@ async def test_chat(request: ChatRequest):
         response = await client.chat(llm_request)
         
         return {
-            "message": request.message,
+            "chat_id": response.chat_id,
             "response": response.content,
             "provider": response.provider,
             "model": response.model,
