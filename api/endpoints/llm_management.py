@@ -15,16 +15,15 @@ LLM管理API端点
 from fastapi import APIRouter, HTTPException, Query
 from typing import Optional
 
-
 from ..schemas.llm import (
     LLMConfigRequest,
     ProviderStatusRequest,
     LLMStatusResponse,
-    CostAnalysisResponse,
-    LLMProviderType
+    CostAnalysisResponse
 )
 from ..handlers.llm_handler import LLMHandler
 from utils import get_component_logger
+from infra.runtimes import ProviderType
 
 logger = get_component_logger(__name__, "LLMEndpoints")
 
@@ -39,7 +38,7 @@ llm_handler = LLMHandler()
 async def get_llm_status(
 
     tenant_id: str = Query(..., description="租户标识符"),
-    provider: Optional[LLMProviderType] = Query(None, description="指定提供商"),
+    provider: Optional[ProviderType] = Query(None, description="指定提供商"),
     include_metrics: bool = Query(True, description="是否包含性能指标"),
 ):
     """
@@ -67,7 +66,7 @@ async def get_llm_status(
 
 @router.post("/{provider}/config")
 async def configure_provider(
-    provider: LLMProviderType,
+    provider: ProviderType,
     config: LLMConfigRequest,
 
 ):
@@ -96,7 +95,7 @@ async def configure_provider(
 async def get_cost_analysis(
 
     days: int = Query(30, ge=1, le=365, description="分析天数"),
-    provider: Optional[LLMProviderType] = Query(None, description="指定提供商"),
+    provider: Optional[ProviderType] = Query(None, description="指定提供商"),
 ):
     """
     获取成本分析报告
@@ -117,7 +116,7 @@ async def get_cost_analysis(
 
 @router.post("/{provider}/test")
 async def test_provider(
-    provider: LLMProviderType,
+    provider: ProviderType,
     test_message: str = Query("Hello, this is a test message.", description="测试消息"),
     model_name: Optional[str] = Query(None, description="指定测试模型"),
 
@@ -142,7 +141,7 @@ async def test_provider(
 
 @router.post("/{provider}/toggle")
 async def toggle_provider(
-    provider: LLMProviderType,
+    provider: ProviderType,
     enabled: bool = Query(description="启用或禁用"),
 
 ):

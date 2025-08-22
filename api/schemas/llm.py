@@ -12,22 +12,13 @@ LLM管理相关数据模型
 """
 
 from datetime import datetime
-from enum import StrEnum
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
 
 from .requests import BaseRequest
 from .responses import SuccessResponse
-
-
-class LLMProviderType(StrEnum):
-    """LLM提供商类型枚举"""
-
-    OPENAI = "openai"
-    ANTHROPIC = "anthropic"
-    GEMINI = "gemini"
-    DEEPSEEK = "deepseek"
+from infra.runtimes import ProviderType
 
 
 class LLMConfigRequest(BaseRequest):
@@ -37,7 +28,7 @@ class LLMConfigRequest(BaseRequest):
 
     tenant_id: str = Field(description="租户标识符", min_length=1, max_length=100)
 
-    provider: LLMProviderType = Field(description="LLM提供商")
+    provider: ProviderType = Field(description="LLM提供商")
 
     model_name: str = Field(description="模型名称", min_length=1)
 
@@ -65,7 +56,7 @@ class ProviderStatusRequest(BaseRequest):
 
     tenant_id: str = Field(description="租户标识符", min_length=1, max_length=100)
 
-    provider: Optional[LLMProviderType] = Field(
+    provider: Optional[ProviderType] = Field(
         None, description="指定提供商，为空则查询所有"
     )
 
@@ -78,7 +69,7 @@ class ProviderStatusRequest(BaseRequest):
 class ProviderInfo(BaseModel):
     """提供商信息模型"""
 
-    provider: LLMProviderType = Field(description="提供商类型")
+    provider: ProviderType = Field(description="提供商类型")
     model_name: str = Field(description="模型名称")
     status: str = Field(description="状态", pattern="^(active|inactive|error)$")
     enabled: bool = Field(description="是否启用")
@@ -116,7 +107,7 @@ class CostAnalysisResponse(SuccessResponse[Dict[str, Any]]):
     """
 
     total_cost: float = Field(description="总成本（美元）")
-    cost_breakdown: Dict[LLMProviderType, float] = Field(description="成本分解")
+    cost_breakdown: Dict[ProviderType, float] = Field(description="成本分解")
 
     # 预算信息
     monthly_budget: Optional[float] = Field(None, description="月度预算")

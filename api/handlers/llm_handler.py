@@ -15,19 +15,19 @@ LLM管理业务逻辑处理器
 from typing import Dict, Any, Optional
 from datetime import datetime, timedelta
 
-from utils import get_component_logger
 from ..schemas.llm import (
     LLMConfigRequest,
     ProviderStatusRequest,
     LLMStatusResponse,
     CostAnalysisResponse,
-    LLMProviderType,
     ProviderInfo,
 )
 from ..exceptions import (
     LLMProviderException,
     ValidationException
 )
+from utils import get_component_logger
+from infra.runtimes import ProviderType
 
 logger = get_component_logger(__name__, "LLMHandler")
 
@@ -70,10 +70,10 @@ class LLMHandler:
             else:
                 # 获取所有提供商状态
                 all_providers = [
-                    LLMProviderType.OPENAI,
-                    LLMProviderType.ANTHROPIC,
-                    LLMProviderType.GEMINI,
-                    LLMProviderType.DEEPSEEK
+                    ProviderType.OPENAI,
+                    ProviderType.ANTHROPIC,
+                    ProviderType.GEMINI,
+                    ProviderType.DEEPSEEK
                 ]
                 
                 for provider in all_providers:
@@ -111,7 +111,7 @@ class LLMHandler:
     
     async def _get_single_provider_status(
         self,
-        provider: LLMProviderType,
+        provider: ProviderType,
         tenant_id: str,
         llm_service
     ) -> Optional[ProviderInfo]:
@@ -134,23 +134,23 @@ class LLMHandler:
             self.logger.warning(f"获取提供商状态失败 {provider}: {e}")
             return None
     
-    def _get_default_model(self, provider: LLMProviderType) -> str:
+    def _get_default_model(self, provider: ProviderType) -> str:
         """获取提供商默认模型"""
         model_mapping = {
-            LLMProviderType.OPENAI: "gpt-4",
-            LLMProviderType.ANTHROPIC: "claude-3-sonnet-20240229",
-            LLMProviderType.GEMINI: "gemini-pro",
-            LLMProviderType.DEEPSEEK: "deepseek-chat"
+            ProviderType.OPENAI: "gpt-4",
+            ProviderType.ANTHROPIC: "claude-3-sonnet-20240229",
+            ProviderType.GEMINI: "gemini-pro",
+            ProviderType.DEEPSEEK: "deepseek-chat"
         }
         return model_mapping.get(provider, "unknown")
     
-    def _get_provider_endpoint(self, provider: LLMProviderType) -> str:
+    def _get_provider_endpoint(self, provider: ProviderType) -> str:
         """获取提供商API端点"""
         endpoint_mapping = {
-            LLMProviderType.OPENAI: "https://api.openai.com/v1",
-            LLMProviderType.ANTHROPIC: "https://api.anthropic.com/v1",
-            LLMProviderType.GEMINI: "https://generativelanguage.googleapis.com/v1",
-            LLMProviderType.DEEPSEEK: "https://api.deepseek.com/v1"
+            ProviderType.OPENAI: "https://api.openai.com/v1",
+            ProviderType.ANTHROPIC: "https://api.anthropic.com/v1",
+            ProviderType.GEMINI: "https://generativelanguage.googleapis.com/v1",
+            ProviderType.DEEPSEEK: "https://api.deepseek.com/v1"
         }
         return endpoint_mapping.get(provider, "")
     
@@ -158,7 +158,7 @@ class LLMHandler:
         """获取路由配置"""
         return {
             "strategy": "AGENT_OPTIMIZED",
-            "fallback_provider": LLMProviderType.OPENAI.value,
+            "fallback_provider": ProviderType.OPENAI.value,
             "health_check_interval": 60,
             "last_updated": datetime.now().isoformat()
         }
@@ -213,10 +213,10 @@ class LLMHandler:
     async def _validate_provider_config(self, config: LLMConfigRequest):
         """验证提供商配置"""
         required_fields = {
-            LLMProviderType.OPENAI: ["api_key"],
-            LLMProviderType.ANTHROPIC: ["api_key"],
-            LLMProviderType.GEMINI: ["api_key"],
-            LLMProviderType.DEEPSEEK: ["api_key"]
+            ProviderType.OPENAI: ["api_key"],
+            ProviderType.ANTHROPIC: ["api_key"],
+            ProviderType.GEMINI: ["api_key"],
+            ProviderType.DEEPSEEK: ["api_key"]
         }
         
         provider_required = required_fields.get(config.provider, [])
@@ -229,7 +229,7 @@ class LLMHandler:
         self,
         tenant_id: str,
         days: int,
-        provider: Optional[LLMProviderType],
+        provider: Optional[ProviderType],
         llm_service
     ) -> CostAnalysisResponse:
         """获取成本分析"""
@@ -254,14 +254,14 @@ class LLMHandler:
             self.logger.error(f"获取成本分析失败: {e}", exc_info=True)
             raise ValidationException(f"获取成本分析失败: {str(e)}")
     
-    def _generate_mock_cost_data(self, days: int, provider: Optional[LLMProviderType]) -> Dict[str, Any]:
+    def _generate_mock_cost_data(self, days: int, provider: Optional[ProviderType]) -> Dict[str, Any]:
         """生成模拟成本数据"""
         import random
         
         if provider:
             providers = [provider]
         else:
-            providers = list(LLMProviderType)
+            providers = list(ProviderType)
         
         cost_breakdown = {}
         daily_costs = []
@@ -308,7 +308,7 @@ class LLMHandler:
             ]
         }
     
-    async def test_provider(self, provider: LLMProviderType, test_message: str, model_name: Optional[str], tenant_id: str, llm_service) -> Dict[str, Any]:
+    async def test_provider(self, provider: ProviderType, test_message: str, model_name: Optional[str], tenant_id: str, llm_service) -> Dict[str, Any]:
         """测试提供商"""
         return {
             "success": True,
@@ -318,7 +318,7 @@ class LLMHandler:
             "test_response": "This is a test response from the provider."
         }
     
-    async def toggle_provider(self, provider: LLMProviderType, enabled: bool, tenant_id: str, llm_service) -> Dict[str, Any]:
+    async def toggle_provider(self, provider: ProviderType, enabled: bool, tenant_id: str, llm_service) -> Dict[str, Any]:
         """启用/禁用提供商"""
         action = "启用" if enabled else "禁用"
         return {"success": True, "message": f"提供商 {provider.value} 已{action}"}
