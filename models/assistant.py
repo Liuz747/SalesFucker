@@ -52,7 +52,7 @@ class AssistantModel(BaseModel):
     # tenant_name: str = Field(description="租户名称")
     assistant_id: str = Field(description="助理 ID")
     assistant_name: str = Field(description="助理名称")
-    # assistant_status_1: str = Field(description="助理状态枚举")
+    assistant_status: str = Field(description="助理状态枚举")
     personality_type: str = Field(description="助理 个性类型")
     expertise_level: str = Field(description="助理 专业等级")
     sales_style: Dict[str, Any] = Field(
@@ -89,7 +89,7 @@ class AssistantOrmModel(Base):
     assistant_id = Column(String(255), unique=True, nullable=False, index=True)
     assistant_name = Column(String(500), nullable=False)
 
-    # assistant_status = Column(String(500), nullable=False)
+    assistant_status = Column(String(500), nullable=False)
     assistant_sex = Column(String(500), nullable=False)
     assistant_phone = Column(String(500), nullable=False)
     assistant_personality_type = Column(String(500), nullable=False)
@@ -152,7 +152,7 @@ class AssistantOrmModel(Base):
             assistant_id=model.assistant_id,
             assistant_name=model.assistant_name,
 
-            # assistant_status=model.status,
+            assistant_status=model.assistant_status,
             # sex = model.assistant_sex,
             # phone =model.assistant_phone,
             assistant_personality_type=model.personality_type,
@@ -189,7 +189,7 @@ class AssistantOrmModel(Base):
         #   self.tenant_name = Column(String(500), nullable=False)
         self.assistant_id = model.assistant_id
         self.assistant_name = model.assistant_name
-        # self.assistant_status = model.status,
+        self.assistant_status = model.assistant_status
 
         # self.sex = model.assistant_sex,
         # self.phone =model.assistant_phone,
@@ -227,7 +227,7 @@ class AssistantOrmModel(Base):
             assistant_id=self.assistant_id,
             assistant_name=self.assistant_name,
             # assistant_status_1="123",
-            # assistant_status="!@3",
+            assistant_status=self.assistant_status,
             personality_type=self.assistant_personality_type,
             expertise_level=self.assistant_expertise_level,
             sales_style=self.assistant_sales_style,

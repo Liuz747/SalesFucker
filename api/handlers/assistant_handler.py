@@ -97,6 +97,7 @@ class AssistantHandler(StatusMixin):
                 assistant_id=request.assistant_id,
                 assistant_name=request.assistant_name,
                 tenant_id=request.tenant_id,
+                assistant_status="inactive",
                 # status=AssistantStatus.ACTIVE,
                 personality_type=request.personality_type,
                 expertise_level=request.expertise_level,
@@ -336,7 +337,7 @@ class AssistantHandler(StatusMixin):
             assistant_id: str,
             tenant_id: str,
             request: AssistantUpdateRequest
-    ) -> Optional[AssistantResponse]:
+    ) -> Optional[SuccessResponse[AssistantModel]]:
         """
         更新助理信息
         
@@ -349,81 +350,104 @@ class AssistantHandler(StatusMixin):
             Optional[AssistantResponse]: 更新后的助理信息
         """
         try:
+            # 从缓存中获取数据
             assistant_key = f"{tenant_id}:{assistant_id}"
-            assistant = self._assistants_store.get(assistant_key)
+            # assistant = self._assistants_store.get(assistant_key)
 
+            # 从数据库中获取数据
+            assistant = await AssistantService.get_assistant_by_id(assistant_id)
             if not assistant:
                 return None
 
             # 更新字段
             update_fields = {}
             if request.assistant_name is not None:
-                update_fields["assistant_name"] = request.assistant_name
+                # update_fields["assistant_name"] = request.assistant_name
+                assistant.assistant_name = request.assistant_name
             if request.personality_type is not None:
-                update_fields["personality_type"] = request.personality_type
+                # update_fields["personality_type"] = request.personality_type
+                assistant.personality_type = request.personality_type
             if request.expertise_level is not None:
-                update_fields["expertise_level"] = request.expertise_level
+                # update_fields["expertise_level"] = request.expertise_level
+                assistant.expertise_level = request.expertise_level
             if request.sales_style is not None:
-                update_fields["sales_style"] = {**assistant["sales_style"], **request.sales_style}
+                # update_fields["sales_style"] = {**assistant["sales_style"], **request.sales_style}
+                assistant.sales_style = request.sales_style
             if request.voice_tone is not None:
-                update_fields["voice_tone"] = {**assistant["voice_tone"], **request.voice_tone}
+                # update_fields["voice_tone"] = {**assistant["voice_tone"], **request.voice_tone}
+                assistant.voice_tone = request.voice_tone
             if request.specializations is not None:
-                update_fields["specializations"] = request.specializations
+                # update_fields["specializations"] = request.specializations
+                assistant.specializations = request.specializations
             if request.working_hours is not None:
-                update_fields["working_hours"] = {**assistant["working_hours"], **request.working_hours}
+                # update_fields["working_hours"] = {**assistant["working_hours"], **request.working_hours}
+                assistant.working_hours = request.working_hours
             if request.max_concurrent_customers is not None:
-                update_fields["max_concurrent_customers"] = request.max_concurrent_customers
+                # update_fields["max_concurrent_customers"] = request.max_concurrent_customers
+                assistant.max_concurrent_customers = request.max_concurrent_customers
             if request.permissions is not None:
-                update_fields["permissions"] = request.permissions
+                # update_fields["permissions"] = request.permissions
+                assistant.permissions = request.permissions
             if request.profile is not None:
-                update_fields["profile"] = {**assistant["profile"], **request.profile}
+                # update_fields["profile"] = {**assistant["profile"], **request.profile}
+                assistant.profile = request.profile
             if request.status is not None:
-                update_fields["status"] = request.status
+                # update_fields["status"] = request.status
+                # assistant.status = request.status
+                pass
 
             # 更新时间戳
-            update_fields["updated_at"] = datetime.utcnow()
+            # update_fields["updated_at"] = datetime.utcnow()
+            assistant.updated_at = request.status
 
-            # 处理提示词配置更新（如果提供）
-            if request.prompt_config:
-                try:
-                    from ..schemas.prompts import PromptUpdateRequest
-                    prompt_update = PromptUpdateRequest(
-                        personality_prompt=request.prompt_config.personality_prompt,
-                        greeting_prompt=request.prompt_config.greeting_prompt,
-                        product_recommendation_prompt=request.prompt_config.product_recommendation_prompt,
-                        objection_handling_prompt=request.prompt_config.objection_handling_prompt,
-                        closing_prompt=request.prompt_config.closing_prompt,
-                        context_instructions=request.prompt_config.context_instructions,
-                        llm_parameters=request.prompt_config.llm_parameters,
-                        brand_voice=request.prompt_config.brand_voice,
-                        product_knowledge=request.prompt_config.product_knowledge,
-                        safety_guidelines=request.prompt_config.safety_guidelines,
-                        forbidden_topics=request.prompt_config.forbidden_topics,
-                        is_active=request.prompt_config.is_active
-                    )
-                    await self.prompt_handler.update_assistant_prompts(
-                        assistant_id, tenant_id, prompt_update
-                    )
-                    self.logger.info(f"助理 {assistant_id} 提示词配置更新成功")
-                except Exception as e:
-                    self.logger.warning(f"助理 {assistant_id} 提示词配置更新失败: {e}")
-                    # 不阻止助理更新，只记录警告
+            # todo 暂时先不考虑提示词
+            if 1 == 2:
+                # 处理提示词配置更新（如果提供）
+                if request.prompt_config:
+                    try:
+                        from ..schemas.prompts import PromptUpdateRequest
+                        prompt_update = PromptUpdateRequest(
+                            personality_prompt=request.prompt_config.personality_prompt,
+                            greeting_prompt=request.prompt_config.greeting_prompt,
+                            product_recommendation_prompt=request.prompt_config.product_recommendation_prompt,
+                            objection_handling_prompt=request.prompt_config.objection_handling_prompt,
+                            closing_prompt=request.prompt_config.closing_prompt,
+                            context_instructions=request.prompt_config.context_instructions,
+                            llm_parameters=request.prompt_config.llm_parameters,
+                            brand_voice=request.prompt_config.brand_voice,
+                            product_knowledge=request.prompt_config.product_knowledge,
+                            safety_guidelines=request.prompt_config.safety_guidelines,
+                            forbidden_topics=request.prompt_config.forbidden_topics,
+                            is_active=request.prompt_config.is_active
+                        )
+                        await self.prompt_handler.update_assistant_prompts(
+                            assistant_id, tenant_id, prompt_update
+                        )
+                        self.logger.info(f"助理 {assistant_id} 提示词配置更新成功")
+                    except Exception as e:
+                        self.logger.warning(f"助理 {assistant_id} 提示词配置更新失败: {e}")
+                        # 不阻止助理更新，只记录警告
 
             # 应用更新
-            assistant.update(update_fields)
-            self._assistants_store[assistant_key] = assistant
+            # assistant.update(update_fields)
+            # self._assistants_store[assistant_key] = assistant
+            # logger.debug(f"更新租户: {config.tenant_id}")
 
-            self.logger.info(f"助理更新成功: {assistant_id}")
+            r = await AssistantService.save(assistant)
+            if r is True:
+                # raise Exception("更新助理失败")
+                self.logger.info(f"助理更新成功: {assistant_id}")
 
-            return AssistantResponse(
-                success=True,
-                message="助理更新成功",
-                data={},
-                **assistant,
-                current_customers=assistant.get("current_customers", 0),
-                total_conversations=assistant.get("total_conversations", 0),
-                average_rating=assistant.get("average_rating", 0.0)
-            )
+                return SuccessResponse(
+                    success=True,
+                    message="助理更新成功",
+                    data=assistant,
+                    # data={},
+                    # **assistant,
+                    # current_customers=assistant.get("current_customers", 0),
+                    # total_conversations=assistant.get("total_conversations", 0),
+                    # average_rating=assistant.get("average_rating", 0.0)
+                )
 
         except Exception as e:
             self.logger.error(f"助理更新失败: {e}")
@@ -453,12 +477,12 @@ class AssistantHandler(StatusMixin):
 
             if not assistant:
                 return AssistantOperationResponse(
-                    success=False,
-                    message="助理不存在",
-                    data={},
-                    assistant_id=assistant_id,
-                    operation="configure",
-                    result_data={"error": "助理不存在"}
+                    # success=False,
+                    # message="助理不存在",
+                    # data={},
+                    # assistant_id=assistant_id,
+                    # operation="configure",
+                    # result_data={"error": "助理不存在"}
                 )
 
             # 应用配置更新
@@ -487,12 +511,12 @@ class AssistantHandler(StatusMixin):
             self.logger.info(f"助理配置成功: {assistant_id}, 配置类型: {config_type}")
 
             return AssistantOperationResponse(
-                success=True,
-                message="助理配置成功",
-                data={},
-                assistant_id=assistant_id,
-                operation="configure",
-                result_data={"config_type": config_type, "updated": True}
+                # success=True,
+                # message="助理配置成功",
+                # data={},
+                # assistant_id=assistant_id,
+                # operation="configure",
+                # result_data={"config_type": config_type, "updated": True}
             )
 
         except Exception as e:
@@ -566,11 +590,13 @@ class AssistantHandler(StatusMixin):
             self.logger.error(f"助理统计查询失败: {e}")
             raise
 
-    async def activate_assistant(self, assistant_id: str, tenant_id: str) -> AssistantOperationResponse:
+    async def activate_assistant(self, assistant_id: str, tenant_id: str) -> SuccessResponse[
+        AssistantOperationResponse]:
         """激活助理"""
         return await self._change_assistant_status(assistant_id, tenant_id, AssistantStatus.ACTIVE, "activate")
 
-    async def deactivate_assistant(self, assistant_id: str, tenant_id: str) -> AssistantOperationResponse:
+    async def deactivate_assistant(self, assistant_id: str, tenant_id: str) -> SuccessResponse[
+        AssistantOperationResponse]:
         """停用助理"""
         return await self._change_assistant_status(assistant_id, tenant_id, AssistantStatus.INACTIVE, "deactivate")
 
@@ -593,12 +619,12 @@ class AssistantHandler(StatusMixin):
 
             if not assistant:
                 return AssistantOperationResponse(
-                    success=False,
-                    message="助理不存在",
-                    data={},
-                    assistant_id=assistant_id,
-                    operation="delete",
-                    result_data={"error": "助理不存在"}
+                    # success=False,
+                    # message="助理不存在",
+                    # data={},
+                    # assistant_id=assistant_id,
+                    # operation="delete",
+                    # result_data={"error": "助理不存在"}
                 )
 
             # 检查是否有活跃对话（模拟检查）
@@ -607,12 +633,12 @@ class AssistantHandler(StatusMixin):
 
             if current_customers > 0 and not force:
                 return AssistantOperationResponse(
-                    success=False,
-                    message="助理有活跃对话，需要强制删除标志",
-                    data={},
-                    assistant_id=assistant_id,
-                    operation="delete",
-                    result_data={"error": "有活跃对话", "active_conversations": current_customers}
+                    # success=False,
+                    # message="助理有活跃对话，需要强制删除标志",
+                    # data={},
+                    # assistant_id=assistant_id,
+                    # operation="delete",
+                    # result_data={"error": "有活跃对话", "active_conversations": current_customers}
                 )
 
             # 删除助理数据
@@ -623,13 +649,13 @@ class AssistantHandler(StatusMixin):
             self.logger.info(f"助理删除成功: {assistant_id}")
 
             return AssistantOperationResponse(
-                success=True,
-                message="助理删除成功",
-                data={},
-                assistant_id=assistant_id,
-                operation="delete",
-                result_data={"deleted": True, "force": force},
-                affected_conversations=current_customers
+                # success=True,
+                # message="助理删除成功",
+                # data={},
+                # assistant_id=assistant_id,
+                # operation="delete",
+                # result_data={"deleted": True, "force": force},
+                # affected_conversations=current_customers
             )
 
         except Exception as e:
@@ -642,43 +668,56 @@ class AssistantHandler(StatusMixin):
             tenant_id: str,
             new_status: AssistantStatus,
             operation: str
-    ) -> AssistantOperationResponse:
+    ) -> SuccessResponse[AssistantOperationResponse]:
         """改变助理状态的通用方法"""
         try:
-            assistant_key = f"{tenant_id}:{assistant_id}"
-            assistant = self._assistants_store.get(assistant_key)
+            # assistant_key = f"{tenant_id}:{assistant_id}"
+            # assistant = self._assistants_store.get(assistant_key)
+
+            assistant = await AssistantService.get_assistant_by_id(assistant_id)
 
             if not assistant:
-                return AssistantOperationResponse(
+                r = AssistantOperationResponse()
+                r.assistant_id = assistant_id
+                r.operation = operation,
+                r.success = True,
+                r.result_data = {"error": "助理不存在"}
+                return SuccessResponse(
                     success=False,
                     message="助理不存在",
-                    data={},
-                    assistant_id=assistant_id,
-                    operation=operation,
-                    result_data={"error": "助理不存在"}
+                    data=r,
                 )
 
-            previous_status = assistant["status"]
-            assistant["status"] = new_status
-            assistant["updated_at"] = datetime.utcnow()
+            # assistant.previous_status = assistant["status"]
+            # assistant["status"] = new_status
+            # assistant["updated_at"] = datetime.utcnow()
+
+            previous_status = new_status
+            assistant.assistant_status = new_status
+            assistant.updated_at = datetime.utcnow()
 
             if new_status == AssistantStatus.ACTIVE:
-                assistant["last_active_at"] = datetime.utcnow()
+                # assistant["last_active_at"] = datetime.utcnow()
+                assistant.last_active_at = datetime.utcnow()
 
-            self._assistants_store[assistant_key] = assistant
+            r = await AssistantService.save(assistant)
 
-            self.logger.info(f"助理状态变更成功: {assistant_id}, {previous_status} -> {new_status}")
+            # self._assistants_store[assistant_key] = assistant
+            if r is True:
+                self.logger.info(f"助理状态变更成功: {assistant_id}, {previous_status} -> {new_status}")
+                r = AssistantOperationResponse(assistant_id=assistant_id, operation=operation, success=True, )
+                r.assistant_id = assistant_id
+                r.operation = operation
+                r.success = True
+                r.previous_status = new_status
+                r.new_status = new_status
+                r.result_data = {"status_changed": True}
+                return SuccessResponse(
+                    success=True,
+                    message=f"助理{operation}成功",
+                    data=r,
+                )
 
-            return AssistantOperationResponse(
-                success=True,
-                message=f"助理{operation}成功",
-                data={},
-                assistant_id=assistant_id,
-                operation=operation,
-                previous_status=previous_status,
-                new_status=new_status,
-                result_data={"status_changed": True}
-            )
 
         except Exception as e:
             self.logger.error(f"助理状态变更失败: {e}")
