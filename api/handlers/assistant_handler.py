@@ -26,7 +26,7 @@ from models.assistant import AssistantModel, AssistantOrmModel
 
 from service.assistant_service import AssistantService
 from ..schemas.prompts import AssistantPromptConfig, PromptCreateRequest
-from .prompt_handler import PromptHandler
+from .prompts_handler import PromptHandler
 from utils import get_component_logger, with_error_handling, StatusMixin
 from libs.constants import StatusConstants
 from ..schemas.responses import PaginatedResponse, SuccessResponse

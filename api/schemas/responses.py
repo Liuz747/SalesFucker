@@ -25,7 +25,7 @@ class BaseResponse(BaseModel):
     所有API响应的基础类。
     """
 
-    success: bool = Field(description="请求是否成功")
+    success: Optional[bool] = Field(None, description="请求是否成功")
 
     message: Optional[str] = Field(None, description="响应消息")
 
@@ -51,7 +51,7 @@ class SuccessResponse(BaseResponse, Generic[T]):
     message: str = Field(default="请求成功", description="业务状态信息")
 
     # todo 后期删除掉 success
-    success: bool = Field(default=True)
+    success: Optional[bool] = Field(default=None)
     data: Optional[T] = Field(default=None, description="响应数据")
 
     metadata: Optional[Dict[str, Any]] = Field(None, description="响应元数据")

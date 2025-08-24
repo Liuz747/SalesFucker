@@ -17,8 +17,9 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from models.prompts import PromptsModel
 from .requests import BaseRequest
-from .responses import PaginatedResponse, SuccessResponse
+from .responses import PaginatedResponse, SuccessResponse, BaseResponse
 
 
 class PromptType(str, Enum):
@@ -306,8 +307,7 @@ class PromptLibrarySearchRequest(BaseRequest):
 
 # 响应模型
 
-
-class PromptConfigResponse(SuccessResponse[Dict[str, Any]]):
+class PromptConfigResponse(BaseResponse):
     """提示词配置响应"""
 
     assistant_id: str = Field(description="智能体ID")
@@ -315,6 +315,7 @@ class PromptConfigResponse(SuccessResponse[Dict[str, Any]]):
     config: AssistantPromptConfig = Field(description="提示词配置")
     created_at: datetime = Field(description="创建时间")
     updated_at: datetime = Field(description="更新时间")
+
 
 
 class PromptTestResponse(SuccessResponse[Dict[str, Any]]):

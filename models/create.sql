@@ -74,4 +74,34 @@ create table friends_chat (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 使用当前时区的时间戳作为默认值
 
     constraint uk_tenant_id_is_active UNIQUE (wechat_code, friend_code)
-)
+);
+
+drop table prompts;
+create table prompts(
+    id uuid PRIMARY KEY NOT NULL,
+    tenant_id  varchar(255) NOT NULL,
+    assistant_id varchar(255) NOT NULL,
+    personality_prompt varchar(5000) not NULL, -- 主要提示词配置
+    greeting_prompt  varchar(500) NULL,-- 问候提示词 - 定义如何开始对话
+    product_recommendation_prompt varchar(1000) NULL, -- 产品推荐提示词 - 定义如何推荐产品
+    objection_handling_prompt varchar(1000) NULL, -- 异议处理提示词 - 定义如何处理客户异议
+    closing_prompt varchar(500) NULL,-- 结束对话提示词 - 定义如何结束对话
+    context_instructions varchar(1000) NULL, -- 上下文处理指令 - 如何利用历史对话和客户信息
+    llm_parameters jsonb, -- LLM生成参数配置
+    safety_guidelines jsonb, -- 安全和合规指导原则
+    forbidden_topics jsonb, -- 禁止讨论的话题列表
+    brand_voice  varchar(500) NULL,-- 品牌声音定义 - 品牌特色和价值观
+    product_knowledge varchar(2000) NULL, -- 产品知识要点 - 重点产品信息和卖点
+    version varchar(500) not NULL default '1.0.0',-- 配置版本
+    is_active BOOLEAN NULL DEFAULT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 使用当前时区的时间戳作为默认值
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP -- 使用当前时区的时间戳作为默认值
+);
+
+
+
+
+
+
+
+
