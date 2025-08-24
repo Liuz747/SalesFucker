@@ -15,7 +15,7 @@ from datetime import datetime
 from typing import Dict, Any, Optional, List
 
 from models.tenant import (
-    TenantConfig,
+    TenantModel,
     TenantSyncRequest,
     TenantUpdateRequest,
     TenantStatusResponse,
@@ -37,7 +37,7 @@ class TenantHandler:
         try:
             exist = await self.get_tenant_config(request.tenant_id)
             if not exist:
-                cfg = TenantConfig(
+                cfg = TenantModel(
                     tenant_id=request.tenant_id,
                     tenant_name=request.tenant_name,
                     status=request.status,
@@ -159,7 +159,7 @@ class TenantHandler:
                 "timestamp": to_isoformat(get_current_datetime())
             }
     
-    async def get_tenant_config(self, tenant_id: str) -> Optional[TenantConfig]:
+    async def get_tenant_config(self, tenant_id: str) -> Optional[TenantModel]:
         """
         获取租户配置
         
@@ -167,7 +167,7 @@ class TenantHandler:
             tenant_id: 租户ID
             
         返回:
-            TenantConfig: 租户配置，不存在则返回None
+            TenantModel: 租户配置，不存在则返回None
             
         异常:
             数据库连接异常将被传播，业务异常返回None
@@ -178,7 +178,7 @@ class TenantHandler:
             logger.error(f"获取租户配置失败: {tenant_id}, 错误: {e}")
             raise
     
-    async def save_tenant_config(self, config: TenantConfig) -> bool:
+    async def save_tenant_config(self, config: TenantModel) -> bool:
         """
         保存租户配置到PostgreSQL
         

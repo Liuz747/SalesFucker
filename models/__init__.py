@@ -11,12 +11,12 @@
 # 导出常用模型以便使用
 from .tenant import (
     TenantRole,
-    TenantConfig, 
+    TenantOrm, 
     TenantModel
 )
 
 __all__ = [
     "TenantRole",
-    "TenantConfig",
+    "TenantOrm",
     "TenantModel"
 ]

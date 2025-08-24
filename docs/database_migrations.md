@@ -46,7 +46,7 @@ migrations/
 
 ```bash
 # 应用所有待执行的迁移
-python scripts/database.py
+uv run scripts/database.py
 
 # 如果数据库已是最新版本，输出：
 # INFO: Current revision matches head, no migrations to apply
@@ -56,10 +56,10 @@ python scripts/database.py
 
 ```bash
 # 生成带自定义消息的迁移
-python scripts/database.py generate "add user table"
+uv run scripts/database.py revision "add user table"
 
 # 生成默认消息的迁移
-python scripts/database.py generate
+uv run scripts/database.py revision
 ```
 
 ## 👥 团队协作工作流程
@@ -112,12 +112,12 @@ git push origin main
 
 **步骤 1: 拉取最新代码**
 ```bash
-git pull origin main
+git pull
 ```
 
 **步骤 2: 应用数据库迁移**
 ```bash
-python scripts/database.py
+uv run scripts/database.py
 ```
 
 **输出示例：**
@@ -221,7 +221,7 @@ postgres_url = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PWD}@{DB_HOST}:{
 ```bash
 # 合并代码后重新生成迁移
 git pull origin main
-python scripts/database.py generate "merge conflicts resolution"
+uv run scripts/database.py revision "merge conflicts resolution"
 ```
 
 ### 问题 2: 数据库连接失败
@@ -249,9 +249,9 @@ python scripts/database.py generate "merge conflicts resolution"
 
 ```bash
 # 描述性命名
-python scripts/database.py generate "add user authentication"
-python scripts/database.py generate "add product catalog tables"
-python scripts/database.py generate "update customer profile schema"
+python scripts/database.py revision "add user authentication"
+python scripts/database.py revision "add product catalog tables"
+python scripts/database.py revision "update customer profile schema"
 ```
 
 ### 2. 模型设计原则
@@ -281,8 +281,8 @@ class UserModel(Base):
 ```bash
 # 生产环境迁移
 git pull origin main
-python scripts/database.py  # 应用迁移
-python main.py            # 启动应用
+uv run scripts/database.py  # 应用迁移
+uv run main.py            # 启动应用
 ```
 
 ## 📚 相关文档
