@@ -66,7 +66,7 @@ class AssistantModel(BaseModel):
     permissions: List[str] = Field(description="助理权限列表")
     profile: Dict[str, Any] = Field(
         default_factory=dict, description="助理个人资料信息")
-    is_active: bool = Field(description="租户是否激活")
+    is_active: Optional[bool] = Field(default=None, description="租户是否激活")
     created_at: datetime = Field(description="创建时间")
     updated_at: datetime = Field(description="最后一次更新时间")
     last_active_at: Optional[datetime] = Field(description="")
@@ -103,7 +103,7 @@ class AssistantOrmModel(Base):
     assistant_profile = Column(JSONB, nullable=False)
 
     # 状态信息
-    is_active = Column(Boolean, nullable=False, default=True)
+    is_active = Column(Boolean, nullable=True, default=True)
     created_at = Column(
         DateTime(timezone=True),
         nullable=False,

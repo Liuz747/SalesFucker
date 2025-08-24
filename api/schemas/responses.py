@@ -47,8 +47,12 @@ class SuccessResponse(BaseResponse, Generic[T]):
     用于成功的API响应。
     """
 
+    code: int = Field(default=0, description="业务状态码")
+    message: str = Field(default="请求成功", description="业务状态信息")
+
+    # todo 后期删除掉 success
     success: bool = Field(default=True)
-    data: T = Field(description="响应数据")
+    data: Optional[T] = Field(default=None, description="响应数据")
 
     metadata: Optional[Dict[str, Any]] = Field(None, description="响应元数据")
 

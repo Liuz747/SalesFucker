@@ -324,11 +324,11 @@ async def activate_assistant(
         )
 
 
-@router.post("/{assistant_id}/deactivate", response_model=AssistantOperationResponse)
+@router.post("/{assistant_id}/deactivate", response_model=SuccessResponse[AssistantOperationResponse])
 async def deactivate_assistant(
         assistant_id: str = Path(..., description="助理ID"),
         tenant_id: str = Query(..., description="租户标识符")
-) -> AssistantOperationResponse:
+) -> SuccessResponse[AssistantOperationResponse]:
     """
     停用助理
     
@@ -359,12 +359,12 @@ async def deactivate_assistant(
         )
 
 
-@router.delete("/{assistant_id}", response_model=AssistantOperationResponse)
+@router.delete("/{assistant_id}", response_model=SuccessResponse[AssistantOperationResponse])
 async def delete_assistant(
         assistant_id: str = Path(..., description="助理ID"),
         tenant_id: str = Query(..., description="租户标识符"),
         force: bool = Query(False, description="是否强制删除（即使有活跃对话）")
-) -> AssistantOperationResponse:
+) -> SuccessResponse[AssistantOperationResponse]:
     """
     删除助理
     
