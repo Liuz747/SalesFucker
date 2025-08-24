@@ -63,10 +63,10 @@ create table friends_chat (
     img_url varchar(1000) NOT NULL,
     friend_code varchar(255) Not Null,
     name varchar(255) Not Null,
-    friend_sex varchar(100) NULL, -- todo 应该是 not null
-    friend_sign varchar(100) NULL, -- todo 应该是 not null
-    friend_area varchar(100) NULL, -- todo 应该是 not null
-    call_type boolean NULL DEFAULT FALSE, -- todo 应该是 not null
+    friend_sex varchar(100) not NULL,
+    friend_sign varchar(100) not NULL,
+    friend_area varchar(100) not NULL,
+    call_type boolean not NULL DEFAULT FALSE,
     -- 客户到店进程 是啥？
     remark varchar(1000) NOT NULL,
     add_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, --添加好友的时间，使用当前时区的时间戳作为默认值
