@@ -12,13 +12,12 @@
 """
 
 from datetime import datetime
-from typing import Optional, List
 from uuid import UUID
 
 from sqlalchemy import select, update, and_
 
 from models.prompts import PromptsOrmModel
-from models.tenant import TenantConfig, TenantModel
+from models.tenant import TenantModel
 from infra.db.connection import database_session, test_db_connection
 from utils import get_component_logger
 

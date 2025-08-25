@@ -24,7 +24,7 @@ from ..schemas.assistants import (
 )
 from models.assistant import AssistantModel, AssistantOrmModel
 
-from service.assistant_service import AssistantService
+from services.assistant_service import AssistantService
 from ..schemas.prompts import AssistantPromptConfig, PromptCreateRequest
 from .prompts_handler import PromptHandler
 from utils import get_component_logger, with_error_handling, StatusMixin

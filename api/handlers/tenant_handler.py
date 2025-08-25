@@ -21,7 +21,7 @@ from models.tenant import (
     TenantStatusResponse,
     TenantListResponse,
 )
-from service.tenant_service import TenantService
+from services.tenant_service import TenantService
 from utils import get_component_logger, get_current_datetime, to_isoformat
 
 logger = get_component_logger(__name__, "TenantHandler")

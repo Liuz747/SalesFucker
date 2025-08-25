@@ -10,14 +10,11 @@
 - 数据库健康检查
 - 高效查询和索引优化
 """
-from sqlalchemy import engine
-
 from datetime import datetime
 from typing import Optional, List
-
 from sqlalchemy import select, update
 
-from models.tenant import TenantConfig, TenantModel
+from models.tenant import TenantModel
 from models.assistant import AssistantModel, AssistantOrmModel
 from infra.db.connection import database_session, test_db_connection
 from utils import get_component_logger, get_current_datetime

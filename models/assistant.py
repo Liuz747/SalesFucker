@@ -17,18 +17,16 @@ todo
 
 import uuid
 from datetime import datetime
-from enum import StrEnum
 from typing import Dict, List, Optional, Any
 
 from pydantic import BaseModel, Field
 from sqlalchemy import (
-    Column, String, Boolean, DateTime, Integer, Index
+    Column, String, Boolean, DateTime, Integer
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.sql import func
 
 from models.base import Base
-from datetime import datetime
 
 
 #

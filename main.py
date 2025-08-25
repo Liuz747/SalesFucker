@@ -26,13 +26,11 @@ from api.endpoints import (
     agents_router,
     auth_router,
     conversations_router,
-    llm_management_router,
     multimodal_router,
     health_router,
     assistants_router,
     prompts_router,
-    tenant_router,
-    test_router
+    tenant_router
 )
 from api.inner import completion
 from api.exceptions import APIException
@@ -116,11 +114,9 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 # 注册路由器
 app.include_router(health_router, prefix="/v1")
-app.include_router(test_router, prefix="/v1")
 app.include_router(auth_router, prefix="/v1")
 app.include_router(agents_router, prefix="/v1")
 app.include_router(conversations_router, prefix="/v1")
-app.include_router(llm_management_router, prefix="/v1")
 app.include_router(multimodal_router, prefix="/v1")
 app.include_router(assistants_router, prefix="/v1")
 app.include_router(prompts_router, prefix="/v1")
