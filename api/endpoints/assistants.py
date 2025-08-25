@@ -148,7 +148,7 @@ async def get_assistant(
                 detail="助理不存在"
             )
 
-        logger.error(f"助理详情查询成功: {assistant_id} {type(result)}")
+        logger.info(f"助理详情查询成功: {assistant_id} {type(result)}")
         return result
 
     except HTTPException:
@@ -161,12 +161,12 @@ async def get_assistant(
         )
 
 
-@router.put("/{assistant_id}", response_model=AssistantResponse)
+@router.put("/{assistant_id}", response_model=SuccessResponse[AssistantModel])
 async def update_assistant(
         assistant_id: str = Path(..., description="助理ID"),
         request: AssistantUpdateRequest = None,
 
-) -> AssistantResponse:
+) -> Optional[SuccessResponse[AssistantModel]]:
     """
     更新助理信息
     
@@ -289,11 +289,11 @@ async def get_assistant_stats(
         )
 
 
-@router.post("/{assistant_id}/activate", response_model=AssistantOperationResponse)
+@router.post("/{assistant_id}/activate", response_model=SuccessResponse[AssistantOperationResponse])
 async def activate_assistant(
         assistant_id: str = Path(..., description="助理ID"),
         tenant_id: str = Query(..., description="租户标识符")
-) -> AssistantOperationResponse:
+) -> Optional[SuccessResponse[AssistantOperationResponse]]:
     """
     激活助理
     
@@ -324,11 +324,11 @@ async def activate_assistant(
         )
 
 
-@router.post("/{assistant_id}/deactivate", response_model=AssistantOperationResponse)
+@router.post("/{assistant_id}/deactivate", response_model=SuccessResponse[AssistantOperationResponse])
 async def deactivate_assistant(
         assistant_id: str = Path(..., description="助理ID"),
         tenant_id: str = Query(..., description="租户标识符")
-) -> AssistantOperationResponse:
+) -> SuccessResponse[AssistantOperationResponse]:
     """
     停用助理
     
@@ -359,12 +359,12 @@ async def deactivate_assistant(
         )
 
 
-@router.delete("/{assistant_id}", response_model=AssistantOperationResponse)
+@router.delete("/{assistant_id}", response_model=SuccessResponse[AssistantOperationResponse])
 async def delete_assistant(
         assistant_id: str = Path(..., description="助理ID"),
         tenant_id: str = Query(..., description="租户标识符"),
         force: bool = Query(False, description="是否强制删除（即使有活跃对话）")
-) -> AssistantOperationResponse:
+) -> SuccessResponse[AssistantOperationResponse]:
     """
     删除助理
     
