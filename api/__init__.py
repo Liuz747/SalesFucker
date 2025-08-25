@@ -1,10 +1,9 @@
 """
-API Package - Production-Grade Multi-Agent System API
+API Package - Multi-Agent System API
 
 该包包含完整的FastAPI应用程序和所有API组件：
 
 组织结构:
-- main.py: FastAPI应用入口点
 - endpoints/: API路由处理器
 - handlers/: 业务逻辑处理器  
 - schemas/: Pydantic数据模型
@@ -21,7 +20,6 @@ API Package - Production-Grade Multi-Agent System API
 - 多租户数据隔离
 """
 
-# from .main import app  # Commented to avoid circular imports
 from .endpoints import (
     agents_router,
     conversations_router,
@@ -33,7 +31,6 @@ from .endpoints import (
 __version__ = "1.0.0"
 
 __all__ = [
-    "app",
     "agents_router",
     "conversations_router", 
     "llm_management_router",

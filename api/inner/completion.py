@@ -1,34 +1,48 @@
-"""简单LLM测试端点"""
+"""
+LLM聊天端点
+"""
+
 import uuid
 from typing import Optional
-from fastapi import APIRouter
 from pydantic import BaseModel
+from fastapi import APIRouter, HTTPException
 
 from infra.runtimes.client import LLMClient
 from infra.runtimes.config import LLMConfig
 from infra.runtimes.entities import LLMRequest
+from utils import get_component_logger
 
-router = APIRouter(prefix="/test", tags=["test"])
+logger = get_component_logger(__name__, "LLM")
+
+# 创建路由器
+router = APIRouter(prefix="/messages", tags=["messages"])
+
 
 class ChatRequest(BaseModel):
+    """聊天请求"""
     message: str
     provider: str
     model: str
     chat_id: Optional[str] = None
+    temperature: Optional[float] = 0.7
+    max_tokens: Optional[int] = 4000
 
-@router.post("/chat")
-async def test_chat(request: ChatRequest):
-    """简单聊天测试"""
+@router.post("/")
+async def send_message(request: ChatRequest):
+    """
+    发送聊天消息
+    
+    简单的聊天接口，直接使用LLMClient
+    """
     try:
+        # 初始化LLM客户端
         config = LLMConfig()
         client = LLMClient(config)
         
         # 生成对话ID
-        if request.chat_id:
-            chat_id = request.chat_id
-        else:
-            chat_id = str(uuid.uuid4())
+        chat_id = request.chat_id or str(uuid.uuid4())
         
+        # 构建LLM请求
         llm_request = LLMRequest(
             messages=[
                 {"role": "user", "content": request.message}
@@ -36,12 +50,14 @@ async def test_chat(request: ChatRequest):
             id=chat_id,
             model=request.model,
             provider=request.provider,
-            temperature=0.7,
-            max_tokens=4000
+            temperature=request.temperature,
+            max_tokens=request.max_tokens
         )
         
+        # 发送请求
         response = await client.completions(llm_request)
         
+        # 返回响应
         return {
             "chat_id": response.id,
             "response": response.content,
@@ -52,14 +68,16 @@ async def test_chat(request: ChatRequest):
         }
         
     except Exception as e:
-        return {
-            "error": str(e)
-        }
+        raise HTTPException(status_code=500, detail=f"聊天失败: {str(e)}")
 
 
 @router.get("/config")
-async def test_config():
-    """检查配置"""
+async def get_config():
+    """
+    检查LLM配置状态
+    
+    返回当前可用的供应商配置
+    """
     try:
         config = LLMConfig()
         return {
@@ -69,4 +87,4 @@ async def test_config():
             "anthropic_enabled": config.anthropic.enabled if config.anthropic else False
         }
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail=f"配置检查失败: {str(e)}")

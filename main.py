@@ -34,9 +34,10 @@ from api.endpoints import (
     tenant_router,
     test_router
 )
+from api.inner import completion
+from api.exceptions import APIException
 from config import settings
 from utils import get_component_logger
-from api.exceptions import APIException
 
 # 配置日志
 logger = get_component_logger(__name__)
@@ -124,7 +125,7 @@ app.include_router(multimodal_router, prefix="/v1")
 app.include_router(assistants_router, prefix="/v1")
 app.include_router(prompts_router, prefix="/v1")
 app.include_router(tenant_router, prefix="/v1")
-
+app.include_router(completion, prefix="/v1")
 
 # 根路径健康检查
 @app.get("/")
