@@ -33,17 +33,17 @@ async def test_chat(request: ChatRequest):
             messages=[
                 {"role": "user", "content": request.message}
             ],
-            chat_id=chat_id,
+            id=chat_id,
             model=request.model,
             provider=request.provider,
             temperature=0.7,
             max_tokens=4000
         )
         
-        response = await client.chat(llm_request)
+        response = await client.completions(llm_request)
         
         return {
-            "chat_id": response.chat_id,
+            "chat_id": response.id,
             "response": response.content,
             "provider": response.provider,
             "model": response.model,

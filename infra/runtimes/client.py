@@ -35,7 +35,7 @@ class LLMClient:
             self.providers[ProviderType.ANTHROPIC] = AnthropicProvider(self.config.anthropic)
         # 其他供应商可在此添加
 
-    async def chat(self, request: LLMRequest) -> LLMResponse:
+    async def completions(self, request: LLMRequest) -> LLMResponse:
         """
         主要聊天接口，支持显式和智能路由
         
@@ -54,7 +54,7 @@ class LLMClient:
             provider = self.providers[provider_type]
             
             # 发送请求
-            response = await provider.chat(request)
+            response = await provider.completions(request)
             return response
 
         except ValueError:

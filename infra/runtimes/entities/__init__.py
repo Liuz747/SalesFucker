@@ -1,9 +1,12 @@
 from .llm import LLMRequest, LLMResponse
-from .providers import ProviderConfig, ProviderType
+from .providers import Provider, ProviderType
+from .models import Model, ModelType
 
 __all__ = [
     "LLMRequest", 
     "LLMResponse", 
-    "ProviderConfig",
-    "ProviderType"
+    "Provider",
+    "ProviderType",
+    "Model",
+    "ModelType"
 ]

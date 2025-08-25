@@ -6,25 +6,26 @@ OpenAI供应商实现
 """
 
 import openai
+from openai.types.chat import ChatCompletionMessageParam
 
 from infra.runtimes.providers import BaseProvider
-from infra.runtimes.entities import LLMRequest, LLMResponse, ProviderConfig
+from infra.runtimes.entities import LLMRequest, LLMResponse, Provider
 
 
 class OpenAIProvider(BaseProvider):
     """OpenAI供应商实现类"""
     
-    def __init__(self, config: ProviderConfig):
+    def __init__(self, provider: Provider):
         """
         初始化OpenAI供应商
         
         参数:
-            config: OpenAI配置
+            provider: OpenAI配置
         """
-        super().__init__(config)
-        self.client = openai.AsyncOpenAI(api_key=config.api_key)
+        super().__init__(provider)
+        self.client = openai.AsyncOpenAI(api_key=provider.api_key)
 
-    async def chat(self, request: LLMRequest) -> LLMResponse:
+    async def completions(self, request: LLMRequest) -> LLMResponse:
         """
         发送聊天请求到OpenAI
         
@@ -34,15 +35,19 @@ class OpenAIProvider(BaseProvider):
         返回:
             LLMResponse: OpenAI响应
         """
+        # 构建包含历史记录的对话上下文
+        full_context = self._build_conversation_context(request)
+        messages: list[ChatCompletionMessageParam] = full_context
+        
         response = await self.client.chat.completions.create(
             model=request.model or "gpt-4o-mini",
-            messages=request.messages,
+            messages=messages,
             temperature=request.temperature,
             max_tokens=request.max_tokens,
             stream=request.stream
         )
 
-        return LLMResponse(
+        llm_response = LLMResponse(
             content=response.choices[0].message.content,
             provider="openai",
             model=response.model,
@@ -53,6 +58,11 @@ class OpenAIProvider(BaseProvider):
             cost=self._calculate_cost(response.usage, response.model),
             chat_id=request.chat_id
         )
+        
+        # 保存对话历史
+        self._save_conversation_turn(request, llm_response)
+        
+        return llm_response
 
     def _calculate_cost(self, usage, model: str) -> float:
         """

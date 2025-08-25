@@ -7,7 +7,7 @@ LLM配置加载器
 
 from typing import Optional, Dict, Any
 
-from infra.runtimes.entities import ProviderConfig
+from infra.runtimes.entities import Provider
 from config import settings
 
 class LLMConfig:
@@ -21,35 +21,35 @@ class LLMConfig:
         # self.deepseek = self._load_deepseek_config()
         self.routing_config = self._load_routing_config()
 
-    def _load_openai_config(self) -> Optional[ProviderConfig]:
+    def _load_openai_config(self) -> Optional[Provider]:
         """
         加载OpenAI配置
         
         返回:
-            Optional[ProviderConfig]: OpenAI配置，如果API密钥不存在则返回None
+            Optional[Provider]: OpenAI配置，如果API密钥不存在则返回None
         """
         api_key = settings.OPENAI_API_KEY
         if not api_key:
             return None
 
-        return ProviderConfig(
+        return Provider(
             api_key=api_key,
             models=["gpt-4o", "gpt-4o-mini"],
             enabled=True
         )
 
-    def _load_anthropic_config(self) -> Optional[ProviderConfig]:
+    def _load_anthropic_config(self) -> Optional[Provider]:
         """
         加载Anthropic配置
         
         返回:
-            Optional[ProviderConfig]: Anthropic配置，如果API密钥不存在则返回None
+            Optional[Provider]: Anthropic配置，如果API密钥不存在则返回None
         """
         api_key = settings.ANTHROPIC_API_KEY
         if not api_key:
             return None
 
-        return ProviderConfig(
+        return Provider(
             api_key=api_key,
             models=["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022"],
             enabled=True

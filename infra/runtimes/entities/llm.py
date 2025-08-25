@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 @dataclass
 class LLMRequest:
-    chat_id: Optional[str]
+    id: Optional[str]
     messages: List[Dict[str, str]]
     model: str
     provider: str = "openai"
@@ -15,7 +15,7 @@ class LLMRequest:
 
 @dataclass 
 class LLMResponse:
-    chat_id: str
+    id: str
     content: str
     provider: str
     model: str

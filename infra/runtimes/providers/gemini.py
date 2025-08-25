@@ -1,12 +1,12 @@
 import google.genai as genai
 
 from infra.runtimes.providers import BaseProvider
-from infra.runtimes.entities import LLMRequest, LLMResponse, ProviderConfig
+from infra.runtimes.entities import LLMRequest, LLMResponse, Provider
 
 class GeminiProvider(BaseProvider):
-    def __init__(self, config: ProviderConfig):
-        super().__init__(config)
-        self.client = genai.Client(api_key=config.api_key)
+    def __init__(self, provider: Provider):
+        super().__init__(provider)
+        self.client = genai.Client(api_key=provider.api_key)
 
-    async def chat(self, request: LLMRequest) -> LLMResponse:
+    async def completions(self, request: LLMRequest) -> LLMResponse:
         pass
