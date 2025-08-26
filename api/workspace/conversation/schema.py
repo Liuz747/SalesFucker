@@ -18,3 +18,9 @@ class ThreadCreateRequest(BaseModel):
     assistant_id: str = Field(description="助手标识符", min_length=1, max_length=100)
     metadata: ThreadMetadata = Field(description="线程元数据，必须包含tenant_id")
 
+class MessageCreateRequest(BaseModel):
+    """消息创建请求模型"""
+    
+    assistant_id: str = Field(description="助手标识符", min_length=1, max_length=100)
+    message: str = Field(description="用户消息内容", min_length=1)
+    metadata: ThreadMetadata = Field(description="线程元数据，必须包含tenant_id")
