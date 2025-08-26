@@ -56,7 +56,7 @@ class OpenAIProvider(BaseProvider):
                 "output_tokens": response.usage.completion_tokens,
             },
             cost=self._calculate_cost(response.usage, response.model),
-            chat_id=request.chat_id
+            id=request.id
         )
         
         # 保存对话历史
