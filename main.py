@@ -32,6 +32,7 @@ from api.endpoints import (
     prompts_router,
     tenant_router
 )
+from api.workspace.conversation import conversations
 from api.inner import completion
 from api.exceptions import APIException
 from config import settings
@@ -121,6 +122,7 @@ app.include_router(multimodal_router, prefix="/v1")
 app.include_router(assistants_router, prefix="/v1")
 app.include_router(prompts_router, prefix="/v1")
 app.include_router(tenant_router, prefix="/v1")
+app.include_router(conversations, prefix="/v1")
 app.include_router(completion, prefix="/v1")
 
 # 根路径健康检查

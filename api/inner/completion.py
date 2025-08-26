@@ -27,6 +27,7 @@ class ChatRequest(BaseModel):
     temperature: Optional[float] = 0.7
     max_tokens: Optional[int] = 4000
 
+
 @router.post("/")
 async def send_message(request: ChatRequest):
     """
@@ -69,22 +70,3 @@ async def send_message(request: ChatRequest):
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"聊天失败: {str(e)}")
-
-
-@router.get("/config")
-async def get_config():
-    """
-    检查LLM配置状态
-    
-    返回当前可用的供应商配置
-    """
-    try:
-        config = LLMConfig()
-        return {
-            "openai_configured": config.openai is not None,
-            "anthropic_configured": config.anthropic is not None,
-            "openai_enabled": config.openai.enabled if config.openai else False,
-            "anthropic_enabled": config.anthropic.enabled if config.anthropic else False
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"配置检查失败: {str(e)}")

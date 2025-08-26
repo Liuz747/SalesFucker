@@ -6,17 +6,27 @@
 
 模型文件:
 - tenant.py: 租户管理相关的所有模型（业务模型 + 数据库模型）
+- conversation.py: 对话相关的所有模型（业务模型）
 """
 
-# 导出常用模型以便使用
 from .tenant import (
     TenantRole,
     TenantOrm, 
     TenantModel
 )
+from .conversation import (
+    ConversationStatus,
+    InputType,
+    ThreadModel,
+    ThreadMetadata
+)
 
 __all__ = [
     "TenantRole",
     "TenantOrm",
-    "TenantModel"
+    "TenantModel",
+    "ConversationStatus",
+    "InputType",
+    "ThreadModel",
+    "ThreadMetadata"
 ]
