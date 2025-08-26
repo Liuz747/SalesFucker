@@ -26,6 +26,8 @@ from .endpoints import (
     multimodal_router,
     health_router
 )
+from .workspace import conversations
+from .inner import completion
 
 __version__ = "1.0.0"
 
@@ -33,5 +35,7 @@ __all__ = [
     "agents_router",
     "conversations_router", 
     "multimodal_router",
-    "health_router"
+    "health_router",
+    "conversations",
+    "completion"
 ]

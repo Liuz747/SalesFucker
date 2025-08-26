@@ -31,7 +31,7 @@ router = APIRouter(tags=["conversation-threads"])
 @router.post("/threads")
 async def create_thread(
     request: ThreadCreateRequest,
-    orchestrator_factory = Depends(get_orchestrator_service)
+    orchestrator = Depends(get_orchestrator_service)
 ):
     """
     创建新的对话线程
@@ -74,3 +74,5 @@ async def create_thread(
     except Exception as e:
         logger.error(f"线程创建失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+    
+

@@ -32,8 +32,7 @@ from api.endpoints import (
     prompts_router,
     tenant_router
 )
-from api.workspace.conversation import conversations
-from api.inner import completion
+from api import conversations, completion
 from api.exceptions import APIException
 from config import settings
 from utils import get_component_logger
