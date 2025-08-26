@@ -19,14 +19,14 @@ from contextlib import asynccontextmanager
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from models.tenant import TenantConfig, TenantModel
+from models.assistant import AssistantConfig, AssistantModel
 from infra.db.connection import database_session
-from utils import get_component_logger, get_current_datetime, format_timestamp
+from utils import get_component_logger, get_current_datetime, to_isoformat
 
-logger = get_component_logger(__name__, "TenantManager")
+logger = get_component_logger(__name__, "AssistantManager")
 
 
-class TenantManager:
+class AssistantManager:
     """
     租户配置管理器
     
@@ -35,7 +35,7 @@ class TenantManager:
     """
     
     def __init__(self):
-        self._config_cache: Dict[str, TenantConfig] = {}
+        self._config_cache: Dict[str, AssistantConfig] = {}
         self._cache_expiry: Dict[str, datetime] = {}
         self._cache_ttl = timedelta(minutes=30)  # 缓存30分钟
         self._access_stats: Dict[str, Dict[str, Any]] = {}
@@ -45,14 +45,12 @@ class TenantManager:
         self._initialize_default_config()
     
     def _initialize_default_config(self):
-        """初始化默认租户配置（用于开发和测试）"""
-        default_config = TenantConfig(
+        """初始化默认助理配置（用于开发和测试）"""
+        default_config = AssistantConfig(
             tenant_id="default",
             tenant_name="默认租户",
-            allowed_origins=["*"],
-            enable_audit_logging=True,
-            enable_rate_limiting=True,
-            enable_device_validation=False,  # 开发环境关闭设备验证
+            assistant_id="default",
+            assistant_name="默认助理",
             is_active=True,
             created_at=get_current_datetime(),
             updated_at=get_current_datetime()
@@ -61,9 +59,9 @@ class TenantManager:
         self._config_cache["default"] = default_config
         self._cache_expiry["default"] = get_current_datetime() + timedelta(hours=24)
         
-        logger.info("已初始化默认租户配置")
+        logger.info("已初始化默认助理配置")
     
-    async def get_tenant_config(self, tenant_id: str) -> Optional[TenantConfig]:
+    async def get_tenant_config(self, tenant_id: str) -> Optional[AssistantConfig]:
         """
         获取租户配置
         
@@ -139,7 +137,7 @@ class TenantManager:
             logger.error(f"创建默认租户失败: {e}")
             await session.rollback()
     
-    async def save_tenant_config(self, config: TenantConfig) -> bool:
+    async def save_assistant_config(self, config: AssistantConfig) -> bool:
         """
         保存租户配置到PostgreSQL
         
@@ -155,7 +153,7 @@ class TenantManager:
                 config.updated_at = get_current_datetime()
                 
                 # 保存到PostgreSQL
-                success = await self._save_tenant_config(config)
+                success = await self._save_assistant_config(config)
                 
                 if success:
                     # 更新缓存
@@ -163,20 +161,20 @@ class TenantManager:
                     self._cache_expiry[config.tenant_id] = (
                         get_current_datetime() + self._cache_ttl
                     )
-                    logger.info(f"租户配置已更新: {config.tenant_id}")
+                    logger.info(f"助理配置已更新: {config.tenant_id}")
                 
                 return success
                 
         except Exception as e:
-            logger.error(f"保存租户配置失败: {config.tenant_id}, 错误: {e}")
+            logger.error(f"保存助理配置失败: {config.tenant_id}, 错误: {e}")
             return False
     
-    async def _save_tenant_config(self, config: TenantConfig) -> bool:
+    async def _save_assistant_config(self, config: AssistantConfig) -> bool:
         """保存配置到PostgreSQL"""
         try:
             async with database_session() as session:
                 # 查找现有租户
-                stmt = select(TenantModel).where(TenantModel.tenant_id == config.tenant_id)
+                stmt = select(AssistantModel).where(AssistantModel.assistant_id == config.assistant_id)
                 result = await session.execute(stmt)
                 existing_tenant = result.scalar_one_or_none()
                 
@@ -186,7 +184,7 @@ class TenantManager:
                     await session.commit()
                 else:
                     # 创建新租户
-                    new_tenant = TenantModel.from_business_model(config)
+                    new_tenant = AssistantModel.from_business_model(config)
                     session.add(new_tenant)
                     await session.commit()
                 
@@ -220,7 +218,7 @@ class TenantManager:
             stats["total_requests"] += 1
             
             # 按日统计
-            date_key = format_timestamp(access_time.date())
+            date_key = to_isoformat(access_time.date())
             stats["daily_requests"][date_key] = (
                 stats["daily_requests"].get(date_key, 0) + 1
             )
@@ -235,7 +233,7 @@ class TenantManager:
             cutoff_date = (access_time - timedelta(days=30)).date()
             stats["daily_requests"] = {
                 k: v for k, v in stats["daily_requests"].items()
-                if format_timestamp(k).date() >= cutoff_date
+                if to_isoformat(k).date() >= cutoff_date
             }
         
         # 异步更新数据库中的访问记录
@@ -329,14 +327,14 @@ class TenantManager:
                 "total_tenants": tenant_count,
                 "cache_hit_rate": self._calculate_cache_hit_rate(),
                 "total_access_records": len(self._access_stats),
-                "timestamp": format_timestamp(get_current_datetime())
+                "timestamp": to_isoformat(get_current_datetime())
             }
         except Exception as e:
             logger.error(f"健康检查失败: {e}")
             return {
                 "status": "unhealthy",
                 "error": str(e),
-                "timestamp": format_timestamp(get_current_datetime())
+                "timestamp": to_isoformat(get_current_datetime())
             }
     
     def _calculate_cache_hit_rate(self) -> float:

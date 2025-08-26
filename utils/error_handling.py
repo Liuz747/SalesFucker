@@ -13,13 +13,13 @@
 import logging
 from functools import wraps
 from typing import Any, Callable, Optional, Dict
-from .time_utils import format_timestamp
+from .time_utils import to_isoformat
 
 
 def with_error_handling(
         fallback_response: Any = None, 
         log_errors: bool = True,
-        reraise: bool = False
+        reraise: bool = True
     ) -> Callable:
     """
     错误处理装饰器
@@ -42,7 +42,7 @@ def with_error_handling(
             except Exception as e:
                 if log_errors:
                     logger = logging.getLogger(func.__module__)
-                    logger.error(f"错误发生在 {func.__name__}: {e}", exc_info=True)
+                    logger.error(f"async_wrapper 错误发生在 {func.__name__}: {e}", exc_info=True)
                 
                 if reraise:
                     raise
@@ -51,7 +51,7 @@ def with_error_handling(
                     "error": str(e),
                     "error_type": type(e).__name__,
                     "function": func.__name__,
-                    "timestamp": format_timestamp(),
+                    "timestamp": to_isoformat(),
                     "fallback_data": fallback_response
                 }
         
@@ -62,7 +62,7 @@ def with_error_handling(
             except Exception as e:
                 if log_errors:
                     logger = logging.getLogger(func.__module__)
-                    logger.error(f"错误发生在 {func.__name__}: {e}", exc_info=True)
+                    logger.error(f"sync_wrapper 错误发生在 {func.__name__}: {e}", exc_info=True)
                 
                 if reraise:
                     raise
@@ -71,7 +71,7 @@ def with_error_handling(
                     "error": str(e),
                     "error_type": type(e).__name__,
                     "function": func.__name__,
-                    "timestamp": format_timestamp(),
+                    "timestamp": to_isoformat(),
                     "fallback_data": fallback_response
                 }
         
@@ -156,7 +156,7 @@ class ErrorHandler:
             "error": str(error),
             "error_type": type(error).__name__,
             "component": self.component_name,
-            "timestamp": format_timestamp()
+            "timestamp": to_isoformat()
         }
         
         if context:

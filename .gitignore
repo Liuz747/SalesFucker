@@ -24,7 +24,6 @@ MANIFEST
 # Virtual Environment
 .venv/
 venv/
-ENV/
 env/
 
 # Environment variables
@@ -67,9 +66,6 @@ data/temp/
 # Model artifacts
 *.pkl
 *.joblib
-
-# Docker
-.dockerignore
 
 # MAS specific
 conversations/

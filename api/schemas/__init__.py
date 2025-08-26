@@ -8,7 +8,6 @@ API数据模型模块
 - requests.py: 通用请求模型
 - responses.py: 通用响应模型
 - agents.py: 智能体相关模型
-- llm.py: LLM管理相关模型
 - multimodal.py: 多模态处理模型
 """
 
@@ -20,13 +19,6 @@ from .agents import (
     AgentTestRequest,
 )
 from .conversations import ConversationRequest, ConversationResponse
-from .llm import (
-    CostAnalysisResponse,
-    LLMConfigRequest,
-    LLMStatusResponse,
-    OptimizationRequest,
-    ProviderStatusRequest,
-)
 from .multimodal import (
     ImageAnalysisRequest,
     MultimodalRequest,
@@ -63,12 +55,6 @@ __all__ = [
     "AgentTestRequest",
     "AgentStatusResponse",
     "AgentListResponse",
-    # LLM管理模型
-    "LLMConfigRequest",
-    "ProviderStatusRequest",
-    "OptimizationRequest",
-    "LLMStatusResponse",
-    "CostAnalysisResponse",
     # 多模态模型
     "MultimodalRequest",
     "VoiceProcessingRequest",

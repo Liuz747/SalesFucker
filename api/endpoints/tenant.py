@@ -8,10 +8,10 @@ Flow:
 Backend System → POST /tenants/{tenant_id}/sync → AI Service
 """
 
-from fastapi import APIRouter, HTTPException, Depends, status
-from typing import List, Optional
+from fastapi import APIRouter, HTTPException, status
+from typing import Optional
 
-from ..schemas.tenant import (
+from models.tenant import (
     TenantSyncRequest,
     TenantSyncResponse, 
     TenantStatusResponse,
@@ -19,11 +19,11 @@ from ..schemas.tenant import (
     TenantUpdateRequest
 )
 from ..handlers.tenant_handler import TenantHandler
-from utils import get_component_logger, get_current_datetime, format_timestamp
+from utils import get_component_logger, get_current_datetime, to_isoformat
 
-logger = get_component_logger(__name__, "AdminTenantEndpoints")
+logger = get_component_logger(__name__, "TenantEndpoints")
 
-# Create router with admin prefix
+# Create router with prefix
 router = APIRouter(prefix="/tenants", tags=["tenant"])
 
 # Initialize handler
@@ -42,11 +42,9 @@ async def sync_tenant(
     - New company registers (creates tenant)
     - Company updates their information
     - Company changes status (active/inactive)
-    
-    This endpoint receives the tenant's PUBLIC key for JWT verification.
     """
     try:
-        logger.info(f"Backend tenant sync request: {tenant_id}")
+        logger.info(f"Backend tenant sync request: {tenant_id} \n param: {request}")
         
         # Validate tenant_id matches request
         if request.tenant_id != tenant_id:
@@ -56,16 +54,14 @@ async def sync_tenant(
             )
         
         # Sync tenant to AI service database
-        result = await tenant_handler.sync_tenant(request)
+        await tenant_handler.sync_tenant(request)
         
         logger.info(f"Tenant sync successful: {tenant_id}")
         return TenantSyncResponse(
             tenant_id=tenant_id,
-            sync_status="success",
             message="Tenant synced successfully",
             synced_at=get_current_datetime(),
-            features_enabled=request.features,
-            public_key_fingerprint=result["public_key_fingerprint"]
+            features_enabled=request.features
         )
         
     except ValueError as e:
@@ -75,11 +71,20 @@ async def sync_tenant(
             detail=str(e)
         )
     except Exception as e:
+        error_msg = str(e).lower()
         logger.error(f"Tenant sync failed for {tenant_id}: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Tenant sync failed"
-        )
+        
+        # Provide specific error messages for database issues
+        if "connection" in error_msg or "database" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Database not available: {str(e)}"
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Tenant sync failed: {str(e)}"
+            )
 
 
 @router.get("/{tenant_id}/status", response_model=TenantStatusResponse)
@@ -119,8 +124,7 @@ async def get_tenant_status(
 @router.put("/{tenant_id}", response_model=TenantSyncResponse)
 async def update_tenant(
     tenant_id: str,
-    request: TenantUpdateRequest,
-
+    request: TenantUpdateRequest
 ):
     """
     Update tenant information
@@ -135,11 +139,9 @@ async def update_tenant(
         
         return TenantSyncResponse(
             tenant_id=tenant_id,
-            sync_status="updated",
             message="Tenant updated successfully",
             synced_at=get_current_datetime(),
-            features_enabled=result.get("features", []),
-            public_key_fingerprint=result.get("public_key_fingerprint")
+            features_enabled=result.get("features", [])
         )
         
     except ValueError as e:
@@ -159,7 +161,6 @@ async def update_tenant(
 @router.delete("/{tenant_id}")
 async def delete_tenant(
     tenant_id: str,
-
     force: bool = False
 ):
     """
@@ -226,41 +227,6 @@ async def list_tenants(
         )
 
 
-@router.post("/bulk-sync")
-async def bulk_sync_tenants(
-    tenants: List[TenantSyncRequest],
-
-):
-    """
-    Bulk sync multiple tenants
-    
-    Used during initial deployment or bulk operations.
-    Processes multiple tenant sync requests in parallel.
-    """
-    try:
-        logger.info(f"Bulk sync request for {len(tenants)} tenants")
-        
-        results = await tenant_handler.bulk_sync_tenants(tenants)
-        
-        successful = sum(1 for r in results if r["status"] == "success")
-        failed = len(results) - successful
-        
-        return {
-            "total_tenants": len(tenants),
-            "successful": successful,
-            "failed": failed,
-            "results": results,
-            "synced_at": format_timestamp()
-        }
-        
-    except Exception as e:
-        logger.error(f"Bulk sync failed: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Bulk tenant sync failed"
-        )
-
-
 # Health check for admin endpoints
 @router.get("/health")
 async def admin_tenant_health(
@@ -276,7 +242,7 @@ async def admin_tenant_health(
         
         return {
             "status": "healthy",
-            "timestamp": format_timestamp(),
+            "timestamp": to_isoformat(),
             "database_connected": health_status["database_connected"],
             "tenant_count": health_status["tenant_count"],
             "admin_auth": "valid"
@@ -286,7 +252,7 @@ async def admin_tenant_health(
         logger.error(f"Admin health check failed: {e}", exc_info=True)
         return {
             "status": "unhealthy",
-            "timestamp": format_timestamp(),
+            "timestamp": to_isoformat(),
             "error": str(e),
             "admin_auth": "valid"
         }

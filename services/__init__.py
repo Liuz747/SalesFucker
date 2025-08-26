@@ -1,0 +1,16 @@
+"""
+服务层模块
+
+该包提供纯粹的数据库操作服务，遵循Repository模式。
+服务层专注于数据持久化和查询操作，不包含业务逻辑。
+
+核心服务:
+- TenantService: 租户数据库CRUD操作
+- 更多服务将在此处导入...
+"""
+
+from .tenant_service import TenantService
+
+__all__ = [
+    "TenantService",
+]

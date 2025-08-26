@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 from fastapi import status
 
 from main import app
-from utils import format_timestamp
+from utils import to_isoformat
 
 
 class TestMultiLLMProviderEndpoints:
@@ -36,14 +36,14 @@ class TestMultiLLMProviderEndpoints:
             "providers": {
                 "openai": {
                     "status": "healthy",
-                    "last_check": format_timestamp(),
+                    "last_check": to_isoformat(),
                     "latency_ms": 800,
                     "success_rate": 0.98,
                     "models": ["gpt-4", "gpt-3.5-turbo"],
                 },
                 "anthropic": {
                     "status": "healthy",
-                    "last_check": format_timestamp(),
+                    "last_check": to_isoformat(),
                     "latency_ms": 600,
                     "success_rate": 0.99,
                     "models": ["claude-3-opus", "claude-3-sonnet"],

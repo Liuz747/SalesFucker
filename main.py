@@ -17,9 +17,6 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from config.settings import settings
-from utils import get_component_logger
-from api.exceptions import APIException
 from api.middleware import (
     SafetyInterceptor,
     TenantIsolation,
@@ -27,15 +24,18 @@ from api.middleware import (
 )
 from api.endpoints import (
     agents_router,
+    auth_router,
     conversations_router,
-    llm_management_router,
     multimodal_router,
     health_router,
     assistants_router,
     prompts_router,
     tenant_router
 )
-from api.endpoints.service_auth import router as auth_router
+from api import conversations, completion
+from api.exceptions import APIException
+from config import settings
+from utils import get_component_logger
 
 # 配置日志
 logger = get_component_logger(__name__)
@@ -62,11 +62,13 @@ app.add_middleware(
 app.add_middleware(JWTMiddleware, exclude_paths=[
     "/",
     "/health",
-    "/docs", 
+    "/docs",
     "/openapi.json",
     "/redoc",
     "/v1/health",
     "/v1/auth/token",
+    "/v1/test/chat",
+    "/v1/test/config"
 ], exclude_prefixes=[
     "/static/",
     "/assets/"
@@ -91,6 +93,7 @@ async def api_exception_handler(request: Request, exc: APIException):
         }
     )
 
+
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
     """处理未捕获的异常"""
@@ -108,36 +111,39 @@ async def general_exception_handler(request: Request, exc: Exception):
         }
     )
 
+
 # 注册路由器
 app.include_router(health_router, prefix="/v1")
 app.include_router(auth_router, prefix="/v1")
 app.include_router(agents_router, prefix="/v1")
 app.include_router(conversations_router, prefix="/v1")
-app.include_router(llm_management_router, prefix="/v1")
 app.include_router(multimodal_router, prefix="/v1")
 app.include_router(assistants_router, prefix="/v1")
 app.include_router(prompts_router, prefix="/v1")
 app.include_router(tenant_router, prefix="/v1")
+app.include_router(conversations, prefix="/v1")
+app.include_router(completion, prefix="/v1")
 
 # 根路径健康检查
 @app.get("/")
 async def root():
     """根路径健康检查"""
     return {
-        "service": "MAS化妆品智能体系统",
+        "service": settings.APP_NAME,
         "status": "运行中",
-        "version": "1.0.0",
+        "version": "0.2.0",
         "docs": "/docs"
     }
+
 
 def main():
     """Main entry point for the application."""
     uvicorn.run(
         "main:app",
-        host=settings.api_host,
-        port=settings.api_port,
-        reload=settings.debug,
-        log_level="info" if not settings.debug else "debug"
+        host=settings.APP_HOST,
+        port=settings.APP_PORT,
+        reload=settings.DEBUG,
+        log_level="info" if not settings.DEBUG else "debug"
     )
 
 

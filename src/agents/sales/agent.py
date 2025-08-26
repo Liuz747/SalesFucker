@@ -15,7 +15,7 @@ from typing import Dict, Any, Optional
 
 from ..base import BaseAgent, AgentMessage, ThreadState
 from .sales_strategies import get_sales_strategies, analyze_customer_segment, get_strategy_for_segment, adapt_strategy_to_context
-from utils import format_timestamp
+from utils import to_isoformat
 from src.llm.intelligent_router import RoutingStrategy
 
 
@@ -68,7 +68,7 @@ class SalesAgent(BaseAgent):
                 "sales_response": sales_response,
                 "agent_type": "sales",
                 "processing_agent": self.agent_id,
-                "response_timestamp": format_timestamp()
+                "response_timestamp": to_isoformat()
             }
             
             return await self.send_message(
@@ -340,10 +340,12 @@ class SalesAgent(BaseAgent):
         """
         try:
             if hasattr(self, '_prompt_manager') and self._prompt_manager:
+                if not self.tenant_id:
+                    raise ValueError(f"Sales agent {self.agent_id} requires tenant_id for greeting prompt")
                 greeting = await self._prompt_manager.get_greeting_prompt(
                     agent_id=self.agent_id,
                     agent_type=self.agent_type,
-                    tenant_id=self.tenant_id or "default",
+                    tenant_id=self.tenant_id,
                     context=context or {}
                 )
                 self.logger.debug(f"获取问候消息成功: {len(greeting or '')}字符")
@@ -384,10 +386,12 @@ class SalesAgent(BaseAgent):
         """
         try:
             if hasattr(self, '_prompt_manager') and self._prompt_manager:
+                if not self.tenant_id:
+                    raise ValueError(f"Sales agent {self.agent_id} requires tenant_id for product recommendation")
                 recommendation = await self._prompt_manager.get_product_recommendation_prompt(
                     agent_id=self.agent_id,
                     agent_type=self.agent_type,
-                    tenant_id=self.tenant_id or "default",
+                    tenant_id=self.tenant_id,
                     context=context or {}
                 )
                 self.logger.debug(f"获取产品推荐模板成功: {len(recommendation or '')}字符")
@@ -429,11 +433,13 @@ class SalesAgent(BaseAgent):
                 if context:
                     full_context.update(context)
                     
+                if not self.tenant_id:
+                    raise ValueError(f"Sales agent {self.agent_id} requires tenant_id for objection handling")
                 objection_prompt = await self._prompt_manager.get_custom_prompt(
                     prompt_type='objection_handling',
                     agent_id=self.agent_id,
                     agent_type=self.agent_type,
-                    tenant_id=self.tenant_id or "default",
+                    tenant_id=self.tenant_id,
                     context=full_context
                 )
                 

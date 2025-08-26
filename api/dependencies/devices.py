@@ -29,8 +29,13 @@ async def validate_device_access(
     # Device access validation will be implemented in future versions
 
     try:
-        # Note: Will need tenant_id from request context
-        info = await device_client.get_device(device_id, "default_tenant")
+        # Extract tenant_id from service context
+        if not service.tenant_id:
+            raise HTTPException(
+                status_code=400,
+                detail={"error": "MISSING_TENANT_ID", "message": "Tenant ID is required for device validation"}
+            )
+        info = await device_client.get_device(device_id, service.tenant_id)
         if not info:
             raise HTTPException(status_code=404, detail={"error": "DEVICE_NOT_FOUND", "message": f"设备 {device_id} 不存在"})
         return device_id

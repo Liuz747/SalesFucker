@@ -17,8 +17,8 @@ from typing import Optional, List, Dict, Any
 from fastapi import HTTPException, Header, Depends
 from pydantic import BaseModel, Field
 
-from config.settings import settings
-from utils import get_component_logger, get_current_datetime, format_datetime
+from config import settings
+from utils import get_component_logger, get_current_datetime, from_timestamp
 from .key_manager import key_manager
 
 
@@ -58,7 +58,7 @@ class ServiceContext(BaseModel):
         return "backend:admin" in self.scopes
 
 
-class ServiceVerificationResult(BaseModel):
+class VerificationResult(BaseModel):
     """
     服务JWT验证结果模型
     
@@ -81,7 +81,7 @@ class ServiceVerificationResult(BaseModel):
 logger = get_component_logger(__name__, "JWTAuth")
 
 
-async def verify_service_jwt_token(token: str) -> ServiceVerificationResult:
+async def verify_service_token(token: str) -> VerificationResult:
     """
     验证服务间JWT token
     
@@ -93,8 +93,8 @@ async def verify_service_jwt_token(token: str) -> ServiceVerificationResult:
     """
     try:
         # 配置检查
-        if not settings.app_key:
-            return ServiceVerificationResult(
+        if not settings.APP_KEY:
+            return VerificationResult(
                 is_valid=False,
                 error_code="SERVICE_AUTH_NOT_CONFIGURED",
                 error_message="服务认证未配置",
@@ -102,13 +102,13 @@ async def verify_service_jwt_token(token: str) -> ServiceVerificationResult:
             )
         
         # 获取公钥用于验证
-        public_key = key_manager.get_public_key(settings.app_key)
+        public_key = key_manager.get_public_key(settings.APP_KEY)
         if not public_key:
-            return ServiceVerificationResult(
+            return VerificationResult(
                 is_valid=False,
                 error_code="SERVICE_KEY_NOT_FOUND",
                 error_message="服务密钥对未找到或已过期",
-                verification_details={"app_key": settings.app_key}
+                verification_details={"app_key": settings.APP_KEY}
             )
         
         # 验证JWT签名和声明
@@ -117,8 +117,8 @@ async def verify_service_jwt_token(token: str) -> ServiceVerificationResult:
                 token,
                 public_key,
                 algorithms=["RS256"],
-                issuer=settings.app_jwt_issuer,
-                audience=settings.app_jwt_audience,
+                issuer=settings.APP_JWT_ISSUER,
+                audience=settings.APP_JWT_AUDIENCE,
                 options={
                     "require": ["exp", "iat", "iss", "aud", "sub", "jti"],
                     "verify_exp": True,
@@ -126,14 +126,14 @@ async def verify_service_jwt_token(token: str) -> ServiceVerificationResult:
                 }
             )
         except jwt.ExpiredSignatureError:
-            return ServiceVerificationResult(
+            return VerificationResult(
                 is_valid=False,
                 error_code="SERVICE_TOKEN_EXPIRED",
                 error_message="服务JWT token已过期",
                 verification_details={"token_type": "service"}
             )
         except jwt.InvalidTokenError as e:
-            return ServiceVerificationResult(
+            return VerificationResult(
                 is_valid=False,
                 error_code="INVALID_SERVICE_TOKEN",
                 error_message=f"服务JWT token验证失败: {str(e)}",
@@ -142,7 +142,7 @@ async def verify_service_jwt_token(token: str) -> ServiceVerificationResult:
         
         # 验证主体必须是backend-service
         if payload.get("sub") != "backend-service":
-            return ServiceVerificationResult(
+            return VerificationResult(
                 is_valid=False,
                 error_code="INVALID_SERVICE_SUBJECT",
                 error_message="服务token主体无效",
@@ -151,8 +151,8 @@ async def verify_service_jwt_token(token: str) -> ServiceVerificationResult:
         
         # 构建服务上下文
         current_time = get_current_datetime()
-        issued_at = format_datetime(payload.get("iat"))
-        exp_time = format_datetime(payload.get("exp"))
+        issued_at = from_timestamp(payload.get("iat"))
+        exp_time = from_timestamp(payload.get("exp"))
         
         service_context = ServiceContext(
             sub=payload.get("sub"),
@@ -166,7 +166,7 @@ async def verify_service_jwt_token(token: str) -> ServiceVerificationResult:
             verification_timestamp=current_time
         )
         
-        return ServiceVerificationResult(
+        return VerificationResult(
             is_valid=True,
             service_context=service_context,
             verification_details={
@@ -178,7 +178,7 @@ async def verify_service_jwt_token(token: str) -> ServiceVerificationResult:
         
     except Exception as e:
         logger.error(f"服务JWT验证过程异常: {e}", exc_info=True)
-        return ServiceVerificationResult(
+        return VerificationResult(
             is_valid=False,
             error_code="SERVICE_VERIFICATION_ERROR",
             error_message=f"服务JWT验证过程发生异常: {str(e)}",
@@ -239,7 +239,7 @@ async def get_service_context(
     
     # 验证服务JWT token
     try:
-        verification_result = await verify_service_jwt_token(token)
+        verification_result = await verify_service_token(token)
         
         if not verification_result.is_valid:
             logger.warning(
