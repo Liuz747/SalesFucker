@@ -46,11 +46,11 @@ class BaseProvider(ABC):
         返回:
             包含历史消息的完整对话上下文
         """
-        if not request.chat_id:
+        if not request.id:
             return request.messages
         
         # 获取历史对话
-        history = self.conversation_history.get(request.chat_id, [])
+        history = self.conversation_history.get(request.id, [])
         
         # 合并历史消息和当前消息
         full_context = history + request.messages
@@ -65,14 +65,14 @@ class BaseProvider(ABC):
             request: LLM请求
             response: LLM响应
         """
-        if not request.chat_id:
+        if not request.id:
             return
         
-        if request.chat_id not in self.conversation_history:
-            self.conversation_history[request.chat_id] = []
+        if request.id not in self.conversation_history:
+            self.conversation_history[request.id] = []
         
         # 添加用户消息和助手回复
-        self.conversation_history[request.chat_id].extend([
+        self.conversation_history[request.id].extend([
             *request.messages,  # 用户的新消息
             {"role": "assistant", "content": response.content}  # 助手回复
         ])

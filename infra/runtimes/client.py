@@ -9,7 +9,7 @@ from typing import Dict
 
 from infra.runtimes.providers import OpenAIProvider, AnthropicProvider, BaseProvider
 from infra.runtimes.entities import LLMRequest, LLMResponse, ProviderType
-from infra.runtimes.routing import SimpleRouter
+# from infra.runtimes.routing import SimpleRouter
 from infra.runtimes.config import LLMConfig
 
 class LLMClient:
@@ -23,17 +23,23 @@ class LLMClient:
             config: LLM配置对象
         """
         self.config = config
-        self.providers: Dict[ProviderType, BaseProvider] = {}
-        self.router = SimpleRouter(config.routing_config)
-        self._init()
+        self.active_providers: Dict[str, BaseProvider] = {}
+        # self.router = SimpleRouter(config.routing_config)
+        self._dispatch()
 
-    def _init(self):
+    def _dispatch(self):
         """初始化已启用的供应商"""
-        if self.config.openai and self.config.openai.enabled:
-            self.providers[ProviderType.OPENAI] = OpenAIProvider(self.config.openai)
-        if self.config.anthropic and self.config.anthropic.enabled:
-            self.providers[ProviderType.ANTHROPIC] = AnthropicProvider(self.config.anthropic)
-        # 其他供应商可在此添加
+        # TODO: 需要优化，目前是根据供应商类型初始化，后续需要根据供应商ID初始化
+        for provider in self.config.providers:
+            if provider.enabled:
+                if provider.type == ProviderType.OPENAI:
+                    self.active_providers[provider.id] = OpenAIProvider(provider)
+                elif provider.type == ProviderType.ANTHROPIC:
+                    self.active_providers[provider.id] = AnthropicProvider(provider)
+                elif provider.type == ProviderType.GEMINI:
+                    pass
+                else:
+                    raise Exception(f"不支持的供应商类型: {provider.type}")
 
     async def completions(self, request: LLMRequest) -> LLMResponse:
         """
@@ -46,12 +52,12 @@ class LLMClient:
             LLMResponse: LLM响应对象
         """
         try:
-            # 直接使用ProviderType枚举
-            provider_type = ProviderType(request.provider.lower())
-            if provider_type not in self.providers:
+            # 直接使用ProviderID
+            provider_id = request.provider.lower()
+            if provider_id not in self.active_providers:
                 raise Exception(f"指定的供应商不可用: {request.provider}")
             
-            provider = self.providers[provider_type]
+            provider = self.active_providers[provider_id]
             
             # 发送请求
             response = await provider.completions(request)

@@ -2,14 +2,13 @@
 简单路由器
 
 提供基本的LLM请求路由功能，支持中文内容检测、视觉内容路由等。
-专为快速启动设计，避免过度工程化。
 """
 
 from typing import List, Dict, Any
 from infra.runtimes.entities import ProviderType, LLMRequest
 
 class SimpleRouter:
-    """简单路由器 - 避免过度工程化"""
+    """简单路由器"""
 
     def __init__(self, config: Dict[str, Any] = None):
         """
@@ -20,10 +19,6 @@ class SimpleRouter:
         """
         self.config = config or {}
         self.stats: Dict[ProviderType, Dict[str, Any]] = {}
-
-        # 简单路由规则
-        self.chinese_providers = [ProviderType.DEEPSEEK, ProviderType.OPENAI]
-        self.vision_providers = [ProviderType.OPENAI, ProviderType.ANTHROPIC]
 
     def route(self, request: LLMRequest, available_providers: List[ProviderType]) -> ProviderType:
         """
@@ -46,15 +41,11 @@ class SimpleRouter:
 
         # 规则1: 中文内容 -> 偏好DeepSeek/OpenAI
         if self._is_chinese_content(request):
-            for provider in self.chinese_providers:
-                if provider in available_providers:
-                    return provider
+            return ProviderType.OPENAI
 
         # 规则2: 视觉内容 -> OpenAI/Anthropic
         if self._has_vision_content(request):
-            for provider in self.vision_providers:
-                if provider in available_providers:
-                    return provider
+            return ProviderType.ANTHROPIC
 
         # 规则3: 默认使用第一个可用供应商
         return available_providers[0] if available_providers else ProviderType.OPENAI
