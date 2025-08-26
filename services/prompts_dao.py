@@ -10,23 +10,21 @@
 - 数据库健康检查
 - 高效查询和索引优化
 """
-from sqlalchemy import engine
 
 from datetime import datetime
-from typing import Optional, List
+from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import select, update, and_
 
-from models.tenant import TenantConfig, TenantModel
-from models.assistant import AssistantModel, AssistantOrmModel
+from models.prompts import PromptsOrmModel
+from models.tenant import TenantModel
 from infra.db.connection import database_session, test_db_connection
-from utils import get_component_logger, get_current_datetime
+from utils import get_component_logger
+
+logger = get_component_logger(__name__, "PromptsDao")
 
 
-logger = get_component_logger(__name__, "AssistantService")
-
-
-class AssistantService:
+class PromptsDao:
     """
     租户数据库操作仓库
     
@@ -35,79 +33,37 @@ class AssistantService:
     """
 
     @staticmethod
-    async def get_assistant_by_id(assistant_id: str) -> Optional[AssistantModel]:
+    async def insertPrompts(orm: PromptsOrmModel) -> UUID:
         """
-        根据ID获取租户配置
-
-        参数:
-            tenant_id: 租户ID
-
-        返回:
-            TenantConfig: 租户配置，不存在则返回None
-        """
-        try:
-            async with database_session() as session:
-                stmt = select(AssistantOrmModel).where(AssistantOrmModel.assistant_id == assistant_id)
-                result = await session.execute(stmt)
-                assistant_model = result.scalar_one_or_none()
-
-                if assistant_model:
-                    return assistant_model.to_business_model()
-
-                return None
-
-        except Exception as e:
-            logger.error(f"获取助理配置失败: {assistant_id}, 错误: {e}")
-            raise
-
-    @staticmethod
-    async def save(assistantData: AssistantModel) -> bool:
-        """
-        保存助理配置（创建或更新）
+        保存租户配置（创建或更新）
         
         参数:
-            config: 助理配置
+            config: 租户配置
             
         返回:
             bool: 是否保存成功
         """
-
         try:
-            async with (database_session() as session):
-                # 查找现有助理
-                assistantData.updated_at = get_current_datetime()
-                stmt = select(AssistantOrmModel).where(AssistantOrmModel.assistant_id == assistantData.assistant_id)
-                # print(stmt)  # 这将包括参数值，但如果使用了编译方言，则需要确保方言与数据库匹配。
-                # print(assistantData.assistant_id)  # 这将包括参数值，但如果使用了编译方言，则需要确保方言与数据库匹配。
-
-                result = await session.execute(stmt)
-                existing_assistant = result.scalar_one_or_none()
-
-                if existing_assistant:
-                    # 更新现有助理
-                    existing_assistant.update_from_business_mode_assistant(assistantData)
-                    logger.debug(f"更新助理: {assistantData.assistant_id}")
-                else:
-                    # 创建新租户
-                    new_assistant = AssistantOrmModel.from_business_model(assistantData)
-                    session.add(new_assistant)
-                    logger.debug(f"创建助理: {assistantData.assistant_id}")
+            async with database_session() as session:
+                # 创建新租户
+                session.add(orm)
+                logger.debug(f"创建提示词: {orm.tenant_id} {orm.assistant_id} {orm.personality_prompt}")
 
                 await session.commit()
-                return True
+                return orm.id
 
         except Exception as e:
-            logger.error(f"保存租户配置失败: {assistantData.assistant_id}, 错误: {e}")
+            logger.error(f"创建提示词: {orm.tenant_id} {orm.assistant_id} {orm.personality_prompt} 错误：{e}")
             raise
 
     @staticmethod
     async def delete(tenant_id: str) -> bool:
         """
         删除租户（软删除）
-
+        
         参数:
             tenant_id: 租户ID
-
+            
         返回:
             bool: 是否删除成功
         """
@@ -117,7 +73,7 @@ class AssistantService:
                 stmt = (
                     update(TenantModel)
                     .where(TenantModel.tenant_id == tenant_id)
-                    .values(is_active=False, updated_at=get_current_datetime())
+                    .values(status=0)
                 )
                 result = await session.execute(stmt)
                 await session.commit()
@@ -135,21 +91,23 @@ class AssistantService:
             raise
 
     @staticmethod
-    async def get_all_tenants() -> List[str]:
+    async def get_prompts(tenant_id: str, assistant_id: str, version: str) -> PromptsOrmModel:
         """
         获取所有激活状态的租户ID列表
-
+        
         返回:
             List[str]: 激活的租户ID列表
         """
         try:
             async with database_session() as session:
-                stmt = select(TenantModel.tenant_id).where(TenantModel.is_active == True)
+                stmt = select(PromptsOrmModel).where(
+                    and_(PromptsOrmModel.tenant_id == tenant_id and
+                         PromptsOrmModel.tenant_id == assistant_id and
+                         PromptsOrmModel.version == version
+                         )
+                )
                 result = await session.execute(stmt)
-                tenant_ids = [row[0] for row in result.fetchall()]
-
-                logger.debug(f"查询到 {len(tenant_ids)} 个活跃租户")
-                return tenant_ids
+                return result.scalar_one_or_none()
 
         except Exception as e:
             logger.error(f"获取租户列表失败: {e}")
@@ -159,11 +117,11 @@ class AssistantService:
     async def update_access_stats(tenant_id: str, access_time: datetime) -> bool:
         """
         更新租户访问统计
-
+        
         参数:
             tenant_id: 租户ID
             access_time: 访问时间
-
+            
         返回:
             bool: 是否更新成功
         """
@@ -188,7 +146,7 @@ class AssistantService:
     async def count_total() -> int:
         """
         获取租户总数
-
+        
         返回:
             int: 租户总数（包括激活和非激活）
         """
@@ -209,7 +167,7 @@ class AssistantService:
     async def health_check() -> dict:
         """
         数据库健康检查
-
+        
         返回:
             dict: 健康状态信息
         """

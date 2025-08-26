@@ -16,7 +16,7 @@ from typing import Optional, List
 
 from sqlalchemy import select, update
 
-from models.tenant import TenantConfig, TenantModel
+from models.tenant import TenantModel, TenantOrm
 from infra.db.connection import database_session, test_db_connection
 from utils import get_component_logger
 
@@ -32,7 +32,7 @@ class TenantService:
     """
     
     @staticmethod
-    async def _get_tenant_by_id(session, tenant_id: str) -> Optional[TenantModel]:
+    async def _get_tenant_by_id(session, tenant_id: str) -> Optional[TenantOrm]:
         """
         获取租户数据库模型
         
@@ -41,14 +41,14 @@ class TenantService:
             tenant_id: 租户ID
             
         返回:
-            TenantModel: 租户数据库模型，不存在则返回None
+            TenantOrm: 租户数据库模型，不存在则返回None
         """
-        stmt = select(TenantModel).where(TenantModel.tenant_id == tenant_id)
+        stmt = select(TenantOrm).where(TenantOrm.tenant_id == tenant_id)
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
     
     @staticmethod
-    async def query(tenant_id: str) -> Optional[TenantConfig]:
+    async def query(tenant_id: str) -> Optional[TenantModel]:
         """
         根据ID获取租户配置
         
@@ -56,14 +56,14 @@ class TenantService:
             tenant_id: 租户ID
             
         返回:
-            TenantConfig: 租户配置，不存在则返回None
+            TenantModel: 租户配置，不存在则返回None
         """
         try:
             async with database_session() as session:
                 tenant_model = await TenantService._get_tenant_by_id(session, tenant_id)
                 
                 if tenant_model:
-                    return tenant_model.to_config()
+                    return tenant_model.to_model()
                 
                 return None
 
@@ -72,7 +72,7 @@ class TenantService:
             raise
     
     @staticmethod
-    async def save(config: TenantConfig) -> bool:
+    async def save(config: TenantModel) -> bool:
         """
         保存租户配置（创建或更新）
         
@@ -93,7 +93,7 @@ class TenantService:
                     logger.debug(f"更新租户: {config.tenant_id}")
                 else:
                     # 创建新租户
-                    new_tenant = config.to_model()
+                    new_tenant = config.to_orm()
                     session.add(new_tenant)
                     logger.debug(f"创建租户: {config.tenant_id}")
                 
@@ -119,8 +119,8 @@ class TenantService:
             async with database_session() as session:
                 # 软删除：设置为非激活状态
                 stmt = (
-                    update(TenantModel)
-                    .where(TenantModel.tenant_id == tenant_id)
+                    update(TenantOrm)
+                    .where(TenantOrm.tenant_id == tenant_id)
                     .values(status=0)
                 )
                 result = await session.execute(stmt)
@@ -148,7 +148,7 @@ class TenantService:
         """
         try:
             async with database_session() as session:
-                stmt = select(TenantModel.tenant_id).where(TenantModel.status == 1)
+                stmt = select(TenantOrm.tenant_id).where(TenantOrm.status == 1)
                 result = await session.execute(stmt)
                 tenant_ids = [row[0] for row in result.fetchall()]
                 
@@ -174,11 +174,11 @@ class TenantService:
         try:
             async with database_session() as session:
                 stmt = (
-                    update(TenantModel)
-                    .where(TenantModel.tenant_id == tenant_id)
+                    update(TenantOrm)
+                    .where(TenantOrm.tenant_id == tenant_id)
                     .values(
                         last_access=access_time,
-                        total_requests=TenantModel.total_requests + 1
+                        total_requests=TenantOrm.total_requests + 1
                     )
                 )
                 await session.execute(stmt)
@@ -198,7 +198,7 @@ class TenantService:
         """
         try:
             async with database_session() as session:
-                stmt = select(TenantModel.tenant_id)
+                stmt = select(TenantOrm.tenant_id)
                 result = await session.execute(stmt)
                 total = len(result.fetchall())
                 

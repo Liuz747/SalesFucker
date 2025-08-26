@@ -16,6 +16,8 @@ import re
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 
+from models.prompts import PromptsModel
+from services.prompts_dao import PromptsDao
 from ..schemas.prompts import (
     PromptCreateRequest, PromptUpdateRequest, PromptTestRequest,
     PromptLibrarySearchRequest, PromptConfigResponse, PromptTestResponse,
@@ -50,7 +52,7 @@ class PromptHandler(StatusMixin):
         self.logger.info("提示词处理器初始化完成")
     
     @with_error_handling(fallback_response=None)
-    async def create_assistant_prompts(self, request: PromptCreateRequest) -> PromptConfigResponse:
+    async def create_assistant_prompts(self, request: PromptCreateRequest) -> PromptsModel:
         """
         创建助理提示词配置
         
@@ -76,27 +78,37 @@ class PromptHandler(StatusMixin):
                 "version": request.prompt_config.version,
                 "is_active": request.prompt_config.is_active
             }
-            
-            # 存储配置
-            self._prompt_configs[config_key] = config_data
-            
-            # 记录历史版本
-            if config_key not in self._prompt_history:
-                self._prompt_history[config_key] = []
-            self._prompt_history[config_key].append(config_data.copy())
-            
-            self.logger.info(f"助理提示词配置创建成功: {request.assistant_id}")
-            
-            return PromptConfigResponse(
-                success=True,
-                message="提示词配置创建成功",
-                data={},
+
+            prompts_model = PromptsModel(
+                tenant_id=request.assistant_id,
                 assistant_id=request.assistant_id,
-                tenant_id=request.tenant_id,
-                config=request.prompt_config,
+                personality_prompt=request.prompt_config.personality_prompt,
+                greeting_prompt=request.prompt_config.greeting_prompt,
+                product_recommendation_prompt=request.prompt_config.product_recommendation_prompt,
+                objection_handling_prompt=request.prompt_config.tenant_id,
+                closing_prompt=request.prompt_config.closing_prompt,
+                context_instructions=request.prompt_config.context_instructions,
+                llm_parameters=request.prompt_config.llm_parameters,
+                safety_guidelines=request.prompt_config.safety_guidelines,
+                forbidden_topics=request.prompt_config.forbidden_topics,
+                brand_voice=request.prompt_config.brand_voice,
+                product_knowledge=request.prompt_config.product_knowledge,
+                version=request.prompt_config.version,
+                is_active=request.prompt_config.is_active,
                 created_at=now,
                 updated_at=now
             )
+
+            id = await PromptsDao.insertPrompts(prompts_model.to_orm())
+            prompts_model.id = id
+            # todo 记录历史版本 功能存疑，需要确认
+            # if config_key not in self._prompt_history:
+            #     self._prompt_history[config_key] = []
+            # self._prompt_history[config_key].append(config_data.copy())
+            
+            self.logger.error(f"助理提示词配置创建成功: {request.assistant_id} {prompts_model}")
+            
+            return prompts_model
             
         except Exception as e:
             self.logger.error(f"助理提示词配置创建失败: {e}")
@@ -108,7 +120,7 @@ class PromptHandler(StatusMixin):
         assistant_id: str, 
         tenant_id: str,
         version: Optional[str] = None
-    ) -> Optional[PromptConfigResponse]:
+    ) -> Optional[PromptsModel]:
         """
         获取助理提示词配置
         
@@ -121,45 +133,37 @@ class PromptHandler(StatusMixin):
             Optional[PromptConfigResponse]: 配置信息
         """
         try:
-            config_key = f"{tenant_id}:{assistant_id}"
-            
-            if version:
-                # 获取指定版本
-                history = self._prompt_history.get(config_key, [])
-                for config in history:
-                    if config.get("version") == version:
-                        prompt_config = AssistantPromptConfig(**config["config"])
-                        return PromptConfigResponse(
-                            success=True,
-                            message="历史版本提示词配置查询成功",
-                            data={},
-                            assistant_id=assistant_id,
-                            tenant_id=tenant_id,
-                            config=prompt_config,
-                            created_at=config["created_at"],
-                            updated_at=config["updated_at"]
-                        )
-                return None
+            # config_key = f"{tenant_id}:{assistant_id}"
+
+            # 不确定版本的定义，先不考虑
+            if 1==2:
+                if version:
+                    # 获取指定版本
+                    history = self._prompt_history.get(config_key, [])
+                    for config in history:
+                        if config.get("version") == version:
+                            prompt_config = AssistantPromptConfig(**config["config"])
+                            return PromptConfigResponse(
+                                success=True,
+                                message="历史版本提示词配置查询成功",
+                                data={},
+                                assistant_id=assistant_id,
+                                tenant_id=tenant_id,
+                                config=prompt_config,
+                                created_at=config["created_at"],
+                                updated_at=config["updated_at"]
+                            )
+                    return None
             
             # 获取当前版本
-            config_data = self._prompt_configs.get(config_key)
-            if not config_data:
+            prompts_orm = await PromptsDao.get_prompts(assistant_id, tenant_id, version)
+            if not prompts_orm:
                 return None
-            
-            prompt_config = AssistantPromptConfig(**config_data["config"])
+
             
             self.logger.info(f"助理提示词配置查询成功: {assistant_id}")
             
-            return PromptConfigResponse(
-                success=True,
-                message="提示词配置查询成功",
-                data={},
-                assistant_id=assistant_id,
-                tenant_id=tenant_id,
-                config=prompt_config,
-                created_at=config_data["created_at"],
-                updated_at=config_data["updated_at"]
-            )
+            return prompts_orm.to_model()
             
         except Exception as e:
             self.logger.error(f"助理提示词配置查询失败: {e}")

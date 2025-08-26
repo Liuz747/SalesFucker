@@ -7,18 +7,15 @@ API业务逻辑处理器模块
 处理器组织:
 - agent_handler.py: 智能体管理业务逻辑
 - conversation_handler.py: 对话处理业务逻辑
-- llm_handler.py: LLM管理业务逻辑
 - multimodal_handler.py: 多模态处理业务逻辑
 """
 
 from .agent_handler import AgentHandler
 from .conversation_handler import ConversationHandler
-from .llm_handler import LLMHandler
 from .multimodal_handler import MultimodalHandler
 
 __all__ = [
     "AgentHandler",
     "ConversationHandler", 
-    "LLMHandler",
     "MultimodalHandler"
 ]

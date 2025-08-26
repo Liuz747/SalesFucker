@@ -6,8 +6,8 @@
 
 主要模型:
 - TenantRole: 租户角色枚举
-- TenantConfig: 租户配置业务模型 
-- TenantModel: 租户数据库模型
+- TenantModel: 租户配置业务模型 
+- TenantOrm: 租户数据库模型
 """
 
 from datetime import datetime
@@ -32,7 +32,7 @@ class TenantRole(StrEnum):
     API_USER = "api_user"    # API用户
 
 
-class TenantConfig(BaseModel):
+class TenantModel(BaseModel):
     """
     租户配置业务模型
     
@@ -65,7 +65,7 @@ class TenantConfig(BaseModel):
         description="功能开关配置"
     )
     
-    def to_model(self) -> 'TenantModel':
+    def to_orm(self) -> 'TenantOrm':
         """
         转换为数据库模型
         
@@ -73,9 +73,9 @@ class TenantConfig(BaseModel):
         处理字段映射和数据类型转换。
         
         返回:
-            TenantModel: 数据库模型实例
+            TenantOrm: 数据库模型实例
         """
-        return TenantModel(
+        return TenantOrm(
             tenant_id=self.tenant_id,
             tenant_name=self.tenant_name,
             status=self.status,
@@ -93,7 +93,7 @@ class TenantConfig(BaseModel):
         )
 
 
-class TenantModel(Base):
+class TenantOrm(Base):
     """
     租户数据库模型
     
@@ -143,7 +143,7 @@ class TenantModel(Base):
         Index('idx_tenant_deleted', 'deleted'),
     )
     
-    def to_config(self) -> TenantConfig:
+    def to_model(self) -> TenantModel:
         """
         转换为业务模型
         
@@ -151,9 +151,9 @@ class TenantModel(Base):
         处理默认值和数据类型转换。
         
         返回:
-            TenantConfig: 业务模型实例
+            TenantModel: 业务模型实例
         """
-        return TenantConfig(
+        return TenantModel(
             tenant_id=self.tenant_id,
             tenant_name=self.tenant_name,
             status=self.status,
@@ -170,14 +170,14 @@ class TenantModel(Base):
             updated_at=self.updated_at
         )
     
-    def update(self, config: TenantConfig):
+    def update(self, config: TenantModel):
         """
         从业务配置更新数据库模型
         
         使用业务配置更新现有数据库模型实例，保持数据库追踪状态。
         
         参数:
-            config: TenantConfig业务配置实例
+            config: TenantModel业务配置实例
         """
         self.tenant_name = config.tenant_name
         self.status = config.status

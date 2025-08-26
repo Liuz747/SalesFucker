@@ -17,18 +17,16 @@ todo
 
 import uuid
 from datetime import datetime
-from enum import StrEnum
 from typing import Dict, List, Optional, Any
 
 from pydantic import BaseModel, Field
 from sqlalchemy import (
-    Column, String, Boolean, DateTime, Integer, Index
+    Column, String, Boolean, DateTime, Integer
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.sql import func
 
 from models.base import Base
-from datetime import datetime
 
 
 #
@@ -52,7 +50,7 @@ class AssistantModel(BaseModel):
     # tenant_name: str = Field(description="租户名称")
     assistant_id: str = Field(description="助理 ID")
     assistant_name: str = Field(description="助理名称")
-    # assistant_status_1: str = Field(description="助理状态枚举")
+    assistant_status: str = Field(description="助理状态枚举")
     personality_type: str = Field(description="助理 个性类型")
     expertise_level: str = Field(description="助理 专业等级")
     sales_style: Dict[str, Any] = Field(
@@ -66,7 +64,7 @@ class AssistantModel(BaseModel):
     permissions: List[str] = Field(description="助理权限列表")
     profile: Dict[str, Any] = Field(
         default_factory=dict, description="助理个人资料信息")
-    is_active: bool = Field(description="租户是否激活")
+    is_active: Optional[bool] = Field(default=None, description="租户是否激活")
     created_at: datetime = Field(description="创建时间")
     updated_at: datetime = Field(description="最后一次更新时间")
     last_active_at: Optional[datetime] = Field(description="")
@@ -90,8 +88,8 @@ class AssistantOrmModel(Base):
     assistant_name = Column(String(500), nullable=False)
 
     # assistant_status = Column(String(500), nullable=False)
-    assistant_sex = Column(String(500), nullable=False)
-    assistant_phone = Column(String(500), nullable=False)
+    assistant_sex = Column(String(500), nullable=True)
+    assistant_phone = Column(String(500), nullable=True)
     assistant_personality_type = Column(String(500), nullable=False)
     assistant_expertise_level = Column(String(500), nullable=False)
     assistant_sales_style = Column(JSONB, nullable=False)
@@ -103,7 +101,7 @@ class AssistantOrmModel(Base):
     assistant_profile = Column(JSONB, nullable=False)
 
     # 状态信息
-    is_active = Column(Boolean, nullable=False, default=True)
+    is_active = Column(Boolean, nullable=True, default=True)
     created_at = Column(
         DateTime(timezone=True),
         nullable=False,
@@ -152,7 +150,7 @@ class AssistantOrmModel(Base):
             assistant_id=model.assistant_id,
             assistant_name=model.assistant_name,
 
-            # assistant_status=model.status,
+            assistant_status=model.assistant_status,
             # sex = model.assistant_sex,
             # phone =model.assistant_phone,
             assistant_personality_type=model.personality_type,
@@ -189,7 +187,7 @@ class AssistantOrmModel(Base):
         #   self.tenant_name = Column(String(500), nullable=False)
         self.assistant_id = model.assistant_id
         self.assistant_name = model.assistant_name
-        # self.assistant_status = model.status,
+        self.assistant_status = model.assistant_status
 
         # self.sex = model.assistant_sex,
         # self.phone =model.assistant_phone,
@@ -227,7 +225,7 @@ class AssistantOrmModel(Base):
             assistant_id=self.assistant_id,
             assistant_name=self.assistant_name,
             # assistant_status_1="123",
-            # assistant_status="!@3",
+            assistant_status=self.assistant_status,
             personality_type=self.assistant_personality_type,
             expertise_level=self.assistant_expertise_level,
             sales_style=self.assistant_sales_style,
