@@ -108,7 +108,7 @@ class ThreadStateManager(StatusMixin):
                 self.logger.error("对话状态缺少租户ID")
                 return False
             
-            if not state.conversation_id:
+            if not state.thread_id:
                 self.logger.error("对话状态缺少对话ID")
                 return False
             

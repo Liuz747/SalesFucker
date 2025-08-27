@@ -22,7 +22,6 @@ API Package - Multi-Agent System API
 
 from .endpoints import (
     agents_router,
-    conversations_router,
     multimodal_router,
     health_router
 )
@@ -33,7 +32,6 @@ __version__ = "1.0.0"
 
 __all__ = [
     "agents_router",
-    "conversations_router", 
     "multimodal_router",
     "health_router",
     "conversations",

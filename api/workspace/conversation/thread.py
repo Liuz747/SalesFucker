@@ -12,10 +12,10 @@
 - 客户档案管理集成
 """
 import uuid
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException
 
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms
-from api.dependencies.orchestrator import get_orchestrator_for_tenant, get_orchestrator_service
+from api.dependencies.orchestrator import get_orchestrator_service
 from .schema import ThreadCreateRequest, MessageCreateRequest
 from models import ThreadModel
 
@@ -27,10 +27,7 @@ router = APIRouter(prefix="/threads", tags=["conversation-threads"])
 
 
 @router.post("")
-async def create_thread(
-    request: ThreadCreateRequest,
-    orchestrator = Depends(get_orchestrator_service)
-):
+async def create_thread(request: ThreadCreateRequest):
     """
     创建新的对话线程
     
@@ -101,7 +98,7 @@ async def create_run(
             )
         
         # 获取租户专用编排器实例
-        orchestrator = get_orchestrator_for_tenant(request.metadata.tenant_id)
+        orchestrator = get_orchestrator_service(request.metadata.tenant_id)
         
         # 调用编排器处理对话
         start_time = get_current_datetime()

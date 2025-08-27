@@ -12,7 +12,7 @@ from src.core.orchestrator import get_orchestrator
 logger = get_component_logger(__name__, "OrchestratorDep")
 
 
-def get_orchestrator_for_tenant(tenant_id: str):
+def get_orchestrator_service(tenant_id: str):
     """获取指定租户的编排器实例"""
     try:
         if not tenant_id:
@@ -27,14 +27,5 @@ def get_orchestrator_for_tenant(tenant_id: str):
             status_code=500,
             detail={"error": "ORCHESTRATOR_UNAVAILABLE", "message": "编排器服务暂时不可用"},
         )
-
-
-async def get_orchestrator_service(
-    service: ServiceContext = Depends(get_service_context)
-):
-    """验证服务权限，返回编排器工厂函数"""
-    # 只验证服务权限，不获取具体的编排器实例
-    # 编排器实例需要在业务逻辑中根据tenant_id获取
-    return get_orchestrator_for_tenant
 
 

@@ -25,7 +25,6 @@ from api.middleware import (
 from api.endpoints import (
     agents_router,
     auth_router,
-    conversations_router,
     multimodal_router,
     health_router,
     assistants_router,
@@ -116,12 +115,11 @@ async def general_exception_handler(request: Request, exc: Exception):
 app.include_router(health_router, prefix="/v1")
 app.include_router(auth_router, prefix="/v1")
 app.include_router(agents_router, prefix="/v1")
-app.include_router(conversations_router, prefix="/v1")
+app.include_router(conversations, prefix="/v1")
 app.include_router(multimodal_router, prefix="/v1")
 app.include_router(assistants_router, prefix="/v1")
 app.include_router(prompts_router, prefix="/v1")
 app.include_router(tenant_router, prefix="/v1")
-app.include_router(conversations, prefix="/v1")
 app.include_router(completion, prefix="/v1")
 
 # 根路径健康检查
