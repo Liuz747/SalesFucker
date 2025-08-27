@@ -11,18 +11,12 @@ API端点模块
 
 from .agents import router as agents_router
 from .multimodal import router as multimodal_router
-from .health import router as health_router
 from .assistants import router as assistants_router
 from .prompts import router as prompts_router
-from ..inner.service_auth import router as auth_router
-from .tenant import router as tenant_router
 
 __all__ = [
     "agents_router",
-    "auth_router",
     "multimodal_router",
-    "health_router",
     "assistants_router",
-    "prompts_router",
-    "tenant_router"
+    "prompts_router"
 ]

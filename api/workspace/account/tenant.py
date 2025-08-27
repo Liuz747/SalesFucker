@@ -9,26 +9,23 @@ Backend System → POST /tenants/{tenant_id}/sync → AI Service
 """
 
 from fastapi import APIRouter, HTTPException, status
-from typing import Optional
+from typing import Optional, Dict, Any, List
 
 from models.tenant import (
+    TenantModel,
     TenantSyncRequest,
     TenantSyncResponse, 
     TenantStatusResponse,
     TenantListResponse,
     TenantUpdateRequest
 )
-from ..handlers.tenant_handler import TenantHandler
-from utils import get_component_logger, get_current_datetime, to_isoformat
+from services.tenant_service import TenantService
+from utils import get_component_logger, get_current_datetime
 
 logger = get_component_logger(__name__, "TenantEndpoints")
 
 # Create router with prefix
 router = APIRouter(prefix="/tenants", tags=["tenant"])
-
-# Initialize handler
-tenant_handler = TenantHandler()
-
 
 @router.post("/{tenant_id}/sync", response_model=TenantSyncResponse)
 async def sync_tenant(
@@ -54,7 +51,40 @@ async def sync_tenant(
             )
         
         # Sync tenant to AI service database
-        await tenant_handler.sync_tenant(request)
+        try:
+            exist = await TenantService.query(request.tenant_id)
+        except Exception as e:
+            logger.error(f"获取租户配置失败: {request.tenant_id}, 错误: {e}")
+            raise
+            
+        if not exist:
+            cfg = TenantModel(
+                tenant_id=request.tenant_id,
+                tenant_name=request.tenant_name,
+                status=request.status,
+                industry=request.industry,
+                area_id=request.area_id,
+                creator=request.creator,
+                company_size=request.company_size,
+            )
+        else:
+            cfg = exist
+            cfg.status = request.status
+            cfg.tenant_name = request.tenant_name
+            cfg.industry = request.industry
+            cfg.area_id = request.area_id
+            cfg.company_size = request.company_size
+
+        # Update features if provided
+        if request.features:
+            cfg.feature_flags = {feature: True for feature in request.features}
+
+        flag = await TenantService.save(cfg)
+        if flag:
+            logger.info(f"租户配置已更新: {cfg.tenant_id}")
+        else:
+            logger.error(f"保存租户配置失败: {cfg.tenant_id}")
+            raise ValueError(f"Failed to save tenant configuration for {cfg.tenant_id}")
         
         logger.info(f"Tenant sync successful: {tenant_id}")
         return TenantSyncResponse(
@@ -101,7 +131,22 @@ async def get_tenant_status(
     try:
         logger.info(f"Tenant status request: {tenant_id}")
         
-        status_info = await tenant_handler.get_tenant_status(tenant_id)
+        try:
+            cfg = await TenantService.query(tenant_id)
+        except Exception as e:
+            logger.error(f"获取租户配置失败: {tenant_id}, 错误: {e}")
+            raise
+            
+        if not cfg:
+            status_info = None
+        else:
+            status_info = TenantStatusResponse(
+                tenant_id=cfg.tenant_id,
+                tenant_name=cfg.tenant_name,
+                status=cfg.status,
+                updated_at=cfg.updated_at,
+                last_access=cfg.last_access,
+            )
         
         if not status_info:
             raise HTTPException(
@@ -135,7 +180,31 @@ async def update_tenant(
     try:
         logger.info(f"Tenant update request: {tenant_id}")
         
-        result = await tenant_handler.update_tenant(tenant_id, request)
+        try:
+            cfg = await TenantService.query(tenant_id)
+        except Exception as e:
+            logger.error(f"获取租户配置失败: {tenant_id}, 错误: {e}")
+            raise
+            
+        if not cfg:
+            raise ValueError("Tenant not found")
+        
+        if request.status is not None:
+            cfg.status = request.status
+        
+        if request.features:
+            cfg.feature_flags = {feature: True for feature in request.features}
+            
+        flag = await TenantService.save(cfg)
+        if flag:
+            logger.info(f"租户配置已更新: {cfg.tenant_id}")
+        else:
+            logger.error(f"保存租户配置失败: {cfg.tenant_id}")
+            
+        result = {
+            "status": "updated" if flag else "failed",
+            "features": request.features or [],
+        }
         
         return TenantSyncResponse(
             tenant_id=tenant_id,
@@ -172,7 +241,12 @@ async def delete_tenant(
     try:
         logger.info(f"Tenant deletion request: {tenant_id}, force={force}")
         
-        result = await tenant_handler.delete_tenant(tenant_id, force=force)
+        try:
+            flag = await TenantService.delete(tenant_id)
+            result = {"status": "deleted" if flag else "failed", "data_purged": force}
+        except Exception as e:
+            logger.error(f"删除租户失败: {tenant_id}, 错误: {e}")
+            result = {"status": "failed", "error": str(e)}
         
         return {
             "tenant_id": tenant_id,
@@ -211,11 +285,36 @@ async def list_tenants(
     try:
         logger.info(f"List tenants request: status={status_filter}, limit={limit}, offset={offset}")
         
-        tenants = await tenant_handler.list_tenants(
-            status_filter=status_filter,
-            limit=limit,
-            offset=offset
-        )
+        try:
+            ids = await TenantService.get_all_tenants()
+            items: List[Dict[str, Any]] = []
+            for tid in ids:
+                try:
+                    cfg = await TenantService.query(tid)
+                except Exception as e:
+                    logger.error(f"获取租户配置失败: {tid}, 错误: {e}")
+                    continue
+                    
+                if not cfg:
+                    continue
+                if status_filter == "active" and not cfg.status:
+                    continue
+                if status_filter == "inactive" and cfg.status:
+                    continue
+                items.append(
+                    {
+                        "tenant_id": cfg.tenant_id,
+                        "tenant_name": cfg.tenant_name,
+                        "status": cfg.status,
+                        "updated_at": cfg.updated_at,
+                        "features_enabled": list(cfg.feature_flags.keys()) if cfg.feature_flags else [],
+                    }
+                )
+            total = len(items)
+            tenants = TenantListResponse(total=total, tenants=items[offset : offset + limit])
+        except Exception as e:
+            logger.error(f"获取租户列表失败: {e}")
+            tenants = TenantListResponse(total=0, tenants=[])
         
         return tenants
         
@@ -225,34 +324,3 @@ async def list_tenants(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to retrieve tenant list"
         )
-
-
-# Health check for admin endpoints
-@router.get("/health")
-async def admin_tenant_health(
-
-):
-    """
-    Health check for admin tenant endpoints
-    
-    Verifies admin authentication and database connectivity.
-    """
-    try:
-        health_status = await tenant_handler.health_check()
-        
-        return {
-            "status": "healthy",
-            "timestamp": to_isoformat(),
-            "database_connected": health_status["database_connected"],
-            "tenant_count": health_status["tenant_count"],
-            "admin_auth": "valid"
-        }
-        
-    except Exception as e:
-        logger.error(f"Admin health check failed: {e}", exc_info=True)
-        return {
-            "status": "unhealthy",
-            "timestamp": to_isoformat(),
-            "error": str(e),
-            "admin_auth": "valid"
-        }
