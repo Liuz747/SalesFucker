@@ -35,16 +35,12 @@ from src.agents.proactive import ProactiveAgent
 from src.agents.suggestion import AISuggestionAgent
 from src.agents import create_agent_set, get_orchestrator, agent_registry
 
-# Multi-LLM system imports
-from src.llm.multi_llm_client import MultiLLMClient, get_multi_llm_client
-from src.llm.provider_config import (
-    ProviderType, GlobalProviderConfig, ProviderConfig,
-    AgentProviderMapping, ModelCapability, ProviderCredentials
-)
-from src.llm.base_provider import LLMRequest, LLMResponse, RequestType, ProviderError
-from src.llm.intelligent_router import RoutingStrategy, RoutingContext
-from src.llm.cost_optimizer import CostOptimizer
-# Failover system removed - now using simple retry logic in MultiLLMClient
+# Simplified LLM system imports
+from infra.runtimes.client import LLMClient
+from infra.runtimes.entities import LLMRequest, LLMResponse
+from infra.runtimes.config import LLMConfig
+from infra.runtimes.entities.providers import ProviderType
+# Using simplified LLM system - no complex routing or cost optimization needed for MVP
 
 
 class TestAgentSystemCore:

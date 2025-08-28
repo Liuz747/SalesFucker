@@ -14,15 +14,17 @@ from unittest.mock import Mock, patch, AsyncMock, MagicMock
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 
-from src.llm.base_provider import (
+from infra.runtimes.entities import LLMRequest, LLMResponse
+from infra.runtimes.providers.base import BaseProvider
     BaseProvider, LLMRequest, LLMResponse, RequestType, 
     ProviderError, ProviderHealth, RateLimitError, AuthenticationError
 )
-from src.llm.provider_config import (
+from infra.runtimes.config import LLMConfig
+from infra.runtimes.entities.providers import ProviderType
     ProviderType, GlobalProviderConfig, ProviderConfig,
     ModelCapability, AgentProviderMapping
 )
-from src.llm.providers import (
+from infra.runtimes.providers import OpenAIProvider, AnthropicProvider
     OpenAIProvider, AnthropicProvider, 
     GeminiProvider, DeepSeekProvider
 )

@@ -17,9 +17,11 @@ from typing import Dict, Any, Optional
 from .message import AgentMessage, ThreadState
 from utils import get_component_logger, ErrorHandler, StatusMixin
 from infra.monitoring import AgentMonitor
-from src.llm import RoutingStrategy, GlobalProviderConfig, LLMMixin
+from infra.runtimes.client import LLMClient
+from infra.runtimes.config import LLMConfig
+from infra.runtimes.entities import LLMRequest, LLMResponse
 
-class BaseAgent(LLMMixin, StatusMixin, ABC):
+class BaseAgent(StatusMixin, ABC):
     """
     多智能体系统(MAS)的抽象基类
     
@@ -43,17 +45,16 @@ class BaseAgent(LLMMixin, StatusMixin, ABC):
     def __init__(
         self, 
         agent_id: str, 
-        tenant_id: Optional[str] = None,
-        llm_config: Optional[GlobalProviderConfig] = None,
-        routing_strategy: Optional[RoutingStrategy] = None
+        tenant_id: Optional[str] = None
     ):
         # 设置基本属性
         self.agent_id = agent_id
         self.tenant_id = tenant_id
         self.is_active = False
         
-        # 初始化LLMMixin
-        super().__init__(agent_id, self.agent_type, tenant_id, llm_config, routing_strategy)
+        # 初始化LLM客户端
+        llm_config = LLMConfig()
+        self.llm_client = LLMClient(llm_config)
         
         # 初始化其他组件
         self.logger = get_component_logger(__name__, agent_id)
@@ -125,6 +126,67 @@ class BaseAgent(LLMMixin, StatusMixin, ABC):
         self.logger.info(f"发送{message_type}消息给 {recipient}")
         return message
     
+    async def llm_call(
+        self,
+        messages: list,
+        model: str = "gpt-4o-mini",
+        provider: str = "openai",
+        temperature: float = 0.7,
+        max_tokens: Optional[int] = None
+    ) -> str:
+        """
+        简单的LLM调用方法
+        
+        参数:
+            messages: 消息列表，格式 [{"role": "user", "content": "text"}]
+            model: 模型名称
+            provider: 供应商名称
+            temperature: 温度参数
+            max_tokens: 最大令牌数
+            
+        返回:
+            str: LLM响应内容
+        """
+        request = LLMRequest(
+            id=None,
+            messages=messages,
+            model=model,
+            provider=provider,
+            temperature=temperature,
+            max_tokens=max_tokens,
+            tenant_id=self.tenant_id
+        )
+        
+        response = await self.llm_client.completions(request)
+        return response.content
+    
+    async def handle_error(self, error: Exception, context: Dict[str, Any] = None):
+        """
+        处理智能体错误
+        
+        参数:
+            error: 发生的错误
+            context: 错误上下文信息
+        """
+        self.logger.error(f"智能体错误: {error}", exc_info=True)
+        if context:
+            self.logger.error(f"错误上下文: {context}")
+    
+    def update_stats(self, processing_time: float = None, time_taken: float = None, **kwargs):
+        """
+        更新处理统计信息
+        
+        参数:
+            processing_time: 处理时间（毫秒）
+            time_taken: 处理时间（向后兼容）
+            **kwargs: 其他参数
+        """
+        # 向后兼容处理
+        actual_time = processing_time or time_taken or 0
+        
+        # 基础统计更新，具体实现可以在子类中扩展
+        self.logger.debug(f"处理完成，耗时: {actual_time:.2f}ms")
+    
     def activate(self):
         """激活智能体，使其开始处理消息"""
         self.is_active = True
@@ -142,8 +204,6 @@ class BaseAgent(LLMMixin, StatusMixin, ABC):
         
         # 添加BaseAgent特定信息（没有在monitor中的）
         status_data['is_active'] = self.is_active
-        if self.routing_strategy:
-            status_data['routing_strategy'] = self.routing_strategy.value
             
         return self.create_status_response(status_data)
     
@@ -151,21 +211,9 @@ class BaseAgent(LLMMixin, StatusMixin, ABC):
         """
         预加载智能体提示词（性能优化）
         
-        在智能体初始化后调用，可以提前加载和缓存提示词
+        简化版本 - 目前不需要复杂的提示词管理
         """
-        try:
-            if hasattr(self, '_prompt_manager') and self._prompt_manager:
-                if not self.tenant_id:
-                    raise ValueError(f"Agent {self.agent_id} requires tenant_id for prompt loading")
-                await self._prompt_manager.preload_prompts_for_agent(
-                    agent_id=self.agent_id,
-                    agent_type=self.agent_type,
-                    tenant_id=self.tenant_id
-                )
-                self.logger.debug(f"智能体提示词预加载完成: {self.agent_id}")
-            
-        except Exception as e:
-            self.logger.warning(f"预加载智能体提示词失败: {e}")
+        self.logger.debug(f"智能体提示词预加载完成: {self.agent_id}")
 
     def get_metrics(self) -> Dict[str, Any]:
         """获取智能体指标数据"""

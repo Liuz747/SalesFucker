@@ -7,12 +7,10 @@ Identifies purchase intent, conversation stage, and specific customer needs.
 
 from typing import Dict, Any
 from ..base import BaseAgent, AgentMessage, ThreadState
-from src.llm import get_multi_llm_client
-from src.prompts import get_prompt_manager
-from utils import parse_intent_response
-from src.llm.intelligent_router import RoutingStrategy
-from utils import get_current_datetime, get_processing_time_ms
 
+from utils import parse_intent_response
+
+from utils import get_current_datetime, get_processing_time_ms
 
 class IntentAnalysisAgent(BaseAgent):
     """
@@ -27,13 +25,11 @@ class IntentAnalysisAgent(BaseAgent):
         super().__init__(
             agent_id=f"intent_analysis_{tenant_id}", 
             tenant_id=tenant_id,
-            routing_strategy=RoutingStrategy.COST_FIRST  # 快速意图识别，成本优化
+            
         )
         
         # LLM integration
-        self.llm_client = get_multi_llm_client()
-        self.prompt_manager = get_prompt_manager()
-        
+
         self.logger.info(f"意图分析智能体初始化完成: {self.agent_id}")
     
     async def process_message(self, message: AgentMessage) -> AgentMessage:
@@ -151,23 +147,26 @@ class IntentAnalysisAgent(BaseAgent):
             Dict[str, Any]: 意图分析结果
         """
         try:
-            # 格式化对话历史
-            formatted_history = self.prompt_manager.format_conversation_history(
-                conversation_history or []
-            )
+            # 简化的意图分析提示词
+            history_text = ""
+            if conversation_history:
+                history_text = f"对话历史：{str(conversation_history)}\n\n"
             
-            # 获取意图分析提示词
-            prompt = self.prompt_manager.get_prompt(
-                "intent",
-                "purchase_intent",
-                customer_input=customer_input,
-                conversation_history=formatted_history,
-                previous_intent="unknown"
-            )
+            prompt = f"""分析以下客户的购买意图：
+
+{history_text}客户输入：{customer_input}
+
+请返回JSON格式：
+{{
+    "intent": "interested",
+    "category": "skincare",
+    "confidence": 0.8,
+    "urgency": "medium"
+}}"""
             
             # 调用LLM分析
             messages = [{"role": "user", "content": prompt}]
-            response = await self.llm_client.chat_completion(messages, temperature=0.3)
+            response = await self.llm_call(messages, temperature=0.3)
             
             # 解析结构化响应
             intent_result = parse_intent_response(response)

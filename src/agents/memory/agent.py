@@ -12,9 +12,8 @@ from concurrent.futures import ThreadPoolExecutor
 import json
 
 from ..base import BaseAgent, AgentMessage, ThreadState
-from src.llm.intelligent_router import RoutingStrategy
-from utils import get_current_datetime, get_processing_time_ms
 
+from utils import get_current_datetime, get_processing_time_ms
 
 class MemoryAgent(BaseAgent):
     """
@@ -29,7 +28,7 @@ class MemoryAgent(BaseAgent):
         super().__init__(
             agent_id=f"memory_agent_{tenant_id}", 
             tenant_id=tenant_id,
-            routing_strategy=RoutingStrategy.COST_FIRST  # 客户档案管理，成本优化
+            
         )
         
         # 优化的内存存储结构

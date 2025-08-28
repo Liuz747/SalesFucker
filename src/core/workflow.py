@@ -94,7 +94,6 @@ class WorkflowBuilder(StatusMixin):
         graph.add_node(WorkflowConstants.SALES_NODE, self.node_processor.sales_node)
         graph.add_node(WorkflowConstants.PRODUCT_NODE, self.node_processor.product_node)
         graph.add_node(WorkflowConstants.MEMORY_NODE, self.node_processor.memory_node)
-        graph.add_node(WorkflowConstants.RESPONSE_NODE, self.node_processor.response_node)
         
         self.logger.debug(f"已注册 {len(self.node_mapping)} 个工作流节点")
     
@@ -115,9 +114,12 @@ class WorkflowBuilder(StatusMixin):
             self._compliance_router,
             {
                 "continue": "parallel_analysis",  # 并行分析阶段
-                "block": WorkflowConstants.RESPONSE_NODE
+                "block": "blocked_completion"  # 合规阻止时的完成节点
             }
         )
+        
+        # 添加阻止完成节点
+        graph.add_node("blocked_completion", self.node_processor.blocked_completion_node)
         
         # 并行分析阶段：情感+意图分析
         graph.add_node("parallel_analysis", self.node_processor.parallel_analysis_node)
@@ -129,7 +131,6 @@ class WorkflowBuilder(StatusMixin):
         # 第三阶段：并行产品推荐和记忆处理
         graph.add_edge(WorkflowConstants.SALES_NODE, "parallel_completion")
         graph.add_node("parallel_completion", self.node_processor.parallel_completion_node)
-        graph.add_edge("parallel_completion", WorkflowConstants.RESPONSE_NODE)
         
         self.logger.debug("优化工作流边定义完成 - 启用并行处理")
     
@@ -143,8 +144,8 @@ class WorkflowBuilder(StatusMixin):
         # 设置工作流入口点 - 从合规检查开始
         graph.set_entry_point(WorkflowConstants.COMPLIANCE_NODE)
         
-        # 设置工作流出口点 - 响应生成结束
-        graph.set_finish_point(WorkflowConstants.RESPONSE_NODE)
+        # 设置工作流出口点 - 两个可能的完成节点
+        graph.set_finish_point(["parallel_completion", "blocked_completion"])
         
         self.logger.debug("工作流入口出口点设置完成")
     
@@ -186,7 +187,7 @@ class WorkflowBuilder(StatusMixin):
             "nodes": list(self.node_mapping.keys()),
             "node_mapping": self.node_mapping.copy(),
             "entry_point": WorkflowConstants.COMPLIANCE_NODE,
-            "exit_point": WorkflowConstants.RESPONSE_NODE,
+            "exit_point": "parallel_completion",
             "conditional_routers": ["compliance_router"]
         }
         

@@ -98,7 +98,7 @@ class ComplianceAuditor:
             "categories_violated": compliance_result.get("categories_violated", []),
             
             # 性能指标
-            "rules_checked": compliance_result["rules_checked"],
+            "rules_checked": compliance_result.get("rules_checked", []),
             "processing_time_ms": processing_time_ms,
             
             # 系统状态

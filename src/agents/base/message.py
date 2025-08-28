@@ -197,6 +197,17 @@ class ThreadState(BaseModel):
         default_factory=list,
         description="对话历史记录列表"
     )
+    conversation_history: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="对话历史记录（兼容性别名）"
+    )
+    
+    # 智能体特定状态
+    strategy_hints: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="市场策略提示信息"
+    )
+    sales_response: str = Field("", description="销售智能体响应")
     
     # 最终响应
     final_response: str = Field("", description="系统最终响应给客户的内容")

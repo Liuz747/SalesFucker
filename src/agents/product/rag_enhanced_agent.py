@@ -430,10 +430,8 @@ class RAGEnhancedProductExpertAgent(BaseAgent):
 请用亲切、专业的语调，重点强调产品如何满足客户需求，并提供使用建议。
 """
             
-            messages = [{"role": "user", "content": prompt}]
-            advice = await self.llm_client.chat_completion(
-                messages, temperature=0.7, max_tokens=150
-            )
+            # LLM调用暂时禁用，使用简化建议
+            advice = "基于您的需求，建议选择适合您肤质的产品。"
             
             return advice.strip()
             

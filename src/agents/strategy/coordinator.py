@@ -8,9 +8,6 @@ Selects and applies Premium, Budget, Youth, or Mature strategies.
 from typing import Dict, Any
 from ..base import BaseAgent, AgentMessage, ThreadState
 from ..sales.sales_strategies import analyze_customer_segment, get_strategy_for_segment, adapt_strategy_to_context
-from src.llm import get_multi_llm_client
-from src.prompts import get_prompt_manager
-from src.llm.intelligent_router import RoutingStrategy
 from utils import get_current_datetime, get_processing_time_ms
 
 
@@ -23,16 +20,12 @@ class MarketStrategyCoordinator(BaseAgent):
     """
     
     def __init__(self, tenant_id: str):
-        # MAS架构：使用质量优化策略进行战略分析
+        # 简化初始化
         super().__init__(
             agent_id=f"market_strategy_{tenant_id}", 
-            tenant_id=tenant_id,
-            routing_strategy=RoutingStrategy.PERFORMANCE_FIRST  # 战略规划需要高质量分析
+            tenant_id=tenant_id
         )
         
-        # LLM integration for strategy refinement
-        self.llm_client = get_multi_llm_client()
-        self.prompt_manager = get_prompt_manager()
         
         # Strategy definitions for different segments
         self.strategy_profiles = {
@@ -283,7 +276,7 @@ Keep response concise and actionable.
 """
             
             messages = [{"role": "user", "content": strategy_prompt}]
-            response = await self.llm_client.chat_completion(messages, temperature=0.6)
+            response = await self.llm_call(messages, temperature=0.6)
             
             # 简化解析 - 在生产环境中会更复杂
             enhanced_elements = {

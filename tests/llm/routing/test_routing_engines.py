@@ -8,15 +8,19 @@
 """
 
 import pytest
+
+@pytest.mark.skip(reason="Feature removed in simplified LLM system")
 from unittest.mock import Mock
 from datetime import datetime
 
 from src.llm.intelligent_router.rule_engine import RuleEngine, RoutingRule
 from src.llm.intelligent_router.scoring_engine import ScoringEngine, ScoringCriteria
 from src.llm.intelligent_router.selection_engine import SelectionEngine
-from src.llm.intelligent_router import RoutingContext, ProviderScore
-from src.llm.provider_config import ProviderType
-from src.llm.base_provider import LLMRequest, RequestType, ProviderHealth
+# Note: Intelligent routing simplified in new system
+from infra.runtimes.config import LLMConfig
+from infra.runtimes.entities.providers import ProviderType
+from infra.runtimes.entities import LLMRequest, LLMResponse
+from infra.runtimes.providers.base import BaseProvider
 
 
 class TestScoringEngine:

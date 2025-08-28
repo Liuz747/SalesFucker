@@ -8,9 +8,8 @@ Identifies opportunities for proactive customer contact and follow-up.
 from typing import Dict, Any, List
 from datetime import datetime, timedelta
 from ..base import BaseAgent, AgentMessage, ThreadState
-from src.llm.intelligent_router import RoutingStrategy
-from utils import get_current_datetime, get_processing_time_ms
 
+from utils import get_current_datetime, get_processing_time_ms
 
 class ProactiveAgent(BaseAgent):
     """
@@ -25,7 +24,7 @@ class ProactiveAgent(BaseAgent):
         super().__init__(
             agent_id=f"proactive_agent_{tenant_id}", 
             tenant_id=tenant_id,
-            routing_strategy=RoutingStrategy.BALANCED  # 主动营销内容生成
+            
         )
         
         # 触发器配置
