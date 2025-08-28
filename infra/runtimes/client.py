@@ -29,7 +29,6 @@ class LLMClient:
 
     def _dispatch(self):
         """初始化已启用的供应商"""
-        # TODO: 需要优化，目前是根据供应商类型初始化，后续需要根据供应商ID初始化
         for provider in self.config.providers:
             if provider.enabled:
                 if provider.type == ProviderType.OPENAI:

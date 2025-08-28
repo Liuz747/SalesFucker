@@ -22,8 +22,7 @@ API Package - Multi-Agent System API
 
 from .endpoints import (
     agents_router,
-    multimodal_router,
-    health_router
+    multimodal_router
 )
 from .workspace import conversations_router, tenant_router
 from .inner import completion_router, auth_router, health_router

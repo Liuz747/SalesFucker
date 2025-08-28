@@ -11,14 +11,8 @@ Backend System → POST /tenants/{tenant_id}/sync → AI Service
 from fastapi import APIRouter, HTTPException, status
 from typing import Optional, Dict, Any, List
 
-from models.tenant import (
-    TenantModel,
-    TenantSyncRequest,
-    TenantSyncResponse, 
-    TenantStatusResponse,
-    TenantListResponse,
-    TenantUpdateRequest
-)
+from .schema import TenantSyncRequest, TenantSyncResponse, TenantStatusResponse, TenantListResponse, TenantUpdateRequest
+from models.tenant import TenantModel
 from services.tenant_service import TenantService
 from utils import get_component_logger, get_current_datetime
 

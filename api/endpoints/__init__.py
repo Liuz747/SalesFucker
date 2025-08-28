@@ -6,7 +6,6 @@ API端点模块
 端点组织:
 - agents.py: 智能体管理和测试端点
 - multimodal.py: 多模态处理端点
-- health.py: 健康检查端点
 """
 
 from .agents import router as agents_router
