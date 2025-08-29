@@ -16,8 +16,7 @@ from fastapi import APIRouter, HTTPException
 
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms
 from api.dependencies.orchestrator import get_orchestrator_service
-from .schema import ThreadCreateRequest, MessageCreateRequest
-from models import ThreadModel
+from .schema import ThreadCreateRequest, MessageCreateRequest, ThreadModel
 from repositories.thread_repository import get_thread_repository
 
 

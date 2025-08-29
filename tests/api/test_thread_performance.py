@@ -9,8 +9,8 @@ import asyncio
 import time
 from unittest.mock import AsyncMock, patch
 
-from models import ThreadModel, ThreadMetadata
-from repositories.thread_repository import ThreadRepository, ThreadCacheManager
+from api.workspace.conversation.schema import ThreadModel, ThreadMetadata
+from repositories.thread_repository import ThreadRepository
 
 
 class TestThreadPerformance:

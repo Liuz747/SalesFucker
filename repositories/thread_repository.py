@@ -13,7 +13,7 @@ import asyncio
 import msgpack
 from typing import Optional
 
-from models import ThreadModel
+from api.workspace.conversation.schema import ThreadModel
 from infra.cache.redis_client import get_redis_client
 from services.thread_service import ThreadService
 from utils import get_component_logger, get_current_datetime, to_isoformat

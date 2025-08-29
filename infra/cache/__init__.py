@@ -9,10 +9,9 @@ Core Features:
 - Connection pooling
 """
 
-from .redis_client import get_redis_client, get_redis_client_async, close_redis_client
+from .redis_client import get_redis_client, close_redis_client
 
 __all__ = [
     "get_redis_client",
-    "get_redis_client_async",
     "close_redis_client"
 ]
