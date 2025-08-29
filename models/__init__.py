@@ -18,7 +18,8 @@ from .conversation import (
     ConversationStatus,
     InputType,
     ThreadModel,
-    ThreadMetadata
+    ThreadMetadata,
+    ThreadOrm
 )
 
 __all__ = [
@@ -28,5 +29,6 @@ __all__ = [
     "ConversationStatus",
     "InputType",
     "ThreadModel",
-    "ThreadMetadata"
+    "ThreadMetadata",
+    "ThreadOrm"
 ]
