@@ -10,8 +10,9 @@
 """
 
 import asyncio
-import msgpack
 from typing import Optional
+
+import msgpack
 
 from api.workspace.conversation.schema import ThreadModel
 from infra.cache.redis_client import get_redis_client

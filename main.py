@@ -49,10 +49,12 @@ logger = get_component_logger(__name__)
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     # 启动时执行
-    await get_thread_repository().initialize()
+    repository = await get_thread_repository()
+    await repository.initialize()
     yield
     # 关闭时执行
-    await get_thread_repository().cleanup()
+    repository = await get_thread_repository()
+    await repository.cleanup()
 
 
 # 创建FastAPI应用

@@ -34,8 +34,6 @@ async def create_thread(request: ThreadCreateRequest):
     使用高性能混合存储策略，针对云端PostgreSQL优化。
     性能目标: < 5ms 响应时间
     """
-    start_time = get_current_datetime()
-    
     try:
         # 生成线程ID
         thread_id = request.thread_id or str(uuid.uuid4())
@@ -51,18 +49,12 @@ async def create_thread(request: ThreadCreateRequest):
         repository = await get_thread_repository()
         created_thread = await repository.create_thread(thread)
         
-        processing_time = get_processing_time_ms(start_time)
-        
-        logger.info(f"线程创建成功: {thread_id}, 耗时: {processing_time:.2f}ms")
-        
         return {
-            "success": True,
-            "message": "线程创建成功",
-            "thread_id": created_thread.thread_id,
-            "tenant_id": created_thread.metadata.tenant_id,
-            "conversation_status": created_thread.status,
+            "thread_id": thread_id,
+            "metadata": created_thread.metadata.model_dump(),
+            "status": created_thread.status,
             "created_at": created_thread.created_at,
-            "processing_time_ms": processing_time
+            "updated_at": created_thread.updated_at
         }
         
     except HTTPException:
@@ -79,8 +71,6 @@ async def get_thread(thread_id: str):
     
     从数据库获取线程配置信息。
     """
-    start_time = get_current_datetime()
-    
     try:
         # 从存储库获取线程
         repository = await get_thread_repository()
@@ -89,22 +79,12 @@ async def get_thread(thread_id: str):
         if not thread:
             raise HTTPException(status_code=404, detail=f"线程不存在: {thread_id}")
         
-        processing_time = get_processing_time_ms(start_time)
-        
-        logger.debug(f"线程获取成功: {thread_id}, 耗时: {processing_time:.2f}ms")
-        
         return {
-            "success": True,
-            "message": "线程获取成功",
-            "data": {
-                "thread_id": thread.thread_id,
-                "assistant_id": thread.assistant_id,
-                "status": thread.status,
-                "created_at": thread.created_at,
-                "updated_at": thread.updated_at,
-                "metadata": thread.metadata.model_dump()
-            },
-            "processing_time_ms": processing_time
+            "thread_id": thread.thread_id,
+            "metadata": thread.metadata.model_dump(),
+            "status": thread.status,
+            "created_at": thread.created_at,
+            "updated_at": thread.updated_at
         }
         
     except HTTPException:
