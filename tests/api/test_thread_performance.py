@@ -1,16 +1,17 @@
 """
 线程存储性能测试
 
-测试混合存储策略的性能特征，验证云端PostgreSQL优化效果。
+测试Redis+PostgreSQL二级存储架构的性能特征。
+MessagePack序列化 + 异步数据库写入优化。
 """
 
 import pytest
 import asyncio
 import time
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, patch, MagicMock
 
 from api.workspace.conversation.schema import ThreadModel, ThreadMetadata
-from repositories.thread_repository import ThreadRepository
+from repositories.thread_repository import ThreadRepository, get_thread_repository
 
 
 class TestThreadPerformance:
@@ -21,9 +22,12 @@ class TestThreadPerformance:
         """模拟存储库fixture"""
         repo = ThreadRepository()
         
-        # 模拟数据库连接
-        with patch('repositories.thread_repository.database_session'), \
-             patch('repositories.thread_repository.get_redis_client_async'):
+        # 模拟Redis客户端
+        mock_redis = AsyncMock()
+        mock_redis.get = AsyncMock(return_value=None)
+        mock_redis.setex = AsyncMock(return_value=True)
+        
+        with patch('repositories.thread_repository.get_redis_client', return_value=mock_redis):
             await repo.initialize()
             yield repo
             await repo.cleanup()
@@ -37,170 +41,174 @@ class TestThreadPerformance:
             metadata=ThreadMetadata(tenant_id="tenant-789")
         )
     
-    async def test_memory_cache_performance(self):
-        """测试内存缓存性能"""
-        cache_manager = ThreadCacheManager()
-        await cache_manager.initialize()
-        
-        # 创建测试线程
-        thread = ThreadModel(
-            thread_id="perf-test-1",
-            assistant_id="assistant-1",
-            metadata=ThreadMetadata(tenant_id="tenant-1")
-        )
-        
+    @pytest.mark.asyncio
+    async def test_redis_cache_performance(self, mock_repository, sample_thread):
+        """测试Redis缓存性能"""
         # 性能测试 - 写入
         start_time = time.perf_counter()
-        await cache_manager.set_thread(thread)
+        await mock_repository.create_thread(sample_thread)
         write_time = (time.perf_counter() - start_time) * 1000  # 转换为毫秒
+        
+        # 模拟Redis返回MessagePack数据
+        import msgpack
+        thread_dict = sample_thread.model_dump()
+        thread_dict["created_at"] = sample_thread.created_at.isoformat()
+        thread_dict["updated_at"] = sample_thread.updated_at.isoformat()
+        mock_repository._redis_client.get.return_value = msgpack.packb(thread_dict)
         
         # 性能测试 - 读取
         start_time = time.perf_counter()
-        cached_thread = await cache_manager.get_thread("perf-test-1")
+        cached_thread = await mock_repository.get_thread(sample_thread.thread_id)
         read_time = (time.perf_counter() - start_time) * 1000
         
         # 断言性能指标
-        assert write_time < 5.0, f"缓存写入耗时过长: {write_time:.2f}ms (目标: < 5ms)"
-        assert read_time < 1.0, f"缓存读取耗时过长: {read_time:.2f}ms (目标: < 1ms)"
+        assert write_time < 10.0, f"Redis写入耗时过长: {write_time:.2f}ms (目标: < 10ms)"
+        assert read_time < 15.0, f"Redis读取耗时过长: {read_time:.2f}ms (目标: < 15ms)"
         assert cached_thread is not None
-        assert cached_thread.thread_id == "perf-test-1"
+        assert cached_thread.thread_id == sample_thread.thread_id
         
-        print(f"内存缓存性能 - 写入: {write_time:.2f}ms, 读取: {read_time:.2f}ms")
+        print(f"Redis缓存性能 - 写入: {write_time:.2f}ms, 读取: {read_time:.2f}ms")
     
-    async def test_batch_operations_performance(self):
-        """测试批量操作性能"""
-        cache_manager = ThreadCacheManager()
-        await cache_manager.initialize()
-        
-        # 创建100个测试线程
-        threads = []
-        for i in range(100):
-            thread = ThreadModel(
-                thread_id=f"batch-test-{i}",
-                assistant_id=f"assistant-{i}",
-                metadata=ThreadMetadata(tenant_id="tenant-batch")
-            )
-            threads.append(thread)
-        
-        # 批量写入性能测试
-        start_time = time.perf_counter()
-        for thread in threads:
-            await cache_manager.set_thread(thread)
-        write_time = (time.perf_counter() - start_time) * 1000
-        
-        # 批量读取性能测试
-        thread_ids = [f"batch-test-{i}" for i in range(100)]
-        start_time = time.perf_counter()
-        results = await cache_manager.batch_get_threads(thread_ids)
-        read_time = (time.perf_counter() - start_time) * 1000
-        
-        # 性能断言
-        avg_write_time = write_time / 100
-        avg_read_time = read_time / 100
-        
-        assert avg_write_time < 10.0, f"平均写入耗时过长: {avg_write_time:.2f}ms (目标: < 10ms)"
-        assert avg_read_time < 5.0, f"平均读取耗时过长: {avg_read_time:.2f}ms (目标: < 5ms)"
-        assert len(results) == 100
-        
-        print(f"批量操作性能 - 平均写入: {avg_write_time:.2f}ms, 平均读取: {avg_read_time:.2f}ms")
-    
-    async def test_cache_hit_rate(self):
-        """测试缓存命中率"""
-        cache_manager = ThreadCacheManager()
-        await cache_manager.initialize()
-        
-        # 写入测试数据
+    @pytest.mark.asyncio
+    async def test_concurrent_operations_performance(self, mock_repository):
+        """测试并发操作性能"""
+        # 创建50个测试线程
         threads = []
         for i in range(50):
             thread = ThreadModel(
-                thread_id=f"hit-rate-test-{i}",
+                thread_id=f"concurrent-test-{i}",
                 assistant_id=f"assistant-{i}",
-                metadata=ThreadMetadata(tenant_id="tenant-hit-rate")
-            )
-            threads.append(thread)
-            await cache_manager.set_thread(thread)
-        
-        # 执行多次读取操作
-        for _ in range(3):  # 读取3轮，应该都命中缓存
-            for i in range(50):
-                thread = await cache_manager.get_thread(f"hit-rate-test-{i}")
-                assert thread is not None
-        
-        # 检查缓存统计
-        stats = cache_manager.get_cache_stats()
-        cache_hit_rate = stats["cache_hit_rate"]
-        
-        assert cache_hit_rate > 90.0, f"缓存命中率过低: {cache_hit_rate:.1f}% (目标: > 90%)"
-        
-        print(f"缓存命中率: {cache_hit_rate:.1f}%")
-        print(f"内存命中: {stats['performance_stats']['memory_hits']}")
-        print(f"Redis命中: {stats['performance_stats']['redis_hits']}")
-        print(f"缓存未命中: {stats['performance_stats']['cache_misses']}")
-    
-    @pytest.mark.asyncio
-    async def test_concurrent_access_performance(self):
-        """测试并发访问性能"""
-        cache_manager = ThreadCacheManager()
-        await cache_manager.initialize()
-        
-        async def create_and_access_thread(thread_id: str):
-            """创建并访问线程"""
-            thread = ThreadModel(
-                thread_id=thread_id,
-                assistant_id=f"assistant-{thread_id}",
                 metadata=ThreadMetadata(tenant_id="tenant-concurrent")
             )
-            
-            # 写入
-            await cache_manager.set_thread(thread)
-            
-            # 多次读取
-            for _ in range(5):
-                result = await cache_manager.get_thread(thread_id)
-                assert result is not None
+            threads.append(thread)
         
-        # 并发测试 - 50个并发任务
+        # 并发写入性能测试
         start_time = time.perf_counter()
-        tasks = [
-            create_and_access_thread(f"concurrent-{i}") 
-            for i in range(50)
-        ]
+        tasks = [mock_repository.create_thread(thread) for thread in threads]
         await asyncio.gather(*tasks)
-        total_time = (time.perf_counter() - start_time) * 1000
+        write_time = (time.perf_counter() - start_time) * 1000
+        
+        # 模拟Redis返回数据用于读取测试
+        import msgpack
+        
+        def mock_get_side_effect(key):
+            thread_id = key.replace("thread:", "")
+            for thread in threads:
+                if thread.thread_id == thread_id:
+                    thread_dict = thread.model_dump()
+                    thread_dict["created_at"] = thread.created_at.isoformat()
+                    thread_dict["updated_at"] = thread.updated_at.isoformat()
+                    return msgpack.packb(thread_dict)
+            return None
+        
+        mock_repository._redis_client.get.side_effect = mock_get_side_effect
+        
+        # 并发读取性能测试
+        start_time = time.perf_counter()
+        read_tasks = [mock_repository.get_thread(f"concurrent-test-{i}") for i in range(50)]
+        results = await asyncio.gather(*read_tasks)
+        read_time = (time.perf_counter() - start_time) * 1000
         
         # 性能断言
-        avg_time_per_task = total_time / 50
-        assert avg_time_per_task < 100.0, f"并发任务平均耗时过长: {avg_time_per_task:.2f}ms"
+        avg_write_time = write_time / 50
+        avg_read_time = read_time / 50
         
-        print(f"并发访问性能 - 50个任务总耗时: {total_time:.2f}ms, 平均: {avg_time_per_task:.2f}ms")
+        assert avg_write_time < 20.0, f"平均写入耗时过长: {avg_write_time:.2f}ms (目标: < 20ms)"
+        assert avg_read_time < 10.0, f"平均读取耗时过长: {avg_read_time:.2f}ms (目标: < 10ms)"
+        assert len([r for r in results if r is not None]) == 50
+        
+        print(f"并发操作性能 - 平均写入: {avg_write_time:.2f}ms, 平均读取: {avg_read_time:.2f}ms")
+    
+    @pytest.mark.asyncio
+    async def test_messagepack_serialization_performance(self, sample_thread):
+        """测试MessagePack序列化性能"""
+        import json
+        import msgpack
+        
+        thread_dict = sample_thread.model_dump()
+        thread_dict["created_at"] = sample_thread.created_at.isoformat()
+        thread_dict["updated_at"] = sample_thread.updated_at.isoformat()
+        
+        # MessagePack序列化性能
+        start_time = time.perf_counter()
+        for _ in range(1000):
+            msgpack_data = msgpack.packb(thread_dict)
+        msgpack_serialize_time = (time.perf_counter() - start_time) * 1000
+        
+        # MessagePack反序列化性能
+        start_time = time.perf_counter()
+        for _ in range(1000):
+            msgpack.unpackb(msgpack_data, raw=False)
+        msgpack_deserialize_time = (time.perf_counter() - start_time) * 1000
+        
+        # JSON序列化性能对比
+        start_time = time.perf_counter()
+        for _ in range(1000):
+            json_data = json.dumps(thread_dict, ensure_ascii=False).encode()
+        json_serialize_time = (time.perf_counter() - start_time) * 1000
+        
+        # JSON反序列化性能对比
+        start_time = time.perf_counter()
+        for _ in range(1000):
+            json.loads(json_data.decode())
+        json_deserialize_time = (time.perf_counter() - start_time) * 1000
+        
+        # 数据大小对比
+        msgpack_size = len(msgpack_data)
+        json_size = len(json_data)
+        
+        print(f"序列化性能对比 (1000次):")
+        print(f"  MessagePack - 序列化: {msgpack_serialize_time:.2f}ms, 反序列化: {msgpack_deserialize_time:.2f}ms")
+        print(f"  JSON - 序列化: {json_serialize_time:.2f}ms, 反序列化: {json_deserialize_time:.2f}ms")
+        print(f"数据大小对比:")
+        print(f"  MessagePack: {msgpack_size} bytes")
+        print(f"  JSON: {json_size} bytes")
+        print(f"  大小优化: {((json_size - msgpack_size) / json_size * 100):.1f}%")
+        
+        # 性能断言
+        assert msgpack_serialize_time < json_serialize_time, "MessagePack序列化应该更快"
+        assert msgpack_deserialize_time < json_deserialize_time, "MessagePack反序列化应该更快"
+        assert msgpack_size < json_size, "MessagePack数据应该更小"
+    
+    @pytest.mark.asyncio
+    async def test_database_fallback_performance(self, mock_repository, sample_thread):
+        """测试数据库回退性能"""
+        # 模拟Redis缓存未命中
+        mock_repository._redis_client.get.return_value = None
+        
+        # 模拟数据库查询
+        with patch('services.thread_service.ThreadService.query', return_value=sample_thread) as mock_query:
+            start_time = time.perf_counter()
+            result = await mock_repository.get_thread(sample_thread.thread_id)
+            fallback_time = (time.perf_counter() - start_time) * 1000
+            
+            # 验证回退逻辑
+            assert result is not None
+            assert result.thread_id == sample_thread.thread_id
+            mock_query.assert_called_once_with(sample_thread.thread_id)
+            
+            # 验证性能
+            assert fallback_time < 50.0, f"数据库回退耗时过长: {fallback_time:.2f}ms (目标: < 50ms)"
+            
+            print(f"数据库回退性能: {fallback_time:.2f}ms")
 
 
 def run_performance_benchmark():
     """运行性能基准测试"""
-    async def benchmark():
-        test_instance = TestThreadPerformance()
-        
-        print("=" * 60)
-        print("线程存储性能基准测试")
-        print("=" * 60)
-        
-        print("\n1. 内存缓存性能测试:")
-        await test_instance.test_memory_cache_performance()
-        
-        print("\n2. 批量操作性能测试:")
-        await test_instance.test_batch_operations_performance()
-        
-        print("\n3. 缓存命中率测试:")
-        await test_instance.test_cache_hit_rate()
-        
-        print("\n4. 并发访问性能测试:")
-        await test_instance.test_concurrent_access_performance()
-        
-        print("\n" + "=" * 60)
-        print("性能基准测试完成")
-        print("=" * 60)
+    import pytest
     
-    asyncio.run(benchmark())
+    print("=" * 60)
+    print("线程存储性能基准测试 (Redis + PostgreSQL)")
+    print("=" * 60)
+    print("运行命令: pytest tests/api/test_thread_performance.py -v -s")
+    print("=" * 60)
+    
+    # 直接运行pytest
+    pytest.main([
+        "tests/api/test_thread_performance.py",
+        "-v", "-s",
+        "--tb=short"
+    ])
 
 
 if __name__ == "__main__":
