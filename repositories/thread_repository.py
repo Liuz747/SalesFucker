@@ -10,7 +10,7 @@
 """
 
 import asyncio
-import json
+import msgpack
 from typing import Optional
 
 from models import ThreadModel
@@ -121,7 +121,7 @@ class ThreadRepository:
             redis_data = await self._redis_client.get(redis_key)
             
             if redis_data:
-                thread_dict = json.loads(redis_data)
+                thread_dict = msgpack.unpackb(redis_data, raw=False)
                 return ThreadModel(**thread_dict)
                 
         except Exception as e:
@@ -144,7 +144,7 @@ class ThreadRepository:
             await self._redis_client.setex(
                 redis_key,
                 self.redis_ttl,
-                json.dumps(thread_dict, ensure_ascii=False)
+                msgpack.packb(thread_dict)
             )
             
         except Exception as e:

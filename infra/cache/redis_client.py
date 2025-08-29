@@ -19,7 +19,7 @@ async def init_redis_pool() -> ConnectionPool:
     if _redis_pool is None:
         _redis_pool = ConnectionPool.from_url(
             settings.REDIS_URL,
-            decode_responses=True
+            decode_responses=False  # Keep raw bytes for MessagePack
         )
 
         logger.info("Redis连接池初始化成功")
