@@ -1,5 +1,7 @@
-from .conversation.thread import router as conversations
+from .conversation.thread import router as conversations_router
+from .account.tenant import router as tenant_router
 
 __all__ = [
-    "conversations",
+    "conversations_router",
+    "tenant_router"
 ]

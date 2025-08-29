@@ -8,7 +8,6 @@ Recommendation Results Formatter
 import logging
 from typing import Dict, Any, List
 
-from src.llm import get_multi_llm_client
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +17,6 @@ class RecommendationFormatter:
     def __init__(self, tenant_id: str, agent_id: str):
         self.tenant_id = tenant_id
         self.agent_id = agent_id
-        self.llm_client = get_multi_llm_client()
         self.logger = logging.getLogger(f"{__name__}.{tenant_id}")
     
     async def format_recommendations(
@@ -154,12 +152,16 @@ class RecommendationFormatter:
 请用亲切、专业的语调，重点强调产品如何满足客户需求，并提供使用建议。
 """
             
-            messages = [{"role": "user", "content": prompt}]
-            advice = await self.llm_client.chat_completion(
-                messages, temperature=0.7, max_tokens=150
-            )
+            # LLM调用暂时禁用 - 需要集成到主agent中
+            # messages = [{"role": "user", "content": prompt}]
+            # advice = await self.llm_call(messages, temperature=0.7, max_tokens=150)
             
-            return advice.strip()
+            # 简化的fallback建议
+            fallback_advice = f"基于您的需求，这些产品非常适合您。"
+            if needs_analysis and needs_analysis.get("skin_type"):
+                fallback_advice += f"特别适合{needs_analysis['skin_type']}肌肤。"
+            
+            return fallback_advice
             
         except Exception as e:
             self.logger.error(f"综合建议生成失败: {e}")

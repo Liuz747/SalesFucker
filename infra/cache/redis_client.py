@@ -1,59 +1,48 @@
 """
 Redis客户端工厂
 """
-import asyncio
-import redis.asyncio as redis
 from typing import Optional
+
+from redis.asyncio import Redis, ConnectionPool
+
 from config import settings
+from utils import get_component_logger
+
+logger = get_component_logger(__name__)
+
+_redis_pool: Optional[ConnectionPool] = None
+
+async def init_redis_pool() -> ConnectionPool:
+    """初始化Redis连接池"""
+    global _redis_pool
+
+    if _redis_pool is None:
+        _redis_pool = ConnectionPool.from_url(
+            settings.REDIS_URL,
+            decode_responses=False
+        )
+
+        logger.info("Redis连接池初始化成功")
+
+    return _redis_pool
 
 
-class RedisClientManager:
-    """Redis客户端管理器"""
-    
-    def __init__(self):
-        self._client: Optional[redis.Redis] = None
-        self._lock = asyncio.Lock()
-    
-    async def get_client(self) -> redis.Redis:
-        """获取Redis客户端实例"""
-        if self._client is None:
-            async with self._lock:
-                if self._client is None:
-                    self._client = redis.from_url(
-                        settings.REDIS_URL, 
-                        decode_responses=True
-                    )
-        return self._client
-    
-    async def close(self):
-        """关闭Redis连接"""
-        if self._client:
-            await self._client.close()
-            self._client = None
-
-
-# 全局Redis客户端管理器
-_redis_manager = RedisClientManager()
-
-
-def get_redis_client() -> redis.Redis:
-    """
-    获取Redis客户端
-    
-    返回一个Redis客户端实例，使用默认配置
-    """
-    return redis.from_url(settings.REDIS_URL, decode_responses=True)
-
-
-async def get_redis_client_async() -> redis.Redis:
+async def get_redis_client() -> Redis:
     """
     异步获取Redis客户端
     """
-    return await _redis_manager.get_client()
+    pool = await init_redis_pool()
+    return Redis(connection_pool=pool)
 
 
 async def close_redis_client():
     """
     关闭Redis客户端连接
     """
-    await _redis_manager.close()
+    global _redis_pool
+    
+    if _redis_pool:
+        await _redis_pool.disconnect()
+        _redis_pool = None
+
+        logger.info("Redis连接池关闭成功")

@@ -9,6 +9,8 @@
 """
 
 import pytest
+
+@pytest.mark.skip(reason="Feature removed in simplified LLM system")
 from unittest.mock import Mock, patch
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
@@ -19,7 +21,8 @@ from src.llm.cost_optimizer.models import (
     CostRecord, UsageMetrics, CostBreakdown, 
     OptimizationOpportunity, BudgetStatus
 )
-from src.llm.provider_config import ProviderType
+from infra.runtimes.config import LLMConfig
+from infra.runtimes.entities.providers import ProviderType
 
 
 class TestCostRecord:

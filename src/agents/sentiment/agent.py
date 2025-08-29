@@ -7,11 +7,7 @@ Provides emotional context and customer satisfaction insights.
 
 from typing import Dict, Any
 from ..base import BaseAgent, AgentMessage, ThreadState
-from src.llm import get_multi_llm_client
-from src.prompts import get_prompt_manager
-from utils import parse_sentiment_response
-from src.llm.intelligent_router import RoutingStrategy
-from utils import get_current_datetime, get_processing_time_ms
+from utils import parse_sentiment_response, get_current_datetime, get_processing_time_ms
 
 
 class SentimentAnalysisAgent(BaseAgent):
@@ -23,16 +19,12 @@ class SentimentAnalysisAgent(BaseAgent):
     """
     
     def __init__(self, tenant_id: str):
-        # MAS架构：使用智能体优化策略进行情感分析
+        # 简化初始化
         super().__init__(
             agent_id=f"sentiment_analysis_{tenant_id}", 
-            tenant_id=tenant_id,
-            routing_strategy=RoutingStrategy.AGENT_OPTIMIZED  # 平衡质量和成本的情感分析
+            tenant_id=tenant_id
         )
         
-        # LLM integration
-        self.llm_client = get_multi_llm_client()
-        self.prompt_manager = get_prompt_manager()
         
         self.logger.info(f"情感分析智能体初始化完成: {self.agent_id}")
     
@@ -146,17 +138,22 @@ class SentimentAnalysisAgent(BaseAgent):
             Dict[str, Any]: 情感分析结果
         """
         try:
-            # 获取情感分析提示词
-            prompt = self.prompt_manager.get_prompt(
-                "sentiment",
-                "emotion_analysis",
-                customer_input=customer_input,
-                conversation_context=conversation_context
-            )
+            # 简化的情感分析提示词
+            prompt = f"""分析以下客户输入的情感状态：
+
+客户输入：{customer_input}
+
+请返回JSON格式：
+{{
+    "sentiment": "positive",
+    "score": 0.8,
+    "confidence": 0.9,
+    "emotions": ["愉快", "满意"]
+}}"""
             
             # 调用LLM分析
             messages = [{"role": "user", "content": prompt}]
-            response = await self.llm_client.chat_completion(messages, temperature=0.3)
+            response = await self.llm_call(messages, temperature=0.3)
             
             # 解析结构化响应
             sentiment_result = parse_sentiment_response(response)

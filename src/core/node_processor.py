@@ -62,7 +62,6 @@ class NodeProcessor:
             WorkflowConstants.SALES_NODE: self._sales_fallback,
             WorkflowConstants.PRODUCT_NODE: self._product_fallback,
             WorkflowConstants.MEMORY_NODE: self._memory_fallback,
-            WorkflowConstants.RESPONSE_NODE: self._response_fallback
         }
     
     async def _process_agent_node(self, state: dict, node_name: str) -> dict:
@@ -149,9 +148,6 @@ class NodeProcessor:
         """记忆管理节点"""
         return await self._process_agent_node(state, WorkflowConstants.MEMORY_NODE)
     
-    async def response_node(self, state: dict) -> dict:
-        """响应生成节点"""
-        return await self._process_agent_node(state, WorkflowConstants.RESPONSE_NODE)
     
     # ============ 降级处理器 ============
     # 每个降级处理器专注于特定节点的降级逻辑
@@ -236,21 +232,20 @@ class NodeProcessor:
         }
         return state
     
-    def _response_fallback(self, state: dict, error: Optional[Exception]) -> dict:
-        """响应生成降级处理"""
-        # 尝试使用销售智能体的响应
-        sales_agent_id = self.node_mapping.get(WorkflowConstants.SALES_NODE)
-        sales_response = state.get("agent_responses", {}).get(sales_agent_id, {})
-        
-        state["final_response"] = sales_response.get(
-            "response", 
-            "感谢您的咨询！我很乐意为您提供帮助。"
+    
+    # ============ 特殊处理节点 ============
+    
+    async def blocked_completion_node(self, state: dict) -> dict:
+        """
+        合规阻止完成节点 - 处理被合规系统阻止的内容
+        """
+        compliance_result = state.get("compliance_result", {})
+        state["final_response"] = compliance_result.get(
+            "user_message", 
+            "很抱歉，您的请求涉及到敏感内容，无法继续处理。"
         )
         state["processing_complete"] = True
-        
-        if error:
-            state["error_state"] = "response_generation_failed"
-        
+        state["blocked_by_compliance"] = True
         return state
     
     # ============ 并行处理节点 ============
@@ -355,6 +350,8 @@ class NodeProcessor:
                     }
                 })
             
+            # 标记处理完成，因为这现在是最终节点
+            state["processing_complete"] = True
             self.logger.debug("并行完成节点处理完成")
             return state
             
@@ -363,6 +360,7 @@ class NodeProcessor:
             # 降级到串行处理
             state = await self.product_node(state)
             state = await self.memory_node(state)
+            state["processing_complete"] = True
             return state
     
     def get_performance_metrics(self) -> Dict[str, Any]:

@@ -9,13 +9,11 @@ from typing import Dict, Any, List
 import asyncio
 from ..base import BaseAgent, AgentMessage, ThreadState
 from utils import get_current_datetime, get_processing_time_ms
-from src.llm.intelligent_router import RoutingStrategy
 
 # 导入模块化组件
 from .recommendation_coordinator import RecommendationCoordinator
 from .needs_analyzer import CustomerNeedsAnalyzer
 from .product_knowledge import ProductKnowledgeManager
-
 
 class ProductExpertAgent(BaseAgent):
     """
@@ -38,7 +36,7 @@ class ProductExpertAgent(BaseAgent):
         super().__init__(
             agent_id=f"product_expert_{tenant_id}",
             tenant_id=tenant_id,
-            routing_strategy=RoutingStrategy.PERFORMANCE_FIRST  # 产品推荐需要高质量响应
+            
         )
         
         # 初始化模块化组件

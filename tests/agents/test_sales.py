@@ -16,9 +16,9 @@ from datetime import datetime, timedelta
 
 from src.agents.base import ThreadState, AgentMessage
 from src.agents.sales import SalesAgent
-from src.llm.multi_llm_client import MultiLLMClient
-from src.llm.provider_config import ProviderType, GlobalProviderConfig
-from src.llm.base_provider import LLMRequest, LLMResponse, RequestType
+from infra.runtimes.client import LLMClient
+from infra.runtimes.entities import LLMRequest, LLMResponse
+from infra.runtimes.config import LLMConfig
 
 
 class TestSalesAgent:

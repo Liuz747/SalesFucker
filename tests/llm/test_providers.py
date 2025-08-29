@@ -18,20 +18,14 @@ from typing import Dict, Any, Optional, List
 from datetime import datetime
 import json
 
-from src.llm.base_provider import (
-    BaseProvider, LLMRequest, LLMResponse, RequestType, 
-    ProviderError, ProviderHealth
-)
-from src.llm.provider_config import (
-    ProviderType, GlobalProviderConfig, ProviderConfig,
-    ModelCapability, AgentProviderMapping
-)
-from src.llm.providers import (
-    OpenAIProvider, AnthropicProvider, 
-    GeminiProvider, DeepSeekProvider
-)
-from src.llm.provider_manager import ProviderManager
-from src.llm.multi_llm_client import MultiLLMClient
+from infra.runtimes.providers.base import BaseProvider
+from infra.runtimes.entities import LLMRequest, LLMResponse
+from infra.runtimes.entities.providers import ProviderType
+from infra.runtimes.providers import OpenAIProvider, AnthropicProvider
+from infra.runtimes.client import LLMClient
+from infra.runtimes.config import LLMConfig
+
+# Note: Simplified provider system - many complex features removed for MVP
 
 
 class TestBaseProviderInterface:

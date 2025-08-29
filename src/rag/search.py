@@ -35,6 +35,17 @@ class ProductSearch:
         self.vector_db = MilvusDB()
         self.redis_client = get_redis_client()
         self.cache_ttl = cache_ttl
+        self._initialized = False
+    
+    async def initialize(self):
+        """初始化搜索组件"""
+        try:
+            # 在MVP中简化初始化
+            self._initialized = True
+            return True
+        except Exception as e:
+            print(f"ProductSearch initialization failed: {e}")
+            return False
     
     async def search(self, query: SearchQuery) -> SearchResponse:
         """Main search interface"""

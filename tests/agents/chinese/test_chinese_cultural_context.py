@@ -13,7 +13,7 @@ from unittest.mock import Mock, AsyncMock
 from src.agents.sentiment import SentimentAnalysisAgent
 from src.agents.sales import SalesAgent
 from src.agents.base import ConversationState
-from src.llm.multi_llm_client import MultiLLMClient
+from infra.runtimes.client import LLMClient
 
 
 class TestChineseCulturalContext:
@@ -25,7 +25,7 @@ class TestChineseCulturalContext:
         sentiment_agent = SentimentAnalysisAgent("test_tenant")
         
         # Mock sentiment analysis with cultural context
-        mock_client = Mock(spec=MultiLLMClient)
+        mock_client = Mock(spec=LLMClient)
         mock_client.analyze_sentiment = AsyncMock(return_value={
             "sentiment": "positive",
             "score": 0.85,
@@ -202,7 +202,7 @@ class TestChineseRegionalPreferences:
         sales_agent = SalesAgent("test_tenant")
         
         # Mock festival-aware responses
-        mock_client = Mock(spec=MultiLLMClient)
+        mock_client = Mock(spec=LLMClient)
         
         festival_contexts = {
             "春节": {

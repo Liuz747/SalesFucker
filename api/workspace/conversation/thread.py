@@ -12,12 +12,12 @@
 - 客户档案管理集成
 """
 import uuid
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException
 
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms
-from api.dependencies.orchestrator import get_orchestrator_for_tenant, get_orchestrator_service
-from .schema import ThreadCreateRequest, MessageCreateRequest
-from models import ThreadModel
+from api.dependencies.orchestrator import get_orchestrator_service
+from .schema import ThreadCreateRequest, MessageCreateRequest, ThreadModel
+from repositories.thread_repository import get_thread_repository
 
 
 logger = get_component_logger(__name__, "ConversationRouter")
@@ -27,15 +27,15 @@ router = APIRouter(prefix="/threads", tags=["conversation-threads"])
 
 
 @router.post("")
-async def create_thread(
-    request: ThreadCreateRequest,
-    orchestrator = Depends(get_orchestrator_service)
-):
+async def create_thread(request: ThreadCreateRequest):
     """
     创建新的对话线程
     
-    为对话管理创建新线程，包括智能体初始化和客户记忆加载。
+    使用高性能混合存储策略，针对云端PostgreSQL优化。
+    性能目标: < 5ms 响应时间
     """
+    start_time = get_current_datetime()
+    
     try:
         # 生成线程ID
         thread_id = request.thread_id or str(uuid.uuid4())
@@ -47,24 +47,22 @@ async def create_thread(
             metadata=request.metadata
         )
         
-
-        # TODO: 保存到存储库
-        # repository.save(thread)
+        # 获取存储库并创建线程
+        repository = await get_thread_repository()
+        created_thread = await repository.create_thread(thread)
         
-        # TODO: 初始化智能体
-        # if request.metadata.tenant_id:
-        #     orchestrator = orchestrator_factory(request.metadata.tenant_id)
-        #     agents_initialized = await orchestrator.initialize_agents(thread_id)
+        processing_time = get_processing_time_ms(start_time)
         
-        logger.info(f"线程创建成功: {thread_id}")
+        logger.info(f"线程创建成功: {thread_id}, 耗时: {processing_time:.2f}ms")
         
         return {
             "success": True,
             "message": "线程创建成功",
-            "thread_id": thread.thread_id,
-            "tenant_id": thread.metadata.tenant_id,
-            "conversation_status": thread.status,
-            "created_at": thread.created_at
+            "thread_id": created_thread.thread_id,
+            "tenant_id": created_thread.metadata.tenant_id,
+            "conversation_status": created_thread.status,
+            "created_at": created_thread.created_at,
+            "processing_time_ms": processing_time
         }
         
     except HTTPException:
@@ -72,7 +70,49 @@ async def create_thread(
     except Exception as e:
         logger.error(f"线程创建失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/{thread_id}")
+async def get_thread(thread_id: str):
+    """
+    获取线程详情
     
+    从数据库获取线程配置信息。
+    """
+    start_time = get_current_datetime()
+    
+    try:
+        # 从存储库获取线程
+        repository = await get_thread_repository()
+        thread = await repository.get_thread(thread_id)
+        
+        if not thread:
+            raise HTTPException(status_code=404, detail=f"线程不存在: {thread_id}")
+        
+        processing_time = get_processing_time_ms(start_time)
+        
+        logger.debug(f"线程获取成功: {thread_id}, 耗时: {processing_time:.2f}ms")
+        
+        return {
+            "success": True,
+            "message": "线程获取成功",
+            "data": {
+                "thread_id": thread.thread_id,
+                "assistant_id": thread.assistant_id,
+                "status": thread.status,
+                "created_at": thread.created_at,
+                "updated_at": thread.updated_at,
+                "metadata": thread.metadata.model_dump()
+            },
+            "processing_time_ms": processing_time
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"线程获取失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
 
 @router.post("/{thread_id}/runs")
 async def create_run(
@@ -101,7 +141,7 @@ async def create_run(
             )
         
         # 获取租户专用编排器实例
-        orchestrator = get_orchestrator_for_tenant(request.metadata.tenant_id)
+        orchestrator = get_orchestrator_service(request.metadata.tenant_id)
         
         # 调用编排器处理对话
         start_time = get_current_datetime()

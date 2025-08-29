@@ -7,7 +7,6 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 
 from infra.cache import get_redis_client
-from src.llm import get_multi_llm_client
 
 
 @dataclass
@@ -22,7 +21,8 @@ class EmbeddingGenerator:
     def __init__(self, model: str = "text-embedding-3-large", cache_ttl: int = 3600):
         self.model = model
         self.cache_ttl = cache_ttl
-        self.llm_client = get_multi_llm_client()
+        # LLM client disabled for simplified MVP
+        self.llm_client = None
         self.redis_client = get_redis_client()
     
     async def generate(self, text: str) -> EmbeddingResult:

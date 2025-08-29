@@ -68,18 +68,45 @@ class Orchestrator(StatusMixin):
             "sales_agent": f"sales_agent_{tenant_id}",
             "product_expert": f"product_expert_{tenant_id}",
             "memory_agent": f"memory_agent_{tenant_id}",
-            "market_strategy": f"market_strategy_{tenant_id}",
-            "response_generator": f"response_generator_{tenant_id}"
+            "market_strategy": f"market_strategy_{tenant_id}"
         }
         
         # 初始化模块化组件
         self.workflow_builder = WorkflowBuilder(tenant_id, self.node_mapping)
         self.state_manager = ThreadStateManager(tenant_id)
         
+        # 初始化智能体
+        self._initialize_agents()
+        
         # 构建工作流图
         self.graph = self.workflow_builder.build_graph()
         
         self.logger.info(f"多智能体编排器初始化完成，租户: {tenant_id}")
+    
+    def _initialize_agents(self):
+        """
+        初始化租户智能体集合
+        
+        为当前租户创建并注册所有必要的智能体。
+        """
+        from src.factories.agent_factory import create_agent_set
+        
+        try:
+            # 创建并自动注册智能体集合
+            agents = create_agent_set(self.tenant_id, auto_register=True)
+            
+            self.logger.info(
+                f"智能体初始化完成，租户: {self.tenant_id}, "
+                f"成功创建 {len(agents)} 个智能体"
+            )
+            
+            # 记录创建的智能体
+            for agent_type, agent in agents.items():
+                self.logger.debug(f"已创建智能体: {agent_type} -> {agent.agent_id}")
+                
+        except Exception as e:
+            self.logger.error(f"智能体初始化失败: {e}", exc_info=True)
+            # 不抛出异常，允许编排器继续运行（可能会有部分功能降级）
     
     async def process_conversation(
             self, 

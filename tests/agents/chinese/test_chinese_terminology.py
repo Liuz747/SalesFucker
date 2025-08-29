@@ -10,7 +10,7 @@
 import pytest
 from unittest.mock import Mock, AsyncMock
 
-from src.llm.multi_llm_client import MultiLLMClient
+from infra.runtimes.client import LLMClient
 from src.agents.sentiment import SentimentAnalysisAgent
 from src.agents.product import ProductExpertAgent
 from src.agents.sales import SalesAgent

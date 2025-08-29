@@ -9,12 +9,15 @@
 """
 
 import pytest
+
+@pytest.mark.skip(reason="Feature removed in simplified LLM system")
 import random
 from unittest.mock import Mock
 from datetime import datetime, timedelta
 
 from src.llm.intelligent_router.learning_engine import LearningEngine, PerformanceMetrics
-from src.llm.provider_config import ProviderType
+from infra.runtimes.config import LLMConfig
+from infra.runtimes.entities.providers import ProviderType
 
 
 class TestPerformanceMetricsTracking:

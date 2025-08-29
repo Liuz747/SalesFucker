@@ -10,13 +10,12 @@
 import pytest
 from unittest.mock import Mock, patch
 
-from src.llm.multi_llm_client import MultiLLMClient, get_multi_llm_client
-from src.llm.provider_config import (
-    ProviderType, GlobalProviderConfig, ProviderConfig,
-    AgentProviderMapping, ModelCapability
-)
-from src.llm.base_provider import LLMRequest, RequestType
-from src.llm.intelligent_router import RoutingStrategy, RoutingContext
+from infra.runtimes.client import LLMClient
+from infra.runtimes.entities import LLMRequest, LLMResponse
+from infra.runtimes.config import LLMConfig
+from infra.runtimes.entities.providers import ProviderType
+
+# Note: Complex routing and mapping features have been simplified in the new system
 
 
 class TestAgentProviderMapping:

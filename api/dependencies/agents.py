@@ -30,7 +30,7 @@ async def validate_agent_id(
 
     # Note: tenant_id validation will be added when request context includes tenant_id
     # if agent.tenant_id != request.tenant_id:
-        raise HTTPException(status_code=403, detail={"error": "AGENT_ACCESS_DENIED", "message": "智能体不属于当前租户"})
+        # raise HTTPException(status_code=403, detail={"error": "AGENT_ACCESS_DENIED", "message": "智能体不属于当前租户"})
 
     return agent_id
 

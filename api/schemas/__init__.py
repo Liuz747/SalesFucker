@@ -18,7 +18,6 @@ from .agents import (
     AgentStatusResponse,
     AgentTestRequest,
 )
-from .conversations import ConversationRequest, ConversationResponse
 from .multimodal import (
     ImageAnalysisRequest,
     MultimodalRequest,
@@ -41,14 +40,12 @@ __all__ = [
     # 通用请求模型
     "BaseRequest",
     "PaginationRequest",
-    "ConversationRequest",
     "MessageRequest",
     # 通用响应模型
     "BaseResponse",
     "ErrorResponse",
     "SuccessResponse",
     "PaginatedResponse",
-    "ConversationResponse",
     "StatusResponse",
     # 智能体模型
     "AgentCreateRequest",

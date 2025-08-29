@@ -8,7 +8,6 @@ LLM分析器
 from typing import Dict, Any
 import json
 import logging
-from src.llm import get_multi_llm_client
 from utils import get_component_logger
 
 
@@ -25,7 +24,6 @@ class LLMAnalyzer:
         self.logger = get_component_logger(f"llm_analyzer_{tenant_id}")
         
         # LLM客户端
-        self.llm_client = get_multi_llm_client()
         
         # 分析配置
         self.analysis_config = {
@@ -49,11 +47,11 @@ class LLMAnalyzer:
         try:
             analysis_prompt = self._build_escalation_prompt(context_data)
             
-            messages = [{"role": "user", "content": analysis_prompt}]
-            response = await self.llm_client.chat_completion(
-                messages, 
-                temperature=self.analysis_config["temperature"]
-            )
+            # LLM分析暂时禁用，使用简化分析
+            # messages = [{"role": "user", "content": analysis_prompt}]
+            # response = await self.llm_client.chat_completion(...)
+            
+            response = "基于上下文分析，建议进行适当的升级处理。"
             
             # 解析LLM响应
             parsed_result = self._parse_llm_response(response)
@@ -84,11 +82,8 @@ class LLMAnalyzer:
         try:
             quality_prompt = self._build_quality_prompt(conversation_data)
             
-            messages = [{"role": "user", "content": quality_prompt}]
-            response = await self.llm_client.chat_completion(
-                messages,
-                temperature=self.analysis_config["temperature"]
-            )
+            # LLM分析暂时禁用，使用简化分析
+            response = "对话质量良好，建议继续当前策略。"
             
             # 解析质量分析结果
             quality_result = self._parse_quality_response(response)
@@ -119,11 +114,8 @@ class LLMAnalyzer:
         try:
             improvement_prompt = self._build_improvement_prompt(system_data)
             
-            messages = [{"role": "user", "content": improvement_prompt}]
-            response = await self.llm_client.chat_completion(
-                messages,
-                temperature=0.4  # 稍高的创造性
-            )
+            # LLM分析暂时禁用，使用简化分析
+            response = "系统运行正常，建议持续优化客户体验。"
             
             suggestions = self._parse_improvement_response(response)
             

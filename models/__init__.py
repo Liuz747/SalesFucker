@@ -17,8 +17,7 @@ from .tenant import (
 from .conversation import (
     ConversationStatus,
     InputType,
-    ThreadModel,
-    ThreadMetadata
+    ThreadOrm
 )
 
 __all__ = [
@@ -27,6 +26,5 @@ __all__ = [
     "TenantModel",
     "ConversationStatus",
     "InputType",
-    "ThreadModel",
-    "ThreadMetadata"
+    "ThreadOrm"
 ]

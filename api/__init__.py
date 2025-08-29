@@ -22,20 +22,19 @@ API Package - Multi-Agent System API
 
 from .endpoints import (
     agents_router,
-    conversations_router,
-    multimodal_router,
-    health_router
+    multimodal_router
 )
-from .workspace import conversations
-from .inner import completion
+from .workspace import conversations_router, tenant_router
+from .inner import completion_router, auth_router, health_router
 
-__version__ = "1.0.0"
+__version__ = "0.2.1"
 
 __all__ = [
     "agents_router",
-    "conversations_router", 
     "multimodal_router",
     "health_router",
-    "conversations",
-    "completion"
+    "conversations_router",
+    "tenant_router",
+    "completion_router",
+    "auth_router"
 ]

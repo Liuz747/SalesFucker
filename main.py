@@ -13,6 +13,7 @@ FastAPI主应用入口
 """
 
 import uvicorn
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -24,21 +25,35 @@ from api.middleware import (
 )
 from api.endpoints import (
     agents_router,
-    auth_router,
-    conversations_router,
     multimodal_router,
-    health_router,
     assistants_router,
     prompts_router,
-    tenant_router
 )
-from api import conversations, completion
+from api import (
+    auth_router,
+    conversations_router,
+    completion_router,
+    health_router,
+    tenant_router,
+)
 from api.exceptions import APIException
 from config import settings
 from utils import get_component_logger
+from repositories.thread_repository import get_thread_repository
 
 # 配置日志
 logger = get_component_logger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """应用生命周期管理"""
+    # 启动时执行
+    await get_thread_repository().initialize()
+    yield
+    # 关闭时执行
+    await get_thread_repository().cleanup()
+
 
 # 创建FastAPI应用
 app = FastAPI(
@@ -46,7 +61,8 @@ app = FastAPI(
     description="多智能体营销系统的RESTful API",
     version="1.0.0",
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc",
+    lifespan=lifespan
 )
 
 # 配置CORS
@@ -121,8 +137,7 @@ app.include_router(multimodal_router, prefix="/v1")
 app.include_router(assistants_router, prefix="/v1")
 app.include_router(prompts_router, prefix="/v1")
 app.include_router(tenant_router, prefix="/v1")
-app.include_router(conversations, prefix="/v1")
-app.include_router(completion, prefix="/v1")
+app.include_router(completion_router, prefix="/v1")
 
 # 根路径健康检查
 @app.get("/")

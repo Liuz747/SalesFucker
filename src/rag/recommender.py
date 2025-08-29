@@ -16,6 +16,7 @@ class RecommendationType(Enum):
     PERSONALIZED = "personalized"
     TRENDING = "trending"
     CROSS_SELL = "cross_sell"
+    QUERY_BASED = "query_based"
 
 
 @dataclass
@@ -38,7 +39,8 @@ class Recommendation:
 class ProductRecommender:
     """Fast, multi-strategy product recommender"""
     
-    def __init__(self):
+    def __init__(self, tenant_id: str = None):
+        self.tenant_id = tenant_id
         self.search = ProductSearch()
         self.vector_db = MilvusDB()
         self.redis_client = get_redis_client()
@@ -48,8 +50,21 @@ class ProductRecommender:
             RecommendationType.SIMILAR: 1.0,
             RecommendationType.PERSONALIZED: 0.8,
             RecommendationType.TRENDING: 0.6,
-            RecommendationType.CROSS_SELL: 0.7
+            RecommendationType.CROSS_SELL: 0.7,
+            RecommendationType.QUERY_BASED: 0.9
         }
+        self._initialized = False
+    
+    async def initialize(self):
+        """初始化推荐引擎"""
+        try:
+            # 在MVP中简化初始化
+            await self.search.initialize()
+            self._initialized = True
+            return True
+        except Exception as e:
+            print(f"ProductRecommender initialization failed: {e}")
+            return False
     
     async def recommend(self, request: RecommendationRequest) -> List[Recommendation]:
         """Main recommendation interface"""

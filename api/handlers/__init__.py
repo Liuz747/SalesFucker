@@ -11,11 +11,9 @@ API业务逻辑处理器模块
 """
 
 from .agent_handler import AgentHandler
-from .conversation_handler import ConversationHandler
 from .multimodal_handler import MultimodalHandler
 
 __all__ = [
     "AgentHandler",
-    "ConversationHandler", 
     "MultimodalHandler"
 ]

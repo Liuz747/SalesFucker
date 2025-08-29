@@ -10,13 +10,10 @@
 import pytest
 from unittest.mock import Mock, patch
 
-from src.llm.multi_llm_client import MultiLLMClient
-from src.llm.provider_config import (
-    ProviderType, GlobalProviderConfig, ProviderConfig,
-    ModelCapability, ProviderCredentials
-)
-from src.llm.base_provider import LLMRequest, RequestType
-from src.llm.intelligent_router import RoutingStrategy, RoutingContext
+from infra.runtimes.client import LLMClient
+from infra.runtimes.entities import LLMRequest, LLMResponse
+from infra.runtimes.config import LLMConfig
+from infra.runtimes.entities.providers import ProviderType
 
 
 class TestChineseLanguageDetection:

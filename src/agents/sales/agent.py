@@ -16,7 +16,6 @@ from typing import Dict, Any, Optional
 from ..base import BaseAgent, AgentMessage, ThreadState
 from .sales_strategies import get_sales_strategies, analyze_customer_segment, get_strategy_for_segment, adapt_strategy_to_context
 from utils import to_isoformat
-from src.llm.intelligent_router import RoutingStrategy
 
 
 class SalesAgent(BaseAgent):
@@ -33,11 +32,10 @@ class SalesAgent(BaseAgent):
     """
     
     def __init__(self, tenant_id: str):
-        # MAS架构：所有智能体都具备LLM能力，自动使用最优配置
+        # 简化初始化
         super().__init__(
             agent_id=f"sales_agent_{tenant_id}",
-            tenant_id=tenant_id,
-            routing_strategy=RoutingStrategy.BALANCED  # 使用平衡路由策略
+            tenant_id=tenant_id
         )
         
         # Strategy management
@@ -153,8 +151,8 @@ class SalesAgent(BaseAgent):
             state.sales_response = response
             state.active_agents.append(self.agent_id)
             state.conversation_history.extend([
-                f"Customer: {customer_input}",
-                f"Sales: {response}"
+                {"role": "user", "content": customer_input},
+                {"role": "assistant", "content": response}
             ])
             
             # 更新处理统计
@@ -228,13 +226,15 @@ class SalesAgent(BaseAgent):
             请用中文回复，语言自然流畅，体现专业性和亲和力。
             """
             
-            # 使用增强的BaseAgent多LLM功能
-            response = await self.llm_generate_response(
-                prompt=prompt,
-                context=context,
-                temperature=0.8,  # 适合销售对话的创造性温度
-                max_tokens=512,   # 适中的响应长度
-                # 多LLM系统会自动选择最优供应商和模型
+            # 使用简化的LLM调用
+            messages = [
+                {"role": "system", "content": "你是专业的美妆销售顾问"},
+                {"role": "user", "content": prompt}
+            ]
+            response = await self.llm_call(
+                messages=messages,
+                temperature=0.8,
+                max_tokens=512
             )
             
             if response:
@@ -266,10 +266,13 @@ class SalesAgent(BaseAgent):
 请用中文回复，保持专业和亲和的语调。
 """
             
-            # 使用增强的BaseAgent多LLM功能
-            response = await self.llm_generate_response(
-                prompt=prompt,
-                context=context,
+            # 使用简化的LLM调用
+            messages = [
+                {"role": "system", "content": "你是专业的美妆销售顾问"},
+                {"role": "user", "content": prompt}
+            ]
+            response = await self.llm_call(
+                messages=messages,
                 temperature=0.8,
                 max_tokens=400
             )
