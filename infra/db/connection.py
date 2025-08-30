@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy import text
 
-from config import settings
+from config import mas_config
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "Database")
@@ -36,23 +36,22 @@ async def get_engine() -> AsyncEngine:
     global _engine
     
     if _engine is None:
-        logger.info(f"初始化PostgreSQL连接: {settings.DB_HOST}:{settings.DB_PORT}")
+        logger.info(f"初始化PostgreSQL连接: {mas_config.DB_HOST}:{mas_config.DB_PORT}")
         
         _engine = create_async_engine(
-            settings.postgres_url,
-            # 连接池配置（适合云端部署）
-            pool_size=10,
-            max_overflow=20,
-            pool_pre_ping=True,
-            pool_recycle=3600,  # 1小时回收连接
-            # 对于云数据库，使用较短的超时
+            mas_config.postgres_url,
+            # 连接池配置
+            pool_size=mas_config.SQLALCHEMY_POOL_SIZE,
+            max_overflow=mas_config.SQLALCHEMY_MAX_OVERFLOW,
+            pool_pre_ping=mas_config.SQLALCHEMY_POOL_PRE_PING,
+            pool_recycle=mas_config.SQLALCHEMY_POOL_RECYCLE,
             connect_args={
-                "command_timeout": 30,
+                "command_timeout": mas_config.SQLALCHEMY_COMMAND_TIMEOUT,
                 "server_settings": {
-                    "application_name": "mas-service",
+                    "application_name": mas_config.APP_NAME,
                 }
             },
-            echo=settings.DEBUG,  # 开发环境下显示SQL
+            echo=mas_config.DEBUG,
         )
         
         logger.info("PostgreSQL引擎初始化完成")

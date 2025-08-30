@@ -4,34 +4,22 @@
 包含所有存储相关配置，包括 Elasticsearch、Redis、PostgreSQL 和 Milvus。
 """
 
-from pydantic import Field
+from pydantic import Field, NonNegativeInt, PositiveInt
 from pydantic_settings import BaseSettings
 
+from .redis_config import RedisConfig
 
-class StorageConfig(BaseSettings):
+class DatabaseConfig(BaseSettings):
     """
     存储系统配置类
     """
-
-    # Elasticsearch 配置
-    ELASTICSEARCH_URL: str = Field(
-        description="Elasticsearch 服务器连接地址，用于存储对话历史和客户记忆",
-        default="http://localhost:9200",
-    )
-
-    # Redis 配置
-    REDIS_URL: str = Field(
-        description="Redis 服务器连接地址，用于缓存和会话管理",
-        default="redis://localhost:6379",
-    )
-
     # PostgreSQL 配置
     DB_HOST: str = Field(
         description="PostgreSQL 服务器主机地址，用于租户管理",
         default="localhost",
     )
 
-    DB_PORT: int = Field(
+    DB_PORT: PositiveInt = Field(
         description="PostgreSQL 服务器端口号",
         default=5432,
     )
@@ -49,6 +37,36 @@ class StorageConfig(BaseSettings):
     POSTGRES_PWD: str = Field(
         description="PostgreSQL 数据库密码",
         default=None,
+    )
+
+    SQLALCHEMY_POOL_SIZE: NonNegativeInt = Field(
+        description="PostgreSQL 数据库连接池大小",
+        default=10,
+    )
+    SQLALCHEMY_MAX_OVERFLOW: NonNegativeInt = Field(
+        description="PostgreSQL 数据库连接池最大溢出大小",
+        default=20,
+    )
+
+    SQLALCHEMY_POOL_RECYCLE: NonNegativeInt = Field(
+        description="PostgreSQL 数据库连接池回收时间",
+        default=3600,
+    )
+
+    SQLALCHEMY_POOL_PRE_PING: bool = Field(
+        description="PostgreSQL 数据库连接池预 ping",
+        default=False,
+    )
+
+    SQLALCHEMY_COMMAND_TIMEOUT: NonNegativeInt = Field(
+        description="PostgreSQL 数据库命令超时时间",
+        default=30,
+    )
+
+    # Elasticsearch 配置
+    ELASTICSEARCH_URL: str = Field(
+        description="Elasticsearch 服务器连接地址，用于存储对话历史和客户记忆",
+        default="http://localhost:9200",
     )
 
     # Milvus 配置
@@ -69,3 +87,9 @@ class StorageConfig(BaseSettings):
             f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PWD}"
             f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
         )
+    
+class StorageConfig(
+    DatabaseConfig,
+    RedisConfig
+):
+    pass

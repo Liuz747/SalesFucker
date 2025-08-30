@@ -37,7 +37,7 @@ from api import (
     tenant_router,
 )
 from api.exceptions import APIException
-from config import settings
+from config import mas_config
 from utils import get_component_logger, configure_logging
 from repositories.thread_repository import get_thread_repository
 
@@ -145,7 +145,7 @@ app.include_router(completion_router, prefix="/v1")
 async def root():
     """根路径健康检查"""
     return {
-        "service": settings.APP_NAME,
+        "service": mas_config.APP_NAME,
         "status": "运行中",
         "version": "0.2.0",
         "docs": "/docs"
@@ -156,10 +156,10 @@ def main():
     """Main entry point for the application."""
     uvicorn.run(
         "main:app",
-        host=settings.APP_HOST,
-        port=settings.APP_PORT,
-        reload=settings.DEBUG,
-        log_level="info" if not settings.DEBUG else "debug"
+        host=mas_config.APP_HOST,
+        port=mas_config.APP_PORT,
+        reload=mas_config.DEBUG,
+        log_level="info" if not mas_config.DEBUG else "debug"
     )
 
 

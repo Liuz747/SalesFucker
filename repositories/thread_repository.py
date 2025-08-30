@@ -14,10 +14,11 @@ from typing import Optional
 
 import msgpack
 
+from config import mas_config
+from utils import get_component_logger, get_current_datetime, to_isoformat
 from api.workspace.conversation.schema import ThreadModel
 from infra.cache.redis_client import get_redis_client
 from services.thread_service import ThreadService
-from utils import get_component_logger, get_current_datetime, to_isoformat
 
 
 class ThreadRepository:
@@ -36,7 +37,7 @@ class ThreadRepository:
         self._redis_client = None
         
         # 缓存配置
-        self.redis_ttl = 7200   # 2小时Redis缓存
+        self.redis_ttl = mas_config.REDIS_TTL
     
     async def initialize(self):
         """初始化存储库"""

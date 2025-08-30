@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 from alembic import context
 
-from config import settings
+from config import mas_config
 from models.base import Base
 
 # this is the Alembic Config object, which provides
@@ -47,7 +47,7 @@ def run_migrations_offline():
     Calls to context.execute() here emit the given string to the
     script output.
     """
-    url = settings.postgres_url
+    url = mas_config.postgres_url
     context.configure(
         url=url,
         target_metadata=metadata,
@@ -71,7 +71,7 @@ async def run_async_migrations():
     and associate a connection with the context.
     """
     cfg = config.get_section(config.config_ini_section)
-    cfg["sqlalchemy.url"] = settings.postgres_url
+    cfg["sqlalchemy.url"] = mas_config.postgres_url
     
     connectable = async_engine_from_config(
         cfg,

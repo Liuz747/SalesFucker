@@ -13,7 +13,7 @@
 import logging
 from typing import Optional
 
-from config import settings
+from config import mas_config
 
 def configure_logging():
     """
@@ -26,7 +26,7 @@ def configure_logging():
     """
     # 配置根日志器
     logging.basicConfig(
-        level=settings.LOG_LEVEL,
+        level=mas_config.LOG_LEVEL,
         format='%(levelname)s:     %(asctime)s - %(name)s - Line %(lineno)d - %(message)s'
     )
 
