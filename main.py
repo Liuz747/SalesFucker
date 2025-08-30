@@ -38,7 +38,7 @@ from api import (
 )
 from api.exceptions import APIException
 from config import settings
-from utils import get_component_logger
+from utils import get_component_logger, configure_logging
 from repositories.thread_repository import get_thread_repository
 
 # 配置日志
@@ -49,8 +49,9 @@ logger = get_component_logger(__name__)
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     # 启动时执行
+    configure_logging()
     repository = await get_thread_repository()
-    await repository.initialize()
+    
     yield
     # 关闭时执行
     repository = await get_thread_repository()
@@ -84,9 +85,7 @@ app.add_middleware(JWTMiddleware, exclude_paths=[
     "/openapi.json",
     "/redoc",
     "/v1/health",
-    "/v1/auth/token",
-    "/v1/test/chat",
-    "/v1/test/config"
+    "/v1/auth/token"
 ], exclude_prefixes=[
     "/static/",
     "/assets/"
