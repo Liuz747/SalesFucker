@@ -40,6 +40,7 @@ from api.exceptions import APIException
 from config import mas_config
 from utils import get_component_logger, configure_logging
 from repositories.thread_repository import get_thread_repository
+from infra.db.connection import test_db_connection, close_db_connections
 
 # 配置日志
 logger = get_component_logger(__name__)
@@ -50,10 +51,13 @@ async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     # 启动时执行
     configure_logging()
+    # 初始化数据库连接池
+    await test_db_connection()
     repository = await get_thread_repository()
     
     yield
     # 关闭时执行
+    await close_db_connections()
     repository = await get_thread_repository()
     await repository.cleanup()
 

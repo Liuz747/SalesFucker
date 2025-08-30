@@ -9,14 +9,13 @@
 - 数据库健康检查
 """
 
-from datetime import datetime
 from typing import Optional, List
 
 from sqlalchemy import select, update
 
 from models import ThreadOrm
 from api.workspace.conversation.schema import ThreadModel
-from infra.db.connection import database_session, test_db_connection
+from infra.db.connection import database_session
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "ThreadService")
@@ -155,88 +154,3 @@ class ThreadService:
         except Exception as e:
             logger.error(f"获取线程列表失败: {e}")
             raise
-    
-    @staticmethod
-    async def update_access_stats(thread_id: str, access_time: datetime) -> bool:
-        """
-        更新线程访问统计
-        
-        参数:
-            thread_id: 线程ID
-            access_time: 访问时间
-            
-        返回:
-            bool: 是否更新成功
-        """
-        try:
-            async with database_session() as session:
-                stmt = (
-                    update(ThreadOrm)
-                    .where(ThreadOrm.thread_id == thread_id)
-                    .values(updated_at=access_time)
-                )
-                await session.execute(stmt)
-                await session.commit()
-
-        except Exception as e:
-            logger.error(f"更新线程访问统计失败: {thread_id}, 错误: {e}")
-            raise
-    
-    @staticmethod
-    async def count_total() -> int:
-        """
-        获取线程总数
-        
-        返回:
-            int: 线程总数
-        """
-        try:
-            async with database_session() as session:
-                stmt = select(ThreadOrm.thread_id)
-                result = await session.execute(stmt)
-                total = len(result.fetchall())
-                
-                logger.debug(f"线程总数: {total}")
-                return total
-
-        except Exception as e:
-            logger.error(f"获取线程总数失败: {e}")
-            raise
-    
-    @staticmethod
-    async def health_check() -> dict:
-        """
-        数据库健康检查
-        
-        返回:
-            dict: 健康状态信息
-        """
-        try:
-            # 测试数据库连接
-            db_healthy = await test_db_connection()
-            
-            if db_healthy:
-                # 获取线程统计
-                total_threads = await ThreadService.count_total()
-                active_threads = len(await ThreadService.get_all_threads())
-                
-                return {
-                    "database_connected": True,
-                    "total_threads": total_threads,
-                    "active_threads": active_threads,
-                }
-            else:
-                return {
-                    "database_connected": False,
-                    "total_threads": 0,
-                    "active_threads": 0,
-                }
-                
-        except Exception as e:
-            logger.error(f"数据库健康检查失败: {e}")
-            return {
-                "database_connected": False,
-                "error": str(e),
-                "total_threads": 0,
-                "active_threads": 0,
-            }
