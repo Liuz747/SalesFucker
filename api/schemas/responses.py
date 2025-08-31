@@ -89,9 +89,9 @@ class PaginatedResponse(SuccessResponse[List[T]]):
     用于分页数据的响应。
     """
 
-    pagination: Dict[str, Any] = Field(description="分页信息")
+    pagination: Optional[Dict[str, Any]] = Field(default={}, description="分页信息")
 
-# todo 不确定要如何使用分页信息，先这样调整了。
+    # todo 不确定要如何使用分页信息，先这样调整了。
     total: int = Field(description="分页信息")
     page: int = Field(description="分页信息")
     page_size: int = Field(description="分页信息")

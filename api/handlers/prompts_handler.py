@@ -16,7 +16,7 @@ import re
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timedelta
 
-from models.prompts import PromptsModel
+from models.prompts import PromptsModel, PromptsOrmModel
 from services.prompts_dao import PromptsDao
 from ..schemas.prompts import (
     PromptCreateRequest, PromptUpdateRequest, PromptTestRequest,
@@ -488,7 +488,7 @@ class PromptHandler(StatusMixin):
                 total=total_count,
                 page=request.page,
                 page_size=request.page_size,
-                pages=(total_count + request.page_size - 1) // request.page_size
+                pages=(total_count + request.page_size - 1) # request.page_size,
             )
             
         except Exception as e:
@@ -501,38 +501,61 @@ class PromptHandler(StatusMixin):
         target_assistant_id: str, 
         tenant_id: str,
         modify_personality: bool = False
-    ) -> Optional[PromptConfigResponse]:
+    ) -> PromptsModel:
         """克隆助理提示词配置"""
         try:
-            source_key = f"{tenant_id}:{source_assistant_id}"
-            source_config = self._prompt_configs.get(source_key)
-            
+            # source_key = f"{tenant_id}:{source_assistant_id}"
+            # source_config = self._prompt_configs.get(source_key)
+
+            # 获取当前版本
+            # todo 需要指定 version
+            source_config = await PromptsDao.get_prompts(source_assistant_id, tenant_id, "")
             if not source_config:
                 return None
             
             # 复制配置
-            cloned_config_dict = source_config["config"].copy()
-            cloned_config_dict["assistant_id"] = target_assistant_id
+            cloned_config_dict = PromptsOrmModel(
+                id=None,
+                tenant_id=source_config.tenant_id,
+                assistant_id=source_config.assistant_id,
+                personality_prompt=source_config.personality_prompt,
+                greeting_prompt=source_config.greeting_prompt,
+                product_recommendation_prompt=source_config.product_recommendation_prompt,
+                objection_handling_prompt=source_config.tenant_id,
+                closing_prompt=source_config.closing_prompt,
+                context_instructions=source_config.context_instructions,
+                llm_parameters=source_config.llm_parameters,
+                safety_guidelines=source_config.safety_guidelines,
+                forbidden_topics=source_config.forbidden_topics,
+                brand_voice=source_config.brand_voice,
+                product_knowledge=source_config.product_knowledge,
+                version=source_config.version,
+                is_active=source_config.is_active,
+                created_at=source_config.created_at,
+                updated_at=source_config.updated_at
+                )
+            cloned_config_dict.assistant_id = target_assistant_id
             
             if modify_personality:
                 # 修改个性化部分，避免完全相同
-                personality_prompt = cloned_config_dict.get("personality_prompt", "")
-                cloned_config_dict["personality_prompt"] = f"{personality_prompt}\n\n注意：作为{target_assistant_id}，请保持独特的个性特色。"
+                cloned_config_dict.personality_prompt = f"{cloned_config_dict.personality_prompt}\n\n注意：作为{target_assistant_id}，请保持独特的个性特色。"
             
             # 更新版本
-            cloned_config_dict["version"] = "1.0.0"
-            
-            cloned_config = AssistantPromptConfig(**cloned_config_dict)
-            
+            cloned_config_dict.version = "1.0.0"
+
+
             # 创建克隆请求
-            create_request = PromptCreateRequest(
-                assistant_id=target_assistant_id,
-                tenant_id=tenant_id,
-                prompt_config=cloned_config
-            )
-            
-            return await self.create_assistant_prompts(create_request)
-            
+            # create_request = PromptCreateRequest(
+            #     assistant_id=target_assistant_id,
+            #     tenant_id=tenant_id,
+            #     prompt_config=cloned_config
+            # )
+            #
+            # return await self.create_assistant_prompts(create_request)
+            r = await PromptsDao.insertPrompts(cloned_config_dict)
+            cloned_config_dict.id = r
+            return cloned_config_dict.to_model()
+
         except Exception as e:
             self.logger.error(f"助理提示词克隆失败: {e}")
             raise
