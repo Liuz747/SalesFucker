@@ -14,7 +14,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import select, update, and_
+from sqlalchemy import select, update, and_, desc
 
 from models.prompts import PromptsOrmModel
 from models.tenant import TenantModel
@@ -108,6 +108,31 @@ class PromptsDao:
                 )
                 result = await session.execute(stmt)
                 return result.scalar_one_or_none()
+
+        except Exception as e:
+            logger.error(f"获取租户列表失败: {e}")
+            raise
+
+    @staticmethod
+    async def get_prompts_list_order(tenant_id: str, assistant_id: str, limitNum: int) -> list[PromptsOrmModel]:
+        """
+        获取所有激活状态的租户ID列表
+
+        返回:
+            List[str]: 激活的租户ID列表
+        """
+        try:
+            async with (database_session() as session):
+
+                stmt = select(PromptsOrmModel).where(
+                    and_(PromptsOrmModel.tenant_id == tenant_id and
+                         PromptsOrmModel.tenant_id == assistant_id
+                         )
+                ).order_by(PromptsOrmModel.updated_at.desc()).limit(limitNum)
+
+                result = await session.execute(stmt)
+                r = result.scalars().all()
+                return r
 
         except Exception as e:
             logger.error(f"获取租户列表失败: {e}")

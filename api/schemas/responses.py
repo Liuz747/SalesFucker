@@ -82,7 +82,7 @@ class ErrorResponse(BaseResponse):
         super().__init__(**data)
 
 
-class PaginatedResponse(SuccessResponse[List[T]]):
+class PaginatedResponse(BaseModel, Generic[T]):
     """
     分页响应模型
 
@@ -91,11 +91,15 @@ class PaginatedResponse(SuccessResponse[List[T]]):
 
     pagination: Optional[Dict[str, Any]] = Field(default={}, description="分页信息")
 
+    code: int = Field(default=0, description="业务状态码")
+    message: str = Field(default="请求成功", description="业务状态信息")
+    data: List[T] = Field(default="请求数据", description="请求返回的数据")
+
     # todo 不确定要如何使用分页信息，先这样调整了。
     total: int = Field(description="分页信息")
     page: int = Field(description="分页信息")
     page_size: int = Field(description="分页信息")
-    pages :int = Field(description="分页信息")
+    pages: int = Field(description="分页信息")
 
     def __init__(self, **data):
         # 确保pagination字段有标准结构
@@ -107,7 +111,9 @@ class PaginatedResponse(SuccessResponse[List[T]]):
                     pagination_data[field] = 0
 
         super().__init__(**data)
-
+    @property
+    def count(self) -> int:
+        return len(self.data)  # 对实际数据而非类型操作
 
 class StatusResponse(SuccessResponse[Dict[str, Any]]):
     """

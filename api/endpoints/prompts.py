@@ -13,6 +13,8 @@
 - GET /v1/prompts/library - 获取提示词库
 - GET /v1/prompts/templates - 获取提示词模板
 """
+from typing import List, TypeVar, Generic
+from pydantic import BaseModel
 
 from fastapi import APIRouter, HTTPException, Depends, Query, Path, status
 from typing import List, Optional
@@ -368,26 +370,32 @@ async def clone_assistant_prompts(
         )
 
 
-@router.get("/{assistant_id}/history", response_model=List[PromptConfigResponse])
+@router.get("/{assistant_id}/history", response_model=SuccessResponse[List[PromptsModel]])
 async def get_prompt_history(
         assistant_id: str = Path(..., description="助理ID"),
         tenant_id: str = Query(..., description="租户标识符"),
         limit: int = Query(10, ge=1, le=50, description="历史版本数量限制")
-) -> List[PromptConfigResponse]:
+) -> SuccessResponse[List[PromptsModel]]:
     """
     获取助理提示词历史版本
     
     查看助理提示词配置的历史版本，支持版本回退和对比。
     """
     try:
-        logger.info(f"查询助理提示词历史: tenant={request.tenant_id}, assistant={assistant_id}")
+        logger.info(f"查询助理提示词历史: tenant={tenant_id}, assistant={assistant_id}")
 
         result = await prompt_handler.get_prompt_history(
             assistant_id, tenant_id, limit
         )
 
         logger.info(f"助理提示词历史查询成功: {assistant_id}, 返回{len(result)}个版本")
-        return result
+        return SuccessResponse[List[PromptsModel]](
+            code=0,
+            message="查询成功",
+            # data=[PromptsModel(),PromptsModel()]
+            # data = ["1", "2"]
+            data=result
+        )
 
     except Exception as e:
         logger.error(f"助理提示词历史查询失败: {e}")
@@ -397,19 +405,19 @@ async def get_prompt_history(
         )
 
 
-@router.post("/{assistant_id}/rollback", response_model=PromptConfigResponse)
+@router.post("/{assistant_id}/rollback", response_model=SuccessResponse[PromptsModel])
 async def rollback_assistant_prompts(
         assistant_id: str = Path(..., description="助理ID"),
         version: str = Query(..., description="回退到的版本"),
         tenant_id: str = Query(..., description="租户标识符")
-) -> PromptConfigResponse:
+) -> SuccessResponse[PromptsModel]:
     """
     回退助理提示词配置
     
     将助理的提示词配置回退到指定的历史版本。
     """
     try:
-        logger.info(f"回退助理提示词: tenant={request.tenant_id}, assistant={assistant_id}, version={version}")
+        logger.info(f"回退助理提示词: tenant={tenant_id}, assistant={assistant_id}, version={version}")
 
         result = await prompt_handler.rollback_assistant_prompts(
             assistant_id, tenant_id, version
@@ -423,7 +431,7 @@ async def rollback_assistant_prompts(
             )
 
         logger.info(f"助理提示词回退成功: {assistant_id} -> version {version}")
-        return result
+        return NewPromptResponse(result)
 
     except HTTPException:
         raise
