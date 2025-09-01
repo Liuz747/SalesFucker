@@ -14,9 +14,8 @@
 from fastapi import Request, Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Optional
 import time
-import logging
 from collections import defaultdict, deque
 
 from utils import get_component_logger
@@ -43,8 +42,8 @@ class RateLimiting(BaseHTTPMiddleware):
         
         # 特殊路径的限制配置
         self.path_limits = {
-            "/api/v1/multimodal": {"requests": 20, "window": 60},     # 多模态处理限制更严格
-            "/api/v1/llm-management": {"requests": 50, "window": 60}  # LLM管理接口限制
+            "/v1/multimodal": {"requests": 20, "window": 60},     # 多模态处理限制更严格
+            "/v1/llm-management": {"requests": 50, "window": 60}  # LLM管理接口限制
         }
         
         # 请求记录（生产环境应使用Redis）

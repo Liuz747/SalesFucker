@@ -13,9 +13,7 @@
 from fastapi import Request
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-from typing import Dict, Any, Optional
-
-from datetime import datetime
+from typing import Optional
 
 from utils import get_component_logger
 from services.tenant_service import TenantService
@@ -73,7 +71,6 @@ class TenantIsolation(BaseHTTPMiddleware):
         
         # 添加租户上下文到请求
         request.state.tenant_id = tenant_id
-        request.state.tenant_context = await self._get_tenant_context(tenant_id)
         
         # 处理请求
         response = await call_next(request)
@@ -172,21 +169,6 @@ class TenantIsolation(BaseHTTPMiddleware):
         except Exception as e:
             logger.error(f"租户验证失败: {tenant_id}, 错误: {e}")
             return False
-    
-    async def _get_tenant_context(self, tenant_id: str) -> Dict[str, Any]:
-        """
-        获取租户上下文信息
-        
-        参数:
-            tenant_id: 租户ID
-            
-        返回:
-            Dict[str, Any]: 租户上下文
-        """
-        return {
-            "tenant_id": tenant_id,
-            "access_time": datetime.now().isoformat()
-        }
     
     async def _create_tenant_required_response(self) -> JSONResponse:
         """创建租户ID必需响应"""
