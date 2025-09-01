@@ -37,9 +37,10 @@ from api import (
     tenant_router,
 )
 from api.exceptions import APIException
-from config import settings
-from utils import get_component_logger
+from config import mas_config
+from utils import get_component_logger, configure_logging
 from repositories.thread_repository import get_thread_repository
+from infra.db.connection import test_db_connection, close_db_connections
 
 # 配置日志
 logger = get_component_logger(__name__)
@@ -49,10 +50,16 @@ logger = get_component_logger(__name__)
 async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     # 启动时执行
-    await get_thread_repository().initialize()
+    configure_logging()
+    # 初始化数据库连接池
+    await test_db_connection()
+    repository = await get_thread_repository()
+    
     yield
     # 关闭时执行
-    await get_thread_repository().cleanup()
+    await close_db_connections()
+    repository = await get_thread_repository()
+    await repository.cleanup()
 
 
 # 创建FastAPI应用
@@ -82,9 +89,7 @@ app.add_middleware(JWTMiddleware, exclude_paths=[
     "/openapi.json",
     "/redoc",
     "/v1/health",
-    "/v1/auth/token",
-    "/v1/test/chat",
-    "/v1/test/config"
+    "/v1/auth/token"
 ], exclude_prefixes=[
     "/static/",
     "/assets/"
@@ -144,7 +149,7 @@ app.include_router(completion_router, prefix="/v1")
 async def root():
     """根路径健康检查"""
     return {
-        "service": settings.APP_NAME,
+        "service": mas_config.APP_NAME,
         "status": "运行中",
         "version": "0.2.0",
         "docs": "/docs"
@@ -155,10 +160,10 @@ def main():
     """Main entry point for the application."""
     uvicorn.run(
         "main:app",
-        host=settings.APP_HOST,
-        port=settings.APP_PORT,
-        reload=settings.DEBUG,
-        log_level="info" if not settings.DEBUG else "debug"
+        host=mas_config.APP_HOST,
+        port=mas_config.APP_PORT,
+        reload=mas_config.DEBUG,
+        log_level="info" if not mas_config.DEBUG else "debug"
     )
 
 

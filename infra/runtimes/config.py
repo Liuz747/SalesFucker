@@ -9,7 +9,7 @@ from pathlib import Path
 
 from infra.runtimes.entities import Provider, Model, ProviderType, ModelType
 from utils.yaml_loader import load_yaml_file
-from config import settings
+from config import mas_config
 
 class LLMConfig:
     """LLM配置管理器"""
@@ -33,9 +33,9 @@ class LLMConfig:
         providers = []
         
         api_keys = {
-            'openai': settings.OPENAI_API_KEY,
-            'anthropic': settings.ANTHROPIC_API_KEY,
-            'gemini': settings.GOOGLE_API_KEY,
+            'openai': mas_config.OPENAI_API_KEY,
+            'anthropic': mas_config.ANTHROPIC_API_KEY,
+            'gemini': mas_config.GOOGLE_API_KEY,
         }
         
         for provider_config in yaml_content:

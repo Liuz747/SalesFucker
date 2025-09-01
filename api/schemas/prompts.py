@@ -10,6 +10,7 @@
 - PromptTestRequest: 提示词测试请求
 - PromptLibraryItem: 提示词库项目
 """
+from typing import Any, Dict, Generic, List, Optional, TypeVar
 
 from datetime import datetime
 from enum import Enum
@@ -303,6 +304,8 @@ class PromptLibrarySearchRequest(BaseRequest):
     search_text: Optional[str] = Field(None, description="搜索关键词")
     sort_by: str = Field(default="rating", description="排序字段")
     sort_order: str = Field(default="desc", description="排序方向")
+    page: int = Field(1, ge=1, description="页码，从1开始")
+    page_size: int = Field(20, ge=1, le=100, description="每页大小，最大100")
 
 
 # 响应模型
@@ -328,15 +331,18 @@ class PromptTestResponse(SuccessResponse[Dict[str, Any]]):
     performance_metrics: Dict[str, Any] = Field(description="性能指标")
 
 
-class PromptLibraryResponse(PaginatedResponse[List[Dict[str, Any]]]):
+class PromptLibraryResponse(PaginatedResponse[List[PromptLibraryItem]]):
     """提示词库响应"""
 
+    # page: int = Field(description="分页信息")
+    # page_size: int = Field(description="分页信息")
+    # pages: int = Field(description="分页信息")
     items: List[PromptLibraryItem] = Field(description="提示词库项目列表")
     categories: Dict[str, int] = Field(description="分类统计")
     languages: Dict[str, int] = Field(description="语言统计")
 
 
-class PromptValidationResponse(SuccessResponse[Dict[str, Any]]):
+class PromptValidationResponse(BaseResponse):
     """提示词验证响应"""
 
     is_valid: bool = Field(description="是否有效")

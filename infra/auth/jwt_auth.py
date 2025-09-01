@@ -17,7 +17,7 @@ from typing import Optional, List, Dict, Any
 from fastapi import HTTPException, Header, Depends
 from pydantic import BaseModel, Field
 
-from config import settings
+from config import mas_config
 from utils import get_component_logger, get_current_datetime, from_timestamp
 from .key_manager import key_manager
 
@@ -93,7 +93,7 @@ async def verify_service_token(token: str) -> VerificationResult:
     """
     try:
         # 配置检查
-        if not settings.APP_KEY:
+        if not mas_config.APP_KEY:
             return VerificationResult(
                 is_valid=False,
                 error_code="SERVICE_AUTH_NOT_CONFIGURED",
@@ -102,13 +102,13 @@ async def verify_service_token(token: str) -> VerificationResult:
             )
         
         # 获取公钥用于验证
-        public_key = key_manager.get_public_key(settings.APP_KEY)
+        public_key = key_manager.get_public_key(mas_config.APP_KEY)
         if not public_key:
             return VerificationResult(
                 is_valid=False,
                 error_code="SERVICE_KEY_NOT_FOUND",
                 error_message="服务密钥对未找到或已过期",
-                verification_details={"app_key": settings.APP_KEY}
+                verification_details={"app_key": mas_config.APP_KEY}
             )
         
         # 验证JWT签名和声明
@@ -117,8 +117,8 @@ async def verify_service_token(token: str) -> VerificationResult:
                 token,
                 public_key,
                 algorithms=["RS256"],
-                issuer=settings.APP_JWT_ISSUER,
-                audience=settings.APP_JWT_AUDIENCE,
+                issuer=mas_config.APP_JWT_ISSUER,
+                audience=mas_config.APP_JWT_AUDIENCE,
                 options={
                     "require": ["exp", "iat", "iss", "aud", "sub", "jti"],
                     "verify_exp": True,

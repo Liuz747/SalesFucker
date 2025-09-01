@@ -13,7 +13,7 @@ from typing import List, Optional, Dict, Any
 import jwt
 from fastapi import APIRouter, Header, HTTPException, status, Depends
 
-from config import settings
+from config import mas_config
 from utils import get_current_datetime, to_isoformat
 from infra.auth.jwt_auth import get_service_context, require_service_scopes
 from infra.auth.jwt_auth import ServiceContext
@@ -29,7 +29,7 @@ async def issue_service_token(
     payload: Optional[Dict[str, Any]] = None,
 ):
     # 配置检查
-    if not settings.APP_KEY:
+    if not mas_config.APP_KEY:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail={
@@ -39,7 +39,7 @@ async def issue_service_token(
         )
 
     # App-Key 校验
-    if x_app_key != settings.APP_KEY:
+    if x_app_key != mas_config.APP_KEY:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail={"error": "INVALID_APP_KEY", "message": "无效或缺失 App-Key"},
@@ -52,14 +52,14 @@ async def issue_service_token(
 
     # 生成JWT声明
     now = get_current_datetime()
-    exp = now + timedelta(seconds=settings.APP_TOKEN_TTL)
+    exp = now + timedelta(seconds=mas_config.APP_TOKEN_TTL)
     body_scopes: List[str] = []
     if payload and isinstance(payload, dict):
         body_scopes = list(payload.get("scopes", []))
 
     claims = {
-        "iss": settings.APP_JWT_ISSUER,
-        "aud": settings.APP_JWT_AUDIENCE,
+        "iss": mas_config.APP_JWT_ISSUER,
+        "aud": mas_config.APP_JWT_AUDIENCE,
         "sub": "backend-service",
         "scope": body_scopes or ["backend:admin"],
         "iat": int(now.timestamp()),
@@ -79,7 +79,7 @@ async def issue_service_token(
     return {
         "access_token": token,
         "token_type": "bearer",
-        "expires_in": settings.APP_TOKEN_TTL,
+        "expires_in": mas_config.APP_TOKEN_TTL,
         "issued_at": to_isoformat(now),
         "scopes": claims["scope"],
     }

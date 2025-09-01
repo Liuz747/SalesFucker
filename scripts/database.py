@@ -72,13 +72,42 @@ async def revision(message: str):
         logger.error(f"❌ 迁移文件生成失败: {e}")
         return False
 
+def run_downgrade(connection, cfg, revision):
+    """在给定连接上运行数据库回滚"""
+    cfg.attributes["connection"] = connection
+    command.downgrade(cfg, revision)
+
+async def downgrade(revision: str = "-1"):
+    """回滚数据库迁移"""
+    try:
+        logger.info(f"回滚数据库迁移到版本: {revision}")
+
+        # Test connection first
+        if not await test_db_connection():
+            raise Exception("数据库连接失败")
+
+        engine = await get_engine()
+        cfg = Config("migrations/alembic.ini")
+        
+        async with engine.begin() as conn:
+            await conn.run_sync(run_downgrade, cfg, revision)
+
+        return True
+
+    except Exception as e:
+        logger.error(f"❌ 数据库回滚失败: {e}")
+        return False
+
 async def main():
     if len(sys.argv) > 1:
         if sys.argv[1] == "revision":
             message = sys.argv[2] if len(sys.argv) > 2 else "Auto-generated migration"
             flag = await revision(message)
+        elif sys.argv[1] == "downgrade":
+            message = sys.argv[2] if len(sys.argv) > 2 else "-1"
+            flag = await downgrade(message)
         else:
-            logger.error("未知命令，支持: revision <message>")
+            logger.error("未知命令，支持: revision <message>, downgrade [revision]")
             flag = False
     else:
         # 默认运行迁移

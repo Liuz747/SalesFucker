@@ -37,6 +37,6 @@ class ThreadOrm(Base):
     thread_id = Column(String(100), primary_key=True, index=True)
     assistant_id = Column(String(100), nullable=False, index=True)
     tenant_id = Column(String(100), nullable=False, index=True)
-    status = Column(SQLEnum(ConversationStatus), default=ConversationStatus.ACTIVE, nullable=False, index=True)
+    status = Column(SQLEnum(ConversationStatus, name='conversationstatus'), default=ConversationStatus.ACTIVE, nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

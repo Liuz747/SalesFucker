@@ -7,11 +7,28 @@
 - 统一日志器命名规范
 - 组件日志器创建
 - 日志混入类
+- 全局日志配置管理
 """
 
 import logging
 from typing import Optional
 
+from config import mas_config
+
+def configure_logging():
+    """
+    配置全局日志系统
+    
+    应该在应用启动时调用一次（在main.py的lifespan函数中）
+    
+    返回:
+        str: 当前日志级别
+    """
+    # 配置根日志器
+    logging.basicConfig(
+        level=mas_config.LOG_LEVEL,
+        format='%(levelname)s:     %(asctime)s - %(name)s - Line %(lineno)d - %(message)s'
+    )
 
 def get_component_logger(component_name: str, identifier: Optional[str] = None) -> logging.Logger:
     """
@@ -27,23 +44,11 @@ def get_component_logger(component_name: str, identifier: Optional[str] = None) 
         logging.Logger: 配置好的日志器
     """
     if identifier:
-        logger_name = f"{component_name}.{identifier}"
+        logger_name = f"{component_name}"
     else:
         logger_name = component_name
     
-    l = logging.getLogger(logger_name)
-    # 创建handler，设置级别为debug
-    handler = logging.StreamHandler()
-    handler.setLevel(logging.DEBUG)
-
-    # 创建formatter并添加到handler中
-    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - Line %(lineno)d - %(message)s')
-    handler.setFormatter(formatter)
-
-    # 将handler添加到logger中
-    l.addHandler(handler)
-
-    return l
+    return logging.getLogger(logger_name)
 
 
 def get_agent_logger(agent_id: str) -> logging.Logger:
@@ -57,20 +62,6 @@ def get_agent_logger(agent_id: str) -> logging.Logger:
         logging.Logger: 智能体日志器
     """
     return get_component_logger("agents", agent_id)
-
-
-def get_tenant_logger(component: str, tenant_id: str) -> logging.Logger:
-    """
-    获取租户组件日志器
-    
-    参数:
-        component: 组件名称
-        tenant_id: 租户ID
-        
-    返回:
-        logging.Logger: 租户组件日志器
-    """
-    return get_component_logger(f"{component}", tenant_id)
 
 
 class LoggerMixin:

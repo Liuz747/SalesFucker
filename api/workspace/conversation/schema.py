@@ -15,7 +15,7 @@ from utils import get_current_datetime
 
 class ThreadMetadata(BaseModel):
     """线程元数据模型"""
-
+    
     tenant_id: str = Field(description="租户标识符", min_length=1, max_length=100)
 
 

@@ -15,7 +15,7 @@
 """
 
 from .time_utils import get_current_datetime, get_processing_time_ms, to_isoformat, from_isoformat, from_timestamp
-from .logger_utils import get_component_logger, LoggerMixin
+from .logger_utils import get_component_logger, LoggerMixin, configure_logging
 from .status_mixin import StatusMixin
 from .error_handling import with_error_handling, with_fallback, ErrorHandler
 from .validation import (
@@ -39,7 +39,8 @@ __all__ = [
     "from_isoformat",
     # 日志工具
     "get_component_logger",
-    "LoggerMixin",
+    "LoggerMixin", 
+    "configure_logging",
     
     # 状态管理
     "StatusMixin",
