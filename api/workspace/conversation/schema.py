@@ -59,7 +59,7 @@ class ThreadCreateRequest(BaseModel):
     """线程创建请求模型"""
     
     thread_id: Optional[UUID4] = Field(None, description="线程标识符")
-    metadata: ThreadMetadata = Field(description="线程元数据，必须包含tenant_id")
+    metadata: Optional[ThreadMetadata] = Field(None, description="线程元数据")
 
 
 class MessageCreateRequest(BaseModel):
@@ -67,4 +67,4 @@ class MessageCreateRequest(BaseModel):
     
     assistant_id: UUID4 = Field(description="助手标识符")
     input: InputContent = Field(description="消息内容列表，包含role和content字段")
-    metadata: ThreadMetadata = Field(description="线程元数据，必须包含tenant_id")
+    metadata: Optional[ThreadMetadata] = Field(None, description="线程元数据")

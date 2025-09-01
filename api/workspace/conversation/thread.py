@@ -12,11 +12,12 @@
 - 客户档案管理集成
 """
 import uuid
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms
 from api.dependencies.orchestrator import get_orchestrator_service
-from .schema import ThreadCreateRequest, MessageCreateRequest, ThreadModel, WorkflowData
+from api.dependencies.request_context import get_request_context
+from .schema import ThreadCreateRequest, MessageCreateRequest, ThreadModel, WorkflowData, ThreadMetadata
 from repositories.thread_repository import get_thread_repository
 
 
@@ -27,7 +28,10 @@ router = APIRouter(prefix="/threads", tags=["conversation-threads"])
 
 
 @router.post("")
-async def create_thread(request: ThreadCreateRequest):
+async def create_thread(
+    request: ThreadCreateRequest,
+    context = Depends(get_request_context)
+):
     """
     创建新的对话线程
     
@@ -37,11 +41,14 @@ async def create_thread(request: ThreadCreateRequest):
     try:
         # 生成线程ID
         thread_id = request.thread_id or str(uuid.uuid4())
+
+        # 从请求上下文获取租户ID
+        tenant_id = context['tenant_id']
         
         # 创建线程数据模型
         thread = ThreadModel(
             thread_id=thread_id,
-            metadata=request.metadata
+            metadata=ThreadMetadata(tenant_id=tenant_id)
         )
         
         # 获取存储库并创建线程
@@ -64,7 +71,10 @@ async def create_thread(request: ThreadCreateRequest):
 
 
 @router.get("/{thread_id}")
-async def get_thread(thread_id: str):
+async def get_thread(
+    thread_id: str,
+    context = Depends(get_request_context)
+):
     """
     获取线程详情
     
@@ -76,8 +86,17 @@ async def get_thread(thread_id: str):
         thread = await repository.get_thread(thread_id)
         
         if not thread:
-            raise HTTPException(status_code=404, detail=f"线程不存在: {thread_id}")
+            raise HTTPException(
+                status_code=404, 
+                detail=f"线程不存在: {thread_id}"
+            )
         
+        if str(thread.metadata.tenant_id) != context['tenant_id']:
+            raise HTTPException(
+                status_code=403, 
+                detail="租户ID不匹配，无法访问此线程"
+            )
+
         return {
             "thread_id": thread.thread_id,
             "metadata": thread.metadata.model_dump(),
@@ -96,7 +115,8 @@ async def get_thread(thread_id: str):
 @router.post("/{thread_id}/runs")
 async def create_run(
     thread_id: str,
-    request: MessageCreateRequest
+    request: MessageCreateRequest,
+    context = Depends(get_request_context)
 ):
     """
     创建运行实例 - 核心工作流端点
@@ -110,14 +130,9 @@ async def create_run(
     3. 返回处理结果和状态信息
     """
     try:
-        logger.info(f"开始运行处理 - 线程: {thread_id}, 租户: {request.metadata.tenant_id}")
-        
-        # 验证租户ID存在
-        if not request.metadata.tenant_id:
-            raise HTTPException(
-                status_code=400,
-                detail="租户ID不能为空"
-            )
+        # 从请求上下文获取租户ID
+        tenant_id = context['tenant_id']
+        logger.info(f"开始运行处理 - 线程: {thread_id}, 租户: {tenant_id}")
         
         # 验证线程存在且处于活跃状态
         repository = await get_thread_repository()
@@ -135,8 +150,8 @@ async def create_run(
                 detail=f"线程状态无效，无法处理运行请求。当前状态: {thread.status}，需要状态: active"
             )
         
-        # 验证租户ID匹配
-        if thread.metadata.tenant_id != request.metadata.tenant_id:
+        # 验证线程租户ID匹配
+        if str(thread.metadata.tenant_id) != tenant_id:
             raise HTTPException(
                 status_code=403,
                 detail="租户ID不匹配，无法访问此线程"
@@ -146,7 +161,7 @@ async def create_run(
         start_time = get_current_datetime()
         
         # 获取租户专用编排器实例
-        orchestrator = get_orchestrator_service(str(request.metadata.tenant_id))
+        orchestrator = get_orchestrator_service(str(tenant_id))
         
         # 使用编排器处理消息 - 这是核心工作流调用
         result = await orchestrator.process_conversation(
@@ -180,7 +195,7 @@ async def create_run(
             "processing_time": processing_time,
             # 元数据
             "metadata": {
-                "tenant_id": str(request.metadata.tenant_id),
+                "tenant_id": str(tenant_id),
                 "assistant_id": str(request.assistant_id)
             }
         }
