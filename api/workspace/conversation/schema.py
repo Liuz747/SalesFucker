@@ -4,7 +4,7 @@
 该模块从业务模型导入必要的架构定义，提供纯数据结构的Thread模型。
 """
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, Any
 
 from pydantic import BaseModel, Field, UUID4
 
@@ -16,21 +16,27 @@ from utils import get_current_datetime
 class InputContent(BaseModel):
     """消息内容模型"""
     
-    role: str = Field(description="消息角色（user/assistant/system）", min_length=1)
+    role: str = Field(description="消息角色（user/assistant/system）")
     content: str = Field(description="消息内容", min_length=1)
 
 
 class ThreadMetadata(BaseModel):
     """线程元数据模型"""
     
-    tenant_id: str = Field(description="租户标识符", min_length=1, max_length=100)
+    tenant_id: UUID4 = Field(description="租户标识符")
 
+
+class WorkflowData(BaseModel):
+    """工作流数据模型"""
+    
+    type: str = Field(description="工作流数据类型")
+    content: Any = Field(description="工作流数据内容")
 
 class ThreadModel(BaseModel):
     """对话线程数据模型"""
     
-    thread_id: str = Field(description="线程标识符")
-    assistant_id: str = Field(description="助手标识符")
+    thread_id: UUID4 = Field(description="线程标识符")
+    assistant_id: Optional[UUID4] = Field(None, description="助手标识符")
     status: ConversationStatus = Field(default=ConversationStatus.ACTIVE, description="线程状态")
     created_at: datetime = Field(default_factory=get_current_datetime, description="创建时间")
     updated_at: datetime = Field(default_factory=get_current_datetime, description="更新时间")
@@ -52,7 +58,7 @@ class ThreadModel(BaseModel):
 class ThreadCreateRequest(BaseModel):
     """线程创建请求模型"""
     
-    thread_id: Optional[str] = Field(None, description="线程标识符", min_length=1, max_length=100)
+    thread_id: Optional[UUID4] = Field(None, description="线程标识符")
     metadata: ThreadMetadata = Field(description="线程元数据，必须包含tenant_id")
 
 
@@ -60,5 +66,5 @@ class MessageCreateRequest(BaseModel):
     """消息创建请求模型"""
     
     assistant_id: UUID4 = Field(description="助手标识符")
-    input: List[InputContent] = Field(description="消息内容列表，包含role和content字段", min_length=1)
+    input: InputContent = Field(description="消息内容列表，包含role和content字段")
     metadata: ThreadMetadata = Field(description="线程元数据，必须包含tenant_id")

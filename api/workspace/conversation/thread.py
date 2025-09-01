@@ -16,7 +16,7 @@ from fastapi import APIRouter, HTTPException
 
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms
 from api.dependencies.orchestrator import get_orchestrator_service
-from .schema import ThreadCreateRequest, MessageCreateRequest, ThreadModel
+from .schema import ThreadCreateRequest, MessageCreateRequest, ThreadModel, WorkflowData
 from repositories.thread_repository import get_thread_repository
 
 
@@ -41,7 +41,6 @@ async def create_thread(request: ThreadCreateRequest):
         # 创建线程数据模型
         thread = ThreadModel(
             thread_id=thread_id,
-            assistant_id=request.assistant_id,
             metadata=request.metadata
         )
         
@@ -120,62 +119,69 @@ async def create_run(
                 detail="租户ID不能为空"
             )
         
-        # 获取租户专用编排器实例
-        orchestrator = get_orchestrator_service(request.metadata.tenant_id)
+        # 验证线程存在且处于活跃状态
+        repository = await get_thread_repository()
+        thread = await repository.get_thread(thread_id)
+        
+        if not thread:
+            raise HTTPException(
+                status_code=404,
+                detail=f"线程不存在: {thread_id}"
+            )
+        
+        if thread.status != "active":
+            raise HTTPException(
+                status_code=400,
+                detail=f"线程状态无效，无法处理运行请求。当前状态: {thread.status}，需要状态: active"
+            )
+        
+        # 验证租户ID匹配
+        if thread.metadata.tenant_id != request.metadata.tenant_id:
+            raise HTTPException(
+                status_code=403,
+                detail="租户ID不匹配，无法访问此线程"
+            )
         
         # 调用编排器处理对话
         start_time = get_current_datetime()
         
+        # 获取租户专用编排器实例
+        orchestrator = get_orchestrator_service(str(request.metadata.tenant_id))
+        
         # 使用编排器处理消息 - 这是核心工作流调用
         result = await orchestrator.process_conversation(
-            customer_input=request.message,
+            customer_input=request.input.content,
             customer_id=None,  # 客户ID可以从其他地方获取，暂时设为None
             input_type="text"
         )
+
+        workflow_data = []
+        for agent_type, agent_response in result.agent_responses.items():
+            workflow_data.append(
+                WorkflowData(
+                    type=agent_type,
+                    content=agent_response
+                )
+            )
         
         processing_time = get_processing_time_ms(start_time)
         
         # 生成运行ID
-        run_id = f"run_{request.metadata.tenant_id}_{uuid.uuid4().hex[:8]}"
+        workflow_id = uuid.uuid4()
         
-        logger.info(f"运行处理完成 - 线程: {thread_id}, 运行: {run_id}, 耗时: {processing_time:.2f}ms")
+        logger.info(f"运行处理完成 - 线程: {thread_id}, 运行: {workflow_id}, 耗时: {processing_time:.2f}ms")
         
         # 返回标准化响应
         return {
-            "success": True,
-            "message": "运行创建成功",
-            "data": {
-                "run_id": run_id,
-                "thread_id": thread_id,
-                "processing_time_ms": processing_time
-            },
-            
-            # 核心运行信息
-            "run_id": run_id,
+            "id": workflow_id,
             "thread_id": thread_id,
-            "assistant_id": request.assistant_id,
-            "status": "completed" if result.processing_complete else "failed",
+            "data": workflow_data,
             "created_at": start_time,
-            
-            # 工作流结果
-            "response": result.final_response or "系统处理完成",
-            "processing_complete": result.processing_complete,
-            "processing_time_ms": processing_time,
-            
-            # 智能体响应详情
-            "agent_responses": result.agent_responses,
-            "agents_involved": len(result.agent_responses),
-            
-            # 状态和错误处理
-            "error_state": result.error_state,
-            "human_escalation": result.human_escalation,
-            "escalation_reason": getattr(result, 'escalation_reason', None),
-            
+            "processing_time": processing_time,
             # 元数据
             "metadata": {
-                "tenant_id": request.metadata.tenant_id,
-                "input_type": "text",
-                "workflow_version": "v1.0"
+                "tenant_id": str(request.metadata.tenant_id),
+                "assistant_id": str(request.assistant_id)
             }
         }
         

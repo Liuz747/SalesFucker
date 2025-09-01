@@ -72,7 +72,7 @@ class ThreadService:
     @staticmethod
     async def save(config: ThreadModel):
         """
-        保存线程配置（创建或更新）
+        保存线程配置
         
         参数:
             config: 线程配置
@@ -83,6 +83,7 @@ class ThreadService:
         try:
             async with database_session() as session:
                 # 创建新线程
+                # TODO: 需要添加thread_id的唯一性校验，upsert语句
                 new_thread = ThreadOrm(
                     thread_id=config.thread_id,
                     assistant_id=config.assistant_id,
