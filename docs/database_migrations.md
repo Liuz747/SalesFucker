@@ -188,7 +188,7 @@ prepend_sys_path = .
 ### 环境配置 (`migrations/env.py`)
 
 **关键特性：**
-- 自动读取 `settings.postgres_url` 环境变量
+- 自动读取 `mas_config.postgres_url` 环境变量
 - 支持异步 PostgreSQL 连接
 - 自动发现所有继承自 `Base` 的模型
 - 优雅的连接管理和清理
@@ -207,7 +207,6 @@ POSTGRES_PWD=your-password
 
 **连接字符串自动生成：**
 ```python
-# config/settings.py
 postgres_url = f"postgresql+asyncpg://{POSTGRES_USER}:{POSTGRES_PWD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 ```
 
