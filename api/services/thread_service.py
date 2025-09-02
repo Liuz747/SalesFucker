@@ -14,7 +14,7 @@ from typing import Optional, List
 from sqlalchemy import select, update
 
 from models import ThreadOrm
-from controller.workspace.conversation.schema import ThreadModel
+from controllers.workspace.conversation.schema import ThreadModel
 from infra.db.connection import database_session
 from utils import get_component_logger
 
