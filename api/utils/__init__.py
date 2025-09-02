@@ -30,6 +30,7 @@ from .response_parser import (
     parse_sentiment_response,
     parse_intent_response
 )
+from .external_client import ExternalClient
 
 __all__ = [
     # 时间工具
@@ -60,5 +61,8 @@ __all__ = [
     "parse_structured_response",
     "parse_compliance_response",
     "parse_sentiment_response",
-    "parse_intent_response"
+    "parse_intent_response",
+    
+    # 外部HTTP请求工具
+    "ExternalClient"
 ] 

@@ -27,7 +27,7 @@ from ..schemas.agents import (
     AgentOperationResponse
 )
 from ..schemas.requests import PaginationRequest
-from controller.exceptions import (
+from controllers.exceptions import (
     AgentNotFoundException,
     AgentUnavailableException
 )

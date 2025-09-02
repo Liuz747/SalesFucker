@@ -10,7 +10,7 @@ import asyncio
 import time
 from unittest.mock import AsyncMock, patch, MagicMock
 
-from controller.workspace.conversation.schema import ThreadModel, ThreadMetadata
+from controllers.workspace.conversation.schema import ThreadModel, ThreadMetadata
 from repositories.thread_repository import ThreadRepository, get_thread_repository
 
 

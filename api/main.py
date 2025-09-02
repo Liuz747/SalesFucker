@@ -18,7 +18,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from controller.middleware import (
+from controllers.middleware import (
     SafetyInterceptor,
     TenantIsolation,
     JWTMiddleware
@@ -29,14 +29,14 @@ from legacy_api.endpoints import (
     assistants_router,
     prompts_router,
 )
-from controller import (
+from controllers import (
     auth_router,
     conversations_router,
     completion_router,
     health_router,
     tenant_router,
 )
-from controller.exceptions import APIException
+from controllers.exceptions import APIException
 from config import mas_config
 from utils import get_component_logger, configure_logging
 from repositories.thread_repository import get_thread_repository
