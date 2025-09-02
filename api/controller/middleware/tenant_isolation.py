@@ -109,7 +109,7 @@ class TenantIsolation(BaseHTTPMiddleware):
         支持多种提取方式：
         1. Header: X-Tenant-ID
         2. Query参数: tenant_id
-        3. 路径参数: /tenant/{tenant_id}/...
+        3. 路径参数: /tenants/{tenant_id}/...
         
         参数:
             request: HTTP请求
@@ -129,9 +129,9 @@ class TenantIsolation(BaseHTTPMiddleware):
         
         # 方式3: 从路径参数获取
         path_parts = request.url.path.split("/")
-        if "tenant" in path_parts:
+        if "tenants" in path_parts:
             try:
-                tenant_index = path_parts.index("tenant")
+                tenant_index = path_parts.index("tenants")
                 if tenant_index + 1 < len(path_parts):
                     return path_parts[tenant_index + 1]
             except (ValueError, IndexError):
@@ -196,7 +196,7 @@ class TenantIsolation(BaseHTTPMiddleware):
             content={
                 "error": {
                     "code": "TENANT_ACCESS_DENIED",
-                    "message": f"租户 {tenant_id} 访问被拒绝",
+                    "message": f"访问拒绝，租户 {tenant_id} 不存在，或已被禁用",
                     "details": {"tenant_id": tenant_id}
                 }
             }
