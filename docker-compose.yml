@@ -7,10 +7,6 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - MILVUS_HOST=${MILVUS_HOST}
-      - MILVUS_PORT=${MILVUS_PORT}
-      - ELASTICSEARCH_URL=${ELASTICSEARCH_URL}
-      - REDIS_URL=${REDIS_URL}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
       - DB_HOST=${DB_HOST}
       - DB_PORT=${DB_PORT}
@@ -134,6 +130,7 @@ volumes:
   minio_data:
   milvus_data:
   redis_data:
+  clickhouse_data:
 
 networks:
   mas-network:
