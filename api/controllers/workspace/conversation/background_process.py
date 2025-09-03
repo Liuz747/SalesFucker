@@ -191,13 +191,3 @@ class BackgroundWorkflowProcessor:
                 run_status.completed_at = get_current_datetime()
                 run_status.error_message = error_msg
                 self.update_run_status(run_status)
-
-# 全局背景处理器实例
-_background_processor = None
-
-def get_background_processor() -> BackgroundWorkflowProcessor:
-    """获取背景处理器实例"""
-    global _background_processor
-    if _background_processor is None:
-        _background_processor = BackgroundWorkflowProcessor()
-    return _background_processor

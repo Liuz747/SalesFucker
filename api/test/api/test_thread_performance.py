@@ -11,7 +11,7 @@ import time
 from unittest.mock import AsyncMock, patch, MagicMock
 
 from controllers.workspace.conversation.schema import ThreadModel, ThreadMetadata
-from repositories.thread_repository import ThreadRepository, get_thread_repository
+from repositories.thread_repository import ThreadRepository
 
 
 class TestThreadPerformance:

@@ -161,17 +161,3 @@ class ThreadRepository:
         
         self.logger.info("线程存储库已清理")
 
-
-# 全局单例实例
-_thread_repository: Optional[ThreadRepository] = None
-
-
-async def get_thread_repository() -> ThreadRepository:
-    """获取线程存储库单例实例"""
-    global _thread_repository
-    
-    if _thread_repository is None:
-        _thread_repository = ThreadRepository()
-        await _thread_repository.initialize()
-    
-    return _thread_repository
