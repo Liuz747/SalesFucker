@@ -34,9 +34,14 @@ class LLMConfig(BaseSettings):
         default="",
     )
 
+    OPENROUTER_API_KEY: str = Field(
+        description="OpenRouter API 密钥，用于访问 OpenRouter 系列模型",
+        default="",
+    )
+
     # 多LLM 系统配置
     DEFAULT_LLM_PROVIDER: str = Field(
-        description="默认 LLM 提供商（openai, anthropic, google, deepseek）",
+        description="默认 LLM 提供商",
         default="openai",
     )
 
