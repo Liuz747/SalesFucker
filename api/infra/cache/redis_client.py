@@ -12,10 +12,12 @@ logger = get_component_logger(__name__)
 
 _redis_pool: Optional[ConnectionPool] = None
 
-async def init_redis_pool() -> ConnectionPool:
-    """初始化Redis连接池"""
+async def get_redis_client() -> Redis:
+    """
+    异步获取Redis客户端
+    """
     global _redis_pool
-
+    
     if _redis_pool is None:
         _redis_pool = ConnectionPool.from_url(
             mas_config.redis_url,
@@ -24,18 +26,8 @@ async def init_redis_pool() -> ConnectionPool:
             socket_timeout=mas_config.REDIS_SOCKET_TIMEOUT,
             socket_connect_timeout=mas_config.REDIS_CONNECT_TIMEOUT
         )
-
-        logger.info("Redis连接池初始化成功")
-
-    return _redis_pool
-
-
-async def get_redis_client() -> Redis:
-    """
-    异步获取Redis客户端
-    """
-    pool = await init_redis_pool()
-    return Redis(connection_pool=pool)
+    
+    return Redis(connection_pool=_redis_pool)
 
 
 async def close_redis_client():
@@ -51,21 +43,13 @@ async def close_redis_client():
         logger.info("Redis连接池关闭成功")
 
 
-async def test_redis_connection() -> bool:
-    """
-    测试Redis连接
-    
-    返回:
-        bool: 连接是否成功
-    """
+async def test_redis_connection():
+    """测试Redis连接"""
     try:
         redis_client = await get_redis_client()
         # 使用ping命令测试连接
         pong = await redis_client.ping()
         if pong:
             logger.info("Redis连接测试成功")
-            return True
-        return False
     except Exception as e:
         logger.error(f"Redis连接测试失败: {e}")
-        return False
