@@ -21,8 +21,16 @@ from .schema import (
     ThreadCreateRequest, MessageCreateRequest, ThreadModel, WorkflowData, ThreadMetadata,
     BackgroundRunRequest, BackgroundRunResponse, BackgroundRunStatus
 )
-from .background_process import get_background_processor
-from repositories.thread_repository import get_thread_repository
+from .background_process import BackgroundWorkflowProcessor
+from repositories.thread_repository import ThreadRepository
+
+
+# 依赖注入函数
+async def get_thread_repository() -> ThreadRepository:
+    """获取线程存储库依赖"""
+    repository = ThreadRepository()
+    await repository.initialize()
+    return repository
 
 
 logger = get_component_logger(__name__, "ConversationRouter")
@@ -34,7 +42,8 @@ router = APIRouter(prefix="/threads", tags=["conversation-threads"])
 @router.post("")
 async def create_thread(
     request: ThreadCreateRequest,
-    context = Depends(get_request_context)
+    context = Depends(get_request_context),
+    repository = Depends(get_thread_repository)
 ):
     """
     创建新的对话线程
@@ -55,8 +64,7 @@ async def create_thread(
             metadata=ThreadMetadata(tenant_id=tenant_id)
         )
         
-        # 获取存储库并创建线程
-        repository = await get_thread_repository()
+        # 使用依赖注入的存储库创建线程
         created_thread = await repository.create_thread(thread)
         
         return {
@@ -77,7 +85,8 @@ async def create_thread(
 @router.get("/{thread_id}")
 async def get_thread(
     thread_id: str,
-    context = Depends(get_request_context)
+    context = Depends(get_request_context),
+    repository = Depends(get_thread_repository)
 ):
     """
     获取线程详情
@@ -85,8 +94,7 @@ async def get_thread(
     从数据库获取线程配置信息。
     """
     try:
-        # 从存储库获取线程
-        repository = await get_thread_repository()
+        # 使用依赖注入的存储库获取线程
         thread = await repository.get_thread(thread_id)
         
         if not thread:
@@ -120,7 +128,8 @@ async def get_thread(
 async def create_run(
     thread_id: str,
     request: MessageCreateRequest,
-    context = Depends(get_request_context)
+    context = Depends(get_request_context),
+    repository = Depends(get_thread_repository)
 ):
     """
     创建运行实例 - 核心工作流端点
@@ -137,9 +146,8 @@ async def create_run(
         # 从请求上下文获取租户ID
         tenant_id = context['tenant_id']
         logger.info(f"开始运行处理 - 线程: {thread_id}, 租户: {tenant_id}")
-        
-        # 验证线程存在且处于活跃状态
-        repository = await get_thread_repository()
+
+        # 使用依赖注入的存储库验证线程
         thread = await repository.get_thread(thread_id)
         
         if not thread:
@@ -216,7 +224,8 @@ async def create_background_run(
     thread_id: str,
     request: BackgroundRunRequest,
     background_tasks: BackgroundTasks,
-    context = Depends(get_request_context)
+    context = Depends(get_request_context),
+    repository = Depends(get_thread_repository)
 ):
     """
     创建后台运行实例 - 异步工作流端点
@@ -234,9 +243,8 @@ async def create_background_run(
         # 从请求上下文获取租户ID
         tenant_id = context['tenant_id']
         logger.info(f"开始后台运行处理 - 线程: {thread_id}, 租户: {tenant_id}")
-        
-        # 验证线程存在且处于活跃状态
-        repository = await get_thread_repository()
+
+        # 使用依赖注入的存储库验证线程
         thread = await repository.get_thread(thread_id)
         
         if not thread:
@@ -273,7 +281,7 @@ async def create_background_run(
         )
         
         # 获取后台处理器并存储初始状态
-        processor = get_background_processor()
+        processor = BackgroundWorkflowProcessor()
         processor.update_run_status(run_status)
         
         # 添加后台任务
@@ -312,7 +320,8 @@ async def create_background_run(
 async def get_run_status(
     thread_id: str,
     run_id: str,
-    context = Depends(get_request_context)
+    context = Depends(get_request_context),
+    repository = Depends(get_thread_repository)
 ):
     """
     获取后台运行状态
@@ -322,9 +331,8 @@ async def get_run_status(
     try:
         # 从请求上下文获取租户ID
         tenant_id = context['tenant_id']
-        
-        # 验证线程存在且租户匹配
-        repository = await get_thread_repository()
+
+        # 使用依赖注入的存储库验证线程
         thread = await repository.get_thread(thread_id)
         
         if not thread:
@@ -340,7 +348,7 @@ async def get_run_status(
             )
         
         # 获取运行状态
-        processor = get_background_processor()
+        processor = BackgroundWorkflowProcessor()
         run_status = processor.get_run_status(run_id)
         
         if not run_status:

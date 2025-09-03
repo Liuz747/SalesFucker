@@ -43,6 +43,8 @@ class ThreadRepository:
         """初始化存储库"""
         try:
             self._redis_client = await get_redis_client()
+            # 测试Redis连接
+            await self._redis_client.ping()
             self.logger.info("Redis连接初始化完成")
         except Exception as e:
             self.logger.error(f"Redis连接初始化失败: {e}")
@@ -159,17 +161,3 @@ class ThreadRepository:
         
         self.logger.info("线程存储库已清理")
 
-
-# 全局单例实例
-_thread_repository: Optional[ThreadRepository] = None
-
-
-async def get_thread_repository() -> ThreadRepository:
-    """获取线程存储库单例实例"""
-    global _thread_repository
-    
-    if _thread_repository is None:
-        _thread_repository = ThreadRepository()
-        await _thread_repository.initialize()
-    
-    return _thread_repository

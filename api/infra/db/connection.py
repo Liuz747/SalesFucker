@@ -51,7 +51,7 @@ async def get_engine() -> AsyncEngine:
                     "application_name": mas_config.APP_NAME,
                 }
             },
-            echo=mas_config.DEBUG,
+            echo=mas_config.SQLALCHEMY_ECHO,
         )
         
         logger.info("PostgreSQL引擎初始化完成")
