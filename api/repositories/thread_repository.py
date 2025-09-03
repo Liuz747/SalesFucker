@@ -43,6 +43,8 @@ class ThreadRepository:
         """初始化存储库"""
         try:
             self._redis_client = await get_redis_client()
+            # 测试Redis连接
+            await self._redis_client.ping()
             self.logger.info("Redis连接初始化完成")
         except Exception as e:
             self.logger.error(f"Redis连接初始化失败: {e}")

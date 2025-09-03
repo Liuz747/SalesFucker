@@ -38,7 +38,7 @@ services:
       CLICKHOUSE_USER: ${CLICKHOUSE_USER:-clickhouse}
       CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-clickhouse}
       CLICKHOUSE_CLUSTER_ENABLED: ${CLICKHOUSE_CLUSTER_ENABLED:-false}
-      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: ${LANGFUSE_S3_EVENT_UPLOAD_BUCKET:-langfuse}
+      LANGFUSE_S3_EVENT_UPLOAD_BUCKET: ${LANGFUSE_S3_EVENT_UPLOAD_BUCKET:-huanmu}
       LANGFUSE_S3_EVENT_UPLOAD_REGION: ${LANGFUSE_S3_EVENT_UPLOAD_REGION:-us-east-1}
       LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID: ${LANGFUSE_S3_EVENT_UPLOAD_ACCESS_KEY_ID:-minio}
       LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY: ${LANGFUSE_S3_EVENT_UPLOAD_SECRET_ACCESS_KEY:-miniosecret}
@@ -47,7 +47,7 @@ services:
       LANGFUSE_S3_EVENT_UPLOAD_PREFIX: ${LANGFUSE_S3_EVENT_UPLOAD_PREFIX:-events/}
       REDIS_HOST: ${REDIS_HOST:-redis}
       REDIS_PORT: ${REDIS_PORT:-6379}
-      REDIS_AUTH: ${REDIS_AUTH:-myredissecret}
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-myredissecret}
       REDIS_TLS_ENABLED: ${REDIS_TLS_ENABLED:-false}
       REDIS_TLS_CA: ${REDIS_TLS_CA:-/certs/ca.crt}
       REDIS_TLS_CERT: ${REDIS_TLS_CERT:-/certs/redis.crt}
@@ -100,8 +100,8 @@ services:
   minio:
     image: docker.io/minio/minio
     entrypoint: sh
-    # create the 'langfuse' bucket before starting the service
-    command: -c 'mkdir -p /data/langfuse && minio server --address ":9000" --console-address ":9001" /data'
+    # create the 'huanmu' bucket before starting the service
+    command: -c 'mkdir -p /data/huanmu && minio server --address ":9000" --console-address ":9001" /data'
     environment:
       MINIO_ROOT_USER: minio
       MINIO_ROOT_PASSWORD: miniosecret
@@ -121,7 +121,7 @@ services:
     image: docker.io/redis:7
     restart: always
     command: >
-      --requirepass ${REDIS_AUTH:-myredissecret}
+      --requirepass ${REDIS_PASSWORD:-myredissecret}
     ports:
       - 6379:6379
     healthcheck:

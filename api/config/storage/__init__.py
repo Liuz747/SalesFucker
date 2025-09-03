@@ -63,6 +63,11 @@ class DatabaseConfig(BaseSettings):
         default=30,
     )
 
+    SQLALCHEMY_ECHO: bool = Field(
+        description="PostgreSQL 数据库是否打印SQL语句",
+        default=False,
+    )
+
     # Elasticsearch 配置
     ELASTICSEARCH_URL: str = Field(
         description="Elasticsearch 服务器连接地址，用于存储对话历史和客户记忆",

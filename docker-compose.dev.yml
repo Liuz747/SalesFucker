@@ -1,0 +1,75 @@
+services:
+  postgres:
+    image: postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-mas}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PWD:-your-secure-password-here}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - mas-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${DB_NAME:-mas}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+  
+  redis:
+    image: redis
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD:-myredissecret}
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    command: --requirepass ${REDIS_PASSWORD:-myredissecret}
+    restart: always
+
+  clickhouse:
+    image: clickhouse/clickhouse-server
+    user: "101:101"
+    environment:
+      CLICKHOUSE_DB: ${CLICKHOUSE_DB:-mas}
+      CLICKHOUSE_USER: ${CLICKHOUSE_USER:-clickhouse}
+      CLICKHOUSE_PASSWORD: ${CLICKHOUSE_PASSWORD:-clickhouse}
+    ports:
+      - "${CLICKHOUSE_PORT:-8123}:8123"
+      - "9000:9000"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8123/ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  minio:
+    image: minio/minio
+    command: ["sh", "-c", "mkdir -p /data/huanmu && minio server --address :9000 --console-address :9001 /data"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-minio}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PWD:-miniosecret}
+    ports:
+      - "${MINIO_API_PORT:-9050}:9000"
+      - "${MINIO_CONSOLE_PORT:-9051}:9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+volumes:
+  redis_data:
+  postgres_data:
+  clickhouse_data:
+  minio_data:
