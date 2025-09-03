@@ -36,6 +36,7 @@ class LLMConfig:
             'openai': mas_config.OPENAI_API_KEY,
             'anthropic': mas_config.ANTHROPIC_API_KEY,
             'gemini': mas_config.GOOGLE_API_KEY,
+            'openrouter': mas_config.OPENROUTER_API_KEY,
         }
         
         for provider_config in yaml_content:

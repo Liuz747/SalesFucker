@@ -7,7 +7,7 @@ LLM客户端
 
 from typing import Dict
 
-from infra.runtimes.providers import OpenAIProvider, AnthropicProvider, BaseProvider
+from infra.runtimes.providers import OpenAIProvider, AnthropicProvider, OpenRouterProvider, BaseProvider
 from infra.runtimes.entities import LLMRequest, LLMResponse, ProviderType
 # from infra.runtimes.routing import SimpleRouter
 from infra.runtimes.config import LLMConfig
@@ -37,6 +37,8 @@ class LLMClient:
                     self.active_providers[provider.id] = AnthropicProvider(provider)
                 elif provider.type == ProviderType.GEMINI:
                     pass
+                elif provider.type == ProviderType.OPENROUTER:
+                    self.active_providers[provider.id] = OpenRouterProvider(provider)
                 else:
                     raise Exception(f"不支持的供应商类型: {provider.type}")
 

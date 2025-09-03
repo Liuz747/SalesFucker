@@ -15,7 +15,7 @@ LLM运行时模块
 from .client import LLMClient
 from .config import LLMConfig
 from .routing import SimpleRouter
-from .providers import OpenAIProvider, AnthropicProvider, BaseProvider
+from .providers import OpenAIProvider, AnthropicProvider, OpenRouterProvider, BaseProvider
 from .entities import LLMRequest, LLMResponse, ProviderType
 
 __all__ = [
@@ -24,6 +24,7 @@ __all__ = [
     "SimpleRouter",
     "OpenAIProvider",
     "AnthropicProvider",
+    "OpenRouterProvider",
     "BaseProvider",
     "LLMRequest",
     "LLMResponse",

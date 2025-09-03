@@ -8,6 +8,7 @@ class ProviderType(StrEnum):
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     GEMINI = "gemini"
+    OPENROUTER = "openrouter"
 
 @dataclass
 class Provider:
