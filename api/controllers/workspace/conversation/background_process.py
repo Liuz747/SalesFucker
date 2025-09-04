@@ -14,6 +14,7 @@
 import uuid
 from typing import Optional
 
+from config import mas_config
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms, ExternalClient
 from controllers.dependencies import get_orchestrator_service
 from repositories.thread_repository import ThreadRepository
@@ -31,12 +32,15 @@ class BackgroundWorkflowProcessor:
         """初始化后台处理器"""
         self.client = ExternalClient()
         self.repository = repository
+        
+        # 回调端点路径
+        self.callback_endpoint = "/api"
     
     async def send_callback(
         self,
         callback_url: str,
         payload: CallbackPayload
-    ) -> tuple[bool, Optional[str]]:
+    ) -> bool:
         """
         发送回调到用户后端API
         
@@ -45,7 +49,7 @@ class BackgroundWorkflowProcessor:
             payload: 回调载荷数据
             
         返回:
-            tuple[bool, Optional[str]]: (是否成功, 错误信息)
+            bool: 是否发送成功
         """
         try:
             # 使用 ExternalClient 发送回调
@@ -59,12 +63,11 @@ class BackgroundWorkflowProcessor:
             )
             
             logger.info(f"回调成功发送到: {callback_url}")
-            return True, None
+            return True
                         
         except Exception as e:
-            error_msg = f"回调发送异常: {str(e)}"
-            logger.error(error_msg)
-            return False, error_msg
+            logger.error(f"回调发送异常: {callback_url}, 错误: {str(e)}")
+            return False
     
     async def process_workflow_background(
         self,
@@ -72,7 +75,6 @@ class BackgroundWorkflowProcessor:
         thread_id: str,
         input: InputContent,
         assistant_id: str,
-        callback_url: Optional[str] = None,
         customer_id: Optional[str] = None,
         input_type: str = "text"
     ):
@@ -85,6 +87,7 @@ class BackgroundWorkflowProcessor:
             # 获取线程并更新状态为处理中
             thread = await self.repository.get_thread(thread_id)
             if thread:
+                thread.assistant_id = assistant_id
                 thread.status = ConversationStatus.PROCESSING
                 await self.repository.update_thread(thread)
                 logger.debug(f"线程状态更新为处理中: {thread_id}")
@@ -121,27 +124,25 @@ class BackgroundWorkflowProcessor:
 
             logger.info(f"工作流处理完成 - 运行: {run_id}, 耗时: {processing_time:.2f}ms")
 
-            # 如果有回调URL，发送回调
-            if callback_url:
-                payload = CallbackPayload(
-                    run_id=uuid.UUID(run_id),
-                    thread_id=uuid.UUID(thread_id),
-                    status=ConversationStatus.COMPLETED,
-                    data=workflow_data,
-                    processing_time=processing_time,
-                    completed_at=completed_at,
-                    metadata={
-                        "tenant_id": thread.metadata.tenant_id,
-                        "assistant_id": assistant_id
-                    }
-                )
+            payload = CallbackPayload(
+                run_id=uuid.UUID(run_id),
+                thread_id=uuid.UUID(thread_id),
+                status=ConversationStatus.COMPLETED,
+                data=workflow_data,
+                processing_time=processing_time,
+                completed_at=completed_at,
+                metadata={
+                    "tenant_id": thread.metadata.tenant_id,
+                    "assistant_id": assistant_id
+                }
+            )
 
-                success, error = await self.send_callback(callback_url, payload)
-
-                if not success:
-                    logger.error(f"回调发送失败 - 运行: {run_id}, 错误: {error}")
-                else:
-                    logger.info(f"回调发送成功 - 运行: {run_id}")
+            # 发送回调
+            if mas_config.CALLBACK_URL:
+                callback_url = mas_config.CALLBACK_URL.rstrip('/') + self.callback_endpoint
+                await self.send_callback(callback_url, payload)
+            else:
+                logger.warning(f"回调URL未配置，跳过回调发送 - 运行: {run_id}")
 
         except Exception as e:
             logger.error(f"后台处理失败 - 运行: {run_id}: {e}", exc_info=True)

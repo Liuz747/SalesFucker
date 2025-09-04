@@ -106,8 +106,8 @@ class ThreadRepository:
             # 立即更新Redis缓存
             await self._update_redis_cache(thread)
             
-            # 异步写入数据库
-            asyncio.create_task(ThreadService.save(thread))
+            # 异步更新数据库
+            asyncio.create_task(ThreadService.update(thread))
             
             return thread
             

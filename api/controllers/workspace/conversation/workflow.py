@@ -1,26 +1,24 @@
 """
-对话处理路由器
+工作流运行路由器
 
-该模块提供对话处理和管理相关的API端点，包括对话创建、消息处理、
-历史查询、状态管理等功能。
+该模块提供工作流执行相关的API端点，包括同步运行、异步运行、
+状态查询等功能。
 
 端点功能:
-- 对话生命周期管理（创建、处理、结束）
-- 多模态消息处理（文本、语音、图像）
-- 对话历史查询和导出
-- 对话状态监控和分析
-- 客户档案管理集成
+- 同步工作流执行（等待结果）
+- 异步工作流执行（后台处理）
+- 运行状态查询和监控
 """
 import uuid
+from datetime import timedelta
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms
 from controllers.dependencies import get_orchestrator_service, get_request_context
-from .schema import ThreadCreateRequest, MessageCreateRequest, ThreadModel, WorkflowData, ThreadMetadata
+from .schema import MessageCreateRequest, WorkflowData
 from .background_process import BackgroundWorkflowProcessor
 from repositories.thread_repository import ThreadRepository
 from models.conversation import ConversationStatus
-from .workflow import router as workflow_router
 
 
 # 依赖注入函数
@@ -31,99 +29,13 @@ async def get_thread_repository() -> ThreadRepository:
     return repository
 
 
-logger = get_component_logger(__name__, "ConversationRouter")
+logger = get_component_logger(__name__, "WorkflowRouter")
 
-# 创建路由器
-router = APIRouter(prefix="/threads", tags=["conversation-threads"])
-
-router.include_router(workflow_router, prefix="/{thread_id}/runs", tags=["workflow-runs"])
-
-@router.post("")
-async def create_thread(
-    request: ThreadCreateRequest,
-    context = Depends(get_request_context),
-    repository = Depends(get_thread_repository)
-):
-    """
-    创建新的对话线程
-    
-    使用高性能混合存储策略，针对云端PostgreSQL优化。
-    性能目标: < 5ms 响应时间
-    """
-    try:
-        # 生成线程ID
-        thread_id = request.thread_id or str(uuid.uuid4())
-
-        # 从请求上下文获取租户ID
-        tenant_id = context['tenant_id']
-        
-        # 创建线程数据模型
-        thread = ThreadModel(
-            thread_id=thread_id,
-            metadata=ThreadMetadata(tenant_id=tenant_id)
-        )
-        
-        # 使用依赖注入的存储库创建线程
-        created_thread = await repository.create_thread(thread)
-        
-        return {
-            "thread_id": thread_id,
-            "metadata": created_thread.metadata.model_dump(),
-            "status": created_thread.status,
-            "created_at": created_thread.created_at,
-            "updated_at": created_thread.updated_at
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"线程创建失败: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+# 创建工作流路由器
+router = APIRouter()
 
 
-@router.get("/{thread_id}")
-async def get_thread(
-    thread_id: str,
-    context = Depends(get_request_context),
-    repository = Depends(get_thread_repository)
-):
-    """
-    获取线程详情
-    
-    从数据库获取线程配置信息。
-    """
-    try:
-        # 使用依赖注入的存储库获取线程
-        thread = await repository.get_thread(thread_id)
-        
-        if not thread:
-            raise HTTPException(
-                status_code=404, 
-                detail=f"线程不存在: {thread_id}"
-            )
-        
-        if str(thread.metadata.tenant_id) != context['tenant_id']:
-            raise HTTPException(
-                status_code=403, 
-                detail="租户ID不匹配，无法访问此线程"
-            )
-
-        return {
-            "thread_id": thread.thread_id,
-            "metadata": thread.metadata.model_dump(),
-            "status": thread.status,
-            "created_at": thread.created_at,
-            "updated_at": thread.updated_at
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"线程获取失败: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.post("/{thread_id}/runs/wait")
+@router.post("/wait")
 async def create_run(
     thread_id: str,
     request: MessageCreateRequest,
@@ -218,7 +130,7 @@ async def create_run(
         raise HTTPException(status_code=500, detail=f"运行创建失败: {str(e)}")
 
 
-@router.post("/{thread_id}/runs/async")
+@router.post("/async")
 async def create_background_run(
     thread_id: str,
     request: MessageCreateRequest,
@@ -268,6 +180,7 @@ async def create_background_run(
         # 生成运行ID
         run_id = uuid.uuid4()
         created_at = get_current_datetime()
+        estimated_completion = created_at + timedelta(seconds=20)  # 预估20秒完成
 
         # 获取后台处理器
         processor = BackgroundWorkflowProcessor(repository)
@@ -292,6 +205,7 @@ async def create_background_run(
             "assistant_id": request.assistant_id,
             "status": "started",
             "created_at": created_at,
+            "estimated_completion": estimated_completion,
             "metadata": request.metadata.model_dump()
         }
         
@@ -302,7 +216,7 @@ async def create_background_run(
         raise HTTPException(status_code=500, detail=f"后台运行创建失败: {str(e)}")
 
 
-@router.get("/{thread_id}/runs/{run_id}/status")
+@router.get("/{run_id}/status")
 async def get_run_status(
     thread_id: str,
     run_id: str,

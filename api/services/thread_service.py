@@ -72,7 +72,7 @@ class ThreadService:
     @staticmethod
     async def save(config: ThreadModel):
         """
-        保存线程配置
+        创建新线程配置
         
         参数:
             config: 线程配置
@@ -98,7 +98,45 @@ class ThreadService:
                 await session.commit()
                 
         except Exception as e:
-            logger.error(f"保存线程配置失败: {config.thread_id}, 错误: {e}")
+            logger.error(f"创建线程配置失败: {config.thread_id}, 错误: {e}")
+            raise
+    
+    @staticmethod
+    async def update(config: ThreadModel) -> bool:
+        """
+        更新线程配置
+        
+        参数:
+            config: 线程配置
+            
+        返回:
+            bool: 是否更新成功
+        """
+        try:
+            async with database_session() as session:
+                stmt = (
+                    update(ThreadOrm)
+                    .where(ThreadOrm.thread_id == config.thread_id)
+                    .values(
+                        assistant_id=config.assistant_id,
+                        tenant_id=config.metadata.tenant_id,
+                        status=config.status,
+                        updated_at=config.updated_at
+                    )
+                )
+                result = await session.execute(stmt)
+                await session.commit()
+                
+                flag = result.rowcount > 0
+                if flag:
+                    logger.debug(f"更新线程: {config.thread_id}")
+                else:
+                    logger.warning(f"线程不存在，无法更新: {config.thread_id}")
+                    
+                return flag
+                
+        except Exception as e:
+            logger.error(f"更新线程配置失败: {config.thread_id}, 错误: {e}")
             raise
     
     @staticmethod
