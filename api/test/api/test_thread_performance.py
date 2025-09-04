@@ -10,7 +10,7 @@ import asyncio
 import time
 from unittest.mock import AsyncMock, patch, MagicMock
 
-from controllers.workspace.conversation.schema import ThreadModel, ThreadMetadata
+from controllers.workspace.conversation.schema import Thread, ThreadMetadata
 from repositories.thread_repository import ThreadRepository
 
 
@@ -35,7 +35,7 @@ class TestThreadPerformance:
     @pytest.fixture
     def sample_thread(self):
         """示例线程fixture"""
-        return ThreadModel(
+        return Thread(
             thread_id="test-thread-123",
             assistant_id="assistant-456", 
             metadata=ThreadMetadata(tenant_id="tenant-789")
@@ -75,7 +75,7 @@ class TestThreadPerformance:
         # 创建50个测试线程
         threads = []
         for i in range(50):
-            thread = ThreadModel(
+            thread = Thread(
                 thread_id=f"concurrent-test-{i}",
                 assistant_id=f"assistant-{i}",
                 metadata=ThreadMetadata(tenant_id="tenant-concurrent")

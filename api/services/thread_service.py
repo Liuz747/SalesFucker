@@ -14,7 +14,7 @@ from typing import Optional, List
 from sqlalchemy import select, update
 
 from models import ThreadOrm
-from controllers.workspace.conversation.schema import ThreadModel
+from controllers.workspace.conversation.schema import Thread
 from infra.db.connection import database_session
 from utils import get_component_logger
 
@@ -46,7 +46,7 @@ class ThreadService:
         return result.scalar_one_or_none()
     
     @staticmethod
-    async def query(thread_id: str) -> Optional[ThreadModel]:
+    async def query(thread_id: str) -> Optional[Thread]:
         """
         根据ID获取线程配置
         
@@ -54,14 +54,14 @@ class ThreadService:
             thread_id: 线程ID
             
         返回:
-            ThreadModel: 线程配置，不存在则返回None
+            Thread: 线程配置，不存在则返回None
         """
         try:
             async with database_session() as session:
                 thread_orm = await ThreadService._get_thread_by_id(session, thread_id)
                 
                 if thread_orm:
-                    return ThreadModel.from_orm(thread_orm)
+                    return Thread.from_orm(thread_orm)
                 
                 return None
 
@@ -70,7 +70,7 @@ class ThreadService:
             raise
     
     @staticmethod
-    async def save(config: ThreadModel):
+    async def save(config: Thread):
         """
         创建新线程配置
         
@@ -102,7 +102,7 @@ class ThreadService:
             raise
     
     @staticmethod
-    async def update(config: ThreadModel) -> bool:
+    async def update(config: Thread) -> bool:
         """
         更新线程配置
         

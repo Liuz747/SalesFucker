@@ -1,5 +1,5 @@
 """
-Admin Tenant Management Endpoints
+Tenant Management Endpoints
 
 These endpoints are used by the backend system to sync tenant information
 and public keys to the AI service. Only accessible with admin API keys.

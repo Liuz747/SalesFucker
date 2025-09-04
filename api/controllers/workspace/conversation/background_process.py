@@ -18,7 +18,7 @@ from config import mas_config
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms, ExternalClient
 from controllers.dependencies import get_orchestrator_service
 from repositories.thread_repository import ThreadRepository
-from models.conversation import ConversationStatus
+from models.conversation import ThreadStatus
 from .schema import CallbackPayload, WorkflowData, InputContent
 
 
@@ -88,7 +88,7 @@ class BackgroundWorkflowProcessor:
             thread = await self.repository.get_thread(thread_id)
             if thread:
                 thread.assistant_id = assistant_id
-                thread.status = ConversationStatus.PROCESSING
+                thread.status = ThreadStatus.PROCESSING
                 await self.repository.update_thread(thread)
                 logger.debug(f"线程状态更新为处理中: {thread_id}")
 
@@ -116,21 +116,20 @@ class BackgroundWorkflowProcessor:
             completed_at = get_current_datetime()
 
             # 更新线程状态为完成
-            thread = await self.repository.get_thread(thread_id)
             if thread:
-                thread.status = ConversationStatus.COMPLETED
+                thread.status = ThreadStatus.COMPLETED
                 await self.repository.update_thread(thread)
                 logger.debug(f"线程状态更新为完成: {thread_id}")
 
             logger.info(f"工作流处理完成 - 运行: {run_id}, 耗时: {processing_time:.2f}ms")
 
             payload = CallbackPayload(
-                run_id=uuid.UUID(run_id),
-                thread_id=uuid.UUID(thread_id),
-                status=ConversationStatus.COMPLETED,
+                run_id=run_id,
+                thread_id=thread_id,
+                status=ThreadStatus.COMPLETED,
                 data=workflow_data,
                 processing_time=processing_time,
-                completed_at=completed_at,
+                completed_at=completed_at.isoformat(),
                 metadata={
                     "tenant_id": thread.metadata.tenant_id,
                     "assistant_id": assistant_id
@@ -139,7 +138,7 @@ class BackgroundWorkflowProcessor:
 
             # 发送回调
             if mas_config.CALLBACK_URL:
-                callback_url = mas_config.CALLBACK_URL.rstrip('/') + self.callback_endpoint
+                callback_url = str(mas_config.CALLBACK_URL).rstrip('/') + self.callback_endpoint
                 await self.send_callback(callback_url, payload)
             else:
                 logger.warning(f"回调URL未配置，跳过回调发送 - 运行: {run_id}")
@@ -150,6 +149,6 @@ class BackgroundWorkflowProcessor:
             # 更新线程状态为失败
             thread = await self.repository.get_thread(thread_id)
             if thread:
-                thread.status = ConversationStatus.FAILED
+                thread.status = ThreadStatus.FAILED
                 await self.repository.update_thread(thread)
                 logger.debug(f"线程状态更新为失败: {thread_id}")

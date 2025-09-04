@@ -1,9 +1,9 @@
 """create workflow table
 
 
-Revision ID: dd0c4e513577
+Revision ID: 7b4fe2778ecf
 Revises: 
-Create Date: 2025-09-02 12:21:36.771528
+Create Date: 2025-09-04 22:08:25.168911
 
 """
 from typing import Sequence, Union
@@ -13,7 +13,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = 'dd0c4e513577'
+revision: str = '7b4fe2778ecf'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -45,10 +45,10 @@ def upgrade() -> None:
     op.create_index('idx_tenant_status', 'tenants', ['status'], unique=False)
     op.create_index(op.f('ix_tenants_tenant_id'), 'tenants', ['tenant_id'], unique=True)
     op.create_table('threads',
-    sa.Column('thread_id', sa.UUID(), server_default=sa.text('gen_random_uuid()'), nullable=False),
-    sa.Column('assistant_id', sa.UUID(), nullable=True),
-    sa.Column('tenant_id', sa.UUID(), nullable=False),
-    sa.Column('status', sa.Enum('ACTIVE', 'COMPLETED', 'FAILED', 'ESCALATED', 'PAUSED', name='conversationstatus'), nullable=False),
+    sa.Column('thread_id', sa.String(), nullable=False),
+    sa.Column('assistant_id', sa.String(), nullable=True),
+    sa.Column('tenant_id', sa.String(), nullable=False),
+    sa.Column('status', sa.Enum('ACTIVE', 'PROCESSING', 'COMPLETED', 'FAILED', 'ESCALATED', 'PAUSED', 'DELETED', name='thread_status'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.PrimaryKeyConstraint('thread_id')
@@ -59,10 +59,10 @@ def upgrade() -> None:
     op.create_index(op.f('ix_threads_thread_id'), 'threads', ['thread_id'], unique=False)
     op.create_table('workflows',
     sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False),
-    sa.Column('workflow_id', sa.UUID(), nullable=False),
-    sa.Column('thread_id', sa.UUID(), nullable=False),
-    sa.Column('assistant_id', sa.UUID(), nullable=False),
-    sa.Column('tenant_id', sa.UUID(), nullable=False),
+    sa.Column('workflow_id', sa.String(), nullable=False),
+    sa.Column('thread_id', sa.String(), nullable=False),
+    sa.Column('assistant_id', sa.String(), nullable=False),
+    sa.Column('tenant_id', sa.String(), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.PrimaryKeyConstraint('id')

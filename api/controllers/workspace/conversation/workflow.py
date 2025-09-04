@@ -10,15 +10,14 @@
 - 运行状态查询和监控
 """
 import uuid
-from datetime import timedelta
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms
 from controllers.dependencies import get_orchestrator_service, get_request_context
+from repositories.thread_repository import ThreadRepository
+from models.conversation import ThreadStatus
 from .schema import MessageCreateRequest, WorkflowData
 from .background_process import BackgroundWorkflowProcessor
-from repositories.thread_repository import ThreadRepository
-from models.conversation import ConversationStatus
 
 
 # 依赖注入函数
@@ -67,10 +66,10 @@ async def create_run(
                 detail=f"线程不存在: {thread_id}"
             )
         
-        if thread.status != ConversationStatus.ACTIVE:
+        if thread.status != ThreadStatus.ACTIVE:
             raise HTTPException(
                 status_code=400,
-                detail=f"线程状态无效，无法处理运行请求。当前状态: {thread.status}，需要状态: {ConversationStatus.ACTIVE}"
+                detail=f"线程状态无效，无法处理运行请求。当前状态: {thread.status}，需要状态: {ThreadStatus.ACTIVE}"
             )
         
         # 验证线程租户ID匹配
@@ -118,8 +117,8 @@ async def create_run(
             "processing_time": processing_time,
             # 元数据
             "metadata": {
-                "tenant_id": str(tenant_id),
-                "assistant_id": str(request.assistant_id)
+                "tenant_id": tenant_id,
+                "assistant_id": request.assistant_id
             }
         }
         
@@ -164,10 +163,10 @@ async def create_background_run(
                 detail=f"线程不存在: {thread_id}"
             )
         
-        if thread.status != ConversationStatus.ACTIVE:
+        if thread.status != ThreadStatus.ACTIVE:
             raise HTTPException(
                 status_code=400,
-                detail=f"线程状态无效，无法处理运行请求。当前状态: {thread.status}，需要状态: {ConversationStatus.ACTIVE}"
+                detail=f"线程状态无效，无法处理运行请求。当前状态: {thread.status}，需要状态: {ThreadStatus.ACTIVE}"
             )
         
         # 验证线程租户ID匹配
@@ -180,7 +179,6 @@ async def create_background_run(
         # 生成运行ID
         run_id = uuid.uuid4()
         created_at = get_current_datetime()
-        estimated_completion = created_at + timedelta(seconds=20)  # 预估20秒完成
 
         # 获取后台处理器
         processor = BackgroundWorkflowProcessor(repository)
@@ -205,7 +203,6 @@ async def create_background_run(
             "assistant_id": request.assistant_id,
             "status": "started",
             "created_at": created_at,
-            "estimated_completion": estimated_completion,
             "metadata": request.metadata.model_dump()
         }
         
