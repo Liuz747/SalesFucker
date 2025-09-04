@@ -6,7 +6,7 @@
 
 from enum import StrEnum
 
-from sqlalchemy import Column, DateTime, Enum as SQLEnum, text, String, BigInteger
+from sqlalchemy import Column, DateTime, Enum as SQLEnum, text, BigInteger
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.sql import func
 
@@ -16,6 +16,7 @@ from models.base import Base
 class ConversationStatus(StrEnum):
     """对话状态枚举"""
     ACTIVE = "active"
+    PROCESSING = "processing"
     COMPLETED = "completed"
     FAILED = "failed"
     ESCALATED = "escalated"

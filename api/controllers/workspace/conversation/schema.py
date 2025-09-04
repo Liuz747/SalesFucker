@@ -4,7 +4,7 @@
 该模块从业务模型导入必要的架构定义，提供纯数据结构的Thread模型。
 """
 from datetime import datetime
-from typing import Optional, Any, List
+from typing import Optional, Any, List, Self
 
 from pydantic import BaseModel, Field, UUID4
 
@@ -23,7 +23,7 @@ class InputContent(BaseModel):
 class ThreadMetadata(BaseModel):
     """线程元数据模型"""
     
-    tenant_id: UUID4 = Field(description="租户标识符")
+    tenant_id: Optional[UUID4] = Field(None, description="租户标识符")
 
 
 class WorkflowData(BaseModel):
@@ -40,10 +40,11 @@ class ThreadModel(BaseModel):
     status: ConversationStatus = Field(default=ConversationStatus.ACTIVE, description="线程状态")
     created_at: datetime = Field(default_factory=get_current_datetime, description="创建时间")
     updated_at: datetime = Field(default_factory=get_current_datetime, description="更新时间")
+    processing_time: Optional[float] = Field(None, description="处理时间（毫秒）")
     metadata: ThreadMetadata = Field(description="线程元数据")
     
     @classmethod
-    def from_orm(cls, orm_obj: ThreadOrm) -> "ThreadModel":
+    def from_orm(cls, orm_obj: ThreadOrm) -> Self:
         """从ORM对象转换为业务模型"""
         return cls(
             thread_id=orm_obj.thread_id,
@@ -51,6 +52,7 @@ class ThreadModel(BaseModel):
             status=orm_obj.status,
             created_at=orm_obj.created_at,
             updated_at=orm_obj.updated_at,
+            processing_time=orm_obj.processing_time,
             metadata=ThreadMetadata(tenant_id=orm_obj.tenant_id)
         )
 
@@ -67,27 +69,8 @@ class MessageCreateRequest(BaseModel):
     
     assistant_id: UUID4 = Field(description="助手标识符")
     input: InputContent = Field(description="消息内容列表，包含role和content字段")
-    metadata: Optional[ThreadMetadata] = Field(None, description="线程元数据")
-
-
-class BackgroundRunRequest(BaseModel):
-    """后台运行请求模型"""
-    
-    assistant_id: UUID4 = Field(description="助手标识符")
-    input: InputContent = Field(description="消息内容列表，包含role和content字段")
     callback_url: Optional[str] = Field(None, description="完成后回调的后端API地址")
     metadata: Optional[ThreadMetadata] = Field(None, description="线程元数据")
-
-
-class BackgroundRunResponse(BaseModel):
-    """后台运行响应模型"""
-    
-    run_id: UUID4 = Field(description="运行标识符")
-    thread_id: UUID4 = Field(description="线程标识符")
-    status: str = Field(description="运行状态")
-    message: str = Field(description="状态描述信息")
-    created_at: datetime = Field(description="创建时间")
-    estimated_completion: Optional[datetime] = Field(None, description="预估完成时间")
 
 
 class CallbackPayload(BaseModel):
