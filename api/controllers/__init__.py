@@ -4,9 +4,8 @@ API Package - Multi-Agent System API
 该包包含完整的FastAPI应用程序和所有API组件：
 
 组织结构:
-- endpoints/: API路由处理器
-- handlers/: 业务逻辑处理器  
-- schemas/: Pydantic数据模型
+- workspace/: 工作空间组件
+- inner/: 内部组件
 - middleware/: 中间件组件
 - exceptions.py: 异常处理
 - dependencies.py: 依赖注入
@@ -20,14 +19,16 @@ API Package - Multi-Agent System API
 - 多租户数据隔离
 """
 
+from fastapi import APIRouter
+
 from .workspace import conversations_router, tenant_router
 from .inner import completion_router, auth_router, health_router
+
+app = APIRouter()
 
 __version__ = "0.2.1"
 
 __all__ = [
-    "agents_router",
-    "multimodal_router",
     "health_router",
     "conversations_router",
     "tenant_router",

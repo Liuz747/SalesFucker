@@ -15,7 +15,7 @@ from .tenant import (
     TenantModel
 )
 from .conversation import (
-    ConversationStatus,
+    ThreadStatus,
     InputType,
     ThreadOrm
 )
@@ -24,7 +24,7 @@ __all__ = [
     "TenantRole",
     "TenantOrm",
     "TenantModel",
-    "ConversationStatus",
+    "ThreadStatus",
     "InputType",
     "ThreadOrm"
 ]

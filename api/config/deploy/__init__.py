@@ -4,7 +4,7 @@
 应用程序部署相关的配置设置，包括基本应用信息、API服务、日志和性能配置。
 """
 
-from pydantic import Field
+from pydantic import Field, HttpUrl
 from pydantic_settings import BaseSettings
 
 
@@ -37,4 +37,10 @@ class DeploymentConfig(BaseSettings):
     APP_ENV: str = Field(
         description="部署环境标识（如 'PRODUCTION', 'DEVELOPMENT'），默认为生产环境",
         default="PRODUCTION",
+    )
+
+    # 回调配置
+    CALLBACK_URL: HttpUrl = Field(
+        description="后台工作流完成后的回调URL地址",
+        default=None,
     )

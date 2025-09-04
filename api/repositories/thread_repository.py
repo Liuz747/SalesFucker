@@ -16,7 +16,7 @@ import msgpack
 
 from config import mas_config
 from utils import get_component_logger, get_current_datetime, to_isoformat
-from controllers.workspace.conversation.schema import ThreadModel
+from controllers.workspace.conversation.schema import Thread
 from infra.cache.redis_client import get_redis_client
 from services.thread_service import ThreadService
 
@@ -43,6 +43,8 @@ class ThreadRepository:
         """初始化存储库"""
         try:
             self._redis_client = await get_redis_client()
+            # 测试Redis连接
+            await self._redis_client.ping()
             self.logger.info("Redis连接初始化完成")
         except Exception as e:
             self.logger.error(f"Redis连接初始化失败: {e}")
@@ -50,7 +52,7 @@ class ThreadRepository:
         
         self.logger.info("线程存储库初始化完成")
     
-    async def create_thread(self, thread: ThreadModel) -> ThreadModel:
+    async def create_thread(self, thread: Thread) -> Thread:
         """
         创建线程 - 优化性能策略
         
@@ -70,7 +72,7 @@ class ThreadRepository:
             self.logger.error(f"线程创建失败: {e}")
             raise
     
-    async def get_thread(self, thread_id: str) -> Optional[ThreadModel]:
+    async def get_thread(self, thread_id: str) -> Optional[Thread]:
         """
         获取线程 - Redis缓存策略
         
@@ -95,7 +97,7 @@ class ThreadRepository:
             self.logger.error(f"线程获取失败: {e}")
             return None
     
-    async def update_thread(self, thread: ThreadModel) -> ThreadModel:
+    async def update_thread(self, thread: Thread) -> Thread:
         """更新线程"""
         try:
             # 更新时间戳
@@ -104,8 +106,8 @@ class ThreadRepository:
             # 立即更新Redis缓存
             await self._update_redis_cache(thread)
             
-            # 异步写入数据库
-            asyncio.create_task(ThreadService.save(thread))
+            # 异步更新数据库
+            asyncio.create_task(ThreadService.update(thread))
             
             return thread
             
@@ -113,7 +115,7 @@ class ThreadRepository:
             self.logger.error(f"线程更新失败: {e}")
             raise
     
-    async def _get_from_redis(self, thread_id: str) -> Optional[ThreadModel]:
+    async def _get_from_redis(self, thread_id: str) -> Optional[Thread]:
         """从Redis缓存获取线程"""
         if not self._redis_client:
             return None
@@ -124,14 +126,14 @@ class ThreadRepository:
             
             if redis_data:
                 thread_dict = msgpack.unpackb(redis_data, raw=False)
-                return ThreadModel(**thread_dict)
+                return Thread(**thread_dict)
                 
         except Exception as e:
             self.logger.warning(f"Redis查询失败: {e}")
         
         return None
     
-    async def _update_redis_cache(self, thread: ThreadModel):
+    async def _update_redis_cache(self, thread: Thread):
         """异步更新Redis缓存"""
         if not self._redis_client:
             return
@@ -159,17 +161,3 @@ class ThreadRepository:
         
         self.logger.info("线程存储库已清理")
 
-
-# 全局单例实例
-_thread_repository: Optional[ThreadRepository] = None
-
-
-async def get_thread_repository() -> ThreadRepository:
-    """获取线程存储库单例实例"""
-    global _thread_repository
-    
-    if _thread_repository is None:
-        _thread_repository = ThreadRepository()
-        await _thread_repository.initialize()
-    
-    return _thread_repository

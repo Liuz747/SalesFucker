@@ -12,11 +12,14 @@
 """
 
 import uuid
-from typing import Dict, Optional
+from typing import Optional
 
+from config import mas_config
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms, ExternalClient
 from controllers.dependencies import get_orchestrator_service
-from .schema import BackgroundRunStatus, CallbackPayload, WorkflowData
+from repositories.thread_repository import ThreadRepository
+from models.conversation import ThreadStatus
+from .schema import CallbackPayload, WorkflowData, InputContent
 
 
 logger = get_component_logger(__name__, "BackgroundProcessor")
@@ -24,36 +27,20 @@ logger = get_component_logger(__name__, "BackgroundProcessor")
 
 class BackgroundWorkflowProcessor:
     """后台工作流处理器"""
-    
-    def __init__(self):
+
+    def __init__(self, repository: ThreadRepository):
         """初始化后台处理器"""
-        self.logger = get_component_logger(__name__, "BackgroundProcessor")
         self.client = ExternalClient()
-        self.run_status_store: Dict[str, BackgroundRunStatus] = {}  # 简单内存存储，生产环境应使用Redis
+        self.repository = repository
         
-    def get_run_status(self, run_id: str) -> Optional[BackgroundRunStatus]:
-        """获取运行状态"""
-        return self.run_status_store.get(run_id)
-    
-    def update_run_status(self, run_status: BackgroundRunStatus) -> bool:
-        """更新或创建运行状态"""
-        run_id = str(run_status.run_id)
-        
-        if run_id in self.run_status_store:
-            action = "更新"
-        else:
-            action = "创建"
-                
-        # 存储运行状态
-        self.run_status_store[run_id] = run_status
-        self.logger.debug(f"{action}运行状态: {run_id} -> {run_status.status}")
-        return True
+        # 回调端点路径
+        self.callback_endpoint = "/api"
     
     async def send_callback(
         self,
         callback_url: str,
         payload: CallbackPayload
-    ) -> tuple[bool, Optional[str]]:
+    ) -> bool:
         """
         发送回调到用户后端API
         
@@ -62,7 +49,7 @@ class BackgroundWorkflowProcessor:
             payload: 回调载荷数据
             
         返回:
-            tuple[bool, Optional[str]]: (是否成功, 错误信息)
+            bool: 是否发送成功
         """
         try:
             # 使用 ExternalClient 发送回调
@@ -75,60 +62,46 @@ class BackgroundWorkflowProcessor:
                 max_retries=3
             )
             
-            self.logger.info(f"回调成功发送到: {callback_url}")
-            return True, None
+            logger.info(f"回调成功发送到: {callback_url}")
+            return True
                         
         except Exception as e:
-            error_msg = f"回调发送异常: {str(e)}"
-            self.logger.error(error_msg)
-            return False, error_msg
+            logger.error(f"回调发送异常: {callback_url}, 错误: {str(e)}")
+            return False
     
     async def process_workflow_background(
         self,
         run_id: str,
         thread_id: str,
-        tenant_id: str,
-        customer_input: str,
+        input: InputContent,
         assistant_id: str,
-        callback_url: Optional[str] = None,
         customer_id: Optional[str] = None,
         input_type: str = "text"
     ):
-        """
-        在后台处理工作流
-        
-        参数:
-            run_id: 运行标识符
-            thread_id: 线程标识符
-            tenant_id: 租户标识符
-            customer_input: 客户输入内容
-            assistant_id: 助手标识符
-            callback_url: 回调URL地址（可选）
-            customer_id: 客户标识符（可选）
-            input_type: 输入类型
-        """
+        """在后台处理工作流"""
         start_time = get_current_datetime()
-        
-        # 更新状态为处理中
-        run_status = self.get_run_status(run_id)
-        if run_status:
-            run_status.status = "processing"
-            run_status.started_at = start_time
-            self.update_run_status(run_status)
-        
-        self.logger.info(f"开始后台处理工作流 - 运行: {run_id}, 线程: {thread_id}")
-        
+
+        logger.info(f"开始后台处理工作流 - 运行: {run_id}, 线程: {thread_id}")
+
         try:
+            # 获取线程并更新状态为处理中
+            thread = await self.repository.get_thread(thread_id)
+            if thread:
+                thread.assistant_id = assistant_id
+                thread.status = ThreadStatus.PROCESSING
+                await self.repository.update_thread(thread)
+                logger.debug(f"线程状态更新为处理中: {thread_id}")
+
             # 获取租户专用编排器实例
-            orchestrator = get_orchestrator_service(tenant_id)
-            
+            orchestrator = get_orchestrator_service(thread.metadata.tenant_id)
+
             # 使用编排器处理消息 - 核心工作流调用
             result = await orchestrator.process_conversation(
-                customer_input=customer_input,
+                customer_input=input.content,
                 customer_id=customer_id,
                 input_type=input_type
             )
-            
+
             # 构建工作流数据
             workflow_data = []
             for agent_type, agent_response in result.agent_responses.items():
@@ -138,66 +111,44 @@ class BackgroundWorkflowProcessor:
                         content=agent_response
                     )
                 )
-            
+
             processing_time = get_processing_time_ms(start_time)
             completed_at = get_current_datetime()
-            
-            # 更新状态为完成
-            run_status = self.get_run_status(run_id)
-            if run_status:
-                run_status.status = "completed"
-                run_status.completed_at = completed_at
-                run_status.processing_time = processing_time
-                self.update_run_status(run_status)
-            
-            self.logger.info(f"工作流处理完成 - 运行: {run_id}, 耗时: {processing_time:.2f}ms")
-            
-            # 如果有回调URL，发送回调
-            if callback_url:
-                payload = CallbackPayload(
-                    run_id=uuid.UUID(run_id),
-                    thread_id=uuid.UUID(thread_id),
-                    status="completed",
-                    data=workflow_data,
-                    processing_time=processing_time,
-                    completed_at=completed_at,
-                    metadata={
-                        "tenant_id": tenant_id,
-                        "assistant_id": assistant_id
-                    }
-                )
-                
-                success, error = await self.send_callback(callback_url, payload)
-                
-                # 更新回调状态
-                run_status = self.get_run_status(run_id)
-                if run_status:
-                    run_status.callback_status = "success" if success else "failed"
-                    self.update_run_status(run_status)
-                
-                if not success:
-                    self.logger.error(f"回调发送失败 - 运行: {run_id}, 错误: {error}")
-                else:
-                    self.logger.info(f"回调发送成功 - 运行: {run_id}")
-                
+
+            # 更新线程状态为完成
+            if thread:
+                thread.status = ThreadStatus.COMPLETED
+                await self.repository.update_thread(thread)
+                logger.debug(f"线程状态更新为完成: {thread_id}")
+
+            logger.info(f"工作流处理完成 - 运行: {run_id}, 耗时: {processing_time:.2f}ms")
+
+            payload = CallbackPayload(
+                run_id=run_id,
+                thread_id=thread_id,
+                status=ThreadStatus.COMPLETED,
+                data=workflow_data,
+                processing_time=processing_time,
+                completed_at=completed_at.isoformat(),
+                metadata={
+                    "tenant_id": thread.metadata.tenant_id,
+                    "assistant_id": assistant_id
+                }
+            )
+
+            # 发送回调
+            if mas_config.CALLBACK_URL:
+                callback_url = str(mas_config.CALLBACK_URL).rstrip('/') + self.callback_endpoint
+                await self.send_callback(callback_url, payload)
+            else:
+                logger.warning(f"回调URL未配置，跳过回调发送 - 运行: {run_id}")
+
         except Exception as e:
-            error_msg = f"工作流处理失败: {str(e)}"
-            self.logger.error(f"后台处理失败 - 运行: {run_id}: {e}", exc_info=True)
-            
-            # 更新状态为失败
-            run_status = self.get_run_status(run_id)
-            if run_status:
-                run_status.status = "failed"
-                run_status.completed_at = get_current_datetime()
-                run_status.error_message = error_msg
-                self.update_run_status(run_status)
+            logger.error(f"后台处理失败 - 运行: {run_id}: {e}", exc_info=True)
 
-# 全局背景处理器实例
-_background_processor = None
-
-def get_background_processor() -> BackgroundWorkflowProcessor:
-    """获取背景处理器实例"""
-    global _background_processor
-    if _background_processor is None:
-        _background_processor = BackgroundWorkflowProcessor()
-    return _background_processor
+            # 更新线程状态为失败
+            thread = await self.repository.get_thread(thread_id)
+            if thread:
+                thread.status = ThreadStatus.FAILED
+                await self.repository.update_thread(thread)
+                logger.debug(f"线程状态更新为失败: {thread_id}")

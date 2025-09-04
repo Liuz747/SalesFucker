@@ -14,7 +14,7 @@ const EnvSchema = z.object({
     .max(65536, `options.port should be >= 0 and < 65536`)
     .default(6379)
     .nullable(),
-  REDIS_AUTH: z.string().nullish(),
+  REDIS_PASSWORD: z.string().nullish(),
   REDIS_USERNAME: z.string().nullish(),
   REDIS_CONNECTION_STRING: z.string().nullish(),
   REDIS_KEY_PREFIX: z.string().nullish(),
