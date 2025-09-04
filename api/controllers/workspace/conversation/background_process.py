@@ -27,7 +27,6 @@ class BackgroundWorkflowProcessor:
     
     def __init__(self):
         """初始化后台处理器"""
-        self.logger = get_component_logger(__name__, "BackgroundProcessor")
         self.client = ExternalClient()
         self.run_status_store: Dict[str, BackgroundRunStatus] = {}  # 简单内存存储，生产环境应使用Redis
         
@@ -46,7 +45,7 @@ class BackgroundWorkflowProcessor:
                 
         # 存储运行状态
         self.run_status_store[run_id] = run_status
-        self.logger.debug(f"{action}运行状态: {run_id} -> {run_status.status}")
+        logger.debug(f"{action}运行状态: {run_id} -> {run_status.status}")
         return True
     
     async def send_callback(
@@ -75,12 +74,12 @@ class BackgroundWorkflowProcessor:
                 max_retries=3
             )
             
-            self.logger.info(f"回调成功发送到: {callback_url}")
+            logger.info(f"回调成功发送到: {callback_url}")
             return True, None
                         
         except Exception as e:
             error_msg = f"回调发送异常: {str(e)}"
-            self.logger.error(error_msg)
+            logger.error(error_msg)
             return False, error_msg
     
     async def process_workflow_background(
@@ -94,19 +93,7 @@ class BackgroundWorkflowProcessor:
         customer_id: Optional[str] = None,
         input_type: str = "text"
     ):
-        """
-        在后台处理工作流
-        
-        参数:
-            run_id: 运行标识符
-            thread_id: 线程标识符
-            tenant_id: 租户标识符
-            customer_input: 客户输入内容
-            assistant_id: 助手标识符
-            callback_url: 回调URL地址（可选）
-            customer_id: 客户标识符（可选）
-            input_type: 输入类型
-        """
+        """在后台处理工作流"""
         start_time = get_current_datetime()
         
         # 更新状态为处理中
@@ -116,7 +103,7 @@ class BackgroundWorkflowProcessor:
             run_status.started_at = start_time
             self.update_run_status(run_status)
         
-        self.logger.info(f"开始后台处理工作流 - 运行: {run_id}, 线程: {thread_id}")
+        logger.info(f"开始后台处理工作流 - 运行: {run_id}, 线程: {thread_id}")
         
         try:
             # 获取租户专用编排器实例
@@ -150,7 +137,7 @@ class BackgroundWorkflowProcessor:
                 run_status.processing_time = processing_time
                 self.update_run_status(run_status)
             
-            self.logger.info(f"工作流处理完成 - 运行: {run_id}, 耗时: {processing_time:.2f}ms")
+            logger.info(f"工作流处理完成 - 运行: {run_id}, 耗时: {processing_time:.2f}ms")
             
             # 如果有回调URL，发送回调
             if callback_url:
@@ -176,13 +163,13 @@ class BackgroundWorkflowProcessor:
                     self.update_run_status(run_status)
                 
                 if not success:
-                    self.logger.error(f"回调发送失败 - 运行: {run_id}, 错误: {error}")
+                    logger.error(f"回调发送失败 - 运行: {run_id}, 错误: {error}")
                 else:
-                    self.logger.info(f"回调发送成功 - 运行: {run_id}")
+                    logger.info(f"回调发送成功 - 运行: {run_id}")
                 
         except Exception as e:
             error_msg = f"工作流处理失败: {str(e)}"
-            self.logger.error(f"后台处理失败 - 运行: {run_id}: {e}", exc_info=True)
+            logger.error(f"后台处理失败 - 运行: {run_id}: {e}", exc_info=True)
             
             # 更新状态为失败
             run_status = self.get_run_status(run_id)

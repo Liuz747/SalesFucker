@@ -13,7 +13,7 @@
 """
 import uuid
 from datetime import timedelta
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, Query
 
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms
 from controllers.dependencies import get_orchestrator_service, get_request_context
@@ -82,9 +82,9 @@ async def create_thread(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.get("/{thread_id}")
+@router.get("/")
 async def get_thread(
-    thread_id: str,
+    thread_id: str = Query(..., description="线程ID"),
     context = Depends(get_request_context),
     repository = Depends(get_thread_repository)
 ):
@@ -124,12 +124,12 @@ async def get_thread(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/{thread_id}/runs/wait")
+@router.post("/runs/wait")
 async def create_run(
-    thread_id: str,
     request: MessageCreateRequest,
     context = Depends(get_request_context),
-    repository = Depends(get_thread_repository)
+    repository = Depends(get_thread_repository),
+    thread_id: str = Query(..., description="线程ID")
 ):
     """
     创建运行实例 - 核心工作流端点
@@ -219,13 +219,13 @@ async def create_run(
         raise HTTPException(status_code=500, detail=f"运行创建失败: {str(e)}")
 
 
-@router.post("/{thread_id}/runs/async")
+@router.post("/runs/async")
 async def create_background_run(
-    thread_id: str,
     request: BackgroundRunRequest,
     background_tasks: BackgroundTasks,
     context = Depends(get_request_context),
-    repository = Depends(get_thread_repository)
+    repository = Depends(get_thread_repository),
+    thread_id: str = Query(..., description="线程ID")
 ):
     """
     创建后台运行实例 - 异步工作流端点
@@ -316,10 +316,10 @@ async def create_background_run(
         raise HTTPException(status_code=500, detail=f"后台运行创建失败: {str(e)}")
 
 
-@router.get("/{thread_id}/runs/{run_id}/status")
+@router.get("/runs/status")
 async def get_run_status(
-    thread_id: str,
-    run_id: str,
+    thread_id: str = Query(..., description="线程ID"),
+    run_id: str = Query(..., description="运行ID"),
     context = Depends(get_request_context),
     repository = Depends(get_thread_repository)
 ):
