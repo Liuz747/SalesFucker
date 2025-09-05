@@ -14,11 +14,11 @@
 import uuid
 from fastapi import APIRouter, HTTPException, Depends
 
-from utils import get_component_logger
+from utils import get_component_logger, get_current_datetime
 from controllers.dependencies import get_request_context
 from repositories.thread_repository import ThreadRepository
-from .schema import ThreadCreateRequest, ThreadMetadata
-from .model import Thread
+from models import ThreadOrm
+from .schema import ThreadCreateRequest
 from .workflow import router as workflow_router
 
 
@@ -56,18 +56,22 @@ async def create_thread(
         # 从请求上下文获取租户ID
         tenant_id = context['tenant_id']
         
-        # 创建线程数据模型
-        thread = Thread(
+        # 创建 ORM 对象
+        thread_orm = ThreadOrm(
             thread_id=thread_id,
-            metadata=ThreadMetadata(tenant_id=tenant_id)
+            assistant_id=request.assistant_id,
+            tenant_id=tenant_id,
+            status="active",
+            created_at=get_current_datetime(),
+            updated_at=get_current_datetime()
         )
         
-        # 使用依赖注入的存储库创建线程
-        created_thread = await repository.create_thread(thread)
+        # 传递给 repository
+        created_thread = await repository.create_thread(thread_orm)
         
         return {
             "thread_id": thread_id,
-            "metadata": created_thread.metadata.model_dump(),
+            "metadata": {"tenant_id": tenant_id},
             "status": created_thread.status,
             "created_at": created_thread.created_at,
             "updated_at": created_thread.updated_at
@@ -101,7 +105,7 @@ async def get_thread(
                 detail=f"线程不存在: {thread_id}"
             )
         
-        if str(thread.metadata.tenant_id) != context['tenant_id']:
+        if str(thread.tenant_id) != context['tenant_id']:
             raise HTTPException(
                 status_code=403, 
                 detail="租户ID不匹配，无法访问此线程"
@@ -109,14 +113,12 @@ async def get_thread(
 
         return {
             "thread_id": thread.thread_id,
-            "metadata": thread.metadata.model_dump(),
+            "metadata": {"tenant_id": thread.tenant_id},
             "status": thread.status,
             "created_at": thread.created_at,
             "updated_at": thread.updated_at
         }
         
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"线程获取失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

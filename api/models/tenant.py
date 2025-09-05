@@ -6,7 +6,6 @@
 
 主要模型:
 - TenantRole: 租户角色枚举
-- Tenant: 租户配置业务模型 
 - TenantOrm: 租户数据库模型
 """
 

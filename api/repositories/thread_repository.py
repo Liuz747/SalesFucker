@@ -15,10 +15,10 @@ from typing import Optional
 import msgpack
 
 from config import mas_config
-from utils import get_component_logger, get_current_datetime, to_isoformat
-from controllers.workspace.conversation.model import Thread
+from utils import get_component_logger, to_isoformat
 from infra.cache.redis_client import get_redis_client
 from services.thread_service import ThreadService
+from models import ThreadOrm
 
 
 class ThreadRepository:
@@ -52,27 +52,37 @@ class ThreadRepository:
         
         self.logger.info("线程存储库初始化完成")
     
-    async def create_thread(self, thread: Thread) -> Thread:
+    async def create_thread(self, thread_orm: ThreadOrm) -> ThreadOrm:
         """
         创建线程 - 优化性能策略
+        
+        参数:
+            thread_orm: 线程ORM对象
+            
+        返回:
+            ThreadOrm: 创建的线程ORM对象
         
         性能目标: < 5ms 响应时间
         """
         try:
             # 1. 立即更新Redis缓存
-            await self._update_redis_cache(thread)
+            await self._update_redis_cache(thread_orm)
             
             # 2. 异步写入数据库
-            asyncio.create_task(ThreadService.save(thread))
+            asyncio.create_task(ThreadService.upsert(
+                thread_id=thread_orm.thread_id,
+                assistant_id=thread_orm.assistant_id,
+                tenant_id=thread_orm.tenant_id
+            ))
             
-            self.logger.debug(f"线程创建成功: {thread.thread_id}")
-            return thread
+            self.logger.debug(f"线程创建成功: {thread_orm.thread_id}")
+            return thread_orm
             
         except Exception as e:
             self.logger.error(f"线程创建失败: {e}")
             raise
     
-    async def get_thread(self, thread_id: str) -> Optional[Thread]:
+    async def get_thread(self, thread_id: str) -> Optional[ThreadOrm]:
         """
         获取线程 - Redis缓存策略
         
@@ -80,16 +90,16 @@ class ThreadRepository:
         """
         try:
             # 1. Level 1: Redis缓存 (< 10ms)
-            thread = await self._get_from_redis(thread_id)
-            if thread:
-                return thread
+            thread_orm = await self._get_from_redis(thread_id)
+            if thread_orm:
+                return thread_orm
             
             # 2. Level 2: 数据库查询
-            thread = await ThreadService.query(thread_id)
-            if thread:
+            thread_orm = await ThreadService.query(thread_id)
+            if thread_orm:
                 # 异步更新缓存
-                asyncio.create_task(self._update_redis_cache(thread))
-                return thread
+                asyncio.create_task(self._update_redis_cache(thread_orm))
+                return thread_orm
             
             return None
             
@@ -97,25 +107,22 @@ class ThreadRepository:
             self.logger.error(f"线程获取失败: {e}")
             return None
     
-    async def update_thread(self, thread: Thread) -> Thread:
+    async def update_thread(self, thread_orm: ThreadOrm) -> ThreadOrm:
         """更新线程"""
         try:
-            # 更新时间戳
-            thread.updated_at = get_current_datetime()
-            
             # 立即更新Redis缓存
-            await self._update_redis_cache(thread)
+            await self._update_redis_cache(thread_orm)
             
             # 异步更新数据库
-            asyncio.create_task(ThreadService.update(thread))
+            asyncio.create_task(ThreadService.update(thread_orm))
             
-            return thread
+            return thread_orm
             
         except Exception as e:
             self.logger.error(f"线程更新失败: {e}")
             raise
     
-    async def _get_from_redis(self, thread_id: str) -> Optional[Thread]:
+    async def _get_from_redis(self, thread_id: str) -> Optional[ThreadOrm]:
         """从Redis缓存获取线程"""
         if not self._redis_client:
             return None
@@ -126,24 +133,37 @@ class ThreadRepository:
             
             if redis_data:
                 thread_dict = msgpack.unpackb(redis_data, raw=False)
-                return Thread(**thread_dict)
+                # 反序列化 datetime 字段
+                from datetime import datetime
+                if 'created_at' in thread_dict and isinstance(thread_dict['created_at'], str):
+                    thread_dict['created_at'] = datetime.fromisoformat(thread_dict['created_at'])
+                if 'updated_at' in thread_dict and isinstance(thread_dict['updated_at'], str):
+                    thread_dict['updated_at'] = datetime.fromisoformat(thread_dict['updated_at'])
+                
+                # 使用字典解包直接创建 ORM 对象
+                return ThreadOrm(**thread_dict)
                 
         except Exception as e:
             self.logger.warning(f"Redis查询失败: {e}")
         
         return None
     
-    async def _update_redis_cache(self, thread: Thread):
+    async def _update_redis_cache(self, thread_orm: ThreadOrm):
         """异步更新Redis缓存"""
         if not self._redis_client:
             return
             
         try:
-            redis_key = f"thread:{thread.thread_id}"
-            thread_dict = thread.model_dump()
-            # 序列化datetime对象
-            thread_dict["created_at"] = to_isoformat(thread.created_at)
-            thread_dict["updated_at"] = to_isoformat(thread.updated_at)
+            redis_key = f"thread:{thread_orm.thread_id}"
+            # 从 ORM 对象创建缓存数据
+            thread_dict = {
+                "thread_id": thread_orm.thread_id,
+                "assistant_id": thread_orm.assistant_id,
+                "tenant_id": thread_orm.tenant_id,
+                "status": thread_orm.status,
+                "created_at": to_isoformat(thread_orm.created_at),
+                "updated_at": to_isoformat(thread_orm.updated_at),
+            }
             
             await self._redis_client.setex(
                 redis_key,
@@ -153,11 +173,10 @@ class ThreadRepository:
             
         except Exception as e:
             self.logger.warning(f"Redis更新失败: {e}")
-    
+
     async def cleanup(self):
         """清理资源"""
         # 清理Redis客户端引用（共享连接池由应用层管理）
         self._redis_client = None
         
         self.logger.info("线程存储库已清理")
-

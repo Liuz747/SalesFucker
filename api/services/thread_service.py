@@ -14,9 +14,8 @@ from typing import Optional, List
 from sqlalchemy import select, update
 
 from models import ThreadOrm
-from controllers.workspace.conversation.model import Thread
 from infra.db.connection import database_session
-from utils import get_component_logger
+from utils import get_component_logger, get_current_datetime
 
 logger = get_component_logger(__name__, "ThreadService")
 
@@ -46,38 +45,26 @@ class ThreadService:
         return result.scalar_one_or_none()
     
     @staticmethod
-    async def query(thread_id: str) -> Optional[Thread]:
+    async def query(thread_id: str) -> Optional[ThreadOrm]:
         """
-        根据ID获取线程配置
+        根据ID获取线程ORM对象
         
         参数:
             thread_id: 线程ID
             
         返回:
-            Thread: 线程配置，不存在则返回None
+            Optional[ThreadOrm]: 线程ORM对象，不存在则返回None
         """
         try:
             async with database_session() as session:
-                thread_orm = await ThreadService._get_thread_by_id(session, thread_id)
-                
-                if thread_orm:
-                    return Thread(
-                        thread_orm.thread_id,
-                        thread_orm.assistant_id,
-                        thread_orm.tenant_id,
-                        thread_orm.status,
-                        thread_orm.created_at,
-                        thread_orm.updated_at,
-                    )
-                
-                return None
+                return await ThreadService._get_thread_by_id(session, thread_id)
 
         except Exception as e:
             logger.error(f"获取线程配置失败: {thread_id}, 错误: {e}")
             raise
     
     @staticmethod
-    async def save(config: Thread):
+    async def save(config):
         """
         创建新线程配置
         
@@ -108,8 +95,59 @@ class ThreadService:
             logger.error(f"创建线程配置失败: {config.thread_id}, 错误: {e}")
             raise
     
+    
     @staticmethod
-    async def update(config: Thread) -> bool:
+    async def upsert(
+        thread_id: str,
+        assistant_id: Optional[str] = None,
+        tenant_id: str = None
+    ) -> bool:
+        """
+        创建或更新线程配置
+        
+        参数:
+            thread_id: 线程ID
+            assistant_id: 助理ID
+            tenant_id: 租户ID
+            
+        返回:
+            bool: 是否保存成功
+        """
+        try:
+            async with database_session() as session:
+                # 查找现有线程
+                existing_thread = await ThreadService._get_thread_by_id(session, thread_id)
+                
+                if existing_thread:
+                    # 更新现有线程
+                    if assistant_id is not None:
+                        existing_thread.assistant_id = assistant_id
+                    if tenant_id is not None:
+                        existing_thread.tenant_id = tenant_id
+                    existing_thread.updated_at = get_current_datetime()
+                    logger.debug(f"更新线程: {thread_id}")
+                else:
+                    # 创建新线程
+                    new_thread = ThreadOrm(
+                        thread_id=thread_id,
+                        assistant_id=assistant_id,
+                        tenant_id=tenant_id,
+                        status="active",
+                        created_at=get_current_datetime(),
+                        updated_at=get_current_datetime()
+                    )
+                    session.add(new_thread)
+                    logger.debug(f"创建线程: {thread_id}")
+                
+                await session.commit()
+                return True
+                
+        except Exception as e:
+            logger.error(f"保存线程配置失败: {thread_id}, 错误: {e}")
+            raise
+    
+    @staticmethod
+    async def update(config) -> bool:
         """
         更新线程配置
         
