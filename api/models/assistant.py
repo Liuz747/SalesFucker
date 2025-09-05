@@ -9,7 +9,7 @@ todo
 - TenantRole: 租户角色枚举
 - TenantConfig: 租户配置业务模型 
 - SecurityAuditLog: 安全审计日志
-- TenantModel: 租户数据库模型
+- Tenant: 租户数据库模型
 - SecurityAuditLogModel: 审计日志数据库模型
 """
 
@@ -140,7 +140,7 @@ class AssistantOrmModel(Base):
             config: TenantConfig业务模型实例
             
         返回:
-            TenantModel: 数据库模型实例
+            Tenant: 数据库模型实例
         """
         return cls(
             tenant_id=model.tenant_id,

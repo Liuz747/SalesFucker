@@ -12,7 +12,7 @@ from fastapi import APIRouter, HTTPException, status
 from typing import Optional, Dict, Any, List
 
 from .schema import TenantSyncRequest, TenantSyncResponse, TenantStatusResponse, TenantListResponse, TenantUpdateRequest
-from models.tenant import TenantModel
+from .model import Tenant
 from services.tenant_service import TenantService
 from utils import get_component_logger, get_current_datetime
 
@@ -52,7 +52,7 @@ async def sync_tenant(
             raise
             
         if not exist:
-            cfg = TenantModel(
+            cfg = Tenant(
                 tenant_id=request.tenant_id,
                 tenant_name=request.tenant_name,
                 status=request.status,

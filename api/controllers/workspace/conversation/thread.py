@@ -16,8 +16,9 @@ from fastapi import APIRouter, HTTPException, Depends
 
 from utils import get_component_logger
 from controllers.dependencies import get_request_context
-from .schema import ThreadCreateRequest, Thread, ThreadMetadata
 from repositories.thread_repository import ThreadRepository
+from .schema import ThreadCreateRequest, ThreadMetadata
+from .model import Thread
 from .workflow import router as workflow_router
 
 
@@ -34,7 +35,7 @@ logger = get_component_logger(__name__, "ConversationRouter")
 # 创建路由器
 router = APIRouter(prefix="/threads", tags=["conversation-threads"])
 
-router.include_router(workflow_router, prefix="/{thread_id}/runs", tags=["workflow-runs"])
+router.include_router(workflow_router, prefix="/{thread_id}/runs", tags=["workflows"])
 
 @router.post("")
 async def create_thread(

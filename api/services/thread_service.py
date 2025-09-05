@@ -14,7 +14,7 @@ from typing import Optional, List
 from sqlalchemy import select, update
 
 from models import ThreadOrm
-from controllers.workspace.conversation.schema import Thread
+from controllers.workspace.conversation.model import Thread
 from infra.db.connection import database_session
 from utils import get_component_logger
 
@@ -61,7 +61,14 @@ class ThreadService:
                 thread_orm = await ThreadService._get_thread_by_id(session, thread_id)
                 
                 if thread_orm:
-                    return Thread.from_orm(thread_orm)
+                    return Thread(
+                        thread_orm.thread_id,
+                        thread_orm.assistant_id,
+                        thread_orm.tenant_id,
+                        thread_orm.status,
+                        thread_orm.created_at,
+                        thread_orm.updated_at,
+                    )
                 
                 return None
 

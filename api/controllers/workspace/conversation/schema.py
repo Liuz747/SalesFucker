@@ -24,6 +24,7 @@ class ThreadMetadata(BaseModel):
     """线程元数据模型"""
     
     tenant_id: Optional[str] = Field(None, description="租户标识符")
+    assistant_id: Optional[str] = Field(None, description="助手标识符")
 
 
 class WorkflowData(BaseModel):
@@ -31,29 +32,6 @@ class WorkflowData(BaseModel):
     
     type: str = Field(description="工作流数据类型")
     content: Any = Field(description="工作流数据内容")
-
-class Thread(BaseModel):
-    """对话线程数据模型"""
-    
-    thread_id: str = Field(description="线程标识符")
-    assistant_id: Optional[str] = Field(None, description="助手标识符")
-    status: ThreadStatus = Field(default=ThreadStatus.ACTIVE, description="线程状态")
-    created_at: datetime = Field(default_factory=get_current_datetime, description="创建时间")
-    updated_at: datetime = Field(default_factory=get_current_datetime, description="更新时间")
-    processing_time: Optional[float] = Field(None, description="处理时间（毫秒）")
-    metadata: ThreadMetadata = Field(description="线程元数据")
-    
-    @classmethod
-    def from_orm(cls, orm_obj: ThreadOrm) -> Self:
-        """从ORM对象转换为业务模型"""
-        return cls(
-            thread_id=orm_obj.thread_id,
-            assistant_id=orm_obj.assistant_id,
-            status=orm_obj.status,
-            created_at=orm_obj.created_at,
-            updated_at=orm_obj.updated_at,
-            metadata=ThreadMetadata(tenant_id=orm_obj.tenant_id)
-        )
 
 
 class ThreadCreateRequest(BaseModel):

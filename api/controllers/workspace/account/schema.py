@@ -3,6 +3,7 @@ from typing import Dict, List, Optional, Any
 
 from pydantic import BaseModel, Field
 
+
 class TenantSyncRequest(BaseModel):
     tenant_id: str = Field(description="租户ID")
     tenant_name: str = Field(description="租户名称")

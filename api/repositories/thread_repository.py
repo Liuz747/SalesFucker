@@ -16,7 +16,7 @@ import msgpack
 
 from config import mas_config
 from utils import get_component_logger, get_current_datetime, to_isoformat
-from controllers.workspace.conversation.schema import Thread
+from controllers.workspace.conversation.model import Thread
 from infra.cache.redis_client import get_redis_client
 from services.thread_service import ThreadService
 

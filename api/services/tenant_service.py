@@ -15,8 +15,10 @@ from datetime import datetime
 from typing import Optional, List
 
 from sqlalchemy import select, update
+from sqlalchemy.sql import func
 
-from models.tenant import TenantModel, TenantOrm
+from models.tenant import TenantOrm
+from controllers.workspace.account.model import Tenant
 from infra.db.connection import database_session, test_db_connection
 from utils import get_component_logger
 
@@ -48,7 +50,7 @@ class TenantService:
         return result.scalar_one_or_none()
     
     @staticmethod
-    async def query(tenant_id: str) -> Optional[TenantModel]:
+    async def query(tenant_id: str) -> Optional[Tenant]:
         """
         根据ID获取租户配置
         
@@ -56,14 +58,20 @@ class TenantService:
             tenant_id: 租户ID
             
         返回:
-            TenantModel: 租户配置，不存在则返回None
+            Tenant: 租户配置，不存在则返回None
         """
         try:
             async with database_session() as session:
-                tenant_model = await TenantService._get_tenant_by_id(session, tenant_id)
+                orm_obj = await TenantService._get_tenant_by_id(session, tenant_id)
                 
-                if tenant_model:
-                    return tenant_model.to_model()
+                if orm_obj:
+                    return Tenant(
+                        tenant_id=orm_obj.tenant_id,
+                        tenant_name=orm_obj.tenant_name,
+                        status=orm_obj.status,
+                        industry=orm_obj.industry,
+                        company_size=orm_obj.company_size,
+                    )
                 
                 return None
 
@@ -72,7 +80,7 @@ class TenantService:
             raise
     
     @staticmethod
-    async def save(config: TenantModel) -> bool:
+    async def save(config: Tenant) -> bool:
         """
         保存租户配置（创建或更新）
         
@@ -89,11 +97,25 @@ class TenantService:
                 
                 if existing_tenant:
                     # 更新现有租户
-                    existing_tenant.update(config)
+                    existing_tenant.tenant_name = config.tenant_name
+                    existing_tenant.status = config.status
+                    existing_tenant.industry = config.industry
+                    existing_tenant.company_size = config.company_size
+                    existing_tenant.area_id = config.area_id
+                    existing_tenant.user_count = config.user_count
+                    existing_tenant.expires_at = config.expires_at
+                    existing_tenant.feature_flags = config.feature_flags
+                    existing_tenant.updated_at = func.now()
                     logger.debug(f"更新租户: {config.tenant_id}")
                 else:
                     # 创建新租户
-                    new_tenant = config.to_orm()
+                    new_tenant = TenantOrm(
+                        tenant_id=config.tenant_id,
+                        tenant_name=config.tenant_name,
+                        status=config.status,
+                        industry=config.industry,
+                        company_size=config.company_size,
+                    )
                     session.add(new_tenant)
                     logger.debug(f"创建租户: {config.tenant_id}")
                 

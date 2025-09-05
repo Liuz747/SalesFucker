@@ -11,7 +11,6 @@
 - 错误处理和审计日志
 """
 
-import uuid
 from typing import Optional
 
 from config import mas_config
@@ -52,7 +51,6 @@ class BackgroundWorkflowProcessor:
             bool: 是否发送成功
         """
         try:
-            # 使用 ExternalClient 发送回调
             await self.client.make_request(
                 "POST",
                 callback_url,
