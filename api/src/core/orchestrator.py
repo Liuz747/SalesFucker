@@ -24,6 +24,7 @@ from utils import (
     with_error_handling,
     ErrorHandler
 )
+from utils.tracer_client import trace_conversation
 
 
 class Orchestrator(StatusMixin):
@@ -148,6 +149,26 @@ class Orchestrator(StatusMixin):
         try:
             # 执行工作流处理
             result = await self._execute_workflow(initial_state)
+            
+            # Simple Langfuse tracing - just log the conversation
+            trace_conversation(
+                input_data={
+                    "customer_input": customer_input,
+                    "customer_id": customer_id,
+                    "input_type": input_type,
+                    "tenant_id": self.tenant_id
+                },
+                output_data={
+                    "final_response": result.final_response,
+                    "agents_executed": list(result.agent_responses.keys()),
+                    "processing_complete": result.processing_complete
+                },
+                metadata={
+                    "tenant_id": self.tenant_id,
+                    "workflow_type": "multi_agent_conversation"
+                }
+            )
+            
             return result
             
         except Exception as e:
