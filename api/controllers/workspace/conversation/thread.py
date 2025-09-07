@@ -14,10 +14,10 @@
 import uuid
 from fastapi import APIRouter, HTTPException, Depends
 
-from utils import get_component_logger, get_current_datetime
+from utils import get_component_logger
 from controllers.dependencies import get_request_context
 from repositories.thread_repository import ThreadRepository
-from models import ThreadOrm
+from models import ThreadOrm, ThreadStatus
 from .schema import ThreadCreateRequest
 from .workflow import router as workflow_router
 
@@ -61,20 +61,21 @@ async def create_thread(
             thread_id=thread_id,
             assistant_id=request.assistant_id,
             tenant_id=tenant_id,
-            status="active",
-            created_at=get_current_datetime(),
-            updated_at=get_current_datetime()
+            status=ThreadStatus.ACTIVE
         )
         
         # 传递给 repository
-        created_thread = await repository.create_thread(thread_orm)
+        await repository.create_thread(thread_orm)
         
         return {
             "thread_id": thread_id,
-            "metadata": {"tenant_id": tenant_id},
-            "status": created_thread.status,
-            "created_at": created_thread.created_at,
-            "updated_at": created_thread.updated_at
+            "metadata": {
+                "tenant_id": tenant_id,
+                "assistant_id": request.assistant_id
+            },
+            "status": thread_orm.status,
+            "created_at": thread_orm.created_at,
+            "updated_at": thread_orm.updated_at
         }
         
     except HTTPException:

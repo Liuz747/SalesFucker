@@ -53,7 +53,7 @@ async def sync_tenant(
                 area_id=request.area_id,
                 creator=request.creator,
                 company_size=request.company_size,
-                feature_flags=request.features
+                feature_flags=request.features.model_dump()
             )
             
             if flag:
@@ -66,7 +66,6 @@ async def sync_tenant(
             logger.error(f"获取或保存租户配置失败: {request.tenant_id}, 错误: {e}")
             raise
         
-        logger.info(f"Tenant sync successful: {tenant_id}")
         return TenantSyncResponse(
             tenant_id=tenant_id,
             message="Tenant synced successfully",
@@ -99,8 +98,7 @@ async def sync_tenant(
 
 @router.get("/{tenant_id}/status", response_model=TenantStatusResponse)
 async def get_tenant_status(
-    tenant_id: str,
-
+    tenant_id: str
 ):
     """
     Get tenant status from AI service
@@ -226,7 +224,6 @@ async def delete_tenant(
 
 @router.get("/", response_model=TenantListResponse)
 async def list_tenants(
-
     status_filter: Optional[str] = None,
     limit: int = 50,
     offset: int = 0

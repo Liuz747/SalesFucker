@@ -52,32 +52,29 @@ class ThreadRepository:
         
         self.logger.info("线程存储库初始化完成")
     
-    async def create_thread(self, thread_orm: ThreadOrm) -> ThreadOrm:
+    async def create_thread(self, thread: ThreadOrm):
         """
         创建线程 - 优化性能策略
         
         参数:
-            thread_orm: 线程ORM对象
-            
-        返回:
-            ThreadOrm: 创建的线程ORM对象
+            thread: 线程ORM对象
         
         性能目标: < 5ms 响应时间
         """
         try:
             # 1. 立即更新Redis缓存
-            await self._update_redis_cache(thread_orm)
+            await self._update_redis_cache(thread)
             
             # 2. 异步写入数据库
             asyncio.create_task(ThreadService.upsert(
-                thread_id=thread_orm.thread_id,
-                assistant_id=thread_orm.assistant_id,
-                tenant_id=thread_orm.tenant_id
+                thread_id=thread.thread_id,
+                assistant_id=thread.assistant_id,
+                tenant_id=thread.tenant_id
             ))
             
-            self.logger.debug(f"线程创建成功: {thread_orm.thread_id}")
-            return thread_orm
-            
+            self.logger.debug(f"线程创建成功: {thread.thread_id}")
+
+            return True
         except Exception as e:
             self.logger.error(f"线程创建失败: {e}")
             raise
