@@ -103,7 +103,7 @@ async def sync_tenant(
 
 
 @router.post("/{tenant_id}/synclgp", response_model=SuccessResponse[TenantSyncResponse])
-async def sync_tenant(
+async def sync_tenant_lgp(
         tenant_id: str,
         request: TenantSyncRequest
 ) -> SuccessResponse[TenantSyncResponse]:
@@ -157,97 +157,6 @@ async def sync_tenant(
                 message=f"Tenant sync failed: {str(e)}",
             )
 
-@router.post("/{tenant_id}/sync1", response_model=SuccessResponse[TenantSyncResponse])
-async def sync_tenant1(
-        tenant_id: str,
-        request: TenantSyncRequest
-) -> SuccessResponse[TenantSyncResponse]:
-    """
-    Sync tenant from backend system to AI service
-
-    Called by backend when:
-    - New company registers (creates tenant)
-    - Company updates their information
-    - Company changes status (active/inactive)
-    """
-    try:
-        logger.info(f"Backend tenant sync request: {tenant_id} \n param: {request}")
-
-        # Validate tenant_id matches request
-        if request.tenant_id != tenant_id:
-            return SuccessResponse(
-                code=resp_code.tenant_id_not_equal_resp.code,
-                message=resp_code.tenant_id_not_equal_resp.code,
-            )
-        # Sync tenant to AI service database
-        try:
-            exist = await TenantService.sync_tenant(request.tenant_id)
-        except Exception as e:
-            logger.error(f"获取租户配置失败: {request.tenant_id}, 错误: {e}")
-            raise
-
-        if not exist:
-            cfg = TenantModel(
-                tenant_id=request.tenant_id,
-                tenant_name=request.tenant_name,
-                status=request.status,
-                industry=request.industry,
-                area_id=request.area_id,
-                creator=request.creator,
-                company_size=request.company_size,
-            )
-        else:
-            cfg = exist
-            cfg.status = request.status
-            cfg.tenant_name = request.tenant_name
-            cfg.industry = request.industry
-            cfg.area_id = request.area_id
-            cfg.company_size = request.company_size
-
-        # Update features if provided
-        if request.features:
-            cfg.feature_flags = {feature: True for feature in request.features}
-
-        flag = await TenantService.save(cfg)
-        if flag:
-            logger.info(f"租户配置已更新: {cfg.tenant_id}")
-        else:
-            logger.error(f"保存租户配置失败: {cfg.tenant_id}")
-            raise ValueError(f"Failed to save tenant configuration for {cfg.tenant_id}")
-        
-        logger.info(f"Tenant sync successful: {tenant_id}")
-        return SuccessResponse(
-            code=0,
-            message="success",
-            data=TenantSyncResponse(
-                tenant_id=tenant_id,
-                message="Tenant synced successfully",
-                synced_at=get_current_datetime(),
-                features_enabled=request.features
-            ),
-        )
-        
-    except ValueError as e:
-        logger.warning(f"Invalid tenant sync data: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
-    except Exception as e:
-        error_msg = str(e).lower()
-        logger.error(f"Tenant sync failed for {tenant_id}: {e}", exc_info=True)
-        
-        # Provide specific error messages for database issues
-        if "connection" in error_msg or "database" in error_msg:
-            return SuccessResponse(
-                code=resp_code.database_not_available_resp.code,
-                message=resp_code.database_not_available_resp.message,
-            )
-        else:
-            return SuccessResponse(
-                code=resp_code.internal_server_error_resp.code,
-                message=f"Tenant sync failed: {str(e)}",
-            )
 
 
 @router.get("/{tenant_id}/status", response_model=TenantStatusResponse)
