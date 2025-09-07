@@ -32,69 +32,68 @@ class TenantRole(StrEnum):
     OPERATOR = "operator"    # 操作员
     VIEWER = "viewer"        # 查看者
     API_USER = "api_user"    # API用户
-
-
-class TenantModel(BaseModel):
-    """
-    租户配置业务模型
-    
-    存储租户的完整业务配置信息，包括品牌设置、AI偏好、
-    功能开关、访问控制等。用于业务逻辑处理。
-    """
-    id: Optional[uuid.UUID] = Field(default=None, description="id")
-
-    # 基本信息
-    tenant_id: str = Field(description="租户标识符")
-    tenant_name: str = Field(description="租户名称")
-    status: int = Field(default=1, description="状态：1-活跃，0-禁用")
-    
-    # 业务信息
-    industry: int = Field(default=1, description="行业类型：1-美容诊所，2-化妆品公司等")
-    company_size: Optional[int] = Field(default=1, description="公司规模：1-小型，2-中型，3-大型") 
-    area_id: int = Field(default=1, description="地区ID")
-    user_count: int = Field(default=0, description="用户数量")
-    expires_at: Optional[datetime] = Field(None, description="过期时间")
-    
-    # 审计字段
-    creator: int = Field(default=1, description="创建者ID")
-    editor: Optional[int] = Field(None, description="编辑者ID")
-    deleted: bool = Field(default=False, description="删除标记")
-    created_at: Optional[datetime] = Field(None, description="创建时间")
-    updated_at: Optional[datetime] = Field(None, description="最后更新时间")
-    
-    # 业务配置
-    feature_flags: Dict[str, bool] = Field(
-        default_factory=dict, 
-        description="功能开关配置"
-    )
-    
-    def to_orm(self) -> 'TenantOrm':
-        """
-        转换为数据库模型
-        
-        将业务模型转换为数据库模型实例，用于数据持久化。
-        处理字段映射和数据类型转换。
-        
-        返回:
-            TenantOrm: 数据库模型实例
-        """
-        return TenantOrm(
-            tenant_id=self.tenant_id,
-            tenant_name=self.tenant_name,
-            status=self.status,
-            industry=self.industry,
-            company_size=self.company_size,
-            area_id=self.area_id,
-            user_count=self.user_count,
-            expires_at=self.expires_at,
-            feature_flags=self.feature_flags,
-            creator=self.creator,
-            editor=self.editor,
-            deleted=self.deleted,
-            created_at=func.now(),
-            updated_at=func.now()
-        )
-
+    # todo merge 测试
+#
+# class TenantModel(BaseModel):
+#     """
+#     租户配置业务模型
+#
+#     存储租户的完整业务配置信息，包括品牌设置、AI偏好、
+#     功能开关、访问控制等。用于业务逻辑处理。
+#     """
+#
+#     # 基本信息
+#     tenant_id: str = Field(description="租户标识符")
+#     tenant_name: str = Field(description="租户名称")
+#     status: int = Field(default=1, description="状态：1-活跃，0-禁用")
+#
+#     # 业务信息
+#     industry: int = Field(default=1, description="行业类型：1-美容诊所，2-化妆品公司等")
+#     company_size: Optional[int] = Field(default=1, description="公司规模：1-小型，2-中型，3-大型")
+#     area_id: int = Field(default=1, description="地区ID")
+#     user_count: int = Field(default=0, description="用户数量")
+#     expires_at: Optional[datetime] = Field(None, description="过期时间")
+#
+#     # 审计字段
+#     creator: int = Field(default=1, description="创建者ID")
+#     editor: Optional[int] = Field(None, description="编辑者ID")
+#     deleted: bool = Field(default=False, description="删除标记")
+#     created_at: Optional[datetime] = Field(None, description="创建时间")
+#     updated_at: Optional[datetime] = Field(None, description="最后更新时间")
+#
+#     # 业务配置
+#     feature_flags: Dict[str, bool] = Field(
+#         default_factory=dict,
+#         description="功能开关配置"
+#     )
+#
+#     def to_orm(self) -> 'TenantOrm':
+#         """
+#         转换为数据库模型
+#
+#         将业务模型转换为数据库模型实例，用于数据持久化。
+#         处理字段映射和数据类型转换。
+#
+#         返回:
+#             TenantOrm: 数据库模型实例
+#         """
+#         return TenantOrm(
+#             tenant_id=self.tenant_id,
+#             tenant_name=self.tenant_name,
+#             status=self.status,
+#             industry=self.industry,
+#             company_size=self.company_size,
+#             area_id=self.area_id,
+#             user_count=self.user_count,
+#             expires_at=self.expires_at,
+#             feature_flags=self.feature_flags,
+#             creator=self.creator,
+#             editor=self.editor,
+#             deleted=self.deleted,
+#             created_at=func.now(),
+#             updated_at=func.now()
+#         )
+#
 
 class TenantOrm(Base):
     """
@@ -146,49 +145,49 @@ class TenantOrm(Base):
         Index('idx_tenant_industry', 'industry'),
         Index('idx_tenant_deleted', 'deleted'),
     )
-    
-    def to_model(self) -> TenantModel:
-        """
-        转换为业务模型
-        
-        将数据库模型转换为业务逻辑使用的Pydantic模型，
-        处理默认值和数据类型转换。
-        
-        返回:
-            TenantModel: 业务模型实例
-        """
-        return TenantModel(
-            tenant_id=self.tenant_id,
-            tenant_name=self.tenant_name,
-            status=self.status,
-            industry=self.industry,
-            company_size=self.company_size,
-            area_id=self.area_id,
-            user_count=self.user_count,
-            expires_at=self.expires_at,
-            feature_flags=self.feature_flags or {},
-            creator=self.creator,
-            editor=self.editor,
-            deleted=self.deleted,
-            created_at=self.created_at,
-            updated_at=self.updated_at
-        )
-    
-    def update(self, config: TenantModel):
-        """
-        从业务配置更新数据库模型
-        
-        使用业务配置更新现有数据库模型实例，保持数据库追踪状态。
-        
-        参数:
-            config: TenantModel业务配置实例
-        """
-        self.tenant_name = config.tenant_name
-        self.status = config.status
-        self.industry = config.industry
-        self.company_size = config.company_size
-        self.area_id = config.area_id
-        self.user_count = config.user_count
-        self.expires_at = config.expires_at
-        self.feature_flags = config.feature_flags
-        self.updated_at = func.now()
+    # todo merge 测试
+    # def to_model(self) -> TenantModel:
+    #     """
+    #     转换为业务模型
+    #
+    #     将数据库模型转换为业务逻辑使用的Pydantic模型，
+    #     处理默认值和数据类型转换。
+    #
+    #     返回:
+    #         TenantModel: 业务模型实例
+    #     """
+    #     return TenantModel(
+    #         tenant_id=self.tenant_id,
+    #         tenant_name=self.tenant_name,
+    #         status=self.status,
+    #         industry=self.industry,
+    #         company_size=self.company_size,
+    #         area_id=self.area_id,
+    #         user_count=self.user_count,
+    #         expires_at=self.expires_at,
+    #         feature_flags=self.feature_flags or {},
+    #         creator=self.creator,
+    #         editor=self.editor,
+    #         deleted=self.deleted,
+    #         created_at=self.created_at,
+    #         updated_at=self.updated_at
+    #     )
+    #
+    # def update(self, config: TenantModel):
+    #     """
+    #     从业务配置更新数据库模型
+    #
+    #     使用业务配置更新现有数据库模型实例，保持数据库追踪状态。
+    #
+    #     参数:
+    #         config: TenantModel业务配置实例
+    #     """
+    #     self.tenant_name = config.tenant_name
+    #     self.status = config.status
+    #     self.industry = config.industry
+    #     self.company_size = config.company_size
+    #     self.area_id = config.area_id
+    #     self.user_count = config.user_count
+    #     self.expires_at = config.expires_at
+    #     self.feature_flags = config.feature_flags
+    #     self.updated_at = func.now()

@@ -1,5 +1,5 @@
 """
-Admin Tenant Management Endpoints
+Tenant Management Endpoints
 
 These endpoints are used by the backend system to sync tenant information
 and public keys to the AI service. Only accessible with admin API keys.
@@ -8,9 +8,10 @@ Flow:
 Backend System → POST /tenants/{tenant_id}/sync → AI Service
 """
 
+from typing import Optional
 from fastapi import APIRouter, HTTPException, status
-from typing import Optional, Dict, Any, List
 
+from .schema import TenantSyncRequest, TenantSyncResponse, TenantStatusResponse, TenantListResponse, TenantUpdateRequest
 from api.schemas.schema_tenant import TenantSyncRequest, TenantSyncResponse, TenantStatusResponse, TenantListResponse, TenantUpdateRequest
 from models.tenant import TenantModel
 from services.tenant_service import TenantService
@@ -24,14 +25,91 @@ logger = get_component_logger(__name__, "TenantEndpoints")
 router = APIRouter(prefix="/tenants", tags=["tenant"])
 
 
-@router.post("/{tenant_id}/sync", response_model=SuccessResponse[TenantSyncResponse])
+@router.post("/{tenant_id}/sync", response_model=TenantSyncResponse)
+async def sync_tenant(
+        tenant_id: str,
+        request: TenantSyncRequest
+):
+    """
+    Sync tenant from backend system to AI service
+
+    Called by backend when:
+    - New company registers (creates tenant)
+    - Company updates their information
+    - Company changes status (active/inactive)
+    """
+    try:
+        logger.info(f"Backend tenant sync request: {tenant_id} \n param: {request}")
+
+        # Validate tenant_id matches request
+        if request.tenant_id != tenant_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Tenant ID in URL and request body must match"
+            )
+
+        # Sync tenant to AI service database
+        try:
+            flag = await TenantService.upsert(
+                tenant_id=request.tenant_id,
+                tenant_name=request.tenant_name,
+                status=request.status,
+                industry=request.industry,
+                area_id=request.area_id,
+                creator=request.creator,
+                company_size=request.company_size,
+                feature_flags=request.features
+            )
+
+            if flag:
+                logger.info(f"租户配置已更新: {request.tenant_id}")
+            else:
+                logger.error(f"保存租户配置失败: {request.tenant_id}")
+                raise ValueError(f"Failed to save tenant configuration for {request.tenant_id}")
+
+        except Exception as e:
+            logger.error(f"获取或保存租户配置失败: {request.tenant_id}, 错误: {e}")
+            raise
+
+        logger.info(f"Tenant sync successful: {tenant_id}")
+        return TenantSyncResponse(
+            tenant_id=tenant_id,
+            message="Tenant synced successfully",
+            synced_at=get_current_datetime(),
+            features_enabled=request.features
+        )
+
+    except ValueError as e:
+        logger.warning(f"Invalid tenant sync data: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        error_msg = str(e).lower()
+        logger.error(f"Tenant sync failed for {tenant_id}: {e}", exc_info=True)
+
+        # Provide specific error messages for database issues
+        if "connection" in error_msg or "database" in error_msg:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail=f"Database not available: {str(e)}"
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Tenant sync failed: {str(e)}"
+            )
+
+
+@router.post("/{tenant_id}/synclgp", response_model=SuccessResponse[TenantSyncResponse])
 async def sync_tenant(
         tenant_id: str,
         request: TenantSyncRequest
 ) -> SuccessResponse[TenantSyncResponse]:
     """
     Sync tenant from backend system to AI service
-    
+
     Called by backend when:
     - New company registers (creates tenant)
     - Company updates their information
@@ -86,7 +164,7 @@ async def sync_tenant1(
 ) -> SuccessResponse[TenantSyncResponse]:
     """
     Sync tenant from backend system to AI service
-    
+
     Called by backend when:
     - New company registers (creates tenant)
     - Company updates their information
@@ -186,33 +264,20 @@ async def get_tenant_status(
     try:
         logger.info(f"Tenant status request: {tenant_id}")
         
-        try:
-            cfg = await TenantService.query(tenant_id)
-        except Exception as e:
-            logger.error(f"获取租户配置失败: {tenant_id}, 错误: {e}")
-            raise
+        tenant_orm = await TenantService.query(tenant_id)
             
-        if not cfg:
-            status_info = None
-        else:
-            status_info = TenantStatusResponse(
-                tenant_id=cfg.tenant_id,
-                tenant_name=cfg.tenant_name,
-                status=cfg.status,
-                updated_at=cfg.updated_at,
-                last_access=cfg.last_access,
+        if tenant_orm:
+            return TenantStatusResponse(
+                tenant_id=tenant_orm.tenant_id,
+                tenant_name=tenant_orm.tenant_name,
+                status=tenant_orm.status,
+                updated_at=tenant_orm.updated_at
             )
-        
-        if not status_info:
+        else:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Tenant {tenant_id} not found in AI service"
             )
-        
-        return status_info
-        
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Get tenant status failed for {tenant_id}: {e}", exc_info=True)
         raise HTTPException(
@@ -234,40 +299,27 @@ async def update_tenant(
     """
     try:
         logger.info(f"Tenant update request: {tenant_id}")
+        
+        # Direct update using service method parameters
+        flag = await TenantService.update_tenant(
+            tenant_id=tenant_id,
+            status=request.status,
+            feature_flags=request.features
+        )
 
-        try:
-            cfg = await TenantService.query(tenant_id)
-        except Exception as e:
-            logger.error(f"获取租户配置失败: {tenant_id}, 错误: {e}")
-            raise
-
-        if not cfg:
-            raise ValueError("Tenant not found")
-
-        if request.status is not None:
-            cfg.status = request.status
-
-        if request.features:
-            cfg.feature_flags = {feature: True for feature in request.features}
-
-        flag = await TenantService.save(cfg)
         if flag:
-            logger.info(f"租户配置已更新: {cfg.tenant_id}")
+            logger.info(f"租户配置已更新: {tenant_id}")
         else:
-            logger.error(f"保存租户配置失败: {cfg.tenant_id}")
-
-        result = {
-            "status": "updated" if flag else "failed",
-            "features": request.features or [],
-        }
-
+            logger.error(f"保存租户配置失败: {tenant_id}")
+            raise ValueError(f"获取或更新租户配置失败: {tenant_id}")
+        
         return TenantSyncResponse(
             tenant_id=tenant_id,
             message="Tenant updated successfully",
-            synced_at=get_current_datetime(),
-            features_enabled=result.get("features", [])
+            updated_at=get_current_datetime(),
+            features_enabled=request.features
         )
-
+        
     except ValueError as e:
         logger.warning(f"Invalid tenant update data: {e}")
         raise HTTPException(
@@ -310,7 +362,7 @@ async def delete_tenant(
             "deleted_at": get_current_datetime().isoformat(),
             "data_purged": result.get("data_purged", False)
         }
-
+        
     except ValueError as e:
         logger.warning(f"Tenant deletion validation error: {e}")
         raise HTTPException(
@@ -339,40 +391,28 @@ async def list_tenants(
     """
     try:
         logger.info(f"List tenants request: status={status_filter}, limit={limit}, offset={offset}")
-
+        
         try:
-            ids = await TenantService.get_all_tenants()
-            items: List[Dict[str, Any]] = []
-            for tid in ids:
-                try:
-                    cfg = await TenantService.query(tid)
-                except Exception as e:
-                    logger.error(f"获取租户配置失败: {tid}, 错误: {e}")
-                    continue
+            tenant_orms = await TenantService.get_all_tenants(status_filter, limit, offset)
 
-                if not cfg:
-                    continue
-                if status_filter == "active" and not cfg.status:
-                    continue
-                if status_filter == "inactive" and cfg.status:
-                    continue
-                items.append(
-                    {
-                        "tenant_id": cfg.tenant_id,
-                        "tenant_name": cfg.tenant_name,
-                        "status": cfg.status,
-                        "updated_at": cfg.updated_at,
-                        "features_enabled": list(cfg.feature_flags.keys()) if cfg.feature_flags else [],
-                    }
-                )
+            # Convert ORM objects to response format
+            items = []
+            for tenant in tenant_orms:
+                items.append({
+                    "tenant_id": tenant.tenant_id,
+                    "tenant_name": tenant.tenant_name,
+                    "status": tenant.status,
+                    "updated_at": tenant.updated_at
+                })
+
             total = len(items)
-            tenants = TenantListResponse(total=total, tenants=items[offset: offset + limit])
+            tenants = TenantListResponse(total=total, tenants=items)
         except Exception as e:
             logger.error(f"获取租户列表失败: {e}")
             tenants = TenantListResponse(total=0, tenants=[])
-
+        
         return tenants
-
+        
     except Exception as e:
         logger.error(f"List tenants failed: {e}", exc_info=True)
         raise HTTPException(

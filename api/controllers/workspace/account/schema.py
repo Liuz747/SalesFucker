@@ -3,6 +3,16 @@ from typing import Dict, List, Optional, Any
 
 from pydantic import BaseModel, Field
 
+
+class FeatureFlags(BaseModel):
+    """
+    功能开关配置模型
+    
+    处理功能列表到字典的转换，封装业务逻辑。
+    """
+    enabled_features: List[str] = Field(default_factory=list, description="启用的功能列表")
+
+
 class TenantSyncRequest(BaseModel):
     tenant_id: str = Field(description="租户ID")
     tenant_name: str = Field(description="租户名称")
@@ -11,7 +21,7 @@ class TenantSyncRequest(BaseModel):
     area_id: int = Field(default=1, description="地区ID")
     creator: int = Field(default=1, description="创建者ID")
     company_size: Optional[int] = Field(default=1, description="公司规模：1-小型，2-中型，3-大型")
-    features: Optional[List[str]] = Field(default=None, description="启用的功能")
+    features: Optional[FeatureFlags] = Field(default=None, description="启用的功能")
 
 
 class TenantUpdateRequest(BaseModel):

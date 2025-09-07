@@ -9,7 +9,7 @@ todo
 - TenantRole: 租户角色枚举
 - TenantConfig: 租户配置业务模型 
 - SecurityAuditLog: 安全审计日志
-- TenantModel: 租户数据库模型
+- Tenant: 租户数据库模型
 - SecurityAuditLogModel: 审计日志数据库模型
 """
 

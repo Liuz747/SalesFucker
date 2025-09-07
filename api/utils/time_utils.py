@@ -43,6 +43,16 @@ def get_processing_time_ms(start_time: datetime) -> float:
     return (datetime.now(SHANGHAI_TZ) - start_time).total_seconds() * 1000
 
 
+def get_processing_time(start_time: datetime) -> float:
+    """
+    计算处理时间（秒）
+    
+    参数:
+        start_time: 开始时间
+    """
+    return (datetime.now(SHANGHAI_TZ) - start_time).total_seconds()
+
+
 def to_isoformat(dt: Optional[datetime] = None) -> str:
     """
     格式化时间戳为ISO格式字符串

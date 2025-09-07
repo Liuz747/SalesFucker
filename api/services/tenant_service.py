@@ -12,12 +12,14 @@
 """
 
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Dict
 
 from sqlalchemy import select, update
+from sqlalchemy.sql import func
 
 from api.schemas.schema_tenant import TenantSyncRequest
 from models.tenant import TenantModel, TenantOrm
+from models.tenant import TenantOrm
 from infra.db.connection import database_session, test_db_connection
 from services.tenant_dao import TenantDao
 from utils import get_component_logger
@@ -86,28 +88,89 @@ class TenantService:
         return result.scalar_one_or_none()
 
     @staticmethod
-    async def query(tenant_id: str) -> Optional[TenantModel]:
+    async def query(tenant_id: str) -> Optional[TenantOrm]:
         """
-        根据ID获取租户配置
+        根据ID获取租户ORM对象
         
         参数:
             tenant_id: 租户ID
             
         返回:
-            TenantModel: 租户配置，不存在则返回None
+            Optional[TenantOrm]: 租户ORM对象，不存在则返回None
         """
         try:
             async with database_session() as session:
-                tenant_model = await TenantService._get_tenant_by_id(session, tenant_id)
-
-                if tenant_model:
-                    return tenant_model.to_model()
-
-                return None
+                return await TenantService._get_tenant_by_id(session, tenant_id)
 
         except Exception as e:
             logger.error(f"获取租户配置失败: {tenant_id}, 错误: {e}")
             raise
+
+
+    @staticmethod
+    async def upsert(
+            tenant_id: str,
+            tenant_name: str,
+            status: int,
+            industry: int,
+            area_id: int,
+            creator: int,
+            company_size: int,
+            feature_flags: Dict[str, bool] = None
+    ) -> bool:
+        """
+        创建或更新租户配置
+
+        参数:
+            tenant_id: 租户ID
+            tenant_name: 租户名称
+            status: 状态
+            industry: 行业类型
+            area_id: 地区ID
+            creator: 创建者ID
+            company_size: 公司规模
+            feature_flags: 功能开关
+
+        返回:
+            bool: 是否保存成功
+        """
+        try:
+            async with database_session() as session:
+                # 查找现有租户
+                existing_tenant = await TenantService._get_tenant_by_id(session, tenant_id)
+
+                if existing_tenant:
+                    # 更新现有租户
+                    existing_tenant.tenant_name = tenant_name
+                    existing_tenant.status = status
+                    existing_tenant.industry = industry
+                    existing_tenant.company_size = company_size
+                    existing_tenant.area_id = area_id
+                    existing_tenant.feature_flags = feature_flags or {}
+                    existing_tenant.updated_at = func.now()
+                    logger.debug(f"更新租户: {tenant_id}")
+                else:
+                    # 创建新租户
+                    new_tenant = TenantOrm(
+                        tenant_id=tenant_id,
+                        tenant_name=tenant_name,
+                        status=status,
+                        industry=industry,
+                        area_id=area_id,
+                        creator=creator,
+                        company_size=company_size,
+                        feature_flags=feature_flags or {},
+                    )
+                    session.add(new_tenant)
+                    logger.debug(f"创建租户: {tenant_id}")
+
+                await session.commit()
+                return True
+
+        except Exception as e:
+            logger.error(f"保存租户配置失败: {tenant_id}, 错误: {e}")
+            raise
+
 
     @staticmethod
     async def save(config: TenantModel) -> bool:
@@ -177,24 +240,83 @@ class TenantService:
             raise
 
     @staticmethod
-    async def get_all_tenants() -> List[str]:
+    async def get_all_tenants(
+        status_filter: Optional[str] = None,
+        limit: int = 50,
+        offset: int = 0
+    ) -> List[TenantOrm]:
         """
-        获取所有激活状态的租户ID列表
+        获取所有租户ORM对象列表
         
+        参数:
+            status_filter: 状态过滤器 ("active"/"inactive")
+            limit: 限制数量
+            offset: 偏移量
+
         返回:
-            List[str]: 激活的租户ID列表
+            List[TenantOrm]: 租户ORM对象列表
         """
         try:
             async with database_session() as session:
-                stmt = select(TenantOrm.tenant_id).where(TenantOrm.status == 1)
-                result = await session.execute(stmt)
-                tenant_ids = [row[0] for row in result.fetchall()]
+                stmt = select(TenantOrm)
 
-                logger.debug(f"查询到 {len(tenant_ids)} 个活跃租户")
-                return tenant_ids
+                # 应用状态过滤器
+                if status_filter == "active":
+                    stmt = stmt.where(TenantOrm.status == 1)
+                elif status_filter == "inactive":
+                    stmt = stmt.where(TenantOrm.status == 0)
+
+                # 应用分页
+                stmt = stmt.offset(offset).limit(limit)
+
+                result = await session.execute(stmt)
+                tenants = result.scalars().all()
+
+                logger.debug(f"查询到 {len(tenants)} 个租户")
+                return list(tenants)
 
         except Exception as e:
             logger.error(f"获取租户列表失败: {e}")
+            raise
+
+    @staticmethod
+    async def update_tenant(
+        tenant_id: str,
+        status: Optional[int] = None,
+        feature_flags: Optional[Dict[str, bool]] = None
+    ) -> bool:
+        """
+        更新租户信息
+
+        参数:
+            tenant_id: 租户ID
+            status: 状态 (可选)
+            feature_flags: 功能开关 (可选)
+
+        返回:
+            bool: 是否更新成功
+        """
+        try:
+            async with database_session() as session:
+                # 获取现有租户
+                existing_tenant = await TenantService._get_tenant_by_id(session, tenant_id)
+                if not existing_tenant:
+                    return False
+
+                # 直接修改ORM对象属性
+                if status is not None:
+                    existing_tenant.status = status
+                if feature_flags is not None:
+                    existing_tenant.feature_flags = feature_flags
+
+                existing_tenant.updated_at = func.now()
+                logger.debug(f"更新租户: {tenant_id}")
+
+                await session.commit()
+                return True
+
+        except Exception as e:
+            logger.error(f"更新租户失败: {tenant_id}, 错误: {e}")
             raise
 
     @staticmethod

@@ -11,11 +11,10 @@
 
 from .tenant import (
     TenantRole,
-    TenantOrm, 
-    TenantModel
+    TenantOrm
 )
 from .conversation import (
-    ConversationStatus,
+    ThreadStatus,
     InputType,
     ThreadOrm
 )
@@ -23,8 +22,7 @@ from .conversation import (
 __all__ = [
     "TenantRole",
     "TenantOrm",
-    "TenantModel",
-    "ConversationStatus",
+    "ThreadStatus",
     "InputType",
     "ThreadOrm"
 ]

@@ -13,7 +13,7 @@
 
 import json
 import re
-from typing import Dict, Any, List, Optional, Union
+from typing import Dict, Any, List, Optional
 from utils import get_component_logger
 
 
