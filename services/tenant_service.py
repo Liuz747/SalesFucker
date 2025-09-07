@@ -16,8 +16,10 @@ from typing import Optional, List
 
 from sqlalchemy import select, update
 
+from api.schemas.schema_tenant import TenantSyncRequest
 from models.tenant import TenantModel, TenantOrm
 from infra.db.connection import database_session, test_db_connection
+from services.tenant_dao import TenantDao
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "TenantService")
@@ -30,7 +32,43 @@ class TenantService:
     提供纯粹的数据库操作
     所有方法都是静态的，不维护状态。
     """
-    
+
+    @staticmethod
+    async def sync_tenant(tenant_id: str, request: TenantSyncRequest) -> Optional[TenantModel]:
+        """
+        根据ID获取租户配置
+
+        参数:
+            tenant_id: 租户ID
+
+        返回:
+            TenantModel: 租户配置，不存在则返回None
+        """
+        try:
+            async with database_session() as session:
+                tenant_orm = await TenantDao.get_tenant(tenant_id, session)
+                if tenant_orm is not None:
+                    # 租户已经存在，不能插入
+                    return
+                # 创建新租户
+                new_tenant_model = TenantModel(
+                    tenant_id=request.tenant_id,
+                    tenant_name=request.tenant_name,
+                    status=request.status,
+                    industry=request.industry,
+                    area_id=request.area_id,
+                    creator=request.creator,
+                    company_size=request.company_size,
+                )
+                db_table_id = await TenantDao.insert_tenant(new_tenant_model.to_orm(), session)
+                new_tenant_model.id = db_table_id
+                logger.debug(f"创建租户: {request.tenant_id}")
+                return new_tenant_model
+
+        except Exception as e:
+            logger.error(f"获取租户配置失败: {tenant_id}, 错误: {e}")
+            raise
+
     @staticmethod
     async def _get_tenant_by_id(session, tenant_id: str) -> Optional[TenantOrm]:
         """
@@ -46,7 +84,7 @@ class TenantService:
         stmt = select(TenantOrm).where(TenantOrm.tenant_id == tenant_id)
         result = await session.execute(stmt)
         return result.scalar_one_or_none()
-    
+
     @staticmethod
     async def query(tenant_id: str) -> Optional[TenantModel]:
         """
@@ -61,16 +99,16 @@ class TenantService:
         try:
             async with database_session() as session:
                 tenant_model = await TenantService._get_tenant_by_id(session, tenant_id)
-                
+
                 if tenant_model:
                     return tenant_model.to_model()
-                
+
                 return None
 
         except Exception as e:
             logger.error(f"获取租户配置失败: {tenant_id}, 错误: {e}")
             raise
-    
+
     @staticmethod
     async def save(config: TenantModel) -> bool:
         """
@@ -86,7 +124,7 @@ class TenantService:
             async with database_session() as session:
                 # 查找现有租户
                 existing_tenant = await TenantService._get_tenant_by_id(session, config.tenant_id)
-                
+
                 if existing_tenant:
                     # 更新现有租户
                     existing_tenant.update(config)
@@ -96,14 +134,14 @@ class TenantService:
                     new_tenant = config.to_orm()
                     session.add(new_tenant)
                     logger.debug(f"创建租户: {config.tenant_id}")
-                
+
                 await session.commit()
                 return True
-                
+
         except Exception as e:
             logger.error(f"保存租户配置失败: {config.tenant_id}, 错误: {e}")
             raise
-    
+
     @staticmethod
     async def delete(tenant_id: str) -> bool:
         """
@@ -125,19 +163,19 @@ class TenantService:
                 )
                 result = await session.execute(stmt)
                 await session.commit()
-                
+
                 flag = result.rowcount > 0
                 if flag:
                     logger.info(f"软删除租户: {tenant_id}")
                 else:
                     logger.warning(f"租户不存在，无法删除: {tenant_id}")
-                    
+
                 return flag
 
         except Exception as e:
             logger.error(f"删除租户失败: {tenant_id}, 错误: {e}")
             raise
-    
+
     @staticmethod
     async def get_all_tenants() -> List[str]:
         """
@@ -151,14 +189,14 @@ class TenantService:
                 stmt = select(TenantOrm.tenant_id).where(TenantOrm.status == 1)
                 result = await session.execute(stmt)
                 tenant_ids = [row[0] for row in result.fetchall()]
-                
+
                 logger.debug(f"查询到 {len(tenant_ids)} 个活跃租户")
                 return tenant_ids
 
         except Exception as e:
             logger.error(f"获取租户列表失败: {e}")
             raise
-    
+
     @staticmethod
     async def update_access_stats(tenant_id: str, access_time: datetime) -> bool:
         """
@@ -187,7 +225,7 @@ class TenantService:
         except Exception as e:
             logger.error(f"更新租户访问统计失败: {tenant_id}, 错误: {e}")
             raise
-    
+
     @staticmethod
     async def count_total() -> int:
         """
@@ -201,14 +239,14 @@ class TenantService:
                 stmt = select(TenantOrm.tenant_id)
                 result = await session.execute(stmt)
                 total = len(result.fetchall())
-                
+
                 logger.debug(f"租户总数: {total}")
                 return total
 
         except Exception as e:
             logger.error(f"获取租户总数失败: {e}")
             raise
-    
+
     @staticmethod
     async def health_check() -> dict:
         """
@@ -220,12 +258,12 @@ class TenantService:
         try:
             # 测试数据库连接
             db_healthy = await test_db_connection()
-            
+
             if db_healthy:
                 # 获取租户统计
                 total_tenants = await TenantService.count_total()
                 active_tenants = len(await TenantService.get_all_tenants())
-                
+
                 return {
                     "database_connected": True,
                     "total_tenants": total_tenants,
@@ -237,7 +275,7 @@ class TenantService:
                     "total_tenants": 0,
                     "active_tenants": 0,
                 }
-                
+
         except Exception as e:
             logger.error(f"数据库健康检查失败: {e}")
             return {

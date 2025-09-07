@@ -9,7 +9,9 @@
 - TenantModel: 租户配置业务模型 
 - TenantOrm: 租户数据库模型
 """
+import uuid
 
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from datetime import datetime
 from enum import StrEnum
 from typing import Dict, Optional
@@ -39,7 +41,8 @@ class TenantModel(BaseModel):
     存储租户的完整业务配置信息，包括品牌设置、AI偏好、
     功能开关、访问控制等。用于业务逻辑处理。
     """
-    
+    id: Optional[uuid.UUID] = Field(default=None, description="id")
+
     # 基本信息
     tenant_id: str = Field(description="租户标识符")
     tenant_name: str = Field(description="租户名称")
@@ -102,8 +105,9 @@ class TenantOrm(Base):
     __tablename__ = "tenants"
     
     # 主键
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    
+    # id = Column(uuid.UUID, primary_key=True, autoincrement=True)
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+
     # 基本信息
     tenant_id = Column(String(255), unique=True, nullable=False, index=True)
     tenant_name = Column(String(500), nullable=False)
