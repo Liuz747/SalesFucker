@@ -9,232 +9,146 @@
 - 数据库健康检查
 """
 
-from typing import Optional, List
+import asyncio
+from uuid import UUID
+from typing import Optional
 
-from sqlalchemy import select, update
+import msgpack
 
 from models import ThreadOrm
+from repositories.thread_repository import ThreadRepository
 from infra.db.connection import database_session
-from utils import get_component_logger, get_current_datetime
+from infra.cache.redis_client import get_redis_client
+from utils import get_component_logger, to_isoformat, from_isoformat
 
 logger = get_component_logger(__name__, "ThreadService")
 
 
 class ThreadService:
-    """
-    线程数据库操作仓库
+
+    def __init__(self):
+        # Redis客户端
+        self._redis_client = None
     
-    提供纯粹的数据库操作
-    所有方法都是静态的，不维护状态。
-    """
+    async def dispatch(self):
+        """初始化存储库"""
+        try:
+            self._redis_client = await get_redis_client()
+            # 测试Redis连接
+            await self._redis_client.ping()
+            logger.info("Redis连接初始化完成")
+        except Exception as e:
+            logger.error(f"Redis连接初始化失败: {e}")
+            raise
+        
+        logger.info("线程存储库初始化完成")
     
-    @staticmethod
-    async def _get_thread_by_id(session, thread_id: str) -> Optional[ThreadOrm]:
+    async def create_thread(self, thread: ThreadOrm) -> UUID:
         """
-        获取线程数据库模型
+        创建线程 - 优化性能策略
         
         参数:
-            session: 数据库会话
-            thread_id: 线程ID
-            
-        返回:
-            ThreadOrm: 线程数据库模型，不存在则返回None
-        """
-        stmt = select(ThreadOrm).where(ThreadOrm.thread_id == thread_id)
-        result = await session.execute(stmt)
-        return result.scalar_one_or_none()
-    
-    @staticmethod
-    async def query(thread_id: str) -> Optional[ThreadOrm]:
-        """
-        根据ID获取线程ORM对象
+            thread: 线程ORM对象
         
-        参数:
-            thread_id: 线程ID
-            
-        返回:
-            Optional[ThreadOrm]: 线程ORM对象，不存在则返回None
+        性能目标: < 5ms 响应时间
         """
         try:
             async with database_session() as session:
-                return await ThreadService._get_thread_by_id(session, thread_id)
+                # 1. 立即写入数据库
+                thread_id  = await ThreadRepository.insert_thread(thread, session)
+
+            if thread_id:
+                # 2. 异步更新Redis缓存
+                thread_data = {
+                    "thread_id": thread.thread_id,
+                    "assistant_id": thread.assistant_id,
+                    "tenant_id": thread.tenant_id,
+                    "status": thread.status,
+                    "created_at": to_isoformat(thread.created_at),
+                    "updated_at": to_isoformat(thread.updated_at),
+                }
+                asyncio.create_task(ThreadRepository.update_thread_cache(
+                    thread_data,
+                    self._redis_client
+                ))
+                
+                logger.debug(f"线程写入redis缓存成功: {thread.thread_id}")
+                return thread_id
+            else:
+                logger.error(f"线程写入redis缓存失败: {thread.thread_id}")
+                raise RuntimeError(f"线程写入redis缓存失败: {thread.thread_id}")
 
         except Exception as e:
-            logger.error(f"获取线程配置失败: {thread_id}, 错误: {e}")
+            logger.error(f"线程创建失败: {e}")
             raise
     
-    @staticmethod
-    async def save(config):
+    async def get_thread(self, thread_id: str) -> Optional[ThreadOrm]:
         """
-        创建新线程配置
+        获取线程 - Redis缓存策略
         
-        参数:
-            config: 线程配置
-            
-        返回:
-            bool: 是否保存成功
+        性能目标: < 10ms 响应时间
         """
         try:
+            # Level 1: Redis缓存 (< 10ms)
+            thread = await ThreadRepository.get_thread_cache(thread_id, self._redis_client)
+            if thread:
+                thread['created_at'] = from_isoformat(thread['created_at'])
+                thread['updated_at'] = from_isoformat(thread['updated_at'])
+                return ThreadOrm(**thread)
+            
+            # Level 2: 数据库查询
             async with database_session() as session:
-                # 创建新线程
-                # TODO: 需要添加thread_id的唯一性校验，upsert语句
-                new_thread = ThreadOrm(
-                    thread_id=config.thread_id,
-                    assistant_id=config.assistant_id,
-                    tenant_id=config.metadata.tenant_id,
-                    status=config.status,
-                    created_at=config.created_at,
-                    updated_at=config.updated_at
-                )
-                session.add(new_thread)
-                logger.debug(f"创建线程: {config.thread_id}")
-                
-                await session.commit()
-                
+                thread_orm = await ThreadRepository.get_thread(thread_id, session)
+            if thread_orm:
+                # 异步更新缓存
+                thread_data = {
+                    "thread_id": thread_orm.thread_id,
+                    "assistant_id": thread_orm.assistant_id,
+                    "tenant_id": thread_orm.tenant_id,
+                    "status": thread_orm.status,
+                    "created_at": to_isoformat(thread_orm.created_at),
+                    "updated_at": to_isoformat(thread_orm.updated_at),
+                }
+                asyncio.create_task(ThreadRepository.update_thread_cache(thread_data, self._redis_client))
+                return thread_orm
+            
+            return None
+            
         except Exception as e:
-            logger.error(f"创建线程配置失败: {config.thread_id}, 错误: {e}")
-            raise
+            logger.error(f"线程获取失败: {e}")
+            return None
     
-    
-    @staticmethod
-    async def upsert(
-        thread_id: str,
-        assistant_id: Optional[str] = None,
-        tenant_id: str = None
-    ) -> bool:
-        """
-        创建或更新线程配置
-        
-        参数:
-            thread_id: 线程ID
-            assistant_id: 助理ID
-            tenant_id: 租户ID
-            
-        返回:
-            bool: 是否保存成功
-        """
+    async def update_thread(self, thread_orm: ThreadOrm) -> ThreadOrm:
+        """更新线程"""
         try:
+            # 立即更新数据库
             async with database_session() as session:
-                # 查找现有线程
-                existing_thread = await ThreadService._get_thread_by_id(session, thread_id)
-                
-                if existing_thread:
-                    # 更新现有线程
-                    if assistant_id is not None:
-                        existing_thread.assistant_id = assistant_id
-                    if tenant_id is not None:
-                        existing_thread.tenant_id = tenant_id
-                    existing_thread.updated_at = get_current_datetime()
-                    logger.debug(f"更新线程: {thread_id}")
-                else:
-                    # 创建新线程
-                    new_thread = ThreadOrm(
-                        thread_id=thread_id,
-                        assistant_id=assistant_id,
-                        tenant_id=tenant_id,
-                        status="active",
-                        created_at=get_current_datetime(),
-                        updated_at=get_current_datetime()
-                    )
-                    session.add(new_thread)
-                    logger.debug(f"创建线程: {thread_id}")
-                
-                await session.commit()
-                return True
-                
-        except Exception as e:
-            logger.error(f"保存线程配置失败: {thread_id}, 错误: {e}")
-            raise
-    
-    @staticmethod
-    async def update(config) -> bool:
-        """
-        更新线程配置
-        
-        参数:
-            config: 线程配置
-            
-        返回:
-            bool: 是否更新成功
-        """
-        try:
-            async with database_session() as session:
-                stmt = (
-                    update(ThreadOrm)
-                    .where(ThreadOrm.thread_id == config.thread_id)
-                    .values(
-                        assistant_id=config.assistant_id,
-                        tenant_id=config.metadata.tenant_id,
-                        status=config.status,
-                        updated_at=config.updated_at
-                    )
-                )
-                result = await session.execute(stmt)
-                await session.commit()
-                
-                flag = result.rowcount > 0
-                if flag:
-                    logger.debug(f"更新线程: {config.thread_id}")
-                else:
-                    logger.warning(f"线程不存在，无法更新: {config.thread_id}")
-                    
-                return flag
-                
-        except Exception as e:
-            logger.error(f"更新线程配置失败: {config.thread_id}, 错误: {e}")
-            raise
-    
-    @staticmethod
-    async def delete(thread_id: str) -> bool:
-        """
-        删除线程（软删除）
-        
-        参数:
-            thread_id: 线程ID
-            
-        返回:
-            bool: 是否删除成功
-        """
-        try:
-            async with database_session() as session:
-                # 软删除：设置为失败状态
-                stmt = (
-                    update(ThreadOrm)
-                    .where(ThreadOrm.thread_id == thread_id)
-                    .values(status="failed")
-                )
-                result = await session.execute(stmt)
-                await session.commit()
-                
-                flag = result.rowcount > 0
-                if flag:
-                    logger.info(f"软删除线程: {thread_id}")
-                else:
-                    logger.warning(f"线程不存在，无法删除: {thread_id}")
-                    
-                return flag
+                await ThreadRepository.update_thread(thread_orm, session)
 
+            thread_data = {
+                "thread_id": thread_orm.thread_id,
+                "assistant_id": thread_orm.assistant_id,
+                "tenant_id": thread_orm.tenant_id,
+                "status": thread_orm.status,
+                "created_at": to_isoformat(thread_orm.created_at),
+                "updated_at": to_isoformat(thread_orm.updated_at),
+            }
+            
+            # 异步更新Redis缓存
+            asyncio.create_task(ThreadRepository.update_thread_cache(
+                thread_data,
+                self._redis_client
+            ))
+            
+            return thread_orm
+            
         except Exception as e:
-            logger.error(f"删除线程失败: {thread_id}, 错误: {e}")
+            logger.error(f"线程更新失败: {e}")
             raise
-    
-    @staticmethod
-    async def get_all_threads() -> List[str]:
-        """
-        获取所有激活状态的线程ID列表
-        
-        返回:
-            List[str]: 激活的线程ID列表
-        """
-        try:
-            async with database_session() as session:
-                stmt = select(ThreadOrm.thread_id).where(ThreadOrm.status == "active")
-                result = await session.execute(stmt)
-                thread_ids = [row[0] for row in result.fetchall()]
-                
-                logger.debug(f"查询到 {len(thread_ids)} 个活跃线程")
-                return thread_ids
 
-        except Exception as e:
-            logger.error(f"获取线程列表失败: {e}")
-            raise
+    async def cleanup(self):
+        """清理资源"""
+        # 清理Redis客户端引用（共享连接池由应用层管理）
+        self._redis_client = None
+        
+        logger.info("线程存储库已清理")

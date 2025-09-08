@@ -16,18 +16,18 @@ from fastapi import APIRouter, HTTPException, Depends
 
 from utils import get_component_logger
 from controllers.dependencies import get_request_context
-from repositories.thread_repository import ThreadRepository
+from services.thread_service import ThreadService
 from models import ThreadOrm, ThreadStatus
 from .schema import ThreadCreateRequest
 from .workflow import router as workflow_router
 
 
 # 依赖注入函数
-async def get_thread_repository() -> ThreadRepository:
+async def get_thread_service() -> ThreadService:
     """获取线程存储库依赖"""
-    repository = ThreadRepository()
-    await repository.initialize()
-    return repository
+    service = ThreadService()
+    await service.dispatch()
+    return service
 
 
 logger = get_component_logger(__name__, "ConversationRouter")
@@ -41,7 +41,7 @@ router.include_router(workflow_router, prefix="/{thread_id}/runs", tags=["workfl
 async def create_thread(
     request: ThreadCreateRequest,
     context = Depends(get_request_context),
-    repository = Depends(get_thread_repository)
+    service = Depends(get_thread_service)
 ):
     """
     创建新的对话线程
@@ -64,8 +64,8 @@ async def create_thread(
             status=ThreadStatus.ACTIVE
         )
         
-        # 传递给 repository
-        await repository.create_thread(thread_orm)
+        # 传递给 service
+        await service.create_thread(thread_orm)
         
         return {
             "thread_id": thread_id,
@@ -89,7 +89,7 @@ async def create_thread(
 async def get_thread(
     thread_id: str,
     context = Depends(get_request_context),
-    repository = Depends(get_thread_repository)
+    service = Depends(get_thread_service)
 ):
     """
     获取线程详情
@@ -98,7 +98,7 @@ async def get_thread(
     """
     try:
         # 使用依赖注入的存储库获取线程
-        thread = await repository.get_thread(thread_id)
+        thread = await service.get_thread(thread_id)
         
         if not thread:
             raise HTTPException(
