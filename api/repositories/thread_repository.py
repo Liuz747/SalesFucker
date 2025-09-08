@@ -1,12 +1,14 @@
 """
-高性能线程存储库
+线程数据访问存储库
 
-该模块实现混合存储策略，针对云端PostgreSQL数据库的高延迟问题进行优化。
-采用缓存+数据库二级存储架构，确保最佳性能和数据安全性。
+该模块提供纯粹的线程数据访问操作，不包含业务逻辑。
+遵循Repository模式，专注于数据持久化和查询操作，支持数据库和缓存的独立访问。
 
-存储架构:
-1. Redis缓存 - 跨实例共享 < 10ms 访问速度  
-2. PostgreSQL - 持久化存储，异步写入
+核心功能:
+- 线程数据库CRUD操作（PostgreSQL）
+- 线程缓存操作（Redis）  
+- 纯数据访问，无业务逻辑
+- 依赖注入，支持外部会话管理
 """
 
 from typing import Optional
@@ -19,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import mas_config
 from models import ThreadOrm
+from controllers.workspace.conversation.model import Thread
 from utils import get_component_logger, get_current_datetime
 
 logger = get_component_logger(__name__, "ThreadRepository")
@@ -26,11 +29,13 @@ logger = get_component_logger(__name__, "ThreadRepository")
 
 class ThreadRepository:
     """
-    高性能线程存储库
+    线程数据访问存储库
     
-    实现混合存储策略：
-    1. Redis缓存 - 分布式共享 (< 10ms)
-    2. PostgreSQL - 持久化存储 (异步写入)
+    提供纯粹的数据访问操作:
+    1. 数据库操作 - PostgreSQL CRUD操作，依赖注入AsyncSession
+    2. 缓存操作 - Redis读写操作，依赖注入Redis客户端
+    3. 无业务逻辑 - 仅处理数据持久化和检索
+    4. 静态方法 - 无状态设计，支持依赖注入
     """
         
     @staticmethod
@@ -122,26 +127,29 @@ class ThreadRepository:
             raise
 
     @staticmethod
-    async def update_thread_cache(thread_data: dict, redis_client: Redis):
+    async def update_thread_cache(thread_model: Thread, redis_client: Redis):
         """
         更新线程缓存
         """
         try:
-            redis_key = f"thread:{thread_data['thread_id']}"
+            redis_key = f"thread:{thread_model.thread_id}"
+            
+            # 使用Pydantic模型的model_dump进行序列化
+            thread_data = thread_model.model_dump(mode='json')
 
             await redis_client.setex(
                 redis_key,
                 mas_config.REDIS_TTL,
                 msgpack.packb(thread_data),
             )
-            logger.debug(f"更新线程缓存: {thread_data['thread_id']}")
+            logger.debug(f"更新线程缓存: {thread_model.thread_id}")
 
         except Exception as e:
-            logger.error(f"更新线程缓存失败: {thread_data['thread_id']}, 错误: {e}")
+            logger.error(f"更新线程缓存失败: {thread_model.thread_id}, 错误: {e}")
             raise
 
     @staticmethod
-    async def get_thread_cache(thread_id: str, redis_client: Redis) -> Optional[dict]:
+    async def get_thread_cache(thread_id: str, redis_client: Redis) -> Optional[Thread]:
         """
         获取线程缓存
         """
@@ -150,7 +158,8 @@ class ThreadRepository:
             redis_data = await redis_client.get(redis_key)
 
             if redis_data:
-                return msgpack.unpackb(redis_data, raw=False)
+                thread_dict = msgpack.unpackb(redis_data, raw=False)
+                return Thread(**thread_dict)
             return None
         except Exception as e:
             logger.error(f"获取线程缓存失败: {thread_id}, 错误: {e}")
