@@ -10,7 +10,7 @@ class FeatureFlags(BaseModel):
     
     处理功能列表到字典的转换，封装业务逻辑。
     """
-    enabled_features: List[str] = Field(default_factory=list, description="启用的功能列表")
+    enabled_features: Optional[List[str]] = Field(default_factory=list, description="启用的功能列表")
 
 
 class TenantSyncRequest(BaseModel):
@@ -33,7 +33,7 @@ class TenantSyncResponse(BaseModel):
     tenant_id: str
     message: str
     synced_at: datetime
-    features_enabled: Optional[List[str]] = None
+    features_enabled: Optional[FeatureFlags] = None
 
 
 class TenantStatusResponse(BaseModel):

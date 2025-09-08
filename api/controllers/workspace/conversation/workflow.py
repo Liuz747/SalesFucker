@@ -14,18 +14,18 @@ from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms
 from controllers.dependencies import get_orchestrator_service, get_request_context
-from repositories.thread_repository import ThreadRepository
+from services.thread_service import ThreadService
 from models.conversation import ThreadStatus
 from .schema import MessageCreateRequest, WorkflowData
 from .background_process import BackgroundWorkflowProcessor
 
 
 # 依赖注入函数
-async def get_thread_repository() -> ThreadRepository:
+async def get_thread_service() -> ThreadService:
     """获取线程存储库依赖"""
-    repository = ThreadRepository()
-    await repository.initialize()
-    return repository
+    service = ThreadService()
+    await service.dispatch()
+    return service
 
 
 logger = get_component_logger(__name__, "WorkflowRouter")
@@ -39,7 +39,7 @@ async def create_run(
     thread_id: str,
     request: MessageCreateRequest,
     context = Depends(get_request_context),
-    repository = Depends(get_thread_repository)
+    service = Depends(get_thread_service)
 ):
     """
     创建运行实例 - 核心工作流端点
@@ -58,7 +58,7 @@ async def create_run(
         logger.info(f"开始运行处理 - 线程: {thread_id}, 租户: {tenant_id}")
 
         # 使用依赖注入的存储库验证线程
-        thread = await repository.get_thread(thread_id)
+        thread = await service.get_thread(thread_id)
         
         if not thread:
             raise HTTPException(
@@ -135,7 +135,7 @@ async def create_background_run(
     request: MessageCreateRequest,
     background_tasks: BackgroundTasks,
     context = Depends(get_request_context),
-    repository = Depends(get_thread_repository)
+    service = Depends(get_thread_service)
 ):
     """
     创建后台运行实例 - 异步工作流端点
@@ -155,7 +155,7 @@ async def create_background_run(
         logger.info(f"开始后台运行处理 - 线程: {thread_id}, 租户: {tenant_id}")
 
         # 使用依赖注入的存储库验证线程
-        thread = await repository.get_thread(thread_id)
+        thread = await service.get_thread(thread_id)
         
         if not thread:
             raise HTTPException(
@@ -181,7 +181,7 @@ async def create_background_run(
         created_at = get_current_datetime()
 
         # 获取后台处理器
-        processor = BackgroundWorkflowProcessor(repository)
+        processor = BackgroundWorkflowProcessor(service)
         
         # 添加后台任务
         background_tasks.add_task(
@@ -218,7 +218,7 @@ async def get_run_status(
     thread_id: str,
     run_id: str,
     context = Depends(get_request_context),
-    repository = Depends(get_thread_repository)
+    service = Depends(get_thread_service)
 ):
     """
     获取后台运行状态
@@ -230,7 +230,7 @@ async def get_run_status(
         tenant_id = context['tenant_id']
 
         # 使用依赖注入的存储库验证线程
-        thread = await repository.get_thread(thread_id)
+        thread = await service.get_thread(thread_id)
         
         if not thread:
             raise HTTPException(
@@ -245,7 +245,7 @@ async def get_run_status(
             )
         
         # 获取线程状态（现在使用线程状态代替运行状态）
-        current_thread = await repository.get_thread(thread_id)
+        current_thread = await service.get_thread(thread_id)
 
         if not current_thread:
             raise HTTPException(
