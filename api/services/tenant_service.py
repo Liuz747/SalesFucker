@@ -11,14 +11,14 @@
 - 高效查询和索引优化
 """
 
-from datetime import datetime
-from typing import Optional, List, Dict
-
-from sqlalchemy import select, update
-from sqlalchemy.sql import func
+import asyncio
+from typing import Optional
 
 from models.tenant import TenantOrm
-from infra.db.connection import database_session, test_db_connection
+from controllers.workspace.account.model import Tenant
+from infra.db.connection import database_session
+from infra.cache.redis_client import get_redis_client
+from repositories.tenant_repo import TenantRepository
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "TenantService")
@@ -32,24 +32,42 @@ class TenantService:
     所有方法都是静态的，不维护状态。
     """
     
-    @staticmethod
-    async def _get_tenant_by_id(session, tenant_id: str) -> Optional[TenantOrm]:
-        """
-        获取租户数据库模型
-        
-        参数:
-            session: 数据库会话
-            tenant_id: 租户ID
-            
-        返回:
-            TenantOrm: 租户数据库模型，不存在则返回None
-        """
-        stmt = select(TenantOrm).where(TenantOrm.tenant_id == tenant_id)
-        result = await session.execute(stmt)
-        return result.scalar_one_or_none()
+    def __init__(self):
+        self._redis_client = None
     
-    @staticmethod
-    async def query(tenant_id: str) -> Optional[TenantOrm]:
+    async def dispatch(self):
+        """初始化服务依赖（Redis客户端连接）"""
+        try:
+            self._redis_client = await get_redis_client()
+            await self._redis_client.ping()
+            logger.info("Redis连接初始化完成")
+        except Exception as e:
+            logger.error(f"Redis连接初始化失败: {e}")
+            raise
+        
+        logger.info("租户服务初始化完成")
+
+    async def create_tenant(self, tenant: TenantOrm) -> bool:
+        """创建租户"""
+        try:
+            async with database_session() as session:
+                tenant_id = await TenantRepository.insert_tenant(tenant, session)
+            
+                if tenant_id:
+                    tenant_model = Tenant.to_model(tenant)
+                    asyncio.create_task(TenantRepository.update_tenant_cache(
+                        tenant_model,
+                        self._redis_client
+                    ))
+                    return True
+            
+            logger.error(f"创建租户失败: {tenant_id}")
+            return False
+        except Exception as e:
+            logger.error(f"创建租户失败: {tenant_id}, 错误: {e}")
+            raise
+
+    async def query_tenant(self, tenant_id: str) -> Optional[TenantOrm]:
         """
         根据ID获取租户ORM对象
         
@@ -60,79 +78,48 @@ class TenantService:
             Optional[TenantOrm]: 租户ORM对象，不存在则返回None
         """
         try:
+            # Level 1: Redis缓存 (< 10ms)
+            tenant_model = await TenantRepository.get_tenant_cache(tenant_id, self._redis_client)
+            if tenant_model:
+                return tenant_model.to_orm()
+            
+            # Level 2: 数据库查询
             async with database_session() as session:
-                return await TenantService._get_tenant_by_id(session, tenant_id)
+                tenant_orm = await TenantRepository.get_tenant(tenant_id, session)
+                if tenant_orm:
+                    tenant_model = Tenant.to_model(tenant_orm)
+                    asyncio.create_task(TenantRepository.update_tenant_cache(
+                        tenant_model,
+                        self._redis_client
+                    ))
+                    return tenant_orm
+            
+            logger.error(f"租户不存在: {tenant_id}")
+            return None
 
         except Exception as e:
             logger.error(f"获取租户配置失败: {tenant_id}, 错误: {e}")
             raise
     
-    @staticmethod
-    async def upsert(
-        tenant_id: str,
-        tenant_name: str,
-        status: int,
-        industry: int,
-        area_id: int,
-        creator: int,
-        company_size: int,
-        feature_flags: Dict[str, bool] = None
-    ) -> bool:
-        """
-        创建或更新租户配置
-        
-        参数:
-            tenant_id: 租户ID
-            tenant_name: 租户名称
-            status: 状态
-            industry: 行业类型
-            area_id: 地区ID  
-            creator: 创建者ID
-            company_size: 公司规模
-            feature_flags: 功能开关
-            
-        返回:
-            bool: 是否保存成功
-        """
+    async def update_tenant(self, tenant_orm: TenantOrm) -> TenantOrm:
+        """更新租户"""
         try:
             async with database_session() as session:
-                # 查找现有租户
-                existing_tenant = await TenantService._get_tenant_by_id(session, tenant_id)
-                
-                if existing_tenant:
-                    # 更新现有租户
-                    existing_tenant.tenant_name = tenant_name
-                    existing_tenant.status = status
-                    existing_tenant.industry = industry
-                    existing_tenant.company_size = company_size
-                    existing_tenant.area_id = area_id
-                    existing_tenant.feature_flags = feature_flags or {}
-                    existing_tenant.updated_at = func.now()
-                    logger.debug(f"更新租户: {tenant_id}")
-                else:
-                    # 创建新租户
-                    new_tenant = TenantOrm(
-                        tenant_id=tenant_id,
-                        tenant_name=tenant_name,
-                        status=status,
-                        industry=industry,
-                        area_id=area_id,
-                        creator=creator,
-                        company_size=company_size,
-                        feature_flags=feature_flags or {},
-                    )
-                    session.add(new_tenant)
-                    logger.debug(f"创建租户: {tenant_id}")
-                
-                await session.commit()
-                return True
-                
+                await TenantRepository.update_tenant(tenant_orm, session)
+
+            tenant_model = Tenant.to_model(tenant_orm)
+            asyncio.create_task(TenantRepository.update_tenant_cache(
+                tenant_model,
+                self._redis_client
+            ))
+
+            return tenant_orm
+
         except Exception as e:
-            logger.error(f"保存租户配置失败: {tenant_id}, 错误: {e}")
+            logger.error(f"更新租户失败: {tenant_orm.tenant_id}, 错误: {e}")
             raise
-    
-    @staticmethod
-    async def delete(tenant_id: str) -> bool:
+
+    async def delete_tenant(self, tenant_id: str) -> bool:
         """
         删除租户（软删除）
         
@@ -145,190 +132,24 @@ class TenantService:
         try:
             async with database_session() as session:
                 # 软删除：设置为非激活状态
-                stmt = (
-                    update(TenantOrm)
-                    .where(TenantOrm.tenant_id == tenant_id)
-                    .values(status=0)
-                )
-                result = await session.execute(stmt)
-                await session.commit()
-                
-                flag = result.rowcount > 0
-                if flag:
-                    logger.info(f"软删除租户: {tenant_id}")
-                else:
-                    logger.warning(f"租户不存在，无法删除: {tenant_id}")
-                    
-                return flag
+                tenant_orm = await TenantRepository.delete_tenant(tenant_id, session)
+
+            if tenant_orm:
+                # 异步执行缓存实际删除 - 从Redis中彻底移除
+                asyncio.create_task(TenantRepository.delete_tenant_cache(
+                    tenant_id,
+                    self._redis_client
+                ))
+                return True
+            else:
+                logger.error(f"租户不存在: {tenant_id}")
+                return False
 
         except Exception as e:
             logger.error(f"删除租户失败: {tenant_id}, 错误: {e}")
             raise
-    
-    @staticmethod
-    async def get_all_tenants(
-        status_filter: Optional[str] = None,
-        limit: int = 50,
-        offset: int = 0
-    ) -> List[TenantOrm]:
-        """
-        获取所有租户ORM对象列表
-        
-        参数:
-            status_filter: 状态过滤器 ("active"/"inactive")
-            limit: 限制数量
-            offset: 偏移量
-            
-        返回:
-            List[TenantOrm]: 租户ORM对象列表
-        """
-        try:
-            async with database_session() as session:
-                stmt = select(TenantOrm)
-                
-                # 应用状态过滤器
-                if status_filter == "active":
-                    stmt = stmt.where(TenantOrm.status == 1)
-                elif status_filter == "inactive":
-                    stmt = stmt.where(TenantOrm.status == 0)
-                    
-                # 应用分页
-                stmt = stmt.offset(offset).limit(limit)
-                
-                result = await session.execute(stmt)
-                tenants = result.scalars().all()
-                
-                logger.debug(f"查询到 {len(tenants)} 个租户")
-                return list(tenants)
 
-        except Exception as e:
-            logger.error(f"获取租户列表失败: {e}")
-            raise
-    
-    @staticmethod
-    async def update_tenant(
-        tenant_id: str,
-        status: Optional[int] = None,
-        feature_flags: Optional[Dict[str, bool]] = None
-    ) -> bool:
-        """
-        更新租户信息
-        
-        参数:
-            tenant_id: 租户ID
-            status: 状态 (可选)
-            feature_flags: 功能开关 (可选)
-            
-        返回:
-            bool: 是否更新成功
-        """
-        try:
-            async with database_session() as session:
-                # 获取现有租户
-                existing_tenant = await TenantService._get_tenant_by_id(session, tenant_id)
-                if not existing_tenant:
-                    return False
-                
-                # 直接修改ORM对象属性
-                if status is not None:
-                    existing_tenant.status = status
-                if feature_flags is not None:
-                    existing_tenant.feature_flags = feature_flags
-                
-                existing_tenant.updated_at = func.now()
-                logger.debug(f"更新租户: {tenant_id}")
-                
-                await session.commit()
-                return True
-
-        except Exception as e:
-            logger.error(f"更新租户失败: {tenant_id}, 错误: {e}")
-            raise
-            
-    @staticmethod
-    async def update_access_stats(tenant_id: str, access_time: datetime) -> bool:
-        """
-        更新租户访问统计
-        
-        参数:
-            tenant_id: 租户ID
-            access_time: 访问时间
-            
-        返回:
-            bool: 是否更新成功
-        """
-        try:
-            async with database_session() as session:
-                stmt = (
-                    update(TenantOrm)
-                    .where(TenantOrm.tenant_id == tenant_id)
-                    .values(
-                        last_access=access_time,
-                        total_requests=TenantOrm.total_requests + 1
-                    )
-                )
-                await session.execute(stmt)
-                await session.commit()
-
-        except Exception as e:
-            logger.error(f"更新租户访问统计失败: {tenant_id}, 错误: {e}")
-            raise
-    
-    @staticmethod
-    async def count_total() -> int:
-        """
-        获取租户总数
-        
-        返回:
-            int: 租户总数（包括激活和非激活）
-        """
-        try:
-            async with database_session() as session:
-                stmt = select(TenantOrm.tenant_id)
-                result = await session.execute(stmt)
-                total = len(result.fetchall())
-                
-                logger.debug(f"租户总数: {total}")
-                return total
-
-        except Exception as e:
-            logger.error(f"获取租户总数失败: {e}")
-            raise
-    
-    @staticmethod
-    async def health_check() -> dict:
-        """
-        数据库健康检查
-        
-        返回:
-            dict: 健康状态信息
-        """
-        try:
-            # 测试数据库连接
-            db_healthy = await test_db_connection()
-            
-            if db_healthy:
-                # 获取租户统计
-                total_tenants = await TenantService.count_total()
-                active_tenants = len(await TenantService.get_all_tenants())
-                
-                return {
-                    "database_connected": True,
-                    "total_tenants": total_tenants,
-                    "active_tenants": active_tenants,
-                }
-            else:
-                return {
-                    "database_connected": False,
-                    "total_tenants": 0,
-                    "active_tenants": 0,
-                }
-                
-        except Exception as e:
-            logger.error(f"数据库健康检查失败: {e}")
-            return {
-                "database_connected": False,
-                "error": str(e),
-                "total_tenants": 0,
-                "active_tenants": 0,
-            }
+    async def cleanup(self):
+        """清理资源"""
+        # 清理Redis客户端引用（共享连接池由应用层管理）
+        self._redis_client = None

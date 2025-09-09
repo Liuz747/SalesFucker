@@ -36,7 +36,7 @@ async def get_engine() -> AsyncEngine:
     global _engine
     
     if _engine is None:
-        logger.info(f"初始化PostgreSQL连接: {mas_config.DB_HOST}:{mas_config.DB_PORT}")
+        logger.info(f"初始化PostgreSQL连接: {mas_config.DB_HOST}")
         
         _engine = create_async_engine(
             mas_config.postgres_url,
@@ -139,7 +139,8 @@ async def test_db_connection() -> bool:
         async with engine.begin() as conn:
             result = await conn.execute(text("SELECT 1"))
             row = result.fetchone()
-            return row[0] == 1
+        logger.info("数据库连接测试成功")
+        return row[0] == 1
     except Exception as e:
         logger.error(f"数据库连接测试失败: {e}")
         return False

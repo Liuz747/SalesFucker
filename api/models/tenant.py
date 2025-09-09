@@ -36,11 +36,8 @@ class TenantOrm(Base):
     """
     __tablename__ = "tenants"
     
-    # 主键
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    
     # 基本信息
-    tenant_id = Column(String(255), unique=True, nullable=False, index=True)
+    tenant_id = Column(String(255), primary_key=True, nullable=False)
     tenant_name = Column(String(500), nullable=False)
     status = Column(Integer, nullable=False, default=1)
     
@@ -66,15 +63,16 @@ class TenantOrm(Base):
     creator = Column(Integer, nullable=False)
     editor = Column(Integer, nullable=True)
     deleted = Column(Boolean, nullable=False, default=False)
+    is_active = Column(Boolean, nullable=False, default=True)
     
     # 扩展配置（新增JSONB字段用于存储复杂配置）
     feature_flags = Column(JSONB, nullable=True, default=dict)
     
     # 数据库索引优化
     __table_args__ = (
-        Index('idx_tenant_id', 'tenant_id'),
         Index('idx_tenant_status', 'status'),
         Index('idx_tenant_industry', 'industry'),
         Index('idx_tenant_deleted', 'deleted'),
+        Index('idx_tenant_is_active', 'is_active'),
     )
     

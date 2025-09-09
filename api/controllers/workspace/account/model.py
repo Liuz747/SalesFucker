@@ -9,9 +9,11 @@
 """
 
 from datetime import datetime
-from typing import Dict, Optional
+from typing import Dict, Optional, Self
 
 from pydantic import BaseModel, Field
+
+from models.tenant import TenantOrm
 
 
 class Tenant(BaseModel):
@@ -38,6 +40,7 @@ class Tenant(BaseModel):
     creator: int = Field(default=1, description="创建者ID")
     editor: Optional[int] = Field(None, description="编辑者ID")
     deleted: bool = Field(default=False, description="删除标记")
+    is_active: bool = Field(default=True, description="激活状态")
     created_at: Optional[datetime] = Field(None, description="创建时间")
     updated_at: Optional[datetime] = Field(None, description="最后更新时间")
     
@@ -46,3 +49,42 @@ class Tenant(BaseModel):
         default_factory=dict, 
         description="功能开关配置"
     )
+
+    @classmethod
+    def to_model(cls, tenant_orm: TenantOrm) -> Self:
+        return cls(
+            tenant_id=tenant_orm.tenant_id,
+            tenant_name=tenant_orm.tenant_name,
+            status=tenant_orm.status,
+            industry=tenant_orm.industry,
+            company_size=tenant_orm.company_size,
+            area_id=tenant_orm.area_id,
+            user_count=tenant_orm.user_count,
+            expires_at=tenant_orm.expires_at,
+            creator=tenant_orm.creator,
+            editor=tenant_orm.editor,
+            deleted=tenant_orm.deleted,
+            is_active=tenant_orm.is_active,
+            created_at=tenant_orm.created_at,
+            updated_at=tenant_orm.updated_at,
+            feature_flags=tenant_orm.feature_flags or {},
+        )
+
+    def to_orm(self) -> TenantOrm:
+        return TenantOrm(
+            tenant_id=self.tenant_id,
+            tenant_name=self.tenant_name,
+            status=self.status,
+            industry=self.industry,
+            company_size=self.company_size,
+            area_id=self.area_id,
+            user_count=self.user_count,
+            expires_at=self.expires_at,
+            creator=self.creator,
+            editor=self.editor,
+            deleted=self.deleted,
+            is_active=self.is_active,
+            created_at=self.created_at,
+            updated_at=self.updated_at,
+            feature_flags=self.feature_flags,
+        )

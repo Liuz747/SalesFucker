@@ -23,7 +23,7 @@ class Thread(BaseModel):
     metadata: ThreadMetadata = Field(description="线程元数据")
     
     @classmethod
-    def from_orm(cls, thread_orm: ThreadOrm) -> Self:
+    def to_model(cls, thread_orm: ThreadOrm) -> Self:
         """从ThreadOrm对象创建Thread Pydantic模型"""
         return cls(
             thread_id=thread_orm.thread_id,
