@@ -1,4 +1,3 @@
-
 from fastapi import status
 
 
@@ -20,8 +19,15 @@ tenant_id_not_equal_resp = RespCode(
     http_code=400
 )
 
+value_err_resp = RespCode(
+    code=10012,
+    # Tenant ID in URL and request body must match
+    message="value err",
+    http_code=400
+)
+
 internal_server_error_resp = RespCode(
-    code=2000,
+    code=20000,
     message="Internal server error",
     http_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
 )
@@ -32,3 +38,8 @@ database_not_available_resp = RespCode(
     http_code=status.HTTP_503_SERVICE_UNAVAILABLE
 )
 
+missing_resp = RespCode(
+    code=50000,
+    message="missing err",
+    http_code=status.HTTP_404_NOT_FOUND
+)
