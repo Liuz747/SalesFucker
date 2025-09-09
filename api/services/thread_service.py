@@ -27,8 +27,6 @@ logger = get_component_logger(__name__, "ThreadService")
 
 class ThreadService:
     """
-    线程业务服务层
-    
     实现高性能线程管理的业务逻辑:
     1. 缓存优先策略 - Redis < 10ms 响应时间
     2. 数据库持久化 - PostgreSQL 异步写入
@@ -69,7 +67,7 @@ class ThreadService:
 
             if thread_id:
                 # 2. 异步更新Redis缓存
-                thread_model = Thread.from_orm(thread)
+                thread_model = Thread.to_model(thread)
                 asyncio.create_task(ThreadRepository.update_thread_cache(
                     thread_model,
                     self._redis_client
@@ -95,7 +93,6 @@ class ThreadService:
             # Level 1: Redis缓存 (< 10ms)
             thread_model = await ThreadRepository.get_thread_cache(thread_id, self._redis_client)
             if thread_model:
-
                 return thread_model.to_orm()
             
             # Level 2: 数据库查询
@@ -103,7 +100,7 @@ class ThreadService:
                 thread_orm = await ThreadRepository.get_thread(thread_id, session)
             if thread_orm:
                 # 异步更新缓存
-                thread_model = Thread.from_orm(thread_orm)
+                thread_model = Thread.to_model(thread_orm)
                 asyncio.create_task(ThreadRepository.update_thread_cache(thread_model, self._redis_client))
                 return thread_orm
             
@@ -121,7 +118,7 @@ class ThreadService:
                 await ThreadRepository.update_thread(thread_orm, session)
 
             # 异步更新Redis缓存
-            thread_model = Thread.from_orm(thread_orm)
+            thread_model = Thread.to_model(thread_orm)
             asyncio.create_task(ThreadRepository.update_thread_cache(
                 thread_model,
                 self._redis_client

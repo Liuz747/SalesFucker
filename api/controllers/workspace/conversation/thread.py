@@ -16,6 +16,7 @@ from fastapi import APIRouter, HTTPException, Depends
 
 from utils import get_component_logger
 from controllers.dependencies import get_request_context
+from controllers.workspace.wraps import tenant_validation
 from services.thread_service import ThreadService
 from models import ThreadOrm, ThreadStatus
 from .schema import ThreadCreateRequest
@@ -38,6 +39,7 @@ router = APIRouter(prefix="/threads", tags=["conversation-threads"])
 router.include_router(workflow_router, prefix="/{thread_id}/runs", tags=["workflows"])
 
 @router.post("")
+@tenant_validation()
 async def create_thread(
     request: ThreadCreateRequest,
     context = Depends(get_request_context),
@@ -86,6 +88,7 @@ async def create_thread(
 
 
 @router.get("/{thread_id}")
+@tenant_validation()
 async def get_thread(
     thread_id: str,
     context = Depends(get_request_context),
@@ -106,7 +109,7 @@ async def get_thread(
                 detail=f"线程不存在: {thread_id}"
             )
         
-        if str(thread.tenant_id) != context['tenant_id']:
+        if str(thread.tenant_id) != context.get('tenant_id'):
             raise HTTPException(
                 status_code=403, 
                 detail="租户ID不匹配，无法访问此线程"

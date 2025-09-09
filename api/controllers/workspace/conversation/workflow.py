@@ -14,6 +14,7 @@ from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms
 from controllers.dependencies import get_orchestrator_service, get_request_context
+from controllers.workspace.wraps import tenant_validation
 from services.thread_service import ThreadService
 from models.conversation import ThreadStatus
 from .schema import MessageCreateRequest, WorkflowData
@@ -35,6 +36,7 @@ router = APIRouter()
 
 
 @router.post("/wait")
+@tenant_validation()
 async def create_run(
     thread_id: str,
     request: MessageCreateRequest,
@@ -130,6 +132,7 @@ async def create_run(
 
 
 @router.post("/async")
+@tenant_validation()
 async def create_background_run(
     thread_id: str,
     request: MessageCreateRequest,
@@ -214,6 +217,7 @@ async def create_background_run(
 
 
 @router.get("/{run_id}/status")
+@tenant_validation()
 async def get_run_status(
     thread_id: str,
     run_id: str,

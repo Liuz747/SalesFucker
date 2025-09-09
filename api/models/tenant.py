@@ -6,7 +6,7 @@
 
 主要模型:
 - TenantRole: 租户角色枚举
-- TenantModel: 租户配置业务模型 
+- TenantModel: 租户配置业务模型
 - TenantOrm: 租户数据库模型
 """
 import uuid
@@ -108,7 +108,7 @@ class TenantOrm(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
 
     # 基本信息
-    tenant_id = Column(String(255), unique=True, nullable=False, index=True)
+    tenant_id = Column(String(255), primary_key=True, nullable=False)
     tenant_name = Column(String(500), nullable=False)
     status = Column(Integer, nullable=False, default=1)
     
@@ -134,16 +134,17 @@ class TenantOrm(Base):
     creator = Column(Integer, nullable=False)
     editor = Column(Integer, nullable=True)
     deleted = Column(Boolean, nullable=False, default=False)
-    
+    is_active = Column(Boolean, nullable=False, default=True)
+
     # 扩展配置（新增JSONB字段用于存储复杂配置）
     feature_flags = Column(JSONB, nullable=True, default=dict)
     
     # 数据库索引优化
     __table_args__ = (
-        Index('idx_tenant_id', 'tenant_id'),
         Index('idx_tenant_status', 'status'),
         Index('idx_tenant_industry', 'industry'),
         Index('idx_tenant_deleted', 'deleted'),
+        Index('idx_tenant_is_active', 'is_active'),
     )
     # todo merge 测试
     # def to_model(self) -> TenantModel:

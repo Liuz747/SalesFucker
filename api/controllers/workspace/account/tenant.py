@@ -8,16 +8,14 @@ Flow:
 Backend System → POST /tenants/{tenant_id}/sync → AI Service
 """
 
-from typing import Optional
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Depends
 
 from .schema import TenantSyncRequest, TenantSyncResponse, TenantStatusResponse, TenantListResponse, TenantUpdateRequest
 from api.schemas.schema_tenant import TenantSyncRequest, TenantSyncResponse, TenantStatusResponse, TenantListResponse, TenantUpdateRequest
 from models.tenant import TenantModel
 from services.tenant_service import TenantService
+from models.tenant import TenantOrm
 from utils import get_component_logger, get_current_datetime
-from ...schemas import SuccessResponse
-from ...schemas import resp_code
 
 logger = get_component_logger(__name__, "TenantEndpoints")
 
@@ -25,18 +23,19 @@ logger = get_component_logger(__name__, "TenantEndpoints")
 router = APIRouter(prefix="/tenants", tags=["tenant"])
 
 
+async def get_tenant_service() -> TenantService:
+    service = TenantService()
+    await service.dispatch()
+    return service
+
 @router.post("/{tenant_id}/sync", response_model=TenantSyncResponse)
 async def sync_tenant(
-        tenant_id: str,
-        request: TenantSyncRequest
+    tenant_id: str,
+    request: TenantSyncRequest,
+    service = Depends(get_tenant_service)
 ):
     """
     Sync tenant from backend system to AI service
-
-    Called by backend when:
-    - New company registers (creates tenant)
-    - Company updates their information
-    - Company changes status (active/inactive)
     """
     try:
         logger.info(f"Backend tenant sync request: {tenant_id} \n param: {request}")
@@ -50,7 +49,7 @@ async def sync_tenant(
         
         # Sync tenant to AI service database
         try:
-            flag = await TenantService.upsert(
+            tenant_orm = TenantOrm(
                 tenant_id=request.tenant_id,
                 tenant_name=request.tenant_name,
                 status=request.status,
@@ -60,24 +59,25 @@ async def sync_tenant(
                 company_size=request.company_size,
                 feature_flags=request.features.model_dump()
             )
+            flag = await service.create_tenant(tenant_orm)
 
             if flag:
                 logger.info(f"租户配置已更新: {request.tenant_id}")
             else:
                 logger.error(f"保存租户配置失败: {request.tenant_id}")
                 raise ValueError(f"Failed to save tenant configuration for {request.tenant_id}")
-
+                
         except Exception as e:
             logger.error(f"获取或保存租户配置失败: {request.tenant_id}, 错误: {e}")
             raise
-
+        
         return TenantSyncResponse(
             tenant_id=tenant_id,
             message="Tenant synced successfully",
             synced_at=get_current_datetime(),
             features_enabled=request.features
         )
-
+        
     except ValueError as e:
         logger.warning(f"Invalid tenant sync data: {e}")
         raise HTTPException(
@@ -87,7 +87,7 @@ async def sync_tenant(
     except Exception as e:
         error_msg = str(e).lower()
         logger.error(f"Tenant sync failed for {tenant_id}: {e}", exc_info=True)
-
+        
         # Provide specific error messages for database issues
         if "connection" in error_msg or "database" in error_msg:
             raise HTTPException(
@@ -103,18 +103,16 @@ async def sync_tenant(
 
 @router.get("/{tenant_id}/status", response_model=TenantStatusResponse)
 async def get_tenant_status(
-    tenant_id: str
+    tenant_id: str,
+    service = Depends(get_tenant_service)
 ):
     """
-    Get tenant status from AI service
-    
-    Returns current tenant information stored in AI service,
-    including sync status and JWT verification health.
+    Get tenant status
     """
     try:
         logger.info(f"Tenant status request: {tenant_id}")
         
-        tenant_orm = await TenantService.query(tenant_id)
+        tenant_orm = await service.query_tenant(tenant_id)
             
         if tenant_orm:
             return TenantStatusResponse(
@@ -139,23 +137,26 @@ async def get_tenant_status(
 @router.put("/{tenant_id}", response_model=TenantSyncResponse)
 async def update_tenant(
     tenant_id: str,
-    request: TenantUpdateRequest
+    request: TenantUpdateRequest,
+    service = Depends(get_tenant_service)
 ):
     """
     Update tenant information
-    
-    Update tenant features, status, or other metadata.
-    Does not update JWT public key (use sync endpoint for that).
     """
     try:
         logger.info(f"Tenant update request: {tenant_id}")
         
         # Direct update using service method parameters
-        flag = await TenantService.update_tenant(
+        tenant_orm = TenantOrm(
             tenant_id=tenant_id,
+            tenant_name="",
             status=request.status,
+            industry=1,
+            area_id=1,
+            creator=1,
             feature_flags=request.features
         )
+        flag = await service.update_tenant(tenant_orm)
 
         if flag:
             logger.info(f"租户配置已更新: {tenant_id}")
@@ -187,30 +188,25 @@ async def update_tenant(
 @router.delete("/{tenant_id}")
 async def delete_tenant(
     tenant_id: str,
-    force: bool = False
+    service = Depends(get_tenant_service)
 ):
     """
     Delete tenant from AI service
-    
-    Called when company cancels their subscription or is deactivated.
-    This removes tenant data from AI service but preserves in backend.
     """
     try:
-        logger.info(f"Tenant deletion request: {tenant_id}, force={force}")
+        logger.info(f"Tenant deletion request: {tenant_id},")
         
-        try:
-            flag = await TenantService.delete(tenant_id)
-            result = {"status": "deleted" if flag else "failed", "data_purged": force}
-        except Exception as e:
-            logger.error(f"删除租户失败: {tenant_id}, 错误: {e}")
-            result = {"status": "failed", "error": str(e)}
+        flag = await service.delete_tenant(tenant_id)
+
+        if not flag:
+            logger.error(f"删除租户失败: {tenant_id}")
+            raise ValueError(f"Failed to delete tenant: {tenant_id}")
         
         return {
             "tenant_id": tenant_id,
             "status": "deleted",
             "message": "Tenant removed from AI service",
-            "deleted_at": get_current_datetime().isoformat(),
-            "data_purged": result.get("data_purged", False)
+            "deleted_at": get_current_datetime().isoformat()
         }
         
     except ValueError as e:
@@ -224,47 +220,4 @@ async def delete_tenant(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Tenant deletion failed"
-        )
-
-
-@router.get("/", response_model=TenantListResponse)
-async def list_tenants(
-    status_filter: Optional[str] = None,
-    limit: int = 50,
-    offset: int = 0
-):
-    """
-    List all tenants in AI service
-    
-    Admin endpoint to view all synced tenants and their status.
-    """
-    try:
-        logger.info(f"List tenants request: status={status_filter}, limit={limit}, offset={offset}")
-        
-        try:
-            tenant_orms = await TenantService.get_all_tenants(status_filter, limit, offset)
-            
-            # Convert ORM objects to response format
-            items = []
-            for tenant in tenant_orms:
-                items.append({
-                    "tenant_id": tenant.tenant_id,
-                    "tenant_name": tenant.tenant_name,
-                    "status": tenant.status,
-                    "updated_at": tenant.updated_at
-                })
-            
-            total = len(items)
-            tenants = TenantListResponse(total=total, tenants=items)
-        except Exception as e:
-            logger.error(f"获取租户列表失败: {e}")
-            tenants = TenantListResponse(total=0, tenants=[])
-        
-        return tenants
-        
-    except Exception as e:
-        logger.error(f"List tenants failed: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve tenant list"
         )

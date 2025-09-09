@@ -11,27 +11,25 @@
 - 依赖注入，支持外部会话管理
 """
 
+from uuid import UUID
 from typing import Optional
 
 import msgpack
-from uuid import UUID
 from redis import Redis
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import mas_config
 from models import ThreadOrm
 from controllers.workspace.conversation.model import Thread
-from utils import get_component_logger, get_current_datetime
+from utils import get_component_logger
 
 logger = get_component_logger(__name__, "ThreadRepository")
 
 
 class ThreadRepository:
     """
-    线程数据访问存储库
-    
-    提供纯粹的数据访问操作:
+    提供数据访问操作:
     1. 数据库操作 - PostgreSQL CRUD操作，依赖注入AsyncSession
     2. 缓存操作 - Redis读写操作，依赖注入Redis客户端
     3. 无业务逻辑 - 仅处理数据持久化和检索
@@ -60,9 +58,7 @@ class ThreadRepository:
 
     @staticmethod
     async def insert_thread(thread: ThreadOrm, session: AsyncSession) -> UUID:
-        """
-        创建线程数据库模型
-        """
+        """创建线程数据库模型"""
         try:
             session.add(thread)
             logger.debug(f"创建线程: {thread.thread_id}")
@@ -73,9 +69,7 @@ class ThreadRepository:
 
     @staticmethod
     async def update_thread(thread: ThreadOrm, session: AsyncSession) -> UUID:
-        """
-        更新线程数据库模型
-        """
+        """更新线程数据库模型"""
         try:
             session.merge(thread)
             logger.debug(f"更新线程: {thread.thread_id}")
@@ -86,17 +80,14 @@ class ThreadRepository:
 
     @staticmethod
     async def delete_thread(thread_id: str, session: AsyncSession):
-        """
-        删除线程数据库模型
-        """
+        """删除线程数据库模型"""
         try:
             thread = await session.get(ThreadOrm, thread_id)
             if not thread:
                 raise ValueError(f"线程不存在: {thread_id}")
             
             thread.is_active = False
-            thread.updated_at = get_current_datetime()
-
+            thread.updated_at = func.now()
             logger.debug(f"删除线程: {thread_id}")
 
         except Exception as e:
@@ -105,9 +96,7 @@ class ThreadRepository:
 
     @staticmethod
     async def update_thread_field(thread_id: str, value: dict, session: AsyncSession) -> bool:
-        """
-        更新线程数据库模型字段
-        """
+        """更新线程数据库模型字段"""
         try:
             stmt = (
                 update(ThreadOrm)
@@ -128,13 +117,9 @@ class ThreadRepository:
 
     @staticmethod
     async def update_thread_cache(thread_model: Thread, redis_client: Redis):
-        """
-        更新线程缓存
-        """
+        """更新线程缓存"""
         try:
             redis_key = f"thread:{thread_model.thread_id}"
-            
-            # 使用Pydantic模型的model_dump进行序列化
             thread_data = thread_model.model_dump(mode='json')
 
             await redis_client.setex(
@@ -150,9 +135,7 @@ class ThreadRepository:
 
     @staticmethod
     async def get_thread_cache(thread_id: str, redis_client: Redis) -> Optional[Thread]:
-        """
-        获取线程缓存
-        """
+        """获取线程缓存"""
         try:
             redis_key = f"thread:{thread_id}"
             redis_data = await redis_client.get(redis_key)
