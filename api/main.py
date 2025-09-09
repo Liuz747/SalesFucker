@@ -18,11 +18,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from controllers.middleware import (
-    SafetyInterceptor,
-    TenantIsolation,
-    JWTMiddleware
-)
+from controllers.middleware import SafetyInterceptor, JWTMiddleware
 from legacy_api.endpoints import (
     agents_router,
     multimodal_router,
@@ -95,7 +91,6 @@ app.add_middleware(JWTMiddleware, exclude_paths=[
     "/assets/"
 ])
 app.add_middleware(SafetyInterceptor)
-app.add_middleware(TenantIsolation)
 
 # 全局异常处理
 @app.exception_handler(APIException)
@@ -163,7 +158,7 @@ def main():
         host=mas_config.APP_HOST,
         port=mas_config.APP_PORT,
         reload=mas_config.DEBUG,
-        log_level="info" if not mas_config.DEBUG else "debug"
+        log_level=mas_config.LOG_LEVEL.lower()
     )
 
 
