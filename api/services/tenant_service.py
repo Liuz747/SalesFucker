@@ -14,16 +14,12 @@
 import asyncio
 from typing import Optional
 
-from api.schemas.schema_tenant import TenantSyncRequest
-from models.tenant import TenantModel, TenantOrm
-from models.tenant import TenantOrm
-from controllers.workspace.account.model import Tenant
-from infra.db.connection import database_session
-from infra.cache.redis_client import get_redis_client
-from repositories.tenant_repo import TenantRepository
-from infra.db.connection import database_session, test_db_connection
-from services.tenant_dao import TenantDao
-from utils import get_component_logger
+from api.controllers.workspace.account.model import Tenant
+from api.infra.cache import get_redis_client
+from api.infra.db.connection import database_session
+from api.models import TenantOrm
+from api.repositories.tenant_repo import TenantRepository
+from api.utils import get_component_logger
 
 logger = get_component_logger(__name__, "TenantService")
 

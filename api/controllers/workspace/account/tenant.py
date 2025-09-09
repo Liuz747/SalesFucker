@@ -63,11 +63,27 @@ async def sync_tenant(
             )
             flag = await service.create_tenant(tenant_orm)
 
-            if flag:
-                logger.info(f"租户配置已更新: {request.tenant_id}")
-            else:
+            if not flag:
                 logger.error(f"保存租户配置失败: {request.tenant_id}")
                 raise ValueError(f"Failed to save tenant configuration for {request.tenant_id}")
+            logger.info(f"租户配置已更新: {request.tenant_id}")
+            refresh = await service.query_tenant(tenant_id)
+            if not refresh:
+                logger.error(f"获取已保存的数据失败: {request.tenant_id}")
+                return SimpleResponse(
+                    code=resp_code.missing_resp.code,
+                    message=f"获取已保存的数据失败: {request.tenant_id}"
+                )
+            return SimpleResponse[TenantSyncResponse](
+                code=0,
+                message="success",
+                data=TenantSyncResponse(
+                    tenant_id=tenant_id,
+                    message="Tenant synced successfully",
+                    synced_at=get_current_datetime(),
+                    features_enabled=request.features
+                )
+            )
 
         except Exception as e:
             logger.error(f"获取或保存租户配置失败: {request.tenant_id}, 错误: {e}")
@@ -76,17 +92,6 @@ async def sync_tenant(
                 message=resp_code.internal_server_error_resp.message,
                 request_id=""
             )
-
-        return SimpleResponse[TenantSyncResponse](
-            code=0,
-            message="",
-            data=TenantSyncResponse(
-                tenant_id=tenant_id,
-                message="Tenant synced successfully",
-                synced_at=get_current_datetime(),
-                features_enabled=request.features
-            )
-        )
 
     except ValueError as e:
         logger.warning(f"Invalid tenant sync data: {e}")
