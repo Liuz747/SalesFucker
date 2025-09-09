@@ -31,7 +31,7 @@ class TenantService:
     提供纯粹的数据库操作
     所有方法都是静态的，不维护状态。
     """
-    
+
     def __init__(self):
         self._redis_client = None
 
@@ -67,7 +67,7 @@ class TenantService:
             logger.error(f"创建租户失败: {tenant_id}, 错误: {e}")
             raise
 
-    async def query_tenant(self, tenant_id: str) -> Optional[TenantOrm]:
+    async def query_tenant(self, tenant_id: str, use_redis_cache: bool = False) -> Optional[TenantOrm]:
         """
         根据ID获取租户ORM对象
         
@@ -78,10 +78,11 @@ class TenantService:
             Optional[TenantOrm]: 租户ORM对象，不存在则返回None
         """
         try:
-            # Level 1: Redis缓存 (< 10ms)
-            tenant_model = await TenantRepository.get_tenant_cache(tenant_id, self._redis_client)
-            if tenant_model:
-                return tenant_model.to_orm()
+            if use_redis_cache:
+                # Level 1: Redis缓存 (< 10ms)
+                tenant_model = await TenantRepository.get_tenant_cache(tenant_id, self._redis_client)
+                if tenant_model:
+                    return tenant_model.to_orm()
 
             # Level 2: 数据库查询
             async with database_session() as session:
@@ -100,7 +101,7 @@ class TenantService:
         except Exception as e:
             logger.error(f"获取租户配置失败: {tenant_id}, 错误: {e}")
             raise
-    
+
     async def update_tenant(self, tenant_orm: TenantOrm) -> TenantOrm:
         """更新租户"""
         try:
