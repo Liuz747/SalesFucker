@@ -17,9 +17,8 @@ from typing import Optional
 
 from infra.db import database_session
 from infra.cache import get_redis_client
-from models import ThreadOrm
-from repositories.thread_repository import ThreadRepository
-from controllers.workspace.conversation.model import Thread
+from models import ThreadOrm, Thread
+from repositories.thread_repo import ThreadRepository
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "ThreadService")

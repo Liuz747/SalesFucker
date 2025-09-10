@@ -19,7 +19,7 @@ from utils import get_component_logger, get_current_datetime, get_processing_tim
 from controllers.dependencies import get_orchestrator_service
 from services.thread_service import ThreadService
 from models.conversation import ThreadStatus
-from .schema import CallbackPayload, WorkflowData, InputContent
+from schemas.conversation_schema import CallbackPayload, WorkflowData, InputContent
 
 
 logger = get_component_logger(__name__, "BackgroundProcessor")

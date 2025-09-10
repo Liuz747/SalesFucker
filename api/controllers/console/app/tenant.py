@@ -14,7 +14,7 @@ from legacy_api.schemas import resp_code, SimpleResponse
 from models import TenantOrm
 from services import TenantService
 from utils import get_component_logger, get_current_datetime
-from .schema import TenantSyncRequest, TenantSyncResponse, TenantStatusResponse, TenantUpdateRequest
+from schemas.tenant_schema import TenantSyncRequest, TenantSyncResponse, TenantStatusResponse, TenantUpdateRequest
 
 logger = get_component_logger(__name__, "TenantEndpoints")
 

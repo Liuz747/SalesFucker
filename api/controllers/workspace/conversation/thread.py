@@ -19,7 +19,7 @@ from utils import get_component_logger
 from controllers.workspace.wraps import validate_and_get_tenant_id
 from services.thread_service import ThreadService
 from models import ThreadOrm, ThreadStatus
-from .schema import ThreadCreateRequest
+from schemas.conversation_schema import ThreadCreateRequest
 from .workflow import router as workflow_router
 
 

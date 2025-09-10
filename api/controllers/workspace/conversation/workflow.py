@@ -17,7 +17,7 @@ from controllers.dependencies import get_orchestrator_service
 from controllers.workspace.wraps import validate_and_get_tenant_id
 from services.thread_service import ThreadService
 from models.conversation import ThreadStatus
-from .schema import MessageCreateRequest, WorkflowData
+from schemas.conversation_schema import MessageCreateRequest, WorkflowData
 from .background_process import BackgroundWorkflowProcessor
 
 

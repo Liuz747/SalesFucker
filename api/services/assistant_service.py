@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import Optional, List
 from sqlalchemy import select, update
 
-from controllers.workspace.account.model import Tenant
+from models import Tenant
 from models.assistant import AssistantModel, AssistantOrmModel
 from infra.db.connection import database_session, test_db_connection
 from utils import get_component_logger, get_current_datetime

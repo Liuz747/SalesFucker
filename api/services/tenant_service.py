@@ -16,8 +16,7 @@ from typing import Optional
 
 from infra.db import database_session
 from infra.cache import get_redis_client
-from models import TenantOrm
-from controllers.workspace.account.model import Tenant
+from models import TenantOrm, Tenant
 from repositories.tenant_repo import TenantRepository
 from utils import get_component_logger
 

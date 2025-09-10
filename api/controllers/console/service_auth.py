@@ -8,16 +8,14 @@ POST /v1/auth/token
 """
 
 from datetime import timedelta
-from typing import List, Optional, Dict, Any
+from typing import Optional, Any
 
 import jwt
 from fastapi import APIRouter, Header, HTTPException, status, Depends
 
 from config import mas_config
 from utils import get_current_datetime, to_isoformat
-from infra.auth.jwt_auth import get_service_context, require_service_scopes
-from infra.auth.jwt_auth import ServiceContext
-from infra.auth.key_manager import key_manager
+from infra.auth import get_service_context, require_service_scopes, ServiceContext, key_manager
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -26,7 +24,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 @router.post("/token")
 async def issue_service_token(
     x_app_key: str = Header(..., alias="X-App-Key"),
-    payload: Optional[Dict[str, Any]] = None,
+    payload: Optional[dict[str, Any]] = None,
 ):
     # 配置检查
     if not mas_config.APP_KEY:
@@ -53,7 +51,7 @@ async def issue_service_token(
     # 生成JWT声明
     now = get_current_datetime()
     exp = now + timedelta(seconds=mas_config.APP_TOKEN_TTL)
-    body_scopes: List[str] = []
+    body_scopes: list[str] = []
     if payload and isinstance(payload, dict):
         body_scopes = list(payload.get("scopes", []))
 

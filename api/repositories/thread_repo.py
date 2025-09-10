@@ -20,8 +20,7 @@ from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import mas_config
-from models import ThreadOrm
-from controllers.workspace.conversation.model import Thread
+from models import ThreadOrm, Thread
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "ThreadRepository")

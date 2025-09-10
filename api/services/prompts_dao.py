@@ -17,7 +17,7 @@ from uuid import UUID
 from sqlalchemy import select, update, and_, desc
 
 from models.prompts import PromptsOrmModel
-from controllers.workspace.account.model import Tenant
+from models import Tenant
 from infra.db.connection import database_session, test_db_connection
 from utils import get_component_logger
 
