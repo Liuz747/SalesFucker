@@ -10,7 +10,9 @@
 """
 
 from .tenant_service import TenantService
+from .thread_service import ThreadService
 
 __all__ = [
     "TenantService",
+    "ThreadService",
 ]

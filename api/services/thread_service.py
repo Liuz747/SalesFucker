@@ -15,11 +15,11 @@ import asyncio
 from uuid import UUID
 from typing import Optional
 
+from infra.db import database_session
+from infra.cache import get_redis_client
 from models import ThreadOrm
 from repositories.thread_repository import ThreadRepository
 from controllers.workspace.conversation.model import Thread
-from infra.db.connection import database_session
-from infra.cache.redis_client import get_redis_client
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "ThreadService")

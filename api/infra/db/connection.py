@@ -59,7 +59,7 @@ async def get_engine() -> AsyncEngine:
     return _engine
 
 
-async def get_session_factory(auto_commit: bool = False) -> async_sessionmaker[AsyncSession]:
+async def get_session_factory() -> async_sessionmaker[AsyncSession]:
     """
     获取会话工厂
     
@@ -75,7 +75,7 @@ async def get_session_factory(auto_commit: bool = False) -> async_sessionmaker[A
             class_=AsyncSession,
             expire_on_commit=False,
             autoflush=True,
-            autocommit=auto_commit
+            autocommit=False
         )
     
     return _session_factory
@@ -84,20 +84,7 @@ async def get_session_factory(auto_commit: bool = False) -> async_sessionmaker[A
 async def get_session() -> AsyncSession:
     """
     获取数据库会话实例（FastAPI依赖）
-    自动提交，无需用户关注事务
     
-    返回:
-        AsyncSession: 数据库会话
-    """
-    session_factory = await get_session_factory(True)
-    return session_factory()
-
-
-async def get_session_transaction() -> AsyncSession:
-    """
-    获取数据库会话实例（FastAPI依赖）
-    需要手动管理事务
-
     返回:
         AsyncSession: 数据库会话
     """

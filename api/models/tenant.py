@@ -9,9 +9,7 @@
 - TenantModel: 租户配置业务模型
 - TenantOrm: 租户数据库模型
 """
-import uuid
 
-from sqlalchemy.dialects.postgresql import JSONB, UUID
 from enum import StrEnum
 
 from sqlalchemy import Column, String, Boolean, DateTime, Integer, Index, Enum, func

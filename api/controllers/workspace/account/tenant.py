@@ -57,7 +57,6 @@ async def sync_tenant(
             else:
                 logger.error(f"保存租户配置失败: {request.tenant_id}")
                 raise ValueError(f"Failed to save tenant configuration for {request.tenant_id}")
-            logger.info(f"租户配置已更新: {request.tenant_id}")
             
             return SimpleResponse[TenantSyncResponse](
                 code=0,
