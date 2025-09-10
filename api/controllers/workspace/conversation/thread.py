@@ -11,12 +11,13 @@
 - 对话状态监控和分析
 - 客户档案管理集成
 """
-import uuid
+
+from contextlib import asynccontextmanager
+from uuid import UUID, uuid4
 from fastapi import APIRouter, HTTPException, Depends
 
 from utils import get_component_logger
-from controllers.dependencies import get_request_context
-from controllers.workspace.wraps import tenant_validation
+from controllers.workspace.wraps import validate_and_get_tenant_id
 from services.thread_service import ThreadService
 from models import ThreadOrm, ThreadStatus
 from .schema import ThreadCreateRequest
@@ -24,11 +25,15 @@ from .workflow import router as workflow_router
 
 
 # 依赖注入函数
+@asynccontextmanager
 async def get_thread_service() -> ThreadService:
     """获取线程存储库依赖"""
     service = ThreadService()
-    await service.dispatch()
-    return service
+    try:
+        await service.dispatch()
+        yield service
+    finally:
+        await service.cleanup()
 
 
 logger = get_component_logger(__name__, "ConversationRouter")
@@ -39,11 +44,9 @@ router = APIRouter(prefix="/threads", tags=["conversation-threads"])
 router.include_router(workflow_router, prefix="/{thread_id}/runs", tags=["workflows"])
 
 @router.post("")
-@tenant_validation()
 async def create_thread(
     request: ThreadCreateRequest,
-    context = Depends(get_request_context),
-    service = Depends(get_thread_service)
+    tenant_id: str = Depends(validate_and_get_tenant_id)
 ):
     """
     创建新的对话线程
@@ -51,79 +54,79 @@ async def create_thread(
     使用高性能混合存储策略，针对云端PostgreSQL优化。
     性能目标: < 5ms 响应时间
     """
-    try:
-        # 生成线程ID
-        thread_id = request.thread_id or str(uuid.uuid4())
-
-        # 从请求上下文获取租户ID
-        tenant_id = context['tenant_id']
-        
-        # 创建 ORM 对象
-        thread_orm = ThreadOrm(
-            thread_id=thread_id,
-            assistant_id=request.assistant_id,
-            tenant_id=tenant_id,
-            status=ThreadStatus.ACTIVE
-        )
-        
-        # 传递给 service
-        await service.create_thread(thread_orm)
-        
-        return {
-            "thread_id": thread_id,
-            "metadata": {
-                "tenant_id": tenant_id,
-                "assistant_id": request.assistant_id
-            },
-            "status": thread_orm.status,
-            "created_at": thread_orm.created_at,
-            "updated_at": thread_orm.updated_at
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"线程创建失败: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+    async with get_thread_service() as service:
+        try:
+            # 生成线程ID
+            thread_id = request.thread_id or uuid4()
+            
+            # 创建 ORM 对象
+            thread_orm = ThreadOrm(
+                thread_id=thread_id,
+                assistant_id=request.assistant_id,
+                tenant_id=tenant_id,
+                status=ThreadStatus.ACTIVE
+            )
+            
+            # 传递给 service
+            await service.create_thread(thread_orm)
+            
+            return {
+                "thread_id": thread_id,
+                "metadata": {
+                    "tenant_id": tenant_id,
+                    "assistant_id": request.assistant_id
+                },
+                "status": thread_orm.status,
+                "created_at": thread_orm.created_at,
+                "updated_at": thread_orm.updated_at
+            }
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"线程创建失败: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/{thread_id}")
-@tenant_validation()
 async def get_thread(
-    thread_id: str,
-    context = Depends(get_request_context),
-    service = Depends(get_thread_service)
+    thread_id: UUID,
+    tenant_id: str = Depends(validate_and_get_tenant_id)
 ):
     """
     获取线程详情
     
     从数据库获取线程配置信息。
     """
-    try:
-        # 使用依赖注入的存储库获取线程
-        thread = await service.get_thread(thread_id)
-        
-        if not thread:
-            raise HTTPException(
-                status_code=404, 
-                detail=f"线程不存在: {thread_id}"
-            )
-        
-        if str(thread.tenant_id) != context.get('tenant_id'):
-            raise HTTPException(
-                status_code=403, 
-                detail="租户ID不匹配，无法访问此线程"
-            )
+    async with get_thread_service() as service:
+        try:
+            # 使用依赖注入的存储库获取线程
+            thread = await service.get_thread(thread_id)
+            
+            if not thread:
+                raise HTTPException(
+                    status_code=404, 
+                    detail=f"线程不存在: {thread_id}"
+                )
+            
+            if thread.tenant_id != tenant_id:
+                raise HTTPException(
+                    status_code=403, 
+                    detail="租户ID不匹配，无法访问此线程"
+                )
 
-        return {
-            "thread_id": thread.thread_id,
-            "metadata": {"tenant_id": thread.tenant_id},
-            "status": thread.status,
-            "created_at": thread.created_at,
-            "updated_at": thread.updated_at
-        }
-        
-    except Exception as e:
-        logger.error(f"线程获取失败: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+            return {
+                "thread_id": thread.thread_id,
+                "metadata": {
+                    "tenant_id": thread.tenant_id,
+                    "assistant_id": thread.assistant_id
+                },
+                "status": thread.status,
+                "created_at": thread.created_at,
+                "updated_at": thread.updated_at
+            }
+            
+        except Exception as e:
+            logger.error(f"线程获取失败: {e}", exc_info=True)
+            raise HTTPException(status_code=500, detail=str(e))
 

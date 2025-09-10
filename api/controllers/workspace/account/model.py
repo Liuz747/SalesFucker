@@ -9,11 +9,11 @@
 """
 
 from datetime import datetime
-from typing import Dict, Optional, Self
+from typing import Optional, Self
 
 from pydantic import BaseModel, Field
 
-from models.tenant import TenantOrm
+from models.tenant import TenantOrm, TenantStatus
 
 
 class Tenant(BaseModel):
@@ -27,25 +27,24 @@ class Tenant(BaseModel):
     # 基本信息
     tenant_id: str = Field(description="租户标识符")
     tenant_name: str = Field(description="租户名称")
-    status: int = Field(default=1, description="状态：1-活跃，0-禁用")
+    status: TenantStatus = Field(default=TenantStatus.ACTIVE, description="状态：1-活跃，0-禁用")
     
     # 业务信息
-    industry: int = Field(default=1, description="行业类型：1-美容诊所，2-化妆品公司等")
+    industry: str = Field(default=1, description="行业类型：1-美容诊所，2-化妆品公司等")
     company_size: Optional[int] = Field(default=1, description="公司规模：1-小型，2-中型，3-大型") 
-    area_id: int = Field(default=1, description="地区ID")
+    area_id: str = Field(default=1, description="地区ID")
     user_count: int = Field(default=0, description="用户数量")
     expires_at: Optional[datetime] = Field(None, description="过期时间")
     
     # 审计字段
     creator: int = Field(default=1, description="创建者ID")
     editor: Optional[int] = Field(None, description="编辑者ID")
-    deleted: bool = Field(default=False, description="删除标记")
     is_active: bool = Field(default=True, description="激活状态")
     created_at: Optional[datetime] = Field(None, description="创建时间")
     updated_at: Optional[datetime] = Field(None, description="最后更新时间")
     
     # 业务配置
-    feature_flags: Dict[str, bool] = Field(
+    feature_flags: dict[str, bool] = Field(
         default_factory=dict, 
         description="功能开关配置"
     )
@@ -63,7 +62,6 @@ class Tenant(BaseModel):
             expires_at=tenant_orm.expires_at,
             creator=tenant_orm.creator,
             editor=tenant_orm.editor,
-            deleted=tenant_orm.deleted,
             is_active=tenant_orm.is_active,
             created_at=tenant_orm.created_at,
             updated_at=tenant_orm.updated_at,
@@ -82,7 +80,6 @@ class Tenant(BaseModel):
             expires_at=self.expires_at,
             creator=self.creator,
             editor=self.editor,
-            deleted=self.deleted,
             is_active=self.is_active,
             created_at=self.created_at,
             updated_at=self.updated_at,

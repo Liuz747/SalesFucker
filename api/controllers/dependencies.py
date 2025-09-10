@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Any
 from fastapi import HTTPException, Request
 
 from utils import get_component_logger
@@ -24,7 +24,8 @@ def get_orchestrator_service(tenant_id: str):
         )
 
 
-async def get_request_context(request: Request) -> Dict[str, Any]:
+# === 已废弃 ===
+async def get_request_context(request: Request) -> dict[str, Any]:
     """返回请求上下文（租户、UA等）"""
     return {
         "tenant_id": request.state.tenant_id,

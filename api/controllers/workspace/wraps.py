@@ -11,47 +11,15 @@
 """
 
 from functools import wraps
-from typing import Optional
+from contextlib import asynccontextmanager
 from collections.abc import Callable
 
-from fastapi import HTTPException, Request
+from fastapi import HTTPException, Request, Depends
 
 from services.tenant_service import TenantService
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "TenantValidation")
-
-
-def _extract_tenant_id(request: Request) -> Optional[str]:
-    """
-    从请求中提取租户ID
-    
-    支持多种提取方式：
-    1. Header: X-Tenant-ID
-    2. 路径参数: /tenants/{tenant_id}/...
-    
-    参数:
-        request: HTTP请求
-        
-    返回:
-        Optional[str]: 租户ID
-    """
-    # 方式1: 从Header获取 (推荐)
-    tenant_id = request.headers.get("X-Tenant-ID")
-    if tenant_id:
-        return tenant_id
-    
-    # 方式2: 从路径参数获取
-    path_parts = request.url.path.split("/")
-    if "tenants" in path_parts:
-        try:
-            tenant_index = path_parts.index("tenants")
-            if tenant_index + 1 < len(path_parts):
-                return path_parts[tenant_index + 1]
-        except (ValueError, IndexError):
-            pass
-    
-    return None
 
 
 def tenant_validation():
@@ -60,41 +28,23 @@ def tenant_validation():
     
     使用方法:
         @tenant_validation()
-        async def my_endpoint(request: Request, tenant: TenantOrm, ...):
+        async def my_endpoint(request: Request, tenant_id: str, ...):
             # tenant对象已验证并注入
             pass
     """
     def decorator(process: Callable) -> Callable:
         @wraps(process)
-        async def wrapper(*args, **kwargs):
-            # 从参数中找到 Request 对象
-            request = None
-            for arg in args:
-                if isinstance(arg, Request):
-                    request = arg
-                    break
-            
-            if not request:
-                request = kwargs.get('request')
-            
-            if not request:
-                raise HTTPException(
-                    status_code=500, 
-                    detail="Request object not found"
-                )
-            
+        async def wrapper(*args, request: Request = Depends(), **kwargs):
             # 直接从请求中提取租户ID
-            tenant_id = _extract_tenant_id(request)
+            tenant_id = request.headers.get("X-Tenant-ID")
+
             if not tenant_id:
                 raise HTTPException(
                     status_code=400,
                     detail={
-                        "error": "TENANT_ID_REQUIRED",
+                        "error": "Tenant_ID_Required",
                         "message": "请求必须包含租户ID",
-                        "methods": [
-                            "Header: X-Tenant-ID (推荐)",
-                            "路径参数: /tenants/{tenant_id}/..."
-                        ]
+                        "methods": "Header: X-Tenant-ID"
                     }
                 )
             
@@ -108,7 +58,7 @@ def tenant_validation():
                     raise HTTPException(
                         status_code=403,
                         detail={
-                            "error": "TENANT_NOT_FOUND",
+                            "error": "Tenant_Not_Found",
                             "message": f"租户 {tenant_id} 不存在"
                         }
                     )
@@ -117,24 +67,78 @@ def tenant_validation():
                     raise HTTPException(
                         status_code=403,
                         detail={
-                            "error": "TENANT_DISABLED", 
+                            "error": "Tenant_Disabled", 
                             "message": f"租户 {tenant_id} 已被禁用"
                         }
                     )
                 
-                # 注入验证后的租户对象
-                kwargs["tenant"] = tenant
+                # 注入验证后的租户ID
                 kwargs["tenant_id"] = tenant_id
-                
-                await service.cleanup()
                 
             except HTTPException:
                 raise
             except Exception as e:
                 logger.error(f"租户验证失败: {tenant_id}, 错误: {e}")
                 raise HTTPException(status_code=500, detail="租户验证失败")
+            finally:
+                await service.cleanup()
             
             return await process(*args, **kwargs)
         
         return wrapper
     return decorator
+
+
+@asynccontextmanager
+async def tenant_validation_context():
+    service = TenantService()
+    try:
+        await service.dispatch()
+        yield service
+    finally:
+        await service.cleanup()
+
+
+async def validate_and_get_tenant_id(request: Request) -> str:
+    tenant_id = request.headers.get("X-Tenant-ID")
+    
+    if not tenant_id:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "Tenant_ID_Required",
+                "message": "请求必须包含租户ID",
+                "methods": "Header: X-Tenant-ID"
+            }
+        )
+    # 验证租户
+    async with tenant_validation_context() as service:
+        try:
+            tenant = await service.query_tenant(tenant_id)
+            
+            if not tenant:
+                raise HTTPException(
+                    status_code=403,
+                    detail={
+                        "error": "Tenant_Not_Found",
+                        "message": f"租户 {tenant_id} 不存在"
+                    }
+                )
+            
+            if not tenant.is_active:
+                raise HTTPException(
+                    status_code=403,
+                    detail={
+                        "error": "Tenant_Disabled", 
+                        "message": f"租户 {tenant_id} 已被禁用"
+                    }
+                )
+            
+            # 注入验证后的租户ID
+            return tenant_id
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"租户验证失败: {tenant_id}, 错误: {e}")
+            raise HTTPException(status_code=500, detail="租户验证失败")

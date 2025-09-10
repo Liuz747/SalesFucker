@@ -11,11 +11,8 @@
 
 from enum import StrEnum
 
-from sqlalchemy import (
-    Column, String, Boolean, DateTime, Integer, Index
-)
+from sqlalchemy import Column, String, Boolean, DateTime, Integer, Index, Enum, func
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.sql import func
 
 from models.base import Base
 
@@ -25,7 +22,14 @@ class TenantRole(StrEnum):
     ADMIN = "admin"          # 管理员
     OPERATOR = "operator"    # 操作员
     VIEWER = "viewer"        # 查看者
-    API_USER = "api_user"    # API用户
+    EDITOR = "editor"        # 编辑者
+
+
+class TenantStatus(StrEnum):
+    """租户状态枚举"""
+    ACTIVE = "active"          # 活跃
+    BANNED = "banned"          # 禁用
+    CLOSED = "closed"          # 关闭
 
 
 class TenantOrm(Base):
@@ -37,16 +41,16 @@ class TenantOrm(Base):
     __tablename__ = "tenants"
     
     # 基本信息
-    tenant_id = Column(String(255), primary_key=True, nullable=False)
-    tenant_name = Column(String(500), nullable=False)
-    status = Column(Integer, nullable=False, default=1)
+    tenant_id = Column(String(64), primary_key=True)
+    tenant_name = Column(String(255), nullable=False)
+    status = Column(Enum(TenantStatus, name='tenant_status'), nullable=False, default=TenantStatus.ACTIVE)
     
     # 业务信息
-    industry = Column(Integer, nullable=False)
-    company_size = Column(Integer, nullable=True)
-    area_id = Column(Integer, nullable=False)
-    user_count = Column(Integer, nullable=False, default=0)
-    expires_at = Column(DateTime, nullable=True)
+    industry = Column(String(64))
+    company_size = Column(Integer)
+    area_id = Column(String(64))
+    user_count = Column(Integer, default=0)
+    expires_at = Column(DateTime)
     
     # 审计字段
     created_at = Column(
@@ -57,22 +61,19 @@ class TenantOrm(Base):
     updated_at = Column(
         DateTime(timezone=True), 
         nullable=False, 
-        server_default=func.now(),
-        onupdate=func.now()
+        server_default=func.now()
     )
-    creator = Column(Integer, nullable=False)
-    editor = Column(Integer, nullable=True)
-    deleted = Column(Boolean, nullable=False, default=False)
+    creator = Column(Integer)
+    editor = Column(Integer)
     is_active = Column(Boolean, nullable=False, default=True)
     
     # 扩展配置（新增JSONB字段用于存储复杂配置）
-    feature_flags = Column(JSONB, nullable=True, default=dict)
+    feature_flags = Column(JSONB, default=dict)
     
     # 数据库索引优化
     __table_args__ = (
         Index('idx_tenant_status', 'status'),
         Index('idx_tenant_industry', 'industry'),
-        Index('idx_tenant_deleted', 'deleted'),
         Index('idx_tenant_is_active', 'is_active'),
     )
     

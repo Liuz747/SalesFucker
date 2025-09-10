@@ -11,6 +11,7 @@
 - 错误处理和审计日志
 """
 
+from uuid import UUID
 from typing import Optional
 
 from config import mas_config
@@ -69,10 +70,10 @@ class BackgroundWorkflowProcessor:
     
     async def process_workflow_background(
         self,
-        run_id: str,
-        thread_id: str,
+        run_id: UUID,
+        thread_id: UUID,
         input: InputContent,
-        assistant_id: str,
+        assistant_id: UUID,
         customer_id: Optional[str] = None,
         input_type: str = "text"
     ):
