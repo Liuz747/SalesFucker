@@ -5,34 +5,16 @@
 """
 
 from uuid import UUID
-from enum import StrEnum
 from datetime import datetime
 from typing import Optional, Self
 
 from pydantic import BaseModel, Field
 from sqlalchemy import Column, DateTime, Enum, BigInteger, String, Uuid, func
 
-from models.base import Base
 from schemas.conversation_schema import ThreadMetadata, WorkflowData
 from utils import get_current_datetime
-
-
-class ThreadStatus(StrEnum):
-    """对话状态枚举"""
-    ACTIVE = "ACTIVE"
-    PROCESSING = "PROCESSING"
-    COMPLETED = "COMPLETED"
-    FAILED = "FAILED"
-    PAUSED = "PAUSED"
-    DELETED = "DELETED"
-
-
-class InputType(StrEnum):
-    """输入类型枚举"""
-    TEXT = "text"
-    VOICE = "voice"
-    IMAGE = "image"
-    MULTIMODAL = "multimodal"
+from .base import Base
+from .enums import ThreadStatus
 
 
 class ThreadOrm(Base):

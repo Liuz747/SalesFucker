@@ -10,7 +10,6 @@
 - TenantOrm: 租户数据库模型
 """
 
-from enum import StrEnum
 from datetime import datetime
 from typing import Optional, Self
 
@@ -18,23 +17,8 @@ from pydantic import BaseModel, Field
 from sqlalchemy import Column, String, Boolean, DateTime, Integer, Index, Enum, func
 from sqlalchemy.dialects.postgresql import JSONB
 
-from models.base import Base
-
-
-class TenantRole(StrEnum):
-    """租户角色枚举"""
-    ADMIN = "admin"          # 管理员
-    OPERATOR = "operator"    # 操作员
-    VIEWER = "viewer"        # 查看者
-    EDITOR = "editor"        # 编辑者
-
-
-class TenantStatus(StrEnum):
-    """租户状态枚举"""
-    ACTIVE = "active"          # 活跃
-    BANNED = "banned"          # 禁用
-    CLOSED = "closed"          # 关闭
-
+from .base import Base
+from .enums import TenantStatus
 
 class TenantOrm(Base):
     """

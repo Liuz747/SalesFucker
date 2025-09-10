@@ -110,7 +110,7 @@ async def database_session() -> AsyncGenerator[AsyncSession, None]:
         await session.commit()
     except Exception as e:
         await session.rollback()
-        logger.error(f"数据库操作失败，已回滚: {e}")
+        logger.error(f"数据库操作失败，本次操作已取消: {e}")
         raise
     finally:
         await session.close()

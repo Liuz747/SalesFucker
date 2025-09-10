@@ -43,7 +43,6 @@ async def sync_tenant(
             tenant_orm = TenantOrm(
                 tenant_id=request.tenant_id,
                 tenant_name=request.tenant_name,
-                status=request.status,
                 industry=request.industry,
                 area_id=request.area_id,
                 creator=request.creator,
