@@ -13,7 +13,7 @@ from typing import Optional, Self
 
 from pydantic import BaseModel, Field
 
-from models.tenant import TenantOrm, TenantStatus
+from models import TenantOrm, TenantStatus
 
 
 class Tenant(BaseModel):

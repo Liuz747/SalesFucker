@@ -6,9 +6,12 @@
 
 主要模型:
 - TenantRole: 租户角色枚举
+- TenantModel: 租户配置业务模型
 - TenantOrm: 租户数据库模型
 """
+import uuid
 
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from enum import StrEnum
 
 from sqlalchemy import Column, String, Boolean, DateTime, Integer, Index, Enum, func
@@ -66,7 +69,7 @@ class TenantOrm(Base):
     creator = Column(Integer)
     editor = Column(Integer)
     is_active = Column(Boolean, nullable=False, default=True)
-    
+
     # 扩展配置（新增JSONB字段用于存储复杂配置）
     feature_flags = Column(JSONB, default=dict)
     
@@ -76,4 +79,49 @@ class TenantOrm(Base):
         Index('idx_tenant_industry', 'industry'),
         Index('idx_tenant_is_active', 'is_active'),
     )
-    
+    # todo merge 测试
+    # def to_model(self) -> TenantModel:
+    #     """
+    #     转换为业务模型
+    #
+    #     将数据库模型转换为业务逻辑使用的Pydantic模型，
+    #     处理默认值和数据类型转换。
+    #
+    #     返回:
+    #         TenantModel: 业务模型实例
+    #     """
+    #     return TenantModel(
+    #         tenant_id=self.tenant_id,
+    #         tenant_name=self.tenant_name,
+    #         status=self.status,
+    #         industry=self.industry,
+    #         company_size=self.company_size,
+    #         area_id=self.area_id,
+    #         user_count=self.user_count,
+    #         expires_at=self.expires_at,
+    #         feature_flags=self.feature_flags or {},
+    #         creator=self.creator,
+    #         editor=self.editor,
+    #         deleted=self.deleted,
+    #         created_at=self.created_at,
+    #         updated_at=self.updated_at
+    #     )
+    #
+    # def update(self, config: TenantModel):
+    #     """
+    #     从业务配置更新数据库模型
+    #
+    #     使用业务配置更新现有数据库模型实例，保持数据库追踪状态。
+    #
+    #     参数:
+    #         config: TenantModel业务配置实例
+    #     """
+    #     self.tenant_name = config.tenant_name
+    #     self.status = config.status
+    #     self.industry = config.industry
+    #     self.company_size = config.company_size
+    #     self.area_id = config.area_id
+    #     self.user_count = config.user_count
+    #     self.expires_at = config.expires_at
+    #     self.feature_flags = config.feature_flags
+    #     self.updated_at = func.now()

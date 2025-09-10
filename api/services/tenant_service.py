@@ -14,12 +14,12 @@
 import asyncio
 from typing import Optional
 
-from models.tenant import TenantOrm
-from controllers.workspace.account.model import Tenant
-from infra.db.connection import database_session
-from infra.cache.redis_client import get_redis_client
-from repositories.tenant_repo import TenantRepository
-from utils import get_component_logger
+from api.controllers.workspace.account.model import Tenant
+from api.infra.cache import get_redis_client
+from api.infra.db.connection import database_session
+from api.models import TenantOrm
+from api.repositories.tenant_repo import TenantRepository
+from api.utils import get_component_logger
 
 logger = get_component_logger(__name__, "TenantService")
 
@@ -78,16 +78,15 @@ class TenantService:
             # Level 2: 数据库查询
             async with database_session() as session:
                 tenant_orm = await TenantRepository.get_tenant(tenant_id, session)
-            
-            if tenant_orm:
-                tenant_model = Tenant.to_model(tenant_orm)
-                asyncio.create_task(TenantRepository.update_tenant_cache(
-                    tenant_model,
-                    redis_client
-                ))
-                return tenant_orm
-            
-            logger.debug(f"租户不存在: {tenant_id}")
+                if tenant_orm:
+                    tenant_model = Tenant.to_model(tenant_orm)
+                    asyncio.create_task(TenantRepository.update_tenant_cache(
+                        tenant_model,
+                        self._redis_client
+                    ))
+                    return tenant_orm
+
+            logger.error(f"租户不存在: {tenant_id}")
             return None
 
         except Exception as e:
@@ -122,7 +121,7 @@ class TenantService:
         
         参数:
             tenant_id: 租户ID
-            
+
         返回:
             bool: 是否删除成功
         """
