@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from .prompts import AssistantPromptConfig
 from .requests import BaseRequest, PaginationRequest
-from .responses import PaginatedResponse, SuccessResponse, BaseResponse
+from .responses import PaginatedResponse, SimpleResponse
 
 
 class AssistantStatus(str, Enum):
@@ -222,7 +222,7 @@ class AssistantListRequest(PaginationRequest):
 # 响应模型
 
 
-class AssistantResponse(SuccessResponse[Dict[str, Any]]):
+class AssistantResponse(SimpleResponse[Dict[str, Any]]):
     """
     AI员工响应模型
     """
@@ -288,7 +288,7 @@ class AssistantListResponse(PaginatedResponse[List[Dict[str, Any]]]):
     filter_summary: Dict[str, int] = Field(description="过滤条件统计")
 
 
-class AssistantStatsResponse(SuccessResponse[Dict[str, Any]]):
+class AssistantStatsResponse(SimpleResponse[Dict[str, Any]]):
     """
     助理统计响应模型
     """
@@ -316,7 +316,7 @@ class AssistantStatsResponse(SuccessResponse[Dict[str, Any]]):
     trends: Dict[str, List[float]] = Field(description="趋势数据")
 
 
-class AssistantOperationResponse(BaseResponse):
+class AssistantOperationResponse(SimpleResponse):
     """
     助理操作响应模型
     """

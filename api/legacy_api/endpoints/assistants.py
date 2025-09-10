@@ -24,7 +24,7 @@ from ..schemas.assistants import (
 from ..handlers.assistant_handler import AssistantHandler
 from utils import get_component_logger
 from models.assistant import AssistantModel
-from ..schemas.responses import SuccessResponse
+from ..schemas.responses import SimpleResponse
 
 # 创建路由器
 router = APIRouter(prefix="/assistants", tags=["assistants"])
@@ -34,11 +34,11 @@ logger = get_component_logger(__name__)
 assistant_handler = AssistantHandler()
 
 
-@router.post("/", response_model=SuccessResponse[AssistantModel], status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=SimpleResponse[AssistantModel], status_code=status.HTTP_201_CREATED)
 async def create_assistant(
         request: AssistantCreateRequest,
 
-) -> SuccessResponse[AssistantModel]:
+) -> SimpleResponse[AssistantModel]:
     """
     创建新的AI员工
     
@@ -122,13 +122,13 @@ async def list_assistants(
         )
 
 
-@router.get("/{assistant_id}", response_model=Optional[SuccessResponse[AssistantModel]])
+@router.get("/{assistant_id}", response_model=Optional[SimpleResponse[AssistantModel]])
 async def get_assistant(
         assistant_id: str = Path(..., description="助理ID"),
         tenant_id: str = Query(..., description="租户标识符"),
         include_stats: bool = Query(False, description="是否包含统计信息"),
         include_config: bool = Query(True, description="是否包含配置信息")
-) -> Optional[SuccessResponse[AssistantModel]]:
+) -> Optional[SimpleResponse[AssistantModel]]:
     """
     获取助理详细信息
     
@@ -161,12 +161,12 @@ async def get_assistant(
         )
 
 
-@router.put("/{assistant_id}", response_model=SuccessResponse[AssistantModel])
+@router.put("/{assistant_id}", response_model=SimpleResponse[AssistantModel])
 async def update_assistant(
         assistant_id: str = Path(..., description="助理ID"),
         request: AssistantUpdateRequest = None,
 
-) -> Optional[SuccessResponse[AssistantModel]]:
+) -> Optional[SimpleResponse[AssistantModel]]:
     """
     更新助理信息
     
@@ -205,12 +205,12 @@ async def update_assistant(
         )
 
 
-@router.delete("/{assistant_id}", response_model=SuccessResponse[AssistantOperationResponse])
+@router.delete("/{assistant_id}", response_model=SimpleResponse[AssistantOperationResponse])
 async def delete_assistant(
         assistant_id: str = Path(..., description="助理ID"),
         tenant_id: str = Query(..., description="租户标识符"),
         force: bool = Query(False, description="是否强制删除（即使有活跃对话）")
-) -> SuccessResponse[AssistantOperationResponse]:
+) -> SimpleResponse[AssistantOperationResponse]:
     """
     删除助理
     

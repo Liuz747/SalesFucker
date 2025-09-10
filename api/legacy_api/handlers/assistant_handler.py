@@ -14,7 +14,6 @@ AI员工处理器
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 
-from ..schemas import SuccessResponse
 from ..schemas.assistants import (
     AssistantCreateRequest, AssistantUpdateRequest, AssistantConfigRequest,
     AssistantListRequest, AssistantListResponse,
@@ -27,7 +26,7 @@ from services.assistant_service import AssistantService
 from ..schemas.prompts import PromptCreateRequest
 from .prompts_handler import PromptHandler
 from utils import get_component_logger, with_error_handling, StatusMixin
-from ..schemas.responses import SuccessResponse
+from ..schemas.responses import SimpleResponse
 
 logger = get_component_logger(__name__, "AssistantHandler")
 
@@ -54,7 +53,7 @@ class AssistantHandler(StatusMixin):
         self.logger.info("AI员工处理器初始化完成")
 
     @with_error_handling(fallback_response=None)
-    async def create_assistant(self, request: AssistantCreateRequest) -> SuccessResponse[AssistantModel]:
+    async def create_assistant(self, request: AssistantCreateRequest) -> SimpleResponse[AssistantModel]:
         """
         创建新的AI员工
         
@@ -146,7 +145,7 @@ class AssistantHandler(StatusMixin):
 
             self.logger.info(f"助理创建成功: {request.assistant_id}")
 
-            return SuccessResponse(
+            return SimpleResponse(
                 success=True,
                 message="助理创建成功",
                 data=assistant_data,
@@ -288,7 +287,7 @@ class AssistantHandler(StatusMixin):
             tenant_id: str,
             include_stats: bool = False,
             include_config: bool = True
-    ) -> Optional[SuccessResponse[AssistantModel]]:
+    ) -> Optional[SimpleResponse[AssistantModel]]:
         """
         获取助理详细信息
         
@@ -315,7 +314,7 @@ class AssistantHandler(StatusMixin):
 
             self.logger.info(f"助理详情查询成功: {assistant_id}")
 
-            return SuccessResponse(
+            return SimpleResponse(
                 success=True,
                 message="助理详情查询成功",
                 data=assistant,
@@ -335,7 +334,7 @@ class AssistantHandler(StatusMixin):
             assistant_id: str,
             tenant_id: str,
             request: AssistantUpdateRequest
-    ) -> Optional[SuccessResponse[AssistantModel]]:
+    ) -> Optional[SimpleResponse[AssistantModel]]:
         """
         更新助理信息
         
@@ -436,7 +435,7 @@ class AssistantHandler(StatusMixin):
                 # raise Exception("更新助理失败")
                 self.logger.info(f"助理更新成功: {assistant_id}")
 
-                return SuccessResponse(
+                return SimpleResponse(
                     success=True,
                     message="助理更新成功",
                     data=assistant,
@@ -457,7 +456,7 @@ class AssistantHandler(StatusMixin):
             assistant_id: str,
             tenant_id: str,
             request: AssistantConfigRequest
-    ) -> AssistantOperationResponse:
+    ) -> SimpleResponse[AssistantOperationResponse]:
         """
         配置助理设置
         
@@ -474,7 +473,7 @@ class AssistantHandler(StatusMixin):
             assistant = self._assistants_store.get(assistant_key)
 
             if not assistant:
-                return AssistantOperationResponse(
+                return SimpleResponse[AssistantOperationResponse](
                     # success=False,
                     # message="助理不存在",
                     # data={},
@@ -508,7 +507,7 @@ class AssistantHandler(StatusMixin):
 
             self.logger.info(f"助理配置成功: {assistant_id}, 配置类型: {config_type}")
 
-            return AssistantOperationResponse(
+            return SimpleResponse[AssistantOperationResponse](
                 # success=True,
                 # message="助理配置成功",
                 # data={},
@@ -529,7 +528,7 @@ class AssistantHandler(StatusMixin):
             days: int = 30,
             include_trends: bool = True,
             include_devices: bool = True
-    ) -> Optional[AssistantStatsResponse]:
+    ) -> Optional[SimpleResponse[AssistantStatsResponse]]:
         """
         获取助理统计信息
         
@@ -567,7 +566,7 @@ class AssistantHandler(StatusMixin):
 
             self.logger.info(f"助理统计查询成功: {assistant_id}")
 
-            return AssistantStatsResponse(
+            return SimpleResponse[AssistantStatsResponse](
                 success=True,
                 message="助理统计查询成功",
                 data={},
@@ -588,18 +587,18 @@ class AssistantHandler(StatusMixin):
             self.logger.error(f"助理统计查询失败: {e}")
             raise
 
-    async def activate_assistant(self, assistant_id: str, tenant_id: str) -> SuccessResponse[
+    async def activate_assistant(self, assistant_id: str, tenant_id: str) -> SimpleResponse[
         AssistantOperationResponse]:
         """激活助理"""
         return await self._change_assistant_status(assistant_id, tenant_id, AssistantStatus.ACTIVE, "activate")
 
-    async def deactivate_assistant(self, assistant_id: str, tenant_id: str) -> SuccessResponse[
+    async def deactivate_assistant(self, assistant_id: str, tenant_id: str) -> SimpleResponse[
         AssistantOperationResponse]:
         """停用助理"""
         return await self._change_assistant_status(assistant_id, tenant_id, AssistantStatus.INACTIVE, "deactivate")
 
     async def delete_assistant(self, assistant_id: str, tenant_id: str,
-                               force: bool = False) -> SuccessResponse[AssistantOperationResponse]:
+                               force: bool = False) -> SimpleResponse[AssistantOperationResponse]:
         """
         删除助理
         
@@ -616,7 +615,7 @@ class AssistantHandler(StatusMixin):
             assistant = await AssistantService.get_assistant_by_id(assistant_id)
 
             if not assistant:
-                return SuccessResponse(
+                return SimpleResponse(
                     code=4001,
                     message="助理不存在",
                     # success=False,
@@ -633,7 +632,7 @@ class AssistantHandler(StatusMixin):
             current_customers = 0
 
             if current_customers > 0 and not force:
-                return SuccessResponse(
+                return SimpleResponse(
                     code=10001,
                     message="助理有活跃对话，需要强制删除标志",
                     # success=False,
@@ -654,7 +653,7 @@ class AssistantHandler(StatusMixin):
 
             self.logger.info(f"助理删除成功: {assistant_id}")
 
-            return SuccessResponse(
+            return SimpleResponse(
                 code=0,
                 message="助理删除成功",
                 # data=assistant,
@@ -678,7 +677,7 @@ class AssistantHandler(StatusMixin):
             tenant_id: str,
             new_status: AssistantStatus,
             operation: str
-    ) -> SuccessResponse[AssistantOperationResponse]:
+    ) -> SimpleResponse[AssistantOperationResponse]:
         """改变助理状态的通用方法"""
         try:
             # assistant_key = f"{tenant_id}:{assistant_id}"
@@ -692,7 +691,7 @@ class AssistantHandler(StatusMixin):
                 r.operation = operation,
                 r.success = True,
                 r.result_data = {"error": "助理不存在"}
-                return SuccessResponse(
+                return SimpleResponse(
                     success=False,
                     message="助理不存在",
                     data=r,
@@ -722,7 +721,7 @@ class AssistantHandler(StatusMixin):
                 r.previous_status = new_status
                 r.new_status = new_status
                 r.result_data = {"status_changed": True}
-                return SuccessResponse(
+                return SimpleResponse(
                     success=True,
                     message=f"助理{operation}成功",
                     data=r,
