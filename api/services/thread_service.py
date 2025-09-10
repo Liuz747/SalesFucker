@@ -30,30 +30,13 @@ class ThreadService:
     实现高性能线程管理的业务逻辑:
     1. 缓存优先策略 - Redis < 10ms 响应时间
     2. 数据库持久化 - PostgreSQL 异步写入
-    3. 依赖管理 - Redis客户端生命周期管理
-    4. 业务协调 - 缓存和数据库操作的统一协调
+    3. 业务协调 - 缓存和数据库操作的统一协调
     """
-
-    def __init__(self):
-        # Redis客户端
-        self._redis_client = None
     
-    async def dispatch(self):
-        """初始化服务依赖（Redis客户端连接）"""
-        try:
-            self._redis_client = await get_redis_client()
-            # 测试Redis连接
-            await self._redis_client.ping()
-            logger.info("Redis连接初始化完成")
-        except Exception as e:
-            logger.error(f"Redis连接初始化失败: {e}")
-            raise
-        
-        logger.info("线程服务初始化完成")
-    
-    async def create_thread(self, thread: ThreadOrm) -> UUID:
+    @staticmethod
+    async def create_thread(thread: ThreadOrm) -> UUID:
         """
-        创建线程 - 优化性能策略
+        创建线程
         
         参数:
             thread: 线程ORM对象
@@ -67,10 +50,11 @@ class ThreadService:
 
             if thread_id:
                 # 2. 异步更新Redis缓存
+                redis_client = await get_redis_client()
                 thread_model = Thread.to_model(thread)
                 asyncio.create_task(ThreadRepository.update_thread_cache(
                     thread_model,
-                    self._redis_client
+                    redis_client
                 ))
                 
                 logger.debug(f"线程写入redis缓存成功: {thread.thread_id}")
@@ -83,25 +67,30 @@ class ThreadService:
             logger.error(f"线程创建失败: {e}")
             raise
     
-    async def get_thread(self, thread_id: str) -> Optional[ThreadOrm]:
+    @staticmethod
+    async def get_thread(thread_id: str) -> Optional[ThreadOrm]:
         """
-        获取线程 - Redis缓存策略
+        获取线程
         
         性能目标: < 10ms 响应时间
         """
         try:
+            # 直接获取Redis客户端，使用连接池
+            redis_client = await get_redis_client()
+            
             # Level 1: Redis缓存 (< 10ms)
-            thread_model = await ThreadRepository.get_thread_cache(thread_id, self._redis_client)
+            thread_model = await ThreadRepository.get_thread_cache(thread_id, redis_client)
             if thread_model:
                 return thread_model.to_orm()
             
             # Level 2: 数据库查询
             async with database_session() as session:
                 thread_orm = await ThreadRepository.get_thread(thread_id, session)
+            
             if thread_orm:
                 # 异步更新缓存
                 thread_model = Thread.to_model(thread_orm)
-                asyncio.create_task(ThreadRepository.update_thread_cache(thread_model, self._redis_client))
+                asyncio.create_task(ThreadRepository.update_thread_cache(thread_model, redis_client))
                 return thread_orm
             
             return None
@@ -110,18 +99,21 @@ class ThreadService:
             logger.error(f"线程获取失败: {e}")
             return None
     
-    async def update_thread(self, thread_orm: ThreadOrm) -> ThreadOrm:
+    @staticmethod
+    async def update_thread(thread_orm: ThreadOrm) -> ThreadOrm:
         """更新线程"""
         try:
             # 立即更新数据库
             async with database_session() as session:
                 await ThreadRepository.update_thread(thread_orm, session)
 
+            # 直接获取Redis客户端，使用连接池
+            redis_client = await get_redis_client()
             # 异步更新Redis缓存
             thread_model = Thread.to_model(thread_orm)
             asyncio.create_task(ThreadRepository.update_thread_cache(
                 thread_model,
-                self._redis_client
+                redis_client
             ))
             
             return thread_orm
@@ -129,10 +121,3 @@ class ThreadService:
         except Exception as e:
             logger.error(f"线程更新失败: {e}")
             raise
-
-    async def cleanup(self):
-        """清理资源"""
-        # 清理Redis客户端引用（共享连接池由应用层管理）
-        self._redis_client = None
-        
-        logger.info("线程服务已清理")

@@ -11,7 +11,6 @@
 """
 
 from functools import wraps
-from contextlib import asynccontextmanager
 from collections.abc import Callable
 
 from fastapi import HTTPException, Request, Depends
@@ -50,15 +49,13 @@ def tenant_validation():
             
             # 验证租户
             try:
-                service = TenantService()
-                await service.dispatch()
-                tenant = await service.query_tenant(tenant_id)
+                tenant = await TenantService.query_tenant(tenant_id)
                 
                 if not tenant:
                     raise HTTPException(
                         status_code=403,
                         detail={
-                            "error": "Tenant_Not_Found",
+                            "error": "TENANT_NOT_FOUND",
                             "message": f"租户 {tenant_id} 不存在"
                         }
                     )
@@ -67,7 +64,7 @@ def tenant_validation():
                     raise HTTPException(
                         status_code=403,
                         detail={
-                            "error": "Tenant_Disabled", 
+                            "error": "TENANT_DISABLED", 
                             "message": f"租户 {tenant_id} 已被禁用"
                         }
                     )
@@ -80,8 +77,6 @@ def tenant_validation():
             except Exception as e:
                 logger.error(f"租户验证失败: {tenant_id}, 错误: {e}")
                 raise HTTPException(status_code=500, detail="租户验证失败")
-            finally:
-                await service.cleanup()
             
             return await process(*args, **kwargs)
         
@@ -89,56 +84,45 @@ def tenant_validation():
     return decorator
 
 
-@asynccontextmanager
-async def tenant_validation_context():
-    service = TenantService()
-    try:
-        await service.dispatch()
-        yield service
-    finally:
-        await service.cleanup()
-
-
 async def validate_and_get_tenant_id(request: Request) -> str:
+    """依赖注入函数 - 租户验证"""
     tenant_id = request.headers.get("X-Tenant-ID")
     
     if not tenant_id:
         raise HTTPException(
             status_code=400,
             detail={
-                "error": "Tenant_ID_Required",
+                "error": "TENANT_ID_REQUIRED",
                 "message": "请求必须包含租户ID",
                 "methods": "Header: X-Tenant-ID"
             }
         )
-    # 验证租户
-    async with tenant_validation_context() as service:
-        try:
-            tenant = await service.query_tenant(tenant_id)
-            
-            if not tenant:
-                raise HTTPException(
-                    status_code=403,
-                    detail={
-                        "error": "Tenant_Not_Found",
-                        "message": f"租户 {tenant_id} 不存在"
-                    }
-                )
-            
-            if not tenant.is_active:
-                raise HTTPException(
-                    status_code=403,
-                    detail={
-                        "error": "Tenant_Disabled", 
-                        "message": f"租户 {tenant_id} 已被禁用"
-                    }
-                )
-            
-            # 注入验证后的租户ID
-            return tenant_id
-            
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.error(f"租户验证失败: {tenant_id}, 错误: {e}")
-            raise HTTPException(status_code=500, detail="租户验证失败")
+    
+    try:
+        tenant = await TenantService.query_tenant(tenant_id)
+        
+        if not tenant:
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "error": "TENANT_NOT_FOUND",
+                    "message": f"租户 {tenant_id} 不存在"
+                }
+            )
+        
+        if not tenant.is_active:
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "error": "TENANT_DISABLED", 
+                    "message": f"租户 {tenant_id} 已被禁用"
+                }
+            )
+        
+        return tenant_id
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"租户验证失败: {tenant_id}, 错误: {e}")
+        raise HTTPException(status_code=500, detail="租户验证失败")

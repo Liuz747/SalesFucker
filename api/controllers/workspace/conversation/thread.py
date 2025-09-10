@@ -12,7 +12,6 @@
 - 客户档案管理集成
 """
 
-from contextlib import asynccontextmanager
 from uuid import UUID, uuid4
 from fastapi import APIRouter, HTTPException, Depends
 
@@ -22,18 +21,6 @@ from services.thread_service import ThreadService
 from models import ThreadOrm, ThreadStatus
 from .schema import ThreadCreateRequest
 from .workflow import router as workflow_router
-
-
-# 依赖注入函数
-@asynccontextmanager
-async def get_thread_service() -> ThreadService:
-    """获取线程存储库依赖"""
-    service = ThreadService()
-    try:
-        await service.dispatch()
-        yield service
-    finally:
-        await service.cleanup()
 
 
 logger = get_component_logger(__name__, "ConversationRouter")
@@ -54,38 +41,36 @@ async def create_thread(
     使用高性能混合存储策略，针对云端PostgreSQL优化。
     性能目标: < 5ms 响应时间
     """
-    async with get_thread_service() as service:
-        try:
-            # 生成线程ID
-            thread_id = request.thread_id or uuid4()
-            
-            # 创建 ORM 对象
-            thread_orm = ThreadOrm(
-                thread_id=thread_id,
-                assistant_id=request.assistant_id,
-                tenant_id=tenant_id,
-                status=ThreadStatus.ACTIVE
-            )
-            
-            # 传递给 service
-            await service.create_thread(thread_orm)
-            
-            return {
-                "thread_id": thread_id,
-                "metadata": {
-                    "tenant_id": tenant_id,
-                    "assistant_id": request.assistant_id
-                },
-                "status": thread_orm.status,
-                "created_at": thread_orm.created_at,
-                "updated_at": thread_orm.updated_at
-            }
-            
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.error(f"线程创建失败: {e}", exc_info=True)
-            raise HTTPException(status_code=500, detail=str(e))
+    try:
+        # 生成线程ID
+        thread_id = request.thread_id or uuid4()
+        
+        # 创建 ORM 对象
+        thread_orm = ThreadOrm(
+            thread_id=thread_id,
+            assistant_id=request.assistant_id,
+            tenant_id=tenant_id,
+            status=ThreadStatus.ACTIVE
+        )
+        
+        await ThreadService.create_thread(thread_orm)
+        
+        return {
+            "thread_id": thread_id,
+            "metadata": {
+                "tenant_id": tenant_id,
+                "assistant_id": request.assistant_id
+            },
+            "status": thread_orm.status,
+            "created_at": thread_orm.created_at,
+            "updated_at": thread_orm.updated_at
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"线程创建失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/{thread_id}")
@@ -98,35 +83,34 @@ async def get_thread(
     
     从数据库获取线程配置信息。
     """
-    async with get_thread_service() as service:
-        try:
-            # 使用依赖注入的存储库获取线程
-            thread = await service.get_thread(thread_id)
-            
-            if not thread:
-                raise HTTPException(
-                    status_code=404, 
-                    detail=f"线程不存在: {thread_id}"
-                )
-            
-            if thread.tenant_id != tenant_id:
-                raise HTTPException(
-                    status_code=403, 
-                    detail="租户ID不匹配，无法访问此线程"
-                )
+    try:
+        # 使用依赖注入的存储库获取线程
+        thread = await ThreadService.get_thread(thread_id)
+        
+        if not thread:
+            raise HTTPException(
+                status_code=404, 
+                detail=f"线程不存在: {thread_id}"
+            )
+        
+        if thread.tenant_id != tenant_id:
+            raise HTTPException(
+                status_code=403, 
+                detail="租户ID不匹配，无法访问此线程"
+            )
 
-            return {
-                "thread_id": thread.thread_id,
-                "metadata": {
-                    "tenant_id": thread.tenant_id,
-                    "assistant_id": thread.assistant_id
-                },
-                "status": thread.status,
-                "created_at": thread.created_at,
-                "updated_at": thread.updated_at
-            }
-            
-        except Exception as e:
-            logger.error(f"线程获取失败: {e}", exc_info=True)
-            raise HTTPException(status_code=500, detail=str(e))
+        return {
+            "thread_id": thread.thread_id,
+            "metadata": {
+                "tenant_id": thread.tenant_id,
+                "assistant_id": thread.assistant_id
+            },
+            "status": thread.status,
+            "created_at": thread.created_at,
+            "updated_at": thread.updated_at
+        }
+        
+    except Exception as e:
+        logger.error(f"线程获取失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 

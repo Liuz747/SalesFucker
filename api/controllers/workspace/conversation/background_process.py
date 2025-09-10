@@ -17,7 +17,7 @@ from typing import Optional
 from config import mas_config
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms, ExternalClient
 from controllers.dependencies import get_orchestrator_service
-from repositories.thread_repository import ThreadRepository
+from services.thread_service import ThreadService
 from models.conversation import ThreadStatus
 from .schema import CallbackPayload, WorkflowData, InputContent
 
@@ -28,10 +28,9 @@ logger = get_component_logger(__name__, "BackgroundProcessor")
 class BackgroundWorkflowProcessor:
     """后台工作流处理器"""
 
-    def __init__(self, repository: ThreadRepository):
+    def __init__(self):
         """初始化后台处理器"""
         self.client = ExternalClient()
-        self.repository = repository
         
         # 回调端点路径
         self.callback_endpoint = "/api"
@@ -84,11 +83,11 @@ class BackgroundWorkflowProcessor:
 
         try:
             # 获取线程并更新状态为处理中
-            thread = await self.repository.get_thread(thread_id)
+            thread = await ThreadService.get_thread(thread_id)
             if thread:
                 thread.assistant_id = assistant_id
                 thread.status = ThreadStatus.PROCESSING
-                await self.repository.update_thread(thread)
+                await ThreadService.update_thread(thread)
                 logger.debug(f"线程状态更新为处理中: {thread_id}")
 
             # 获取租户专用编排器实例
@@ -117,7 +116,7 @@ class BackgroundWorkflowProcessor:
             # 更新线程状态为完成
             if thread:
                 thread.status = ThreadStatus.COMPLETED
-                await self.repository.update_thread(thread)
+                await ThreadService.update_thread(thread)
                 logger.debug(f"线程状态更新为完成: {thread_id}")
 
             logger.info(f"工作流处理完成 - 运行: {run_id}, 耗时: {processing_time:.2f}ms")
@@ -146,8 +145,8 @@ class BackgroundWorkflowProcessor:
             logger.error(f"后台处理失败 - 运行: {run_id}: {e}", exc_info=True)
 
             # 更新线程状态为失败
-            thread = await self.repository.get_thread(thread_id)
+            thread = await ThreadService.get_thread(thread_id)
             if thread:
                 thread.status = ThreadStatus.FAILED
-                await self.repository.update_thread(thread)
+                await ThreadService.update_thread(thread)
                 logger.debug(f"线程状态更新为失败: {thread_id}")
