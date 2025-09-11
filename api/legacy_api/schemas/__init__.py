@@ -27,11 +27,10 @@ from .multimodal import (
 )
 
 # 通用模型
-from .requests import BaseRequest, MessageRequest, PaginationRequest
+from .requests import BaseRequest, PaginationRequest
 from .responses import (
     ErrorResponse,
     PaginatedResponse,
-    StatusResponse,
     SimpleResponse
 )
 
@@ -39,11 +38,9 @@ __all__ = [
     # 通用请求模型
     "BaseRequest",
     "PaginationRequest",
-    "MessageRequest",
     # 通用响应模型
     "ErrorResponse",
     "PaginatedResponse",
-    "StatusResponse",
     "SimpleResponse",
     # 智能体模型
     "AgentCreateRequest",

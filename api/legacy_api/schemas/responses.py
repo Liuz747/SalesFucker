@@ -13,7 +13,7 @@
 from datetime import datetime
 from typing import Any, Dict, Generic, List, Optional, TypeVar
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field
 
 T = TypeVar("T")
 
@@ -115,88 +115,3 @@ class PaginatedResponse(BaseModel, Generic[T]):
     @property
     def count(self) -> int:
         return len(self.data)  # 对实际数据而非类型操作
-
-class StatusResponse(SimpleResponse[Dict[str, Any]]):
-    """
-    状态响应模型
-
-    用于系统状态和健康检查的响应。
-    """
-
-    component: str = Field(description="组件名称")
-
-    status: str = Field(
-        description="状态", pattern="^(healthy|warning|critical|maintenance)$"
-    )
-
-    details: Optional[Dict[str, Any]] = Field(None, description="详细状态信息")
-
-    metrics: Optional[Dict[str, Any]] = Field(None, description="性能指标")
-
-
-class BatchOperationResponse(SimpleResponse[Dict[str, Any]]):
-    """
-    批量操作响应模型
-
-    用于批量操作的响应。
-    """
-
-    total_items: int = Field(description="总项目数")
-
-    successful_items: int = Field(description="成功处理的项目数")
-
-    failed_items: int = Field(description="失败的项目数")
-
-    results: List[Dict[str, Any]] = Field(description="详细结果列表")
-
-    errors: Optional[List[Dict[str, Any]]] = Field(None, description="错误信息列表")
-
-
-class SearchResponse(PaginatedResponse[Dict[str, Any]]):
-    """
-    搜索响应模型
-
-    用于搜索结果的响应。
-    """
-
-    query: str = Field(description="搜索查询")
-
-    search_type: str = Field(description="搜索类型")
-
-    facets: Optional[Dict[str, Any]] = Field(None, description="搜索聚合结果")
-
-    suggestions: Optional[List[str]] = Field(None, description="搜索建议")
-
-
-class HealthCheckResponse(StatusResponse):
-    """
-    健康检查响应模型
-
-    专门用于健康检查端点。
-    """
-
-    version: str = Field(description="系统版本")
-
-    uptime: str = Field(description="运行时间")
-
-    dependencies: Optional[Dict[str, str]] = Field(None, description="依赖服务状态")
-
-
-class AsyncTaskResponse(SimpleResponse[Dict[str, Any]]):
-    """
-    异步任务响应模型
-
-    用于异步处理任务的响应。
-    """
-
-    task_id: str = Field(description="任务ID")
-
-    task_status: str = Field(
-        description="任务状态", pattern="^(pending|running|completed|failed|cancelled)$"
-    )
-
-    progress: Optional[float] = Field(None, ge=0, le=100, description="任务进度百分比")
-
-    estimated_completion: Optional[datetime] = Field(None, description="预计完成时间")
-
-    result_url: Optional[str] = Field(None, description="结果获取URL")
