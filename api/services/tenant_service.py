@@ -16,8 +16,7 @@ from typing import Optional
 
 from infra.db import database_session
 from infra.cache import get_redis_client
-from models import Tenant
-from repositories.tenant_repo import TenantRepository
+from repositories.tenant_repo import TenantRepository, Tenant
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "TenantService")

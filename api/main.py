@@ -34,9 +34,9 @@ from controllers import (
 )
 from controllers.exceptions import BaseHTTPException
 from config import mas_config
-from utils import get_component_logger, configure_logging
-from infra.db.connection import test_db_connection, close_db_connections
-from infra.cache.redis_client import test_redis_connection, close_redis_client
+from infra.db import test_db_connection, close_db_connections
+from infra.cache import test_redis_connection, close_redis_client
+from utils import get_component_logger, configure_logging, to_isoformat
 
 # 配置日志
 logger = get_component_logger(__name__)
@@ -62,7 +62,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="MAS营销智能体系统API",
     description="多智能体营销系统的RESTful API",
-    version="1.0.0",
+    version="0.2.0",
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan
@@ -94,13 +94,13 @@ app.add_middleware(SafetyInterceptor)
 
 # 全局异常处理
 @app.exception_handler(BaseHTTPException)
-async def api_exception_handler(request: Request, exc: BaseHTTPException):
+async def api_exception_handler(_, exc: BaseHTTPException):
     """处理自定义API异常"""
     return JSONResponse(
         status_code=exc.status_code,
         content={
-            **exc.data,  # Include the structured data from BaseHTTPException
-            "path": str(request.url)
+            **exc.data,
+            "timestamp": to_isoformat()
         }
     )
 
