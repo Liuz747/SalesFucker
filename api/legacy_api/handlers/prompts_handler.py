@@ -25,7 +25,7 @@ from ..schemas.prompts import (
     AssistantPromptConfig, PromptLibraryItem,
     PromptCategory, PromptType, PromptLanguage
 )
-from utils import get_component_logger, with_error_handling, StatusMixin
+from utils import get_component_logger, StatusMixin
 
 
 class PromptHandler(StatusMixin):
@@ -50,7 +50,6 @@ class PromptHandler(StatusMixin):
 
         self.logger.info("提示词处理器初始化完成")
 
-    @with_error_handling(fallback_response=None)
     async def create_assistant_prompts(self, request: PromptCreateRequest) -> PromptsModel:
         """
         创建助理提示词配置
@@ -113,7 +112,6 @@ class PromptHandler(StatusMixin):
             self.logger.error(f"助理提示词配置创建失败: {e}")
             raise
 
-    @with_error_handling(fallback_response=None)
     async def get_assistant_prompts(
             self,
             assistant_id: str,
@@ -167,7 +165,6 @@ class PromptHandler(StatusMixin):
             self.logger.error(f"助理提示词配置查询失败: {e}")
             raise
 
-    @with_error_handling(fallback_response=None)
     async def update_assistant_prompts(
             self,
             assistant_id: str,
@@ -270,7 +267,6 @@ class PromptHandler(StatusMixin):
             self.logger.error(f"助理提示词配置更新失败: {e}")
             raise
 
-    @with_error_handling(fallback_response=None)
     async def test_assistant_prompts(
             self,
             assistant_id: str,
@@ -341,7 +337,6 @@ class PromptHandler(StatusMixin):
             self.logger.error(f"助理提示词测试失败: {e}")
             raise
 
-    @with_error_handling(fallback_response=None)
     async def validate_assistant_prompts(
             self,
             assistant_id: str,
@@ -413,7 +408,6 @@ class PromptHandler(StatusMixin):
             self.logger.error(f"助理提示词验证失败: {e}")
             raise
 
-    @with_error_handling(fallback_response=None)
     async def get_prompt_library(self, request: PromptLibrarySearchRequest) -> PromptLibraryResponse:
         """
         获取提示词库

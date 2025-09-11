@@ -24,7 +24,6 @@ from utils import (
     get_current_datetime,
     get_processing_time_ms,
     LoggerMixin,
-    with_error_handling,
     MultiModalConstants
 )
 
@@ -75,7 +74,6 @@ class AudioProcessor(LoggerMixin):
         except (subprocess.TimeoutExpired, FileNotFoundError, Exception):
             return False
     
-    @with_error_handling()
     async def process_audio_file(
         self, 
         file_path: str,
@@ -346,7 +344,6 @@ class AudioProcessor(LoggerMixin):
         temp_name = f"{original_name}_{suffix}"
         return os.path.join(self.temp_dir, temp_name)
     
-    @with_error_handling()
     async def validate_audio_quality(self, file_path: str) -> Dict[str, Any]:
         """验证音频质量"""
         try:

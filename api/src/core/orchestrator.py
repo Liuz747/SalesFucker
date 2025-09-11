@@ -20,9 +20,7 @@ from utils import (
     get_component_logger,
     get_current_datetime,
     get_processing_time_ms,
-    StatusMixin,
-    with_error_handling,
-    ErrorHandler
+    StatusMixin
 )
 from utils.tracer_client import trace_conversation
 
@@ -45,7 +43,6 @@ class Orchestrator(StatusMixin):
         state_manager: 状态管理器
         node_mapping: 节点名称到智能体ID的映射
         logger: 日志记录器
-        error_handler: 错误处理器
     """
     
     def __init__(self, tenant_id: str):
@@ -59,7 +56,6 @@ class Orchestrator(StatusMixin):
         
         self.tenant_id = tenant_id
         self.logger = get_component_logger(__name__, tenant_id)
-        self.error_handler = ErrorHandler(f"orchestrator_{tenant_id}")
         
         # 节点到智能体的映射关系
         self.node_mapping = {

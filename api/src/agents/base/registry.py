@@ -15,7 +15,7 @@ from typing import Dict, Any, Optional, List
 from .agent import BaseAgent
 from .message import AgentMessage
 from libs.constants import StatusConstants, ProcessingConstants
-from utils import get_component_logger, StatusMixin, with_error_handling
+from utils import get_component_logger, StatusMixin
 
 
 class AgentRegistry(StatusMixin):
@@ -43,7 +43,6 @@ class AgentRegistry(StatusMixin):
         
         self.logger.info("智能体注册中心初始化完成")
     
-    @with_error_handling(fallback_response=False)
     def register_agent(self, agent: BaseAgent) -> bool:
         """
         注册智能体到系统中
@@ -78,7 +77,6 @@ class AgentRegistry(StatusMixin):
         )
         return True
     
-    @with_error_handling(fallback_response=False)
     def unregister_agent(self, agent_id: str) -> bool:
         """
         从系统中注销智能体
@@ -147,7 +145,6 @@ class AgentRegistry(StatusMixin):
             if agent_id in self.agents
         ]
     
-    @with_error_handling(fallback_response=None)
     def route_message(self, message: AgentMessage) -> Optional[BaseAgent]:
         """
         路由消息到目标智能体

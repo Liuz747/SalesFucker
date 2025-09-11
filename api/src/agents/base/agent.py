@@ -15,7 +15,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
 
 from .message import AgentMessage, ThreadState
-from utils import get_component_logger, ErrorHandler, StatusMixin
+from utils import get_component_logger, StatusMixin
 from infra.monitoring import AgentMonitor
 from infra.runtimes.client import LLMClient
 from infra.runtimes.config import LLMConfig
@@ -34,7 +34,6 @@ class BaseAgent(StatusMixin, ABC):
         agent_type: 智能体类型（从agent_id提取）
         logger: 日志记录器
         is_active: 智能体活跃状态
-        error_handler: 错误处理器
         monitor: 智能体监控器
     
     子类必须实现:
@@ -58,7 +57,6 @@ class BaseAgent(StatusMixin, ABC):
         
         # 初始化其他组件
         self.logger = get_component_logger(__name__, agent_id)
-        self.error_handler = ErrorHandler(agent_id)
         self.monitor = AgentMonitor(agent_id, self.agent_type, tenant_id)
     
     @abstractmethod

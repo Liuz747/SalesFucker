@@ -20,7 +20,6 @@ from utils import (
     get_current_datetime,
     get_processing_time_ms,
     LoggerMixin,
-    with_error_handling,
     ProcessingStatus,
     ProcessingType,
     InputType,
@@ -75,7 +74,6 @@ class MultiModalProcessor(LoggerMixin):
         
         self.logger.info("多模态处理器已初始化")
     
-    @with_error_handling()
     async def process_multimodal_message(
         self, 
         message: MultiModalMessage,
@@ -394,7 +392,6 @@ class MultiModalProcessor(LoggerMixin):
         successful_count = len([r for r in results if r.is_successful()])
         return successful_count / len(results)
     
-    @with_error_handling()
     async def create_agent_message_from_multimodal(
         self,
         multimodal_message: MultiModalMessage

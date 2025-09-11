@@ -21,7 +21,6 @@ from utils import (
     get_current_datetime,
     get_processing_time_ms,
     LoggerMixin,
-    with_error_handling,
     MultiModalConstants
 )
 from .whisper_service import WhisperService
@@ -59,7 +58,6 @@ class VoiceAnalyzer(LoggerMixin):
         
         self.logger.info(f"语音分析器已初始化 - 租户: {tenant_id}")
     
-    @with_error_handling()
     async def analyze_voice(
         self, 
         audio_path: str, 
@@ -351,7 +349,6 @@ class VoiceAnalyzer(LoggerMixin):
         else:
             return 'poor'
     
-    @with_error_handling()
     async def batch_analyze_voices(
         self, 
         audio_paths: List[str], 

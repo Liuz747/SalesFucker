@@ -18,8 +18,7 @@ from utils import (
     get_component_logger,
     get_current_datetime,
     get_processing_time_ms,
-    to_isoformat,
-    with_error_handling
+    to_isoformat
 )
 
 

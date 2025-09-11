@@ -20,7 +20,6 @@ import hashlib
 from utils import (
     get_current_datetime,
     LoggerMixin,
-    with_error_handling,
     ProcessingType,
     InputType,
     ProcessingStatus
@@ -64,7 +63,6 @@ class MultimodalMemoryManager(LoggerMixin):
         
         self.logger.info(f"多模态记忆管理器已初始化: {tenant_id}")
     
-    @with_error_handling()
     async def store_multimodal_conversation(
         self,
         conversation_id: str,
@@ -403,7 +401,6 @@ class MultimodalMemoryManager(LoggerMixin):
         elif content.get('image_analysis'):
             behavior['multimodal_usage']['image_only'] = behavior['multimodal_usage'].get('image_only', 0) + 1
     
-    @with_error_handling()
     async def retrieve_multimodal_history(
         self,
         customer_id: str,
@@ -465,7 +462,6 @@ class MultimodalMemoryManager(LoggerMixin):
             self.logger.error(f"多模态历史检索失败: {e}")
             return {'error': str(e)}
     
-    @with_error_handling()
     async def get_user_multimodal_profile(self, customer_id: str) -> Dict[str, Any]:
         """
         获取用户多模态画像

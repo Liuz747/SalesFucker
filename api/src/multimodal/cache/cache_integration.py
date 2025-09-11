@@ -21,8 +21,7 @@ import aiofiles
 from utils import (
     get_current_datetime,
     get_processing_time_ms,
-    LoggerMixin,
-    ErrorHandler
+    LoggerMixin
 )
 from .multimodal_cache import MultiModalCache
 
@@ -77,7 +76,6 @@ class CachedWhisperService(CachedMultiModalService):
         super().__init__(cache, "whisper_service")
         self.whisper_service = whisper_service
     
-    @with_error_handling()
     async def transcribe_audio(
         self,
         audio_path: str,
@@ -173,7 +171,6 @@ class CachedGPT4VService(CachedMultiModalService):
         super().__init__(cache, "gpt4v_service")
         self.gpt4v_service = gpt4v_service
     
-    @with_error_handling()
     async def analyze_skin(
         self,
         image_path: str,
@@ -196,7 +193,6 @@ class CachedGPT4VService(CachedMultiModalService):
             language
         )
     
-    @with_error_handling()
     async def recognize_product(
         self,
         image_path: str,
@@ -219,7 +215,6 @@ class CachedGPT4VService(CachedMultiModalService):
             language
         )
     
-    @with_error_handling()
     async def analyze_general(
         self,
         image_path: str,
@@ -316,7 +311,6 @@ class CachedMultiModalProcessor(CachedMultiModalService):
             self.processor.gpt4v_service, cache
         )
     
-    @with_error_handling()
     async def process_multimodal_message(
         self,
         message,

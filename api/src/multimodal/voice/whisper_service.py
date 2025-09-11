@@ -22,7 +22,6 @@ from utils import (
     get_current_datetime,
     get_processing_time_ms,
     LoggerMixin,
-    with_error_handling,
     MultiModalConstants
 )
 
@@ -56,7 +55,6 @@ class WhisperService(LoggerMixin):
         
         self.logger.info("Whisper语音识别服务已初始化")
     
-    @with_error_handling()
     async def transcribe_audio(
         self, 
         audio_path: str, 
@@ -327,7 +325,6 @@ class WhisperService(LoggerMixin):
         
         return segments
     
-    @with_error_handling()
     async def batch_transcribe(self, audio_paths: List[str], language: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         批量转录音频文件

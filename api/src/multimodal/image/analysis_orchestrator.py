@@ -20,7 +20,6 @@ from utils import (
     get_current_datetime,
     get_processing_time_ms,
     LoggerMixin,
-    with_error_handling,
     ProcessingType,
     MultiModalConstants
 )
@@ -60,7 +59,6 @@ class ImageAnalysisOrchestrator(LoggerMixin):
         
         self.logger.info("图像分析协调器已初始化")
     
-    @with_error_handling()
     async def analyze_image_comprehensive(
         self,
         image_path: str,
@@ -407,7 +405,6 @@ class ImageAnalysisOrchestrator(LoggerMixin):
         
         return "；".join(summary_parts)
     
-    @with_error_handling()
     async def batch_analyze_images(
         self,
         image_paths: List[str],

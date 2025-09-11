@@ -25,7 +25,7 @@ from models.assistant import AssistantModel
 from services.assistant_service import AssistantService
 from ..schemas.prompts import PromptCreateRequest
 from .prompts_handler import PromptHandler
-from utils import get_component_logger, with_error_handling, StatusMixin
+from utils import get_component_logger, StatusMixin
 from ..schemas.responses import SimpleResponse
 
 logger = get_component_logger(__name__, "AssistantHandler")
@@ -52,7 +52,6 @@ class AssistantHandler(StatusMixin):
 
         self.logger.info("AI员工处理器初始化完成")
 
-    @with_error_handling(fallback_response=None)
     async def create_assistant(self, request: AssistantCreateRequest) -> SimpleResponse[AssistantModel]:
         """
         创建新的AI员工
@@ -168,7 +167,6 @@ class AssistantHandler(StatusMixin):
             self.logger.error(f"助理创建失败: {e}")
             raise
 
-    @with_error_handling(fallback_response=None)
     async def list_assistants(self, request: AssistantListRequest) -> AssistantListResponse:
         """
         获取助理列表
@@ -280,7 +278,6 @@ class AssistantHandler(StatusMixin):
             self.logger.error(f"助理列表查询失败: {e}")
             raise
 
-    @with_error_handling(fallback_response=None)
     async def get_assistant(
             self,
             assistant_id: str,
@@ -328,7 +325,6 @@ class AssistantHandler(StatusMixin):
             self.logger.error(f"助理详情查询失败: {e}")
             raise
 
-    @with_error_handling(fallback_response=None)
     async def update_assistant(
             self,
             assistant_id: str,
@@ -450,7 +446,6 @@ class AssistantHandler(StatusMixin):
             self.logger.error(f"助理更新失败: {e}")
             raise
 
-    @with_error_handling(fallback_response=None)
     async def configure_assistant(
             self,
             assistant_id: str,
@@ -520,7 +515,6 @@ class AssistantHandler(StatusMixin):
             self.logger.error(f"助理配置失败: {e}")
             raise
 
-    @with_error_handling(fallback_response=None)
     async def get_assistant_stats(
             self,
             assistant_id: str,

@@ -18,7 +18,6 @@ from datetime import datetime
 from utils import (
     get_current_datetime,
     LoggerMixin,
-    with_error_handling,
     ProcessingType,
     InputType
 )
@@ -48,7 +47,6 @@ class MultimodalProductAnalyzer(LoggerMixin):
         
         self.logger.info(f"多模态产品分析器已初始化: {tenant_id}")
     
-    @with_error_handling()
     async def analyze_multimodal_context(
         self,
         message_context: Dict[str, Any]
@@ -402,7 +400,6 @@ class MultimodalProductAnalyzer(LoggerMixin):
         
         return adjustments
     
-    @with_error_handling()
     async def enhance_product_search(
         self,
         base_query: str,

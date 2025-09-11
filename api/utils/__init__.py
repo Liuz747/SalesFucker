@@ -8,7 +8,6 @@
 - time_utils: 时间处理工具
 - logger_utils: 日志工具
 - status_mixin: 状态管理混入
-- error_handling: 错误处理装饰器
 - validation: 数据验证工具
 
 注意: 类型定义、常量和性能配置已移至 libs/ 目录
@@ -24,7 +23,6 @@ from .time_utils import (
 )
 from .logger_utils import get_component_logger, LoggerMixin, configure_logging
 from .status_mixin import StatusMixin
-from .error_handling import with_error_handling, with_fallback, ErrorHandler
 from .response_parser import (
     parse_structured_response,
     parse_compliance_response,
@@ -50,10 +48,6 @@ __all__ = [
     # 状态管理
     "StatusMixin",
     
-    # 错误处理
-    "with_error_handling",
-    "with_fallback",
-    "ErrorHandler",
     
     # 响应解析工具
     "parse_structured_response",
