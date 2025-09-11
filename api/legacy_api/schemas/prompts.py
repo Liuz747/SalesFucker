@@ -20,7 +20,7 @@ from pydantic import BaseModel, Field, field_validator
 
 from models.prompts import PromptsModel
 from .requests import BaseRequest
-from .responses import PaginatedResponse, SuccessResponse, BaseResponse
+from .responses import PaginatedResponse, SimpleResponse
 
 
 class PromptType(str, Enum):
@@ -310,7 +310,7 @@ class PromptLibrarySearchRequest(BaseRequest):
 
 # 响应模型
 
-class PromptConfigResponse(BaseResponse):
+class PromptConfigResponse(SimpleResponse):
     """提示词配置响应"""
 
     assistant_id: str = Field(description="智能体ID")
@@ -321,7 +321,7 @@ class PromptConfigResponse(BaseResponse):
 
 
 
-class PromptTestResponse(SuccessResponse[Dict[str, Any]]):
+class PromptTestResponse(SimpleResponse[Dict[str, Any]]):
     """提示词测试响应"""
 
     test_id: str = Field(description="测试ID")
@@ -342,7 +342,7 @@ class PromptLibraryResponse(PaginatedResponse[List[PromptLibraryItem]]):
     languages: Dict[str, int] = Field(description="语言统计")
 
 
-class PromptValidationResponse(BaseResponse):
+class PromptValidationResponse(SimpleResponse):
     """提示词验证响应"""
 
     is_valid: bool = Field(description="是否有效")

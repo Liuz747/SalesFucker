@@ -5,19 +5,14 @@
 和可以独立提取为单独包的特性。
 
 库组织:
-- performance: 性能配置管理库
 - constants: 系统常量定义库  
 - types: 类型定义库
-
-注意: 这些库从 utils/ 移动而来，以更好地反映其复杂性和业务完整性
 """
 
-from . import performance
 from . import constants  
 from . import types
 
 __all__ = [
-    "performance",
     "constants", 
     "types"
 ]

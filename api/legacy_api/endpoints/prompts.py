@@ -28,7 +28,7 @@ from ..schemas.prompts import (
 )
 from ..handlers.prompts_handler import PromptHandler
 from utils import get_component_logger
-from ..schemas.responses import SuccessResponse
+from ..schemas.responses import SimpleResponse
 
 # 创建路由器
 router = APIRouter(prefix="/prompts", tags=["prompts"])
@@ -38,11 +38,11 @@ logger = get_component_logger(__name__, "prompts_endpoints")
 prompt_handler = PromptHandler()
 
 
-@router.post("/{assistant_id}", response_model=SuccessResponse[PromptConfigResponse])
+@router.post("/{assistant_id}", response_model=SimpleResponse[PromptConfigResponse])
 async def create_assistant_prompts(
         request: PromptCreateRequest,
         assistant_id: str = Path(..., description="助理ID")
-) -> SuccessResponse[PromptConfigResponse]:
+) -> SimpleResponse[PromptConfigResponse]:
     """
     为助理配置提示词
     
@@ -55,7 +55,7 @@ async def create_assistant_prompts(
 
         # 验证助理ID匹配
         if request.assistant_id != assistant_id:
-            return SuccessResponse(
+            return SimpleResponse(
                 code=1001,
                 message="参数不正确，请检查 body 和 query 中的 assistant_id",
             )
@@ -83,12 +83,12 @@ async def create_assistant_prompts(
         )
 
 
-@router.get("/{assistant_id}/{tenant_id}/{version}", response_model=SuccessResponse[PromptConfigResponse])
+@router.get("/{assistant_id}/{tenant_id}/{version}", response_model=SimpleResponse[PromptConfigResponse])
 async def get_assistant_prompts(
         assistant_id: str = Path(..., description="助理ID"),
         tenant_id: str = Path(..., description="租户标识符"),
         version: Optional[str] = Path(..., description="配置版本")
-) -> SuccessResponse[PromptConfigResponse]:
+) -> SimpleResponse[PromptConfigResponse]:
     """
     获取助理提示词配置
     
@@ -103,7 +103,7 @@ async def get_assistant_prompts(
 
         if not result:
             logger.warning(f"助理提示词配置不存在: {assistant_id}")
-            return SuccessResponse(
+            return SimpleResponse(
                 code=1001,
                 message="数据不存在",
                 success=False,
@@ -134,12 +134,12 @@ async def get_assistant_prompts(
         )
 
 
-@router.put("/{tenant_id}/{assistant_id}", response_model=PromptConfigResponse)
+@router.put("/{tenant_id}/{assistant_id}", response_model=SimpleResponse[PromptConfigResponse])
 async def update_assistant_prompts(
         request: PromptUpdateRequest,
         tenant_id: str = Path(..., description="租户ID"),
         assistant_id: str = Path(..., description="助理ID")
-) -> PromptConfigResponse:
+) -> SimpleResponse[PromptConfigResponse]:
     """
     更新助理提示词配置
     
@@ -213,11 +213,11 @@ async def test_assistant_prompts(
         )
 
 
-@router.post("/{assistant_id}/validate", response_model=SuccessResponse[PromptValidationResponse])
+@router.post("/{assistant_id}/validate", response_model=SimpleResponse[PromptValidationResponse])
 async def validate_assistant_prompts(
         request: AssistantPromptConfig,
         assistant_id: str = Path(..., description="助理ID")
-) -> SuccessResponse[PromptValidationResponse]:
+) -> SimpleResponse[PromptValidationResponse]:
     """
     验证助理提示词配置
 
@@ -231,7 +231,7 @@ async def validate_assistant_prompts(
         )
 
         logger.info(f"助理提示词验证完成: {assistant_id}, 有效性: {result.is_valid}")
-        return SuccessResponse(
+        return SimpleResponse(
             code=0,
             message="请求成功",
             data=result
@@ -251,7 +251,7 @@ async def validate_assistant_prompts(
         )
 
 
-@router.get("/library", response_model=PromptLibraryResponse)
+@router.get("/library", response_model=SimpleResponse[PromptLibraryResponse])
 async def get_prompt_library(
         category: Optional[PromptCategory] = Query(None, description="分类筛选"),
         prompt_type: Optional[PromptType] = Query(None, description="类型筛选"),
@@ -331,13 +331,13 @@ async def get_prompt_templates_by_category(
         )
 
 
-@router.post("/{target_assistant_id}/clone", response_model=SuccessResponse[PromptConfigResponse])
+@router.post("/{target_assistant_id}/clone", response_model=SimpleResponse[PromptConfigResponse])
 async def clone_assistant_prompts(
         target_assistant_id: str = Path(..., description="目标助理ID"),
         source_assistant_id: str = Query(..., description="源助理ID"),
         tenant_id: str = Query(..., description="租户标识符"),
         modify_personality: bool = Query(False, description="是否修改个性化部分")
-) -> SuccessResponse[PromptConfigResponse]:
+) -> SimpleResponse[PromptConfigResponse]:
     """
     克隆助理提示词配置
     
@@ -370,12 +370,12 @@ async def clone_assistant_prompts(
         )
 
 
-@router.get("/{assistant_id}/history", response_model=SuccessResponse[List[PromptsModel]])
+@router.get("/{assistant_id}/history", response_model=SimpleResponse[List[PromptsModel]])
 async def get_prompt_history(
         assistant_id: str = Path(..., description="助理ID"),
         tenant_id: str = Query(..., description="租户标识符"),
         limit: int = Query(10, ge=1, le=50, description="历史版本数量限制")
-) -> SuccessResponse[List[PromptsModel]]:
+) -> SimpleResponse[List[PromptsModel]]:
     """
     获取助理提示词历史版本
     
@@ -389,7 +389,7 @@ async def get_prompt_history(
         )
 
         logger.info(f"助理提示词历史查询成功: {assistant_id}, 返回{len(result)}个版本")
-        return SuccessResponse[List[PromptsModel]](
+        return SimpleResponse[List[PromptsModel]](
             code=0,
             message="查询成功",
             # data=[PromptsModel(),PromptsModel()]
@@ -405,12 +405,12 @@ async def get_prompt_history(
         )
 
 
-@router.post("/{assistant_id}/rollback", response_model=SuccessResponse[PromptsModel])
+@router.post("/{assistant_id}/rollback", response_model=SimpleResponse[PromptsModel])
 async def rollback_assistant_prompts(
         assistant_id: str = Path(..., description="助理ID"),
         version: str = Query(..., description="回退到的版本"),
         tenant_id: str = Query(..., description="租户标识符")
-) -> SuccessResponse[PromptsModel]:
+) -> SimpleResponse[PromptsModel]:
     """
     回退助理提示词配置
     
@@ -443,8 +443,8 @@ async def rollback_assistant_prompts(
         )
 
 
-def NewPromptResponse(result: PromptsModel) -> SuccessResponse:
-    return SuccessResponse(
+def NewPromptResponse(result: PromptsModel) -> SimpleResponse:
+    return SimpleResponse(
         code=0,
         message="查询成功",
         success=True,

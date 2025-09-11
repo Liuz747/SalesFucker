@@ -8,10 +8,11 @@ MessagePack序列化 + 异步数据库写入优化。
 import pytest
 import asyncio
 import time
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, patch
 
-from controllers.workspace.conversation.schema import Thread, ThreadMetadata
-from repositories.thread_repository import ThreadRepository
+from models import Thread
+from schemas.conversation_schema import ThreadMetadata
+from services.thread_service import ThreadRepository
 
 
 class TestThreadPerformance:

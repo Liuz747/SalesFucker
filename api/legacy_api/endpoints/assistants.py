@@ -24,7 +24,7 @@ from ..schemas.assistants import (
 from ..handlers.assistant_handler import AssistantHandler
 from utils import get_component_logger
 from models.assistant import AssistantModel
-from ..schemas.responses import SuccessResponse
+from ..schemas.responses import SimpleResponse
 
 # 创建路由器
 router = APIRouter(prefix="/assistants", tags=["assistants"])
@@ -34,11 +34,11 @@ logger = get_component_logger(__name__)
 assistant_handler = AssistantHandler()
 
 
-@router.post("/", response_model=SuccessResponse[AssistantModel], status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=SimpleResponse[AssistantModel], status_code=status.HTTP_201_CREATED)
 async def create_assistant(
         request: AssistantCreateRequest,
 
-) -> SuccessResponse[AssistantModel]:
+) -> SimpleResponse[AssistantModel]:
     """
     创建新的AI员工
     
@@ -122,13 +122,13 @@ async def list_assistants(
         )
 
 
-@router.get("/{assistant_id}", response_model=Optional[SuccessResponse[AssistantModel]])
+@router.get("/{assistant_id}", response_model=Optional[SimpleResponse[AssistantModel]])
 async def get_assistant(
         assistant_id: str = Path(..., description="助理ID"),
         tenant_id: str = Query(..., description="租户标识符"),
         include_stats: bool = Query(False, description="是否包含统计信息"),
         include_config: bool = Query(True, description="是否包含配置信息")
-) -> Optional[SuccessResponse[AssistantModel]]:
+) -> Optional[SimpleResponse[AssistantModel]]:
     """
     获取助理详细信息
     
@@ -161,12 +161,12 @@ async def get_assistant(
         )
 
 
-@router.put("/{assistant_id}", response_model=SuccessResponse[AssistantModel])
+@router.put("/{assistant_id}", response_model=SimpleResponse[AssistantModel])
 async def update_assistant(
         assistant_id: str = Path(..., description="助理ID"),
         request: AssistantUpdateRequest = None,
 
-) -> Optional[SuccessResponse[AssistantModel]]:
+) -> Optional[SimpleResponse[AssistantModel]]:
     """
     更新助理信息
     
@@ -205,166 +205,12 @@ async def update_assistant(
         )
 
 
-@router.post("/{assistant_id}/config", response_model=AssistantOperationResponse)
-async def configure_assistant(
-        assistant_id: str = Path(..., description="助理ID"),
-        request: AssistantConfigRequest = None,
-
-) -> AssistantOperationResponse:
-    """
-    配置助理设置
-    
-    更新助理的特定配置项，如销售风格、权限等。
-    """
-    try:
-        logger.info(f"配置助理请求: tenant={request.tenant_id}, assistant={assistant_id}")
-
-        result = await assistant_handler.configure_assistant(
-            assistant_id, request.tenant_id, request
-        )
-
-        if not result.success:
-            logger.warning(f"助理配置失败: {assistant_id}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="助理配置失败"
-            )
-
-        logger.info(f"助理配置成功: {assistant_id}")
-        return result
-
-    except HTTPException:
-        raise
-    except ValueError as e:
-        logger.warning(f"助理配置参数错误: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
-    except Exception as e:
-        logger.error(f"助理配置失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="助理配置失败，请稍后重试"
-        )
-
-
-@router.get("/{assistant_id}/stats", response_model=AssistantStatsResponse)
-async def get_assistant_stats(
-        assistant_id: str = Path(..., description="助理ID"),
-        tenant_id: str = Query(..., description="租户标识符"),
-        days: int = Query(30, ge=1, le=365, description="统计天数"),
-        include_trends: bool = Query(True, description="是否包含趋势数据"),
-        include_devices: bool = Query(True, description="是否包含设备统计")
-) -> AssistantStatsResponse:
-    """
-    获取助理统计信息
-    
-    获取助理的详细统计数据，包括对话数、客户满意度、设备使用等。
-    """
-    try:
-        logger.info(f"查询助理统计: tenant={tenant_id}, assistant={assistant_id}")
-
-        result = await assistant_handler.get_assistant_stats(
-            assistant_id, tenant_id, days, include_trends, include_devices
-        )
-
-        if not result:
-            logger.warning(f"助理不存在: {assistant_id}")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="助理不存在"
-            )
-
-        logger.info(f"助理统计查询成功: {assistant_id}")
-        return result
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"助理统计查询失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="助理统计查询失败，请稍后重试"
-        )
-
-
-@router.post("/{assistant_id}/activate", response_model=SuccessResponse[AssistantOperationResponse])
-async def activate_assistant(
-        assistant_id: str = Path(..., description="助理ID"),
-        tenant_id: str = Query(..., description="租户标识符")
-) -> Optional[SuccessResponse[AssistantOperationResponse]]:
-    """
-    激活助理
-    
-    将助理状态设置为活跃，允许处理客户对话。
-    """
-    try:
-        logger.info(f"激活助理请求: tenant={tenant_id}, assistant={assistant_id}")
-
-        result = await assistant_handler.activate_assistant(assistant_id, tenant_id)
-
-        if not result.success:
-            logger.warning(f"助理激活失败: {assistant_id}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="助理激活失败"
-            )
-
-        logger.info(f"助理激活成功: {assistant_id}")
-        return result
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"助理激活失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="助理激活失败，请稍后重试"
-        )
-
-
-@router.post("/{assistant_id}/deactivate", response_model=SuccessResponse[AssistantOperationResponse])
-async def deactivate_assistant(
-        assistant_id: str = Path(..., description="助理ID"),
-        tenant_id: str = Query(..., description="租户标识符")
-) -> SuccessResponse[AssistantOperationResponse]:
-    """
-    停用助理
-    
-    将助理状态设置为非活跃，停止处理新的客户对话。
-    """
-    try:
-        logger.info(f"停用助理请求: tenant={tenant_id}, assistant={assistant_id}")
-
-        result = await assistant_handler.deactivate_assistant(assistant_id, tenant_id)
-
-        if not result.success:
-            logger.warning(f"助理停用失败: {assistant_id}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="助理停用失败"
-            )
-
-        logger.info(f"助理停用成功: {assistant_id}")
-        return result
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"助理停用失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="助理停用失败，请稍后重试"
-        )
-
-
-@router.delete("/{assistant_id}", response_model=SuccessResponse[AssistantOperationResponse])
+@router.delete("/{assistant_id}", response_model=SimpleResponse[AssistantOperationResponse])
 async def delete_assistant(
         assistant_id: str = Path(..., description="助理ID"),
         tenant_id: str = Query(..., description="租户标识符"),
         force: bool = Query(False, description="是否强制删除（即使有活跃对话）")
-) -> SuccessResponse[AssistantOperationResponse]:
+) -> SimpleResponse[AssistantOperationResponse]:
     """
     删除助理
     

@@ -21,8 +21,9 @@ API Package - Multi-Agent System API
 
 from fastapi import APIRouter
 
-from .workspace import conversations_router, tenant_router
-from .inner import completion_router, auth_router, health_router
+from .console import tenant_router, auth_router
+from .inner import completion_router, health_router
+from .workspace import conversations_router
 
 app = APIRouter()
 

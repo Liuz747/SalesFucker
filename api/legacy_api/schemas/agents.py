@@ -16,7 +16,7 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field, field_validator
 
 from .requests import BaseRequest
-from .responses import PaginatedResponse, SuccessResponse
+from .responses import PaginatedResponse, SimpleResponse
 
 
 class AgentCreateRequest(BaseRequest):
@@ -122,7 +122,7 @@ class AgentInfo(BaseModel):
     capabilities: List[str] = Field(default_factory=list, description="智能体能力列表")
 
 
-class AgentStatusResponse(SuccessResponse[AgentInfo]):
+class AgentStatusResponse(SimpleResponse[AgentInfo]):
     """
     智能体状态响应模型
     """
@@ -172,7 +172,7 @@ class AgentTestResult(BaseModel):
     timestamp: datetime = Field(default_factory=datetime.now, description="测试时间")
 
 
-class AgentTestResponse(SuccessResponse[AgentTestResult]):
+class AgentTestResponse(SimpleResponse[AgentTestResult]):
     """
     智能体测试响应模型
     """
@@ -181,7 +181,7 @@ class AgentTestResponse(SuccessResponse[AgentTestResult]):
     recommendations: Optional[List[str]] = Field(None, description="优化建议")
 
 
-class AgentBatchTestResponse(SuccessResponse[List[AgentTestResult]]):
+class AgentBatchTestResponse(SimpleResponse[List[AgentTestResult]]):
     """
     智能体批量测试响应模型
     """
@@ -191,7 +191,7 @@ class AgentBatchTestResponse(SuccessResponse[List[AgentTestResult]]):
     failed_tests: List[str] = Field(description="失败的测试ID列表")
 
 
-class AgentOperationResponse(SuccessResponse[Dict[str, Any]]):
+class AgentOperationResponse(SimpleResponse[Dict[str, Any]]):
     """
     智能体操作响应模型
 
@@ -204,7 +204,7 @@ class AgentOperationResponse(SuccessResponse[Dict[str, Any]]):
     current_state: Dict[str, Any] = Field(description="操作后状态")
 
 
-class AgentMetricsResponse(SuccessResponse[Dict[str, Any]]):
+class AgentMetricsResponse(SimpleResponse[Dict[str, Any]]):
     """
     智能体指标响应模型
     """

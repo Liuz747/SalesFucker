@@ -9,23 +9,16 @@
 - 异步工作流执行（后台处理）
 - 运行状态查询和监控
 """
-import uuid
+from uuid import UUID, uuid4
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 
+from controllers.dependencies import get_orchestrator_service
+from models import ThreadStatus
+from services import ThreadService
+from schemas.conversation_schema import MessageCreateRequest, WorkflowData
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms
-from controllers.dependencies import get_orchestrator_service, get_request_context
-from repositories.thread_repository import ThreadRepository
-from models.conversation import ThreadStatus
-from .schema import MessageCreateRequest, WorkflowData
+from ..wraps import validate_and_get_tenant_id
 from .background_process import BackgroundWorkflowProcessor
-
-
-# 依赖注入函数
-async def get_thread_repository() -> ThreadRepository:
-    """获取线程存储库依赖"""
-    repository = ThreadRepository()
-    await repository.initialize()
-    return repository
 
 
 logger = get_component_logger(__name__, "WorkflowRouter")
@@ -36,10 +29,9 @@ router = APIRouter()
 
 @router.post("/wait")
 async def create_run(
-    thread_id: str,
+    thread_id: UUID,
     request: MessageCreateRequest,
-    context = Depends(get_request_context),
-    repository = Depends(get_thread_repository)
+    tenant_id: str = Depends(validate_and_get_tenant_id)
 ):
     """
     创建运行实例 - 核心工作流端点
@@ -53,12 +45,9 @@ async def create_run(
     3. 返回处理结果和状态信息
     """
     try:
-        # 从请求上下文获取租户ID
-        tenant_id = context['tenant_id']
         logger.info(f"开始运行处理 - 线程: {thread_id}, 租户: {tenant_id}")
 
-        # 使用依赖注入的存储库验证线程
-        thread = await repository.get_thread(thread_id)
+        thread = await ThreadService.get_thread(thread_id)
         
         if not thread:
             raise HTTPException(
@@ -73,7 +62,7 @@ async def create_run(
             )
         
         # 验证线程租户ID匹配
-        if str(thread.metadata.tenant_id) != tenant_id:
+        if thread.metadata.tenant_id != tenant_id:
             raise HTTPException(
                 status_code=403,
                 detail="租户ID不匹配，无法访问此线程"
@@ -104,7 +93,7 @@ async def create_run(
         processing_time = get_processing_time_ms(start_time)
         
         # 生成运行ID
-        workflow_id = uuid.uuid4()
+        workflow_id = uuid4()
         
         logger.info(f"运行处理完成 - 线程: {thread_id}, 运行: {workflow_id}, 耗时: {processing_time:.2f}ms")
         
@@ -131,11 +120,10 @@ async def create_run(
 
 @router.post("/async")
 async def create_background_run(
-    thread_id: str,
+    thread_id: UUID,
     request: MessageCreateRequest,
     background_tasks: BackgroundTasks,
-    context = Depends(get_request_context),
-    repository = Depends(get_thread_repository)
+    tenant_id: str = Depends(validate_and_get_tenant_id)
 ):
     """
     创建后台运行实例 - 异步工作流端点
@@ -150,12 +138,9 @@ async def create_background_run(
     4. 处理完成后调用用户指定的回调API
     """
     try:
-        # 从请求上下文获取租户ID
-        tenant_id = context['tenant_id']
         logger.info(f"开始后台运行处理 - 线程: {thread_id}, 租户: {tenant_id}")
 
-        # 使用依赖注入的存储库验证线程
-        thread = await repository.get_thread(thread_id)
+        thread = await ThreadService.get_thread(thread_id)
         
         if not thread:
             raise HTTPException(
@@ -170,18 +155,18 @@ async def create_background_run(
             )
         
         # 验证线程租户ID匹配
-        if str(thread.metadata.tenant_id) != tenant_id:
+        if thread.metadata.tenant_id != tenant_id:
             raise HTTPException(
                 status_code=403,
                 detail="租户ID不匹配，无法访问此线程"
             )
         
         # 生成运行ID
-        run_id = uuid.uuid4()
+        run_id = uuid4()
         created_at = get_current_datetime()
 
         # 获取后台处理器
-        processor = BackgroundWorkflowProcessor(repository)
+        processor = BackgroundWorkflowProcessor()
         
         # 添加后台任务
         background_tasks.add_task(
@@ -193,7 +178,7 @@ async def create_background_run(
             customer_id=None,  # 客户ID可以从其他地方获取，暂时设为None
             input_type="text"
         )
-        
+    
         logger.info(f"后台运行已创建 - 线程: {thread_id}, 运行: {run_id}")
         
         # 立即返回响应
@@ -205,7 +190,7 @@ async def create_background_run(
             "created_at": created_at,
             "metadata": request.metadata.model_dump()
         }
-        
+    
     except HTTPException:
         raise
     except Exception as e:
@@ -215,10 +200,9 @@ async def create_background_run(
 
 @router.get("/{run_id}/status")
 async def get_run_status(
-    thread_id: str,
-    run_id: str,
-    context = Depends(get_request_context),
-    repository = Depends(get_thread_repository)
+    thread_id: UUID,
+    run_id: UUID,
+    tenant_id: str = Depends(validate_and_get_tenant_id)
 ):
     """
     获取后台运行状态
@@ -226,26 +210,22 @@ async def get_run_status(
     查询指定运行实例的当前状态和处理进度。
     """
     try:
-        # 从请求上下文获取租户ID
-        tenant_id = context['tenant_id']
-
-        # 使用依赖注入的存储库验证线程
-        thread = await repository.get_thread(thread_id)
-        
+        thread = await ThreadService.get_thread(thread_id)
+    
         if not thread:
             raise HTTPException(
                 status_code=404,
                 detail=f"线程不存在: {thread_id}"
             )
         
-        if str(thread.metadata.tenant_id) != tenant_id:
+        if thread.metadata.tenant_id != tenant_id:
             raise HTTPException(
                 status_code=403,
                 detail="租户ID不匹配，无法访问此线程"
             )
         
         # 获取线程状态（现在使用线程状态代替运行状态）
-        current_thread = await repository.get_thread(thread_id)
+        current_thread = await ThreadService.get_thread(thread_id)
 
         if not current_thread:
             raise HTTPException(
@@ -255,14 +235,14 @@ async def get_run_status(
 
         # 返回线程状态信息
         return {
-            "thread_id": str(current_thread.thread_id),
+            "thread_id": current_thread.thread_id,
             "status": current_thread.status,
             "created_at": current_thread.created_at,
             "updated_at": current_thread.updated_at,
             "run_id": run_id,  # 保持向后兼容性
             "metadata": current_thread.metadata.model_dump()
         }
-        
+    
     except HTTPException:
         raise
     except Exception as e:

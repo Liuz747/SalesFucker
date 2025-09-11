@@ -11,22 +11,16 @@
 - 对话状态监控和分析
 - 客户档案管理集成
 """
-import uuid
+
+from uuid import UUID, uuid4
 from fastapi import APIRouter, HTTPException, Depends
 
 from utils import get_component_logger
-from controllers.dependencies import get_request_context
-from .schema import ThreadCreateRequest, Thread, ThreadMetadata
-from repositories.thread_repository import ThreadRepository
+from models import Thread, ThreadStatus
+from services import ThreadService
+from schemas.conversation_schema import ThreadCreateRequest, ThreadMetadata
+from ..wraps import validate_and_get_tenant_id
 from .workflow import router as workflow_router
-
-
-# 依赖注入函数
-async def get_thread_repository() -> ThreadRepository:
-    """获取线程存储库依赖"""
-    repository = ThreadRepository()
-    await repository.initialize()
-    return repository
 
 
 logger = get_component_logger(__name__, "ConversationRouter")
@@ -34,13 +28,12 @@ logger = get_component_logger(__name__, "ConversationRouter")
 # 创建路由器
 router = APIRouter(prefix="/threads", tags=["conversation-threads"])
 
-router.include_router(workflow_router, prefix="/{thread_id}/runs", tags=["workflow-runs"])
+router.include_router(workflow_router, prefix="/{thread_id}/runs", tags=["workflows"])
 
 @router.post("")
 async def create_thread(
     request: ThreadCreateRequest,
-    context = Depends(get_request_context),
-    repository = Depends(get_thread_repository)
+    tenant_id: str = Depends(validate_and_get_tenant_id)
 ):
     """
     创建新的对话线程
@@ -50,26 +43,29 @@ async def create_thread(
     """
     try:
         # 生成线程ID
-        thread_id = request.thread_id or str(uuid.uuid4())
-
-        # 从请求上下文获取租户ID
-        tenant_id = context['tenant_id']
+        thread_id = request.thread_id or uuid4()
         
-        # 创建线程数据模型
+        # 创建业务模型对象
         thread = Thread(
             thread_id=thread_id,
-            metadata=ThreadMetadata(tenant_id=tenant_id)
+            assistant_id=request.assistant_id,
+            status=ThreadStatus.ACTIVE,
+            metadata=ThreadMetadata(
+                tenant_id=tenant_id
+            )
         )
         
-        # 使用依赖注入的存储库创建线程
-        created_thread = await repository.create_thread(thread)
+        await ThreadService.create_thread(thread)
         
         return {
             "thread_id": thread_id,
-            "metadata": created_thread.metadata.model_dump(),
-            "status": created_thread.status,
-            "created_at": created_thread.created_at,
-            "updated_at": created_thread.updated_at
+            "metadata": {
+                "tenant_id": tenant_id,
+                "assistant_id": thread.assistant_id
+            },
+            "status": thread.status,
+            "created_at": thread.created_at,
+            "updated_at": thread.updated_at
         }
         
     except HTTPException:
@@ -81,9 +77,8 @@ async def create_thread(
 
 @router.get("/{thread_id}")
 async def get_thread(
-    thread_id: str,
-    context = Depends(get_request_context),
-    repository = Depends(get_thread_repository)
+    thread_id: UUID,
+    tenant_id: str = Depends(validate_and_get_tenant_id)
 ):
     """
     获取线程详情
@@ -92,7 +87,7 @@ async def get_thread(
     """
     try:
         # 使用依赖注入的存储库获取线程
-        thread = await repository.get_thread(thread_id)
+        thread = await ThreadService.get_thread(thread_id)
         
         if not thread:
             raise HTTPException(
@@ -100,7 +95,7 @@ async def get_thread(
                 detail=f"线程不存在: {thread_id}"
             )
         
-        if str(thread.metadata.tenant_id) != context['tenant_id']:
+        if thread.metadata.tenant_id != tenant_id:
             raise HTTPException(
                 status_code=403, 
                 detail="租户ID不匹配，无法访问此线程"
@@ -108,14 +103,15 @@ async def get_thread(
 
         return {
             "thread_id": thread.thread_id,
-            "metadata": thread.metadata.model_dump(),
+            "metadata": {
+                "tenant_id": thread.metadata.tenant_id,
+                "assistant_id": thread.assistant_id
+            },
             "status": thread.status,
             "created_at": thread.created_at,
             "updated_at": thread.updated_at
         }
         
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"线程获取失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
