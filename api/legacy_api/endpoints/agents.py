@@ -27,10 +27,6 @@ from ..schemas.agents import (
     AgentOperationResponse
 )
 from ..schemas.requests import PaginationRequest
-from controllers.exceptions import (
-    AgentNotFoundException,
-    AgentUnavailableException
-)
 from ..handlers.agent_handler import AgentHandler
 from utils import get_component_logger
 
@@ -88,7 +84,7 @@ async def get_agent_status(
     except Exception as e:
         logger.error(f"获取智能体状态失败 {agent_id}: {e}", exc_info=True)
         if "not found" in str(e).lower():
-            raise AgentNotFoundException(agent_id)
+            raise HTTPException(status_code=404, detail=f"智能体 {agent_id} 不存在")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -113,7 +109,7 @@ async def test_agent(
     except Exception as e:
         logger.error(f"智能体测试失败 {agent_id}: {e}", exc_info=True)
         if "unavailable" in str(e).lower():
-            raise AgentUnavailableException(agent_id)
+            raise HTTPException(status_code=503, detail=f"智能体 {agent_id} 服务暂时不可用")
         raise HTTPException(status_code=500, detail=str(e))
 
 

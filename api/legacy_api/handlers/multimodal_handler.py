@@ -18,6 +18,7 @@ import uuid
 import os
 import tempfile
 from datetime import datetime, timedelta
+from fastapi import HTTPException
 from fastapi import UploadFile, BackgroundTasks
 
 from utils import get_component_logger
@@ -34,10 +35,6 @@ from ..schemas.multimodal import (
     VoiceFormat,
     ImageFormat,
     AnalysisType
-)
-from controllers.exceptions import (
-    MultimodalProcessingException,
-    ValidationException
 )
 
 logger = get_component_logger(__name__, "MultimodalHandler")
@@ -205,7 +202,7 @@ class MultimodalHandler:
                 
         except Exception as e:
             self.logger.error(f"语音文件处理失败: {e}", exc_info=True)
-            raise MultimodalProcessingException("voice_processing", f"语音文件处理失败: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"语音文件处理失败: {str(e)}")
     
     async def _save_temp_file(self, file: UploadFile, processing_id: str) -> str:
         """保存临时文件"""
@@ -416,7 +413,7 @@ class MultimodalHandler:
                 
         except Exception as e:
             self.logger.error(f"图像文件处理失败: {e}", exc_info=True)
-            raise MultimodalProcessingException("image_processing", f"图像文件处理失败: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"图像文件处理失败: {str(e)}")
     
     async def _process_image_file_background(
         self,
@@ -615,7 +612,7 @@ class MultimodalHandler:
     async def get_processing_status(self, processing_id: str, tenant_id: str) -> ProcessingStatusResponse:
         """获取处理状态"""
         if processing_id not in self._processing_tasks:
-            raise ValidationException(f"处理任务不存在: {processing_id}")
+            raise HTTPException(status_code=400, detail=f"处理任务不存在: {processing_id}")
         
         task = self._processing_tasks[processing_id]
         
@@ -633,7 +630,7 @@ class MultimodalHandler:
     async def get_processing_result(self, processing_id: str, tenant_id: str) -> Dict[str, Any]:
         """获取处理结果"""
         if processing_id not in self._processing_results:
-            raise ValidationException(f"处理结果不存在: {processing_id}")
+            raise HTTPException(status_code=400, detail=f"处理结果不存在: {processing_id}")
         
         return {
             "processing_id": processing_id,

@@ -32,7 +32,7 @@ from controllers import (
     health_router,
     tenant_router,
 )
-from controllers.exceptions import APIException
+from controllers.exceptions import BaseHTTPException
 from config import mas_config
 from utils import get_component_logger, configure_logging
 from infra.db.connection import test_db_connection, close_db_connections
@@ -93,18 +93,13 @@ app.add_middleware(JWTMiddleware, exclude_paths=[
 app.add_middleware(SafetyInterceptor)
 
 # 全局异常处理
-@app.exception_handler(APIException)
-async def api_exception_handler(request: Request, exc: APIException):
+@app.exception_handler(BaseHTTPException)
+async def api_exception_handler(request: Request, exc: BaseHTTPException):
     """处理自定义API异常"""
     return JSONResponse(
         status_code=exc.status_code,
         content={
-            "error": {
-                "code": exc.error_code,
-                "message": exc.message,
-                "details": exc.details
-            },
-            "timestamp": exc.timestamp.isoformat(),
+            **exc.data,  # Include the structured data from BaseHTTPException
             "path": str(request.url)
         }
     )
