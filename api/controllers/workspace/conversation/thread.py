@@ -16,10 +16,10 @@ from uuid import UUID, uuid4
 from fastapi import APIRouter, HTTPException, Depends
 
 from utils import get_component_logger
-from controllers.workspace.wraps import validate_and_get_tenant_id
-from services.thread_service import ThreadService
-from models import ThreadOrm, ThreadStatus
-from schemas.conversation_schema import ThreadCreateRequest
+from models import Thread, ThreadStatus
+from services import ThreadService
+from schemas.conversation_schema import ThreadCreateRequest, ThreadMetadata
+from ..wraps import validate_and_get_tenant_id
 from .workflow import router as workflow_router
 
 
@@ -45,25 +45,27 @@ async def create_thread(
         # 生成线程ID
         thread_id = request.thread_id or uuid4()
         
-        # 创建 ORM 对象
-        thread_orm = ThreadOrm(
+        # 创建业务模型对象
+        thread = Thread(
             thread_id=thread_id,
             assistant_id=request.assistant_id,
-            tenant_id=tenant_id,
-            status=ThreadStatus.ACTIVE
+            status=ThreadStatus.ACTIVE,
+            metadata=ThreadMetadata(
+                tenant_id=tenant_id
+            )
         )
         
-        await ThreadService.create_thread(thread_orm)
+        await ThreadService.create_thread(thread)
         
         return {
             "thread_id": thread_id,
             "metadata": {
                 "tenant_id": tenant_id,
-                "assistant_id": request.assistant_id
+                "assistant_id": thread.assistant_id
             },
-            "status": thread_orm.status,
-            "created_at": thread_orm.created_at,
-            "updated_at": thread_orm.updated_at
+            "status": thread.status,
+            "created_at": thread.created_at,
+            "updated_at": thread.updated_at
         }
         
     except HTTPException:
@@ -93,7 +95,7 @@ async def get_thread(
                 detail=f"线程不存在: {thread_id}"
             )
         
-        if thread.tenant_id != tenant_id:
+        if thread.metadata.tenant_id != tenant_id:
             raise HTTPException(
                 status_code=403, 
                 detail="租户ID不匹配，无法访问此线程"
@@ -102,7 +104,7 @@ async def get_thread(
         return {
             "thread_id": thread.thread_id,
             "metadata": {
-                "tenant_id": thread.tenant_id,
+                "tenant_id": thread.metadata.tenant_id,
                 "assistant_id": thread.assistant_id
             },
             "status": thread.status,

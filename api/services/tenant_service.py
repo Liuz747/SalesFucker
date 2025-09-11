@@ -16,7 +16,7 @@ from typing import Optional
 
 from infra.db import database_session
 from infra.cache import get_redis_client
-from models import TenantOrm, Tenant
+from models import Tenant
 from repositories.tenant_repo import TenantRepository
 from utils import get_component_logger
 
@@ -32,18 +32,19 @@ class TenantService:
     """
 
     @staticmethod
-    async def create_tenant(tenant: TenantOrm) -> bool:
+    async def create_tenant(tenant: Tenant) -> bool:
         """创建租户"""
         try:
+            tenant_orm = tenant.to_orm()
+            
             async with database_session() as session:
-                tenant_id = await TenantRepository.insert_tenant(tenant, session)
+                tenant_id = await TenantRepository.insert_tenant(tenant_orm, session)
             
             if tenant_id:
                 # 直接获取Redis客户端，使用连接池
                 redis_client = await get_redis_client()
-                tenant_model = Tenant.to_model(tenant)
                 asyncio.create_task(TenantRepository.update_tenant_cache(
-                    tenant_model,
+                    tenant,
                     redis_client
                 ))
                 return True
@@ -51,19 +52,19 @@ class TenantService:
             logger.error(f"创建租户失败: {tenant_id}")
             return False
         except Exception as e:
-            logger.error(f"创建租户失败: {tenant_id}, 错误: {e}")
+            logger.error(f"创建租户失败: {tenant.tenant_id}, 错误: {e}")
             raise
 
     @staticmethod
-    async def query_tenant(tenant_id: str) -> Optional[TenantOrm]:
+    async def query_tenant(tenant_id: str) -> Optional[Tenant]:
         """
-        根据ID获取租户ORM对象
+        根据ID获取租户业务模型
         
         参数:
             tenant_id: 租户ID
             
         返回:
-            Optional[TenantOrm]: 租户ORM对象，不存在则返回None
+            Optional[Tenant]: 租户业务模型，不存在则返回None
         """
         try:
             # 直接获取Redis客户端，使用连接池
@@ -72,7 +73,7 @@ class TenantService:
             # Level 1: Redis缓存 (< 10ms)
             tenant_model = await TenantRepository.get_tenant_cache(tenant_id, redis_client)
             if tenant_model:
-                return tenant_model.to_orm()
+                return tenant_model
             
             # Level 2: 数据库查询
             async with database_session() as session:
@@ -84,7 +85,7 @@ class TenantService:
                     tenant_model,
                     redis_client
                 ))
-                return tenant_orm
+                return tenant_model
             
             logger.debug(f"租户不存在: {tenant_id}")
             return None
@@ -94,24 +95,25 @@ class TenantService:
             raise
     
     @staticmethod
-    async def update_tenant(tenant_orm: TenantOrm) -> TenantOrm:
+    async def update_tenant(tenant: Tenant) -> bool:
         """更新租户"""
         try:
+            tenant_orm = tenant.to_orm()
+            
             async with database_session() as session:
                 await TenantRepository.update_tenant(tenant_orm, session)
 
             # 直接获取Redis客户端，使用连接池
             redis_client = await get_redis_client()
-            tenant_model = Tenant.to_model(tenant_orm)
             asyncio.create_task(TenantRepository.update_tenant_cache(
-                tenant_model,
+                tenant,
                 redis_client
             ))
 
-            return tenant_orm
+            return True
 
         except Exception as e:
-            logger.error(f"更新租户失败: {tenant_orm.tenant_id}, 错误: {e}")
+            logger.error(f"更新租户失败: {tenant.tenant_id}, 错误: {e}")
             raise
 
     @staticmethod

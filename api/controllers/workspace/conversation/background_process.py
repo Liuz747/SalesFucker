@@ -15,11 +15,11 @@ from uuid import UUID
 from typing import Optional
 
 from config import mas_config
-from utils import get_component_logger, get_current_datetime, get_processing_time_ms, ExternalClient
 from controllers.dependencies import get_orchestrator_service
-from services.thread_service import ThreadService
-from models.conversation import ThreadStatus
+from models import ThreadStatus
+from services import ThreadService
 from schemas.conversation_schema import CallbackPayload, WorkflowData, InputContent
+from utils import get_component_logger, get_current_datetime, get_processing_time_ms, ExternalClient
 
 
 logger = get_component_logger(__name__, "BackgroundProcessor")

@@ -11,7 +11,7 @@ Backend System → POST /tenants/{tenant_id}/sync → AI Service
 from fastapi import APIRouter
 
 from legacy_api.schemas import resp_code, SimpleResponse
-from models import TenantOrm
+from models import Tenant
 from services import TenantService
 from utils import get_component_logger, get_current_datetime
 from schemas.tenant_schema import TenantSyncRequest, TenantSyncResponse, TenantStatusResponse, TenantUpdateRequest
@@ -40,7 +40,7 @@ async def sync_tenant(
             )
         # Sync tenant to AI service database
         try:
-            tenant_orm = TenantOrm(
+            tenant = Tenant(
                 tenant_id=request.tenant_id,
                 tenant_name=request.tenant_name,
                 industry=request.industry,
@@ -49,7 +49,7 @@ async def sync_tenant(
                 company_size=request.company_size,
                 feature_flags=request.features.model_dump()
             )
-            flag = await TenantService.create_tenant(tenant_orm)
+            flag = await TenantService.create_tenant(tenant)
             
             if flag:
                 logger.info(f"租户配置已更新: {request.tenant_id}")
@@ -107,17 +107,17 @@ async def get_tenant_status(tenant_id: str):
     try:
         logger.info(f"Tenant status request: {tenant_id}")
         
-        tenant_orm = await TenantService.query_tenant(tenant_id)
+        tenant = await TenantService.query_tenant(tenant_id)
         
-        if tenant_orm:
+        if tenant:
             return SimpleResponse[TenantStatusResponse](
                 code=0,
                 message="success",
                 data=TenantStatusResponse(
-                    tenant_id=tenant_orm.tenant_id,
-                    tenant_name=tenant_orm.tenant_name,
-                    status=tenant_orm.status,
-                    updated_at=tenant_orm.updated_at
+                    tenant_id=tenant.tenant_id,
+                    tenant_name=tenant.tenant_name,
+                    status=tenant.status,
+                    updated_at=tenant.updated_at
                 )
             )
         else:
@@ -144,7 +144,11 @@ async def update_tenant(
     try:
         logger.info(f"Tenant update request: {tenant_id}")
         
-        tenant_orm = TenantOrm(
+        existing_tenant = await TenantService.query_tenant(tenant_id)
+        if not existing_tenant:
+            raise ValueError(f"Tenant {tenant_id} not found")
+        
+        tenant = Tenant(
             tenant_id=tenant_id,
             tenant_name=request.tenant_name,
             status=request.status,
@@ -154,7 +158,7 @@ async def update_tenant(
             company_size=request.company_size,
             feature_flags=request.features.model_dump()
         )
-        flag = await TenantService.update_tenant(tenant_orm)
+        flag = await TenantService.update_tenant(tenant)
         
         if flag:
             logger.info(f"租户配置已更新: {tenant_id}")

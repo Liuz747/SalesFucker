@@ -12,12 +12,12 @@
 from uuid import UUID, uuid4
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 
-from utils import get_component_logger, get_current_datetime, get_processing_time_ms
 from controllers.dependencies import get_orchestrator_service
-from controllers.workspace.wraps import validate_and_get_tenant_id
-from services.thread_service import ThreadService
-from models.conversation import ThreadStatus
+from models import ThreadStatus
+from services import ThreadService
 from schemas.conversation_schema import MessageCreateRequest, WorkflowData
+from utils import get_component_logger, get_current_datetime, get_processing_time_ms
+from ..wraps import validate_and_get_tenant_id
 from .background_process import BackgroundWorkflowProcessor
 
 

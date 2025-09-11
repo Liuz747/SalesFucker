@@ -17,7 +17,7 @@ from typing import Optional
 
 from infra.db import database_session
 from infra.cache import get_redis_client
-from models import ThreadOrm, Thread
+from models import Thread
 from repositories.thread_repo import ThreadRepository
 from utils import get_component_logger
 
@@ -33,30 +33,31 @@ class ThreadService:
     """
     
     @staticmethod
-    async def create_thread(thread: ThreadOrm) -> UUID:
+    async def create_thread(thread: Thread) -> UUID:
         """
         创建线程
         
         参数:
-            thread: 线程ORM对象
+            thread: 线程业务模型
         
         性能目标: < 5ms 响应时间
         """
         try:
+            thread_orm = thread.to_orm()
+            
             async with database_session() as session:
                 # 1. 立即写入数据库
-                thread_id  = await ThreadRepository.insert_thread(thread, session)
+                thread_id = await ThreadRepository.insert_thread(thread_orm, session)
 
             if thread_id:
                 # 2. 异步更新Redis缓存
                 redis_client = await get_redis_client()
-                thread_model = Thread.to_model(thread)
                 asyncio.create_task(ThreadRepository.update_thread_cache(
-                    thread_model,
+                    thread,
                     redis_client
                 ))
                 
-                logger.debug(f"线程写入redis缓存成功: {thread.thread_id}")
+                logger.debug(f"线程写入redis缓存成功: {thread_id}")
                 return thread_id
             else:
                 logger.error(f"线程写入redis缓存失败: {thread.thread_id}")
@@ -67,7 +68,7 @@ class ThreadService:
             raise
     
     @staticmethod
-    async def get_thread(thread_id: str) -> Optional[ThreadOrm]:
+    async def get_thread(thread_id: str) -> Optional[Thread]:
         """
         获取线程
         
@@ -80,7 +81,7 @@ class ThreadService:
             # Level 1: Redis缓存 (< 10ms)
             thread_model = await ThreadRepository.get_thread_cache(thread_id, redis_client)
             if thread_model:
-                return thread_model.to_orm()
+                return thread_model
             
             # Level 2: 数据库查询
             async with database_session() as session:
@@ -90,7 +91,7 @@ class ThreadService:
                 # 异步更新缓存
                 thread_model = Thread.to_model(thread_orm)
                 asyncio.create_task(ThreadRepository.update_thread_cache(thread_model, redis_client))
-                return thread_orm
+                return thread_model
             
             return None
             
@@ -99,9 +100,11 @@ class ThreadService:
             return None
     
     @staticmethod
-    async def update_thread(thread_orm: ThreadOrm) -> ThreadOrm:
+    async def update_thread(thread: Thread) -> bool:
         """更新线程"""
         try:
+            thread_orm = thread.to_orm()
+            
             # 立即更新数据库
             async with database_session() as session:
                 await ThreadRepository.update_thread(thread_orm, session)
@@ -109,13 +112,12 @@ class ThreadService:
             # 直接获取Redis客户端，使用连接池
             redis_client = await get_redis_client()
             # 异步更新Redis缓存
-            thread_model = Thread.to_model(thread_orm)
             asyncio.create_task(ThreadRepository.update_thread_cache(
-                thread_model,
+                thread,
                 redis_client
             ))
             
-            return thread_orm
+            return True
             
         except Exception as e:
             logger.error(f"线程更新失败: {e}")
