@@ -17,28 +17,9 @@ from pydantic import BaseModel, Field
 
 T = TypeVar("T")
 
-
-# class BaseResponse(BaseModel):
-#     """
-#     基础响应模型
-#
-#     所有API响应的基础类。
-#     """
-#
-#     success: Optional[bool] = Field(None, description="请求是否成功")
-#
-#     message: Optional[str] = Field(None, description="响应消息")
-#
-#     timestamp: datetime = Field(default_factory=datetime.now, description="响应时间戳")
-#
-#     request_id: Optional[str] = Field(None, description="关联的请求ID")
-#
-#     processing_time_ms: Optional[float] = Field(None, description="处理时间（毫秒）")
-#
-#     model_config = ConfigDict(
-#         json_encoders={datetime: lambda v: v.isoformat()}
-#     )
-
+# BaseResponse 已经迁移到schemas/responses.py
+# 需要修改所有的BaseResponse为BaseResponse
+# SimpleResponse 应去掉范型
 
 class SimpleResponse(BaseModel, Generic[T]):
     """

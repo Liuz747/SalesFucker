@@ -4,6 +4,7 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 from models.enums import TenantStatus
+from schemas.responses import BaseResponse
 
 
 class FeatureFlags(BaseModel):
@@ -31,16 +32,19 @@ class TenantUpdateRequest(BaseModel):
     status: Optional[TenantStatus] = Field(None, description="状态：1-活跃，0-禁用")
 
 
-class TenantSyncResponse(BaseModel):
-    tenant_id: str
-    message: str
-    synced_at: datetime
-    features_enabled: Optional[FeatureFlags] = None
+class TenantSyncResponse(BaseResponse):
+    tenant_id: str = Field(description="租户ID")
+    synced_at: datetime = Field(description="同步时间")
+    features_enabled: Optional[FeatureFlags] = Field(None, description="启用的功能")
 
 
-class TenantStatusResponse(BaseModel):
-    tenant_id: str
-    tenant_name: Optional[str] = None
-    status: TenantStatus
-    updated_at: Optional[datetime] = None
+class TenantStatusResponse(BaseResponse):
+    tenant_id: str = Field(description="租户ID")
+    tenant_name: Optional[str] = Field(None, description="租户名称")
+    status: TenantStatus = Field(description="租户状态")
+    updated_at: Optional[datetime] = Field(None, description="更新时间")
 
+
+class TenantDeleteResponse(BaseResponse):
+    tenant_id: str = Field(description="租户ID")
+    deleted: bool = Field(description="是否删除成功")
