@@ -26,7 +26,7 @@ from .workflow import router as workflow_router
 logger = get_component_logger(__name__, "ConversationRouter")
 
 # 创建路由器
-router = APIRouter(prefix="/threads", tags=["conversation-threads"])
+router = APIRouter()
 
 router.include_router(workflow_router, prefix="/{thread_id}/runs", tags=["workflows"])
 

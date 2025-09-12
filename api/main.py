@@ -19,19 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from controllers.middleware import SafetyInterceptor, JWTMiddleware
-from legacy_api.endpoints import (
-    agents_router,
-    multimodal_router,
-    assistants_router,
-    prompts_router,
-)
-from controllers import (
-    auth_router,
-    conversations_router,
-    completion_router,
-    health_router,
-    tenant_router,
-)
+from controllers import app_router, __version__
 from controllers.exceptions import BaseHTTPException
 from config import mas_config
 from infra.db import test_db_connection, close_db_connections
@@ -62,7 +50,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="MAS营销智能体系统API",
     description="多智能体营销系统的RESTful API",
-    version="0.2.0",
+    version=__version__,
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan
@@ -124,15 +112,7 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 
 # 注册路由器
-app.include_router(health_router, prefix="/v1")
-app.include_router(auth_router, prefix="/v1")
-app.include_router(agents_router, prefix="/v1")
-app.include_router(conversations_router, prefix="/v1")
-app.include_router(multimodal_router, prefix="/v1")
-app.include_router(assistants_router, prefix="/v1")
-app.include_router(prompts_router, prefix="/v1")
-app.include_router(tenant_router, prefix="/v1")
-app.include_router(completion_router, prefix="/v1")
+app.include_router(app_router, prefix="/v1")
 
 # 根路径健康检查
 @app.get("/")
@@ -141,7 +121,7 @@ async def root():
     return {
         "service": mas_config.APP_NAME,
         "status": "运行中",
-        "version": "0.2.0",
+        "version": __version__,
         "docs": "/docs"
     }
 

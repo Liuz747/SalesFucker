@@ -32,7 +32,7 @@ from utils import get_component_logger
 logger = get_component_logger(__name__, "MultimodalEndpoints")
 
 # 创建路由器
-router = APIRouter(prefix="/multimodal", tags=["multimodal"])
+router = APIRouter()
 
 # 创建处理器实例
 multimodal_handler = MultimodalHandler()

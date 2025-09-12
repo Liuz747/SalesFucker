@@ -33,7 +33,7 @@ from utils import get_component_logger
 logger = get_component_logger(__name__, "AgentEndpoints")
 
 # 创建路由器
-router = APIRouter(prefix="/agents", tags=["agents"])
+router = APIRouter()
 
 # 创建处理器实例
 agent_handler = AgentHandler()

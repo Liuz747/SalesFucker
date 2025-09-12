@@ -23,7 +23,7 @@ from infra.auth.jwt_auth import ServiceContext
 logger = get_component_logger(__name__, "HealthEndpoints")
 
 # 创建路由器
-router = APIRouter(prefix="/health", tags=["health"])
+router = APIRouter()
 
 
 @router.get("/")

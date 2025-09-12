@@ -19,7 +19,7 @@ T = TypeVar("T")
 
 # BaseResponse 已经迁移到schemas/responses.py
 # 需要修改所有的BaseResponse为BaseResponse
-# SimpleResponse 应去掉范型
+# SimpleResponse 应去掉范型, 并继承BaseResponse
 
 class SimpleResponse(BaseModel, Generic[T]):
     """

@@ -29,7 +29,7 @@ from utils import get_component_logger, get_current_datetime
 
 logger = get_component_logger(__name__, "TenantEndpoints")
 
-router = APIRouter(prefix="/tenants", tags=["tenant"])
+router = APIRouter()
 
 @router.post("/{tenant_id}/sync", response_model=TenantSyncResponse)
 async def sync_tenant(

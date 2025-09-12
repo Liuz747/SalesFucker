@@ -15,7 +15,7 @@ from utils import get_component_logger
 logger = get_component_logger(__name__, "LLM")
 
 # 创建路由器
-router = APIRouter(prefix="/messages", tags=["messages"])
+router = APIRouter()
 
 
 class ChatRequest(BaseModel):
