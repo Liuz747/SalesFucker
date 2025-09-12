@@ -21,7 +21,7 @@ T = TypeVar("T")
 # 需要修改所有的BaseResponse为BaseResponse
 # SimpleResponse 应去掉范型, 并继承BaseResponse
 
-class SimpleResponse(BaseModel, Generic[T]):
+class SimpleResponse(BaseModel, Generic[T]): 
     """
     成功响应模型
 

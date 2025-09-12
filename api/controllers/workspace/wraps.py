@@ -12,10 +12,11 @@
 
 from functools import wraps
 from collections.abc import Callable
+from typing import Optional
 
 from fastapi import HTTPException, Request, Depends
 
-from services.tenant_service import TenantService
+from services.tenant_service import TenantService, Tenant
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "TenantValidation")
@@ -84,7 +85,7 @@ def tenant_validation():
     return decorator
 
 
-async def validate_and_get_tenant_id(request: Request) -> str:
+async def validate_and_get_tenant_id(request: Request) -> Optional[Tenant]:
     """依赖注入函数 - 租户验证"""
     tenant_id = request.headers.get("X-Tenant-ID")
     
@@ -119,7 +120,7 @@ async def validate_and_get_tenant_id(request: Request) -> str:
                 }
             )
         
-        return tenant_id
+        return tenant
         
     except HTTPException:
         raise

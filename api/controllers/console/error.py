@@ -3,12 +3,12 @@ from controllers.exceptions import BaseHTTPException
 
 class AuthenticationException(BaseHTTPException):
     error_code = "AUTHENTICATION_ERROR"
-    status_code = 401
+    http_status_code = 401
 
 
 class AppKeyNotConfiguredException(AuthenticationException):
     error_code = "APP_AUTH_NOT_CONFIGURED"
-    status_code = 500
+    http_status_code = 500
     
     def __init__(self):
         super().__init__(detail="App-Key 未配置")
@@ -23,7 +23,7 @@ class InvalidAppKeyException(AuthenticationException):
 
 class TokenGenerationException(AuthenticationException):
     error_code = "TOKEN_GENERATION_FAILED"
-    status_code = 500
+    http_status_code = 500
     
     def __init__(self, reason: str):
         super().__init__(detail=f"JWT token 生成失败: {reason}")
@@ -31,7 +31,7 @@ class TokenGenerationException(AuthenticationException):
 
 class AuthorizationException(BaseHTTPException):
     error_code = "AUTHORIZATION_ERROR"
-    status_code = 403
+    http_status_code = 403
 
 
 class InsufficientScopeException(AuthorizationException):
@@ -43,7 +43,7 @@ class InsufficientScopeException(AuthorizationException):
 
 class TenantManagementException(BaseHTTPException):
     error_code = "TENANT_MANAGEMENT_ERROR"
-    status_code = 400
+    http_status_code = 400
 
 
 class TenantIdMismatchException(TenantManagementException):
@@ -55,7 +55,7 @@ class TenantIdMismatchException(TenantManagementException):
 
 class TenantNotFoundException(TenantManagementException):
     error_code = "TENANT_NOT_FOUND"
-    status_code = 404
+    http_status_code = 404
     
     def __init__(self, tenant_id: str):
         super().__init__(detail=f"租户 {tenant_id} 不存在")
@@ -63,7 +63,7 @@ class TenantNotFoundException(TenantManagementException):
 
 class TenantSyncException(TenantManagementException):
     error_code = "TENANT_SYNC_FAILED"
-    status_code = 500
+    http_status_code = 500
     
     def __init__(self, tenant_id: str, reason: str = ""):
         detail = f"租户 {tenant_id} 同步失败"
@@ -81,7 +81,7 @@ class TenantValidationException(TenantManagementException):
 
 class DatabaseConnectionException(BaseHTTPException):
     error_code = "DATABASE_CONNECTION_ERROR"
-    status_code = 503
+    http_status_code = 503
     
     def __init__(self, operation: str = ""):
         detail = "数据库连接不可用"

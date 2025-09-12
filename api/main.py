@@ -85,7 +85,7 @@ app.add_middleware(SafetyInterceptor)
 async def api_exception_handler(_, exc: BaseHTTPException):
     """处理自定义API异常"""
     return JSONResponse(
-        status_code=exc.status_code,
+        status_code=exc.http_status_code,
         content={
             **exc.data,
             "timestamp": to_isoformat()

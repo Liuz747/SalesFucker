@@ -23,14 +23,13 @@ class BaseHTTPException(HTTPException):
                 super().__init__(detail=f"智能体 {agent_id} 不存在")
     """
     error_code: str = "unknown"
-    status_code: int = 500
+    http_status_code: int = 500
     data: dict | None = None
 
-    def __init__(self, detail: str | None = None, headers: Mapping[str, str] | None = None):
-        super().__init__(self.status_code, detail, headers)
+    def __init__(self, detail: dict | None = None, headers: Mapping[str, str] | None = None):
+        super().__init__(self.http_status_code, detail, headers)
         
         self.data = {
             "code": self.error_code,
-            "message": self.detail,
-            "status": self.status_code,
+            "message": self.detail
         }

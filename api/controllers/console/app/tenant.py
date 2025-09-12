@@ -18,10 +18,8 @@ from schemas.tenant_schema import (
     TenantDeleteResponse
 )
 from ..error import (
-    TenantIdMismatchException,
     TenantNotFoundException,
-    TenantSyncException,
-    DatabaseConnectionException
+    TenantSyncException
 )
 from models import Tenant
 from services import TenantService
@@ -31,62 +29,44 @@ logger = get_component_logger(__name__, "TenantEndpoints")
 
 router = APIRouter()
 
-@router.post("/{tenant_id}/sync", response_model=TenantSyncResponse)
-async def sync_tenant(
-    tenant_id: str,
-    request: TenantSyncRequest
-):
+@router.post("/sync", response_model=TenantSyncResponse)
+async def sync_tenant(request: TenantSyncRequest):
     """
     从后端系统同步租户到AI服务
     """
     try:
-        logger.info(f"后端租户同步请求: {tenant_id} \n 参数: {request}")
+        logger.info(f"后端租户同步请求: {request.tenant_id}")
 
-        # 验证租户ID是否匹配请求
-        if request.tenant_id != tenant_id:
-            raise TenantIdMismatchException(tenant_id, request.tenant_id)
-        # 同步租户到AI服务数据库
-        try:
-            tenant = Tenant(
-                tenant_id=request.tenant_id,
-                tenant_name=request.tenant_name,
-                industry=request.industry,
-                area_id=request.area_id,
-                creator=request.creator,
-                company_size=request.company_size,
-                feature_flags=request.features.model_dump()
-            )
-            flag = await TenantService.create_tenant(tenant)
-            
-            if flag:
-                logger.info(f"租户配置已更新: {request.tenant_id}")
-            else:
-                logger.error(f"保存租户配置失败: {request.tenant_id}")
-                raise TenantSyncException(request.tenant_id, "Failed to save tenant configuration")
-            
-            return TenantSyncResponse(
-                tenant_id=tenant_id,
-                message="租户同步成功",
-                synced_at=get_current_datetime(),
-                features_enabled=request.features
-            )
+        tenant = Tenant(
+            tenant_id=request.tenant_id,
+            tenant_name=request.tenant_name,
+            industry=request.industry,
+            area_id=request.area_id,
+            creator=request.creator,
+            company_size=request.company_size,
+            feature_flags=request.features.model_dump()
+        )
+        flag = await TenantService.create_tenant(tenant)
+        
+        if not flag:
+            logger.error(f"保存租户配置失败: {request.tenant_id}")
+            raise TenantSyncException(request.tenant_id, "Failed to save tenant configuration")
+        
+        logger.info(f"租户配置已保存: {request.tenant_id}")
 
-        except Exception as e:
-            logger.error(f"获取或保存租户配置失败: {request.tenant_id}, 错误: {e}")
-            raise TenantSyncException(request.tenant_id, str(e))
+        return TenantSyncResponse(
+            tenant_id=request.tenant_id,
+            message="租户同步成功",
+            synced_at=get_current_datetime(),
+            features_enabled=request.features
+        )
 
     except ValueError as e:
         logger.warning(f"无效的租户同步数据: {e}")
-        raise TenantSyncException(tenant_id, f"验证错误: {str(e)}")
+        raise TenantSyncException(request.tenant_id, f"验证错误: {str(e)}")
     except Exception as e:
-        error_msg = str(e).lower()
-        logger.error(f"租户同步失败 {tenant_id}: {e}", exc_info=True)
-
-        # 为数据库问题提供特定错误消息
-        if "connection" in error_msg or "database" in error_msg:
-            raise DatabaseConnectionException("租户同步")
-        else:
-            raise TenantSyncException(tenant_id, str(e))
+        logger.error(f"租户同步失败 {request.tenant_id}: {e}", exc_info=True)
+        raise TenantSyncException(request.tenant_id, str(e))
 
 
 @router.get("/{tenant_id}/status", response_model=TenantStatusResponse)
