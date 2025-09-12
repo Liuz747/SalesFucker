@@ -26,7 +26,7 @@ class BaseHTTPException(HTTPException):
     http_status_code: int = 500
     data: dict | None = None
 
-    def __init__(self, detail: dict | None = None, headers: Mapping[str, str] | None = None):
+    def __init__(self, detail: str | None = None, headers: Mapping[str, str] | None = None):
         super().__init__(self.http_status_code, detail, headers)
         
         self.data = {
