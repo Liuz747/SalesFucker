@@ -12,10 +12,9 @@
 """
 
 from typing import Dict, Any
-import asyncio
 from langgraph.graph import StateGraph
 
-from .node_processor import NodeProcessor
+from core.agents.base import agent_registry, ThreadState
 from utils import get_component_logger, StatusMixin
 from libs.constants import WorkflowConstants
 
@@ -28,26 +27,15 @@ class WorkflowBuilder(StatusMixin):
     定义智能体节点间的连接关系和条件路由逻辑。
     
     属性:
-        tenant_id: 租户标识符
-        node_mapping: 节点到智能体的映射关系
-        node_processor: 节点处理器实例
         logger: 日志记录器
     """
     
-    def __init__(self, tenant_id: str, node_mapping: Dict[str, str]):
+    def __init__(self):
         """
         初始化工作流构建器
-        
-        参数:
-            tenant_id: 租户标识符
-            node_mapping: 节点名称到智能体ID的映射
         """
         super().__init__()
-        
-        self.tenant_id = tenant_id
-        self.node_mapping = node_mapping
-        self.node_processor = NodeProcessor(tenant_id, node_mapping)
-        self.logger = get_component_logger(__name__, tenant_id)
+        self.logger = get_component_logger(__name__)
     
     def build_graph(self) -> StateGraph:
         """
@@ -74,7 +62,7 @@ class WorkflowBuilder(StatusMixin):
         # 编译工作流图
         compiled_graph = graph.compile()
         
-        self.logger.info(f"工作流图构建完成，租户: {self.tenant_id}")
+        self.logger.info("工作流图构建完成")
         return compiled_graph
     
     def _register_nodes(self, graph: StateGraph):
@@ -86,16 +74,22 @@ class WorkflowBuilder(StatusMixin):
         参数:
             graph: 要注册节点的状态图
         """
-        # 注册所有节点处理函数
-        graph.add_node(WorkflowConstants.COMPLIANCE_NODE, self.node_processor.compliance_node)
-        graph.add_node(WorkflowConstants.SENTIMENT_NODE, self.node_processor.sentiment_node)
-        graph.add_node(WorkflowConstants.INTENT_NODE, self.node_processor.intent_node)
-        graph.add_node(WorkflowConstants.STRATEGY_NODE, self.node_processor.strategy_node)
-        graph.add_node(WorkflowConstants.SALES_NODE, self.node_processor.sales_node)
-        graph.add_node(WorkflowConstants.PRODUCT_NODE, self.node_processor.product_node)
-        graph.add_node(WorkflowConstants.MEMORY_NODE, self.node_processor.memory_node)
+        # 节点映射：节点名称 -> 智能体ID常量
+        node_mappings = [
+            WorkflowConstants.COMPLIANCE_NODE,
+            WorkflowConstants.SENTIMENT_NODE,
+            WorkflowConstants.INTENT_NODE,
+            WorkflowConstants.STRATEGY_NODE,
+            WorkflowConstants.SALES_NODE,
+            WorkflowConstants.PRODUCT_NODE,
+            WorkflowConstants.MEMORY_NODE,
+        ]
         
-        self.logger.debug(f"已注册 {len(self.node_mapping)} 个工作流节点")
+        # 注册所有节点处理函数 - 使用通用方法
+        for node_name in node_mappings:
+            graph.add_node(node_name, self._create_agent_node(node_name))
+        
+        self.logger.debug(f"已注册 {len(node_mappings)} 个工作流节点")
     
     def _define_edges(self, graph: StateGraph):
         """
@@ -108,29 +102,25 @@ class WorkflowBuilder(StatusMixin):
         参数:
             graph: 要定义边的状态图
         """
-        # 第一阶段：合规检查（必须串行）
+        # 添加阻止完成节点
+        graph.add_node("blocked_completion", self._blocked_completion_node)
+        
+        # 合规检查路由
         graph.add_conditional_edges(
             WorkflowConstants.COMPLIANCE_NODE,
             self._compliance_router,
             {
-                "continue": "parallel_analysis",  # 并行分析阶段
+                "continue": WorkflowConstants.SENTIMENT_NODE,  # 继续到情感分析
                 "block": "blocked_completion"  # 合规阻止时的完成节点
             }
         )
         
-        # 添加阻止完成节点
-        graph.add_node("blocked_completion", self.node_processor.blocked_completion_node)
-        
-        # 并行分析阶段：情感+意图分析
-        graph.add_node("parallel_analysis", self.node_processor.parallel_analysis_node)
-        graph.add_edge("parallel_analysis", WorkflowConstants.STRATEGY_NODE)
-        
-        # 第二阶段：策略选择和销售处理
+        # 串行处理流程
+        graph.add_edge(WorkflowConstants.SENTIMENT_NODE, WorkflowConstants.INTENT_NODE)
+        graph.add_edge(WorkflowConstants.INTENT_NODE, WorkflowConstants.STRATEGY_NODE)
         graph.add_edge(WorkflowConstants.STRATEGY_NODE, WorkflowConstants.SALES_NODE)
-        
-        # 第三阶段：并行产品推荐和记忆处理
-        graph.add_edge(WorkflowConstants.SALES_NODE, "parallel_completion")
-        graph.add_node("parallel_completion", self.node_processor.parallel_completion_node)
+        graph.add_edge(WorkflowConstants.SALES_NODE, WorkflowConstants.PRODUCT_NODE)
+        graph.add_edge(WorkflowConstants.PRODUCT_NODE, WorkflowConstants.MEMORY_NODE)
         
         self.logger.debug("优化工作流边定义完成 - 启用并行处理")
     
@@ -144,8 +134,8 @@ class WorkflowBuilder(StatusMixin):
         # 设置工作流入口点 - 从合规检查开始
         graph.set_entry_point(WorkflowConstants.COMPLIANCE_NODE)
         
-        # 设置工作流出口点 - 两个可能的完成节点
-        graph.set_finish_point(["parallel_completion", "blocked_completion"])
+        # 设置工作流出口点 - 内存节点是正常流程的结束，阻止完成是异常流程的结束
+        graph.set_finish_point([WorkflowConstants.MEMORY_NODE, "blocked_completion"])
         
         self.logger.debug("工作流入口出口点设置完成")
     
@@ -172,6 +162,26 @@ class WorkflowBuilder(StatusMixin):
         
         return "continue"
     
+    async def _create_agent_node(self, state: dict | None, node_name: str) -> dict:
+        """创建智能体节点的通用方法"""
+        agent = agent_registry.get_agent(node_name)
+        if agent:
+            conversation_state = ThreadState(**state)
+            result_state = await agent.process_conversation(conversation_state)
+            return result_state.model_dump()
+        return state
+    
+    async def _blocked_completion_node(self, state: dict) -> dict:
+        """合规阻止完成节点"""
+        compliance_result = state.get("compliance_result", {})
+        state["final_response"] = compliance_result.get(
+            "user_message", 
+            "很抱歉，您的请求涉及到敏感内容，无法继续处理。"
+        )
+        state["processing_complete"] = True
+        state["blocked_by_compliance"] = True
+        return state
+    
     def get_workflow_info(self) -> Dict[str, Any]:
         """
         获取工作流配置信息
@@ -182,10 +192,8 @@ class WorkflowBuilder(StatusMixin):
             Dict[str, Any]: 工作流配置信息
         """
         status_data = {
-            "tenant_id": self.tenant_id,
-            "node_count": len(self.node_mapping),
-            "nodes": list(self.node_mapping.keys()),
-            "node_mapping": self.node_mapping.copy(),
+            "node_count": 7,
+            "nodes": ["compliance_review", "sentiment_analysis", "intent_analysis", "strategy", "sales", "product_expert", "memory"],
             "entry_point": WorkflowConstants.COMPLIANCE_NODE,
             "exit_point": "parallel_completion",
             "conditional_routers": ["compliance_router"]
@@ -201,7 +209,6 @@ class WorkflowBuilder(StatusMixin):
             Dict[str, Any]: 性能相关指标
         """
         return {
-            "tenant_id": self.tenant_id,
             "parallel_processing_enabled": True,
             "max_concurrent_agents": 3,  # 最多3个智能体并行
             "performance_optimizations": [

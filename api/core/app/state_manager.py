@@ -20,7 +20,7 @@ from utils import (
 )
 
 
-class ThreadStateManager(StatusMixin):
+class StateManager(StatusMixin):
     """
     对话状态管理器
     

@@ -14,63 +14,41 @@ from typing import Dict, Any, Optional
 
 from core.agents.base import ThreadState
 from .workflow import WorkflowBuilder
-from .state_manager import ThreadStateManager
-from libs.constants import StatusConstants
+from .state_manager import StateManager
 from utils import (
     get_component_logger,
     get_current_datetime,
-    get_processing_time_ms,
-    StatusMixin
+    get_processing_time_ms
 )
 from utils.tracer_client import trace_conversation
 
 
-class Orchestrator(StatusMixin):
+class Orchestrator:
     """
     多智能体编排器
     
     使用LangGraph框架协调多个智能体的工作流程。
-    使用StatusMixin提供标准化状态管理功能。
     
     采用模块化设计：
     - WorkflowBuilder: 工作流构建和节点处理
-    - ConversationStateManager: 状态管理和监控
+    - StateManager: 状态管理和监控
     
     属性:
-        tenant_id: 租户标识符，用于多租户隔离
         graph: LangGraph工作流图实例
         workflow_builder: 工作流构建器
         state_manager: 状态管理器
-        node_mapping: 节点名称到智能体ID的映射
         logger: 日志记录器
     """
     
-    def __init__(self, tenant_id: str):
+    def __init__(self):
         """
         初始化多智能体编排器
-        
-        参数:
-            tenant_id: 租户标识符，确保智能体隔离
         """
-        super().__init__()
-        
-        self.tenant_id = tenant_id
-        self.logger = get_component_logger(__name__, tenant_id)
-        
-        # 节点到智能体的映射关系
-        self.node_mapping = {
-            "compliance_review": f"compliance_review_{tenant_id}",
-            "sentiment_analysis": f"sentiment_analysis_{tenant_id}",
-            "intent_analysis": f"intent_analysis_{tenant_id}",
-            "sales_agent": f"sales_agent_{tenant_id}",
-            "product_expert": f"product_expert_{tenant_id}",
-            "memory_agent": f"memory_agent_{tenant_id}",
-            "market_strategy": f"market_strategy_{tenant_id}"
-        }
+        self.logger = get_component_logger(__name__)
         
         # 初始化模块化组件
-        self.workflow_builder = WorkflowBuilder(tenant_id, self.node_mapping)
-        self.state_manager = ThreadStateManager(tenant_id)
+        self.workflow_builder = WorkflowBuilder()
+        self.state_manager = StateManager()
         
         # 初始化智能体
         self._initialize_agents()
@@ -78,24 +56,21 @@ class Orchestrator(StatusMixin):
         # 构建工作流图
         self.graph = self.workflow_builder.build_graph()
         
-        self.logger.info(f"多智能体编排器初始化完成，租户: {tenant_id}")
+        self.logger.info("多智能体编排器初始化完成")
     
     def _initialize_agents(self):
         """
-        初始化租户智能体集合
+        初始化智能体集合
         
-        为当前租户创建并注册所有必要的智能体。
+        创建并注册所有必要的智能体。
         """
         from core.factories.agent_factory import create_agent_set
         
         try:
             # 创建并自动注册智能体集合
-            agents = create_agent_set(self.tenant_id, auto_register=True)
+            agents = create_agent_set(auto_register=True)
             
-            self.logger.info(
-                f"智能体初始化完成，租户: {self.tenant_id}, "
-                f"成功创建 {len(agents)} 个智能体"
-            )
+            self.logger.info(f"智能体初始化完成，成功创建 {len(agents)} 个智能体")
             
             # 记录创建的智能体
             for agent_type, agent in agents.items():
@@ -108,9 +83,10 @@ class Orchestrator(StatusMixin):
     async def process_conversation(
             self, 
             customer_input: str, 
+            tenant_id: str,
             customer_id: Optional[str] = None,
             input_type: str = "text"
-        ) -> ThreadState:
+        ) -> Dict[str, Any]:
         """
         处理客户对话的主入口函数
         
@@ -119,6 +95,7 @@ class Orchestrator(StatusMixin):
         
         参数:
             customer_input: 客户输入内容
+            tenant_id: 租户标识符
             customer_id: 可选的客户标识符
             input_type: 输入类型 (text/voice/image)
             
@@ -127,7 +104,7 @@ class Orchestrator(StatusMixin):
         """
         # 创建初始对话状态
         initial_state = self.state_manager.create_initial_state(
-            customer_input, customer_id, input_type
+            customer_input, customer_id, input_type, tenant_id
         )
         
         # 验证状态有效性
@@ -138,7 +115,7 @@ class Orchestrator(StatusMixin):
             )
         
         self.logger.info(
-            f"开始处理对话 - 租户: {self.tenant_id}, "
+            f"开始处理对话 - 租户: {tenant_id}, "
             f"客户: {customer_id}, 输入类型: {input_type}"
         )
         
@@ -152,7 +129,7 @@ class Orchestrator(StatusMixin):
                     "customer_input": customer_input,
                     "customer_id": customer_id,
                     "input_type": input_type,
-                    "tenant_id": self.tenant_id
+                    "tenant_id": tenant_id
                 },
                 output_data={
                     "final_response": result.final_response,
@@ -160,7 +137,7 @@ class Orchestrator(StatusMixin):
                     "processing_complete": result.processing_complete
                 },
                 metadata={
-                    "tenant_id": self.tenant_id,
+                    "tenant_id": tenant_id,
                     "workflow_type": "multi_agent_conversation"
                 }
             )
@@ -213,77 +190,29 @@ class Orchestrator(StatusMixin):
         """
         获取工作流状态信息
         
-        使用StatusMixin提供标准化状态响应。
-        
         返回:
             Dict[str, Any]: 工作流状态和统计信息
         """
-        from core.agents.base import agent_registry
-        
-        available_agents = [
-            agent_id for agent_id in self.node_mapping.values()
-            if agent_registry.get_agent(agent_id) is not None
-        ]
-        
-        status_data = {
-            "tenant_id": self.tenant_id,
+        return {
             "graph_compiled": self.graph is not None,
-            "node_count": len(self.node_mapping),
-            "node_mapping": self.node_mapping.copy(),
-            "available_agents": available_agents,
-            "unavailable_agents": [
-                agent_id for agent_id in self.node_mapping.values()
-                if agent_id not in available_agents
-            ],
             "state_statistics": self.state_manager.get_state_statistics()
         }
-        
-        return self.create_status_response(status_data, "MultiAgentOrchestrator")
     
     def get_system_health(self) -> Dict[str, Any]:
         """
         获取系统健康状态
         
-        使用StatusMixin提供标准化健康响应。
-        
         返回:
             Dict[str, Any]: 系统健康状态信息
         """
-        from core.agents.base import agent_registry
-        
-        # 检查智能体可用性
-        total_agents = len(self.node_mapping)
-        available_agents = len([
-            agent_id for agent_id in self.node_mapping.values()
-            if agent_registry.get_agent(agent_id) is not None
-        ])
-        
-        agent_availability = (available_agents / total_agents * 100) if total_agents > 0 else 0
-        
         # 获取状态管理器健康状态
         state_health = self.state_manager.get_health_status()
         
-        # 综合判断系统健康状态
-        if agent_availability < 70 or state_health["status"] == StatusConstants.CRITICAL:
-            overall_status = StatusConstants.CRITICAL
-        elif agent_availability < 90 or state_health["status"] == StatusConstants.WARNING:
-            overall_status = StatusConstants.WARNING
-        else:
-            overall_status = StatusConstants.HEALTHY
-        
-        metrics = {
-            "agent_availability": agent_availability,
-            "available_agents": available_agents,
-            "total_agents": total_agents,
-            "workflow_compiled": self.graph is not None
-        }
-        
-        details = {
-            "tenant_id": self.tenant_id,
+        return {
+            "status": "healthy" if self.graph is not None else "critical",
+            "workflow_compiled": self.graph is not None,
             "state_manager_health": state_health
         }
-        
-        return self.create_metrics_response(metrics, details)
     
     def reset_statistics(self):
         """
@@ -292,51 +221,32 @@ class Orchestrator(StatusMixin):
         self.state_manager.reset_statistics()
         self.logger.info("编排器统计信息已重置")
     
-    def get_node_mapping(self) -> Dict[str, str]:
-        """
-        获取节点映射关系
-        
-        返回:
-            Dict[str, str]: 节点到智能体的映射关系
-        """
-        return self.node_mapping.copy()
 
 
 # 全局编排器实例管理
-_orchestrator_instances: Dict[str, Orchestrator] = {}
+_orchestrator_instance: Optional[Orchestrator] = None
 
 
-def get_orchestrator(tenant_id: str) -> Orchestrator:
+def get_orchestrator() -> Orchestrator:
     """
-    获取或创建租户编排器实例
+    获取全局编排器实例
     
-    参数:
-        tenant_id: 租户标识符
-        
     返回:
-        Orchestrator: 租户编排器实例
+        Orchestrator: 编排器实例
     """
-    if tenant_id not in _orchestrator_instances:
-        _orchestrator_instances[tenant_id] = Orchestrator(tenant_id)
+    global _orchestrator_instance
+    if _orchestrator_instance is None:
+        _orchestrator_instance = Orchestrator()
     
-    return _orchestrator_instances[tenant_id]
+    return _orchestrator_instance
 
 
-def shutdown_orchestrator(tenant_id: Optional[str] = None):
+def shutdown_orchestrator():
     """
     关闭编排器实例
-    
-    参数:
-        tenant_id: 租户标识符，如果为None则关闭所有实例
     """
-    global _orchestrator_instances
+    global _orchestrator_instance
     
-    if tenant_id is None:
-        # 关闭所有实例
-        for orchestrator in _orchestrator_instances.values():
-            orchestrator.reset_statistics()
-        _orchestrator_instances.clear()
-    elif tenant_id in _orchestrator_instances:
-        # 关闭特定租户实例
-        _orchestrator_instances[tenant_id].reset_statistics()
-        del _orchestrator_instances[tenant_id] 
+    if _orchestrator_instance is not None:
+        _orchestrator_instance.reset_statistics()
+        _orchestrator_instance = None 
