@@ -14,8 +14,8 @@ from unittest.mock import Mock, patch, AsyncMock
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 
-from src.agents.base import ThreadState, AgentMessage
-from src.agents.sales import SalesAgent
+from core.agents.base import ThreadState, AgentMessage
+from core.agents.sales import SalesAgent
 from infra.runtimes.client import LLMClient
 from infra.runtimes.entities import LLMRequest, LLMResponse
 from infra.runtimes.config import LLMConfig

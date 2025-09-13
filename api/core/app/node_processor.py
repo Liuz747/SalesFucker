@@ -14,7 +14,7 @@
 import asyncio
 from typing import Dict, Any, Callable, Optional
 
-from src.agents.base import ThreadState, agent_registry
+from core.agents.base import ThreadState, agent_registry
 from utils import get_component_logger
 from libs.constants import StatusConstants, WorkflowConstants
 

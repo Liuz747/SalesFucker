@@ -19,10 +19,10 @@ from utils import (
     LoggerMixin,
     InputType
 )
-from src.agents.sentiment.sentiment_analyzer import ChineseSentimentAnalyzer
-from src.agents.sentiment.voice_emotion_analyzer import VoiceEmotionAnalyzer
-from src.agents.sentiment.image_emotion_analyzer import ImageEmotionAnalyzer
-from src.agents.sentiment.emotion_fusion import EmotionFusionManager
+from core.agents.sentiment.sentiment_analyzer import ChineseSentimentAnalyzer
+from core.agents.sentiment.voice_emotion_analyzer import VoiceEmotionAnalyzer
+from core.agents.sentiment.image_emotion_analyzer import ImageEmotionAnalyzer
+from core.agents.sentiment.emotion_fusion import EmotionFusionManager
 
 
 class MultimodalSentimentAnalyzer(LoggerMixin):

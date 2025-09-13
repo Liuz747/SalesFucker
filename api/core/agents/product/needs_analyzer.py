@@ -8,7 +8,7 @@ Customer Needs Analyzer
 import logging
 from typing import Dict, Any, List
 
-from src.rag import ProductSearch, SearchQuery
+from core.rag import ProductSearch, SearchQuery
 
 logger = logging.getLogger(__name__)
 

@@ -9,7 +9,7 @@ import logging
 from typing import Dict, Any, List
 from datetime import datetime
 
-from src.rag import ProductIndexer
+from core.rag import ProductIndexer
 
 logger = logging.getLogger(__name__)
 

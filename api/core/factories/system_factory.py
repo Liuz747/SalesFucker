@@ -10,7 +10,7 @@
 """
 
 from typing import Dict, Any
-from src.core import Orchestrator
+from core.app import Orchestrator
 from .agent_factory import create_agent_set
 
 

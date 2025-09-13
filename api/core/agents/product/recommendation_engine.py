@@ -10,7 +10,7 @@ import logging
 from typing import Dict, Any, List, Optional
 from datetime import datetime
 
-from src.rag import (
+from core.rag import (
     ProductRecommender,
     RecommendationType, 
     RecommendationRequest,

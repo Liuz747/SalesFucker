@@ -25,11 +25,11 @@ from utils import (
     InputType,
     MultiModalConstants
 )
-from src.multimodal.core.message import MultiModalMessage, ProcessingResult
-from src.multimodal.core.attachment import AudioAttachment, ImageAttachment
-from src.multimodal.voice.whisper_service import WhisperService
-from src.multimodal.image.gpt4v_service import GPT4VService
-from src.agents.base import AgentMessage
+from core.multimodal.core.message import MultiModalMessage, ProcessingResult
+from core.multimodal.core.attachment import AudioAttachment, ImageAttachment
+from core.multimodal.voice.whisper_service import WhisperService
+from core.multimodal.image.gpt4v_service import GPT4VService
+from core.agents.base import AgentMessage
 
 
 class MultiModalProcessor(LoggerMixin):

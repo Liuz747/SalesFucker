@@ -12,7 +12,7 @@
 
 from typing import Dict, Any, Optional
 
-from src.agents.base import ThreadState
+from core.agents.base import ThreadState
 from .workflow import WorkflowBuilder
 from .state_manager import ThreadStateManager
 from libs.constants import StatusConstants
@@ -86,7 +86,7 @@ class Orchestrator(StatusMixin):
         
         为当前租户创建并注册所有必要的智能体。
         """
-        from src.factories.agent_factory import create_agent_set
+        from core.factories.agent_factory import create_agent_set
         
         try:
             # 创建并自动注册智能体集合
@@ -218,7 +218,7 @@ class Orchestrator(StatusMixin):
         返回:
             Dict[str, Any]: 工作流状态和统计信息
         """
-        from src.agents.base import agent_registry
+        from core.agents.base import agent_registry
         
         available_agents = [
             agent_id for agent_id in self.node_mapping.values()
@@ -249,7 +249,7 @@ class Orchestrator(StatusMixin):
         返回:
             Dict[str, Any]: 系统健康状态信息
         """
-        from src.agents.base import agent_registry
+        from core.agents.base import agent_registry
         
         # 检查智能体可用性
         total_agents = len(self.node_mapping)

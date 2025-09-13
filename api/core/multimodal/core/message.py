@@ -16,7 +16,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field, validator
 import uuid
 
-from src.agents.base import AgentMessage, ConversationState
+from core.agents.base import AgentMessage, ConversationState
 from utils import (
     get_current_datetime,
     InputType,

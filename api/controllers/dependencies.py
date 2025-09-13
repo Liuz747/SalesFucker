@@ -2,7 +2,7 @@ from typing import Any
 from fastapi import HTTPException, Request
 
 from utils import get_component_logger
-from src.core.orchestrator import get_orchestrator
+from core.app.orchestrator import get_orchestrator
 
 logger = get_component_logger(__name__, "OrchestratorDep")
 

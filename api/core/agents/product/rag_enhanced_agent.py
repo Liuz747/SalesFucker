@@ -10,12 +10,12 @@ import logging
 from typing import Dict, Any, List
 from datetime import datetime
 
-from src.agents.base import BaseAgent, AgentMessage, ConversationState
+from core.agents.base import BaseAgent, AgentMessage, ConversationState
 from utils import get_current_datetime, get_processing_time_ms
 
 # 导入重构后的模块
 from .recommendation_engine import RAGRecommendationEngine
-from src.rag import RecommendationType, RecommendationRequest, SearchQuery
+from core.rag import RecommendationType, RecommendationRequest, SearchQuery
 from .needs_analyzer import CustomerNeedsAnalyzer
 from .recommendation_formatter import RecommendationFormatter
 from .fallback_system import FallbackRecommendationSystem

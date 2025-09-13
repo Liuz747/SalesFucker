@@ -17,7 +17,7 @@ import asyncio
 from datetime import datetime
 from fastapi import HTTPException
 
-from src.agents import agent_registry, AgentRegistry
+from core.agents import agent_registry, AgentRegistry
 from utils import get_component_logger
 from ..schemas.agents import (
     AgentTestRequest,

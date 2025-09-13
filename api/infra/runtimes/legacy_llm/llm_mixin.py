@@ -16,10 +16,10 @@ from abc import ABC
 
 from .agent_preferences import get_agent_preferences, get_agent_system_guideline
 
-from src.llm.multi_llm_client import MultiLLMClient, get_multi_llm_client
-from src.llm.intelligent_router import RoutingStrategy
-from src.llm.provider_config import GlobalProviderConfig
-from src.prompts import get_prompt_manager
+from core.llm.multi_llm_client import MultiLLMClient, get_multi_llm_client
+from core.llm.intelligent_router import RoutingStrategy
+from core.llm.provider_config import GlobalProviderConfig
+from core.prompts import get_prompt_manager
 
 
 class LLMMixin(ABC):

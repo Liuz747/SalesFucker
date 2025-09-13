@@ -346,7 +346,7 @@ async def check_api_server_health() -> Dict[str, Any]:
 async def check_agents_registry_health() -> Dict[str, Any]:
     """检查智能体注册表健康状态"""
     try:
-        from src.agents import agent_registry
+        from core.agents import agent_registry
         
         total_agents = len(agent_registry.agents)
         
@@ -509,7 +509,7 @@ async def check_anthropic_connection() -> Dict[str, Any]:
 async def check_agents_status(tenant_id: Optional[str]) -> Dict[str, Any]:
     """检查智能体状态"""
     try:
-        from src.agents import agent_registry
+        from core.agents import agent_registry
         
         agents = agent_registry.agents
         

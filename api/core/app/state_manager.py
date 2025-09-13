@@ -12,7 +12,7 @@
 
 from typing import Dict, Any, Optional
 
-from src.agents.base import ThreadState
+from core.agents.base import ThreadState
 from utils import (
     get_component_logger,
     get_current_datetime,
