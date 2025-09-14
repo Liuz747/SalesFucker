@@ -25,13 +25,13 @@ from models.assistant import AssistantModel
 from services.assistant_service import AssistantService
 from ..schemas.prompts import PromptCreateRequest
 from .prompts_handler import PromptHandler
-from utils import get_component_logger, StatusMixin
+from utils import get_component_logger
 from ..schemas.responses import SimpleResponse
 
 logger = get_component_logger(__name__, "AssistantHandler")
 
 
-class AssistantHandler(StatusMixin):
+class AssistantHandler:
     """
     AI员工处理器
     
@@ -40,7 +40,6 @@ class AssistantHandler(StatusMixin):
 
     def __init__(self):
         """初始化助理处理器"""
-        super().__init__()
         self.logger = get_component_logger(__name__)
 
         # 模拟数据存储（实际应用中应该使用数据库）

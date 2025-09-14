@@ -15,13 +15,13 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, Optional
 
 from .message import AgentMessage, ThreadState
-from utils import get_component_logger, StatusMixin
+from utils import get_component_logger, get_current_datetime
 from infra.monitoring import AgentMonitor
 from infra.runtimes.client import LLMClient
 from infra.runtimes.config import LLMConfig
 from infra.runtimes.entities import LLMRequest, LLMResponse
 
-class BaseAgent(StatusMixin, ABC):
+class BaseAgent(ABC):
     """
     多智能体系统(MAS)的抽象基类
     
@@ -203,7 +203,11 @@ class BaseAgent(StatusMixin, ABC):
         # 添加BaseAgent特定信息（没有在monitor中的）
         status_data['is_active'] = self.is_active
             
-        return self.create_status_response(status_data)
+        return {
+            **status_data,
+            "timestamp": get_current_datetime(),
+            "component": self.agent_id
+        }
     
     async def preload_prompts(self):
         """
@@ -217,19 +221,21 @@ class BaseAgent(StatusMixin, ABC):
         """获取智能体指标数据"""
         comprehensive_status = self.monitor.get_comprehensive_status()
         
-        return self.create_metrics_response(
-            {
+        return {
+            "metrics": {
                 **comprehensive_status['processing_metrics'],
                 **comprehensive_status['error_rates'],
                 **comprehensive_status['error_counts']
             },
-            {
+            "details": {
                 'agent_id': self.agent_id,
                 'tenant_id': self.tenant_id,
                 'agent_type': self.agent_type,
                 'is_active': self.is_active
-            }
-        )
+            },
+            "timestamp": get_current_datetime(),
+            "component": self.agent_id
+        }
     
     @property
     def agent_type(self) -> str:

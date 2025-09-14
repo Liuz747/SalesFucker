@@ -15,10 +15,10 @@ from typing import Dict, Any, Optional, List
 from .agent import BaseAgent
 from .message import AgentMessage
 from libs.constants import StatusConstants, ProcessingConstants
-from utils import get_component_logger, StatusMixin
+from utils import get_component_logger, get_current_datetime
 
 
-class AgentRegistry(StatusMixin):
+class AgentRegistry:
     """
     智能体注册中心
     
@@ -34,7 +34,6 @@ class AgentRegistry(StatusMixin):
     
     def __init__(self):
         """初始化智能体注册中心"""
-        super().__init__()
         
         self.agents: Dict[str, BaseAgent] = {}
         self.routing_table: Dict[str, List[str]] = {}
@@ -249,7 +248,11 @@ class AgentRegistry(StatusMixin):
             "registered_agent_ids": list(self.agents.keys())
         }
         
-        return self.create_status_response(status_data, "AgentRegistry")
+        return {
+            **status_data,
+            "timestamp": get_current_datetime(),
+            "component": "AgentRegistry"
+        }
     
     def get_agent_details(self) -> List[Dict[str, Any]]:
         """
@@ -345,7 +348,12 @@ class AgentRegistry(StatusMixin):
             "unhealthy_agents": unhealthy_agents
         }
         
-        return self.create_metrics_response(metrics, details)
+        return {
+            "metrics": metrics,
+            "details": details,
+            "timestamp": get_current_datetime(),
+            "component": "AgentRegistry"
+        }
     
     def __len__(self) -> int:
         """返回注册智能体数量"""

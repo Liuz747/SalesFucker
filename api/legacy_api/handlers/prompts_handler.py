@@ -25,10 +25,10 @@ from ..schemas.prompts import (
     AssistantPromptConfig, PromptLibraryItem,
     PromptCategory, PromptType, PromptLanguage
 )
-from utils import get_component_logger, StatusMixin
+from utils import get_component_logger
 
 
-class PromptHandler(StatusMixin):
+class PromptHandler:
     """
     提示词处理器
     
@@ -37,7 +37,6 @@ class PromptHandler(StatusMixin):
 
     def __init__(self):
         """初始化提示词处理器"""
-        super().__init__()
         self.logger = get_component_logger(__name__)
 
         # 模拟数据存储（实际应用中应该使用数据库）

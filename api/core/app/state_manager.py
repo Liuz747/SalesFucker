@@ -15,16 +15,15 @@ from typing import Dict, Any, Optional
 from core.agents.base import ThreadState
 from utils import (
     get_component_logger,
-    get_current_datetime,
-    StatusMixin
+    get_current_datetime
 )
 
 
-class StateManager(StatusMixin):
+class StateManager:
     """
     对话状态管理器
     
-    负责管理对话状态的生命周期，使用StatusMixin提供标准化状态管理。
+    负责管理对话状态的生命周期。
     
     属性:
         tenant_id: 租户标识符
@@ -39,8 +38,6 @@ class StateManager(StatusMixin):
         参数:
             tenant_id: 租户标识符
         """
-        super().__init__()
-        
         self.tenant_id = tenant_id
         self.logger = get_component_logger(__name__, tenant_id)
         
@@ -221,7 +218,11 @@ class StateManager(StatusMixin):
             "last_activity": self.state_stats["last_activity"]
         }
         
-        return self.create_status_response(status_data, "ThreadStateManager")
+        return {
+            **status_data,
+            "timestamp": get_current_datetime(),
+            "component": "StateManager"
+        }
     
     def reset_statistics(self):
         """
@@ -269,4 +270,9 @@ class StateManager(StatusMixin):
             "total_completed": total_completed
         }
         
-        return self.create_metrics_response(metrics, details) 
+        return {
+            "metrics": metrics,
+            "details": details,
+            "timestamp": get_current_datetime(),
+            "component": "StateManager"
+        } 
