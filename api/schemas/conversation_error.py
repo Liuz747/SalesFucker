@@ -1,5 +1,6 @@
 from uuid import UUID
-from controllers.exceptions import BaseHTTPException
+
+from api.controllers.exceptions import BaseHTTPException
 
 
 class WorkspaceException(BaseHTTPException):

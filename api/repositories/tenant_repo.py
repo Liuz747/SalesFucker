@@ -10,7 +10,7 @@
 from typing import Optional
 
 import msgpack
-from redis import Redis
+from redis import Redis, RedisError
 from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,7 +24,7 @@ logger = get_component_logger(__name__, "TenantRepository")
 class TenantRepository:
 
     @staticmethod
-    async def get_tenant(tenant_id: str, session: AsyncSession) -> Optional[TenantOrm]:
+    async def get_tenant_by_tenant_id(tenant_id: str, session: AsyncSession) -> Optional[TenantOrm]:
         """根据ID获取租户数据库模型"""
         try:
             stmt = select(TenantOrm).where(TenantOrm.tenant_id == tenant_id)
@@ -102,6 +102,9 @@ class TenantRepository:
                 tenant_data = msgpack.unpackb(tenant_data, raw=False)
                 return Tenant(**tenant_data)
             return None
+        except RedisError as e:
+            print(f"redis 命令执行失败: {e}")
+            raise
         except Exception as e:
             logger.error(f"获取租户缓存失败: {tenant_id}, 错误: {e}")
             raise
@@ -113,13 +116,15 @@ class TenantRepository:
             redis_key = f"tenant:{tenant_model.tenant_id}"
             tenant_data = tenant_model.model_dump(mode='json')
 
-            await redis_client.setex(
+            result = await redis_client.setex(
                 redis_key,
                 mas_config.REDIS_TTL,
                 msgpack.packb(tenant_data),
             )
             logger.debug(f"更新租户缓存: {tenant_model.tenant_id}")
-
+        except RedisError as e:
+            print(f"redis 命令执行失败: {e}")
+            raise
         except Exception as e:
             logger.error(f"更新租户缓存失败: {tenant_model.tenant_id}, 错误: {e}")
             raise
@@ -137,7 +142,9 @@ class TenantRepository:
             else:
                 logger.debug(f"租户缓存不存在，无需删除: {tenant_id}")
                 return True
-                
+        except RedisError as e:
+            print(f"redis 命令执行失败: {e}")
+            raise
         except Exception as e:
             logger.error(f"删除租户缓存失败: {tenant_id}, 错误: {e}")
             raise
