@@ -3,8 +3,8 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from api.models import TenantStatus
-from api.schemas.responses import BaseResponse
+from models.enums import TenantStatus
+from schemas.responses import BaseResponse
 
 
 class BaseTenant(BaseModel):
@@ -44,5 +44,4 @@ class TenantStatusResponse(BaseResponse, BaseTenant):
 
 
 class TenantDeleteResponse(BaseResponse, BaseTenant):
-    pass
-    # is_active: bool = Field(description="是否删除成功")
+    is_active: bool = Field(description="是否删除成功")

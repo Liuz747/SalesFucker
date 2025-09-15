@@ -17,7 +17,7 @@ from .enums import (
 )
 from .tenant import (
     TenantOrm,
-    TenantModel
+    Tenant
 )
 from .conversation import (
     ThreadOrm,
@@ -33,7 +33,7 @@ __all__ = [
 
     # Tenant
     "TenantOrm",
-    "TenantModel",
+    "Tenant",
 
     # Conversation
     "ThreadOrm",
