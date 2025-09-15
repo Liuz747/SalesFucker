@@ -66,7 +66,7 @@ class TenantOrm(Base):
     )
 
 
-class Tenant(BaseModel):
+class TenantModel(BaseModel):
     """
     租户配置业务模型
     

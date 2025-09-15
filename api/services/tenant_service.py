@@ -16,7 +16,7 @@ from typing import Optional
 
 from infra.db import database_session
 from infra.cache import get_redis_client
-from repositories.tenant_repo import TenantRepository, Tenant
+from repositories.tenant_repo import TenantRepository, TenantModel
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "TenantService")
@@ -31,7 +31,7 @@ class TenantService:
     """
 
     @staticmethod
-    async def create_tenant(tenant: Tenant) -> bool:
+    async def create_tenant(tenant: TenantModel) -> bool:
         """创建租户"""
         try:
             tenant_orm = tenant.to_orm()
@@ -55,7 +55,7 @@ class TenantService:
             raise
 
     @staticmethod
-    async def query_tenant(tenant_id: str) -> Optional[Tenant]:
+    async def query_tenant(tenant_id: str) -> Optional[TenantModel]:
         """
         根据ID获取租户业务模型
         
@@ -79,7 +79,7 @@ class TenantService:
                 tenant_orm = await TenantRepository.get_tenant(tenant_id, session)
             
             if tenant_orm:
-                tenant_model = Tenant.to_model(tenant_orm)
+                tenant_model = TenantModel.to_model(tenant_orm)
                 asyncio.create_task(TenantRepository.update_tenant_cache(
                     tenant_model,
                     redis_client
@@ -94,7 +94,7 @@ class TenantService:
             raise
     
     @staticmethod
-    async def update_tenant(tenant: Tenant) -> bool:
+    async def update_tenant(tenant: TenantModel) -> bool:
         """更新租户"""
         try:
             tenant_orm = tenant.to_orm()

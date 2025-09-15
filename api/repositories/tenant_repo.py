@@ -15,7 +15,7 @@ from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import mas_config
-from models.tenant import TenantOrm, Tenant
+from models import TenantOrm, TenantModel
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "TenantRepository")
@@ -92,7 +92,7 @@ class TenantRepository:
             raise
 
     @staticmethod
-    async def get_tenant_cache(tenant_id: str, redis_client: Redis) -> Optional[Tenant]:
+    async def get_tenant_cache(tenant_id: str, redis_client: Redis) -> Optional[TenantModel]:
         """获取租户缓存"""
         try:
             redis_key = f"tenant:{tenant_id}"
@@ -100,14 +100,14 @@ class TenantRepository:
 
             if tenant_data:
                 tenant_data = msgpack.unpackb(tenant_data, raw=False)
-                return Tenant(**tenant_data)
+                return TenantModel(**tenant_data)
             return None
         except Exception as e:
             logger.error(f"获取租户缓存失败: {tenant_id}, 错误: {e}")
             raise
 
     @staticmethod
-    async def update_tenant_cache(tenant_model: Tenant, redis_client: Redis):
+    async def update_tenant_cache(tenant_model: TenantModel, redis_client: Redis):
         """更新租户缓存"""
         try:
             redis_key = f"tenant:{tenant_model.tenant_id}"

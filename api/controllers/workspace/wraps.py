@@ -16,7 +16,7 @@ from typing import Optional
 
 from fastapi import HTTPException, Request, Depends
 
-from services.tenant_service import TenantService, Tenant
+from services.tenant_service import TenantService, TenantModel
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "TenantValidation")
@@ -85,7 +85,7 @@ def tenant_validation():
     return decorator
 
 
-async def validate_and_get_tenant_id(request: Request) -> Optional[Tenant]:
+async def validate_and_get_tenant_id(request: Request) -> Optional[TenantModel]:
     """依赖注入函数 - 租户验证"""
     tenant_id = request.headers.get("X-Tenant-ID")
     

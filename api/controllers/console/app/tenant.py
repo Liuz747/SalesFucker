@@ -21,7 +21,7 @@ from ..error import (
     TenantNotFoundException,
     TenantSyncException
 )
-from models import Tenant
+from models import TenantModel
 from services import TenantService
 from utils import get_component_logger, get_current_datetime
 
@@ -37,7 +37,7 @@ async def sync_tenant(request: TenantSyncRequest):
     try:
         logger.info(f"后端租户同步请求: {request.tenant_id}")
 
-        tenant = Tenant(
+        tenant = TenantModel(
             tenant_id=request.tenant_id,
             tenant_name=request.tenant_name,
             industry=request.industry,
@@ -105,7 +105,7 @@ async def update_tenant(
         if not existing_tenant:
             raise TenantNotFoundException(tenant_id)
         
-        tenant = Tenant(
+        tenant = TenantModel(
             tenant_id=tenant_id,
             tenant_name=request.tenant_name,
             status=request.status,

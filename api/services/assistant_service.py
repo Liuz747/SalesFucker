@@ -14,7 +14,7 @@ from datetime import datetime
 from typing import Optional, List
 from sqlalchemy import select, update
 
-from models import Tenant
+from models import TenantModel
 from models.assistant import AssistantModel, AssistantOrmModel
 from infra.db.connection import database_session, test_db_connection
 from utils import get_component_logger, get_current_datetime
@@ -112,8 +112,8 @@ class AssistantService:
             async with database_session() as session:
                 # 软删除：设置为非激活状态
                 stmt = (
-                    update(Tenant)
-                    .where(Tenant.tenant_id == tenant_id)
+                    update(TenantModel)
+                    .where(TenantModel.tenant_id == tenant_id)
                     .values(is_active=False, updated_at=get_current_datetime())
                 )
                 result = await session.execute(stmt)
@@ -141,7 +141,7 @@ class AssistantService:
         """
         try:
             async with database_session() as session:
-                stmt = select(Tenant.tenant_id).where(Tenant.is_active == True)
+                stmt = select(TenantModel.tenant_id).where(TenantModel.is_active == True)
                 result = await session.execute(stmt)
                 tenant_ids = [row[0] for row in result.fetchall()]
 
@@ -167,11 +167,11 @@ class AssistantService:
         try:
             async with database_session() as session:
                 stmt = (
-                    update(Tenant)
-                    .where(Tenant.tenant_id == tenant_id)
+                    update(TenantModel)
+                    .where(TenantModel.tenant_id == tenant_id)
                     .values(
                         last_access=access_time,
-                        total_requests=Tenant.total_requests + 1
+                        total_requests=TenantModel.total_requests + 1
                     )
                 )
                 await session.execute(stmt)
@@ -191,7 +191,7 @@ class AssistantService:
         """
         try:
             async with database_session() as session:
-                stmt = select(Tenant.tenant_id)
+                stmt = select(TenantModel.tenant_id)
                 result = await session.execute(stmt)
                 total = len(result.fetchall())
 
