@@ -21,7 +21,7 @@ from ..schemas.assistants import (
     AssistantListRequest, AssistantListResponse,
     AssistantStatsResponse, AssistantOperationResponse, AssistantStatus
 )
-from ..handlers.assistant_handler import AssistantHandler
+from ..handlers.assistant_service import AssistantService
 from utils import get_component_logger
 from models.assistant import AssistantModel
 from ..schemas.responses import SimpleResponse
@@ -31,7 +31,7 @@ router = APIRouter()
 logger = get_component_logger(__name__)
 
 # 初始化处理器
-assistant_handler = AssistantHandler()
+assistant_service = AssistantService()
 
 
 @router.post("/", response_model=SimpleResponse[AssistantModel], status_code=status.HTTP_201_CREATED)
@@ -49,7 +49,7 @@ async def create_assistant(
 
         # JWT认证中已验证租户身份，无需重复检查
 
-        result = await assistant_handler.create_assistant(
+        result = await assistant_service.create_assistant(
             request
         )
 
@@ -109,7 +109,7 @@ async def list_assistants(
             include_config=include_config
         )
 
-        result = await assistant_handler.list_assistants(list_request)
+        result = await assistant_service.list_assistants(list_request)
 
         logger.info(f"助理列表查询成功: 返回{len(result.assistants)}条记录")
         return result
@@ -137,7 +137,7 @@ async def get_assistant(
     try:
         logger.info(f"查询助理详情: tenant={tenant_id}, assistant={assistant_id}")
 
-        result = await assistant_handler.get_assistant(
+        result = await assistant_service.get_assistant(
             assistant_id, tenant_id, include_stats, include_config
         )
 
@@ -175,7 +175,7 @@ async def update_assistant(
     try:
         logger.info(f"更新助理请求: tenant={request.tenant_id}, assistant={assistant_id}")
 
-        result = await assistant_handler.update_assistant(
+        result = await assistant_service.update_assistant(
             assistant_id, request.tenant_id, request
         )
 
@@ -219,7 +219,7 @@ async def delete_assistant(
     try:
         logger.info(f"删除助理请求: tenant={tenant_id}, assistant={assistant_id}, force={force}")
 
-        result = await assistant_handler.delete_assistant(assistant_id, tenant_id, force)
+        result = await assistant_service.delete_assistant(assistant_id, tenant_id, force)
 
         if not result.success:
             logger.warning(f"助理删除失败: {assistant_id}")

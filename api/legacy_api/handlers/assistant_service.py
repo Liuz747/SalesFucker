@@ -14,6 +14,8 @@ AI员工处理器
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 
+from infra.db import database_session
+from repositories.tenant_repo import TenantRepository
 from ..schemas.assistants import (
     AssistantCreateRequest, AssistantUpdateRequest, AssistantConfigRequest,
     AssistantListRequest, AssistantListResponse,
@@ -22,7 +24,7 @@ from ..schemas.assistants import (
 )
 from models.assistant import AssistantModel
 
-from services.assistant_service import AssistantService
+from services.assistant_repo import AssistantRepository
 from ..schemas.prompts import PromptCreateRequest
 from .prompts_handler import PromptHandler
 from utils import get_component_logger
@@ -31,7 +33,7 @@ from ..schemas.responses import SimpleResponse
 logger = get_component_logger(__name__, "AssistantHandler")
 
 
-class AssistantHandler:
+class AssistantService:
     """
     AI员工处理器
     
@@ -62,96 +64,73 @@ class AssistantHandler:
             AssistantResponse: 创建结果
         """
         try:
-            # 验证助理ID是否已存在
-            assistant_key = f"{request.tenant_id}:{request.assistant_id}"
-            if assistant_key in self._assistants_store:
-                raise ValueError(f"助理ID {request.assistant_id} 已存在")
+            async with database_session() as session:
+                assistant_orm = await AssistantRepository.get_assistant_by_id(request.assistant_id, session)
+                if assistant_orm:
+                    pass
+                    # 需要 raise 个错误
+                tenant_orm = await TenantRepository.get_tenant_by_id(request.tenant_id, session)
+                if tenant_orm:
+                    pass
+                    # 需要 raise 个错误
 
-            # 创建助理数据
-            now = datetime.utcnow()
-            # assistant_data = {
-            #     "assistant_id": request.assistant_id,
-            #     "assistant_name": request.assistant_name,
-            #     "tenant_id": request.tenant_id,
-            #     "status": AssistantStatus.ACTIVE,
-            #     "personality_type": request.personality_type,
-            #     "expertise_level": request.expertise_level,
-            #     "sales_style": request.sales_style or self._get_default_sales_style(request.personality_type),
-            #     "voice_tone": request.voice_tone or self._get_default_voice_tone(request.personality_type),
-            #     "specializations": request.specializations or [],
-            #     "working_hours": request.working_hours or self._get_default_working_hours(),
-            #     "max_concurrent_customers": request.max_concurrent_customers,
-            #     "permissions": request.permissions or self._get_default_permissions(request.expertise_level),
-            #     "profile": request.profile or {},
-            #     "created_at": now,
-            #     "updated_at": now,
-            #     "last_active_at": None,
-            #     "registered_devices": []
-            # }
-            assistant_data = AssistantModel(
-                assistant_id=request.assistant_id,
-                assistant_name=request.assistant_name,
-                tenant_id=request.tenant_id,
-                assistant_status="inactive",
-                # status=AssistantStatus.ACTIVE,
-                personality_type=request.personality_type,
-                expertise_level=request.expertise_level,
-                sales_style=request.sales_style or self._get_default_sales_style(request.personality_type),
-                voice_tone=request.voice_tone or self._get_default_voice_tone(request.personality_type),
-                specializations=request.specializations or [],
-                working_hours=request.working_hours or self._get_default_working_hours(),
-                max_concurrent_customers=request.max_concurrent_customers,
-                permissions=request.permissions or self._get_default_permissions(request.expertise_level),
-                profile=request.profile or {},
-                created_at=now,
-                updated_at=now,
-                is_active=True,
-                last_active_at=None,
-                registered_devices=[]
-            )
+                # 创建助理数据
+                now = datetime.utcnow()
+                assistant_data = AssistantModel(
+                    assistant_id=request.assistant_id,
+                    assistant_name=request.assistant_name,
+                    tenant_id=request.tenant_id,
+                    assistant_status="inactive",
+                    personality_type=request.personality_type,
+                    expertise_level=request.expertise_level,
+                    sales_style=request.sales_style or self._get_default_sales_style(request.personality_type),
+                    voice_tone=request.voice_tone or self._get_default_voice_tone(request.personality_type),
+                    specializations=request.specializations or [],
+                    working_hours=request.working_hours or self._get_default_working_hours(),
+                    max_concurrent_customers=request.max_concurrent_customers,
+                    permissions=request.permissions or self._get_default_permissions(request.expertise_level),
+                    profile=request.profile or {},
+                    created_at=now,
+                    updated_at=now,
+                    is_active=True,
+                    last_active_at=None,
+                    registered_devices=[]
+                )
 
-            # 存储助理数据
-            # self._assistants_store[assistant_key] = assistant_data
-            status = await AssistantService.save(assistant_data)
+                # 存储助理数据
+                status = await AssistantRepository.insert_assistant(assistant_data)
 
-            if 1 != 2:
-                # todo 先跳过提示词配置
+                if 1 != 2:
+                    # todo 先跳过提示词配置
 
-                # 处理提示词配置（如果提供）
-                if request.prompt_config:
-                    try:
-                        prompt_request = PromptCreateRequest(
-                            assistant_id=request.assistant_id,
-                            tenant_id=request.tenant_id,
-                            prompt_config=request.prompt_config
-                        )
-                        # await self.prompt_handler.create_assistant_prompts(prompt_request)
-                        self.logger.info(f"助理 {request.assistant_id} 提示词配置创建成功")
-                    except Exception as e:
-                        self.logger.warning(f"助理 {request.assistant_id} 提示词配置创建失败: {e}")
-                        # 不阻止助理创建，只记录警告
+                    # 处理提示词配置（如果提供）
+                    if request.prompt_config:
+                        try:
+                            prompt_request = PromptCreateRequest(
+                                assistant_id=request.assistant_id,
+                                tenant_id=request.tenant_id,
+                                prompt_config=request.prompt_config
+                            )
+                            # await self.prompt_handler.create_assistant_prompts(prompt_request)
+                            self.logger.info(f"助理 {request.assistant_id} 提示词配置创建成功")
+                        except Exception as e:
+                            self.logger.warning(f"助理 {request.assistant_id} 提示词配置创建失败: {e}")
+                            # 不阻止助理创建，只记录警告
+                self.logger.info(f"助理创建成功: {request.assistant_id}")
 
+        except Exception as e:
+            self.logger.error(f"助理创建失败: {e}")
+            raise
             # 初始化统计数据
-            self._assistant_stats[assistant_key] = {
-                "total_conversations": 0,
-                "total_customers": 0,
-                "current_customers": 0,
-                "average_rating": 0.0,
-                "activity_by_hour": {},
-                "device_usage": {}
-            }
+            # self._assistant_stats[assistant_key] = {
+            #     "total_conversations": 0,
+            #     "total_customers": 0,
+            #     "current_customers": 0,
+            #     "average_rating": 0.0,
+            #     "activity_by_hour": {},
+            #     "device_usage": {}
+            # }
 
-            self.logger.info(f"助理创建成功: {request.assistant_id}")
-
-            return SimpleResponse(
-                success=True,
-                message="助理创建成功",
-                data=assistant_data,
-                # **assistant_data,
-                # current_customers=0,
-                # total_conversations=0,
-                # average_rating=0.0
-            )
             # return AssistantResponse(
             #     success=True,
             #     message="助理创建成功",
@@ -162,10 +141,14 @@ class AssistantHandler:
             #     average_rating=0.0
             # )
 
-        except Exception as e:
-            self.logger.error(f"助理创建失败: {e}")
-            raise
-
+        return SimpleResponse(
+            message="助理创建成功",
+            data=assistant_data,
+            # **assistant_data,
+            # current_customers=0,
+            # total_conversations=0,
+            # average_rating=0.0
+        )
     async def list_assistants(self, request: AssistantListRequest) -> AssistantListResponse:
         """
         获取助理列表

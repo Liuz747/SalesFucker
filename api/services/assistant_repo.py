@@ -13,6 +13,7 @@
 from datetime import datetime
 from typing import Optional, List
 from sqlalchemy import select, update
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import TenantModel
 from models.assistant import AssistantModel, AssistantOrmModel
@@ -23,7 +24,7 @@ from utils import get_component_logger, get_current_datetime
 logger = get_component_logger(__name__, "AssistantService")
 
 
-class AssistantService:
+class AssistantRepository:
     """
     租户数据库操作仓库
     
@@ -32,7 +33,7 @@ class AssistantService:
     """
 
     @staticmethod
-    async def get_assistant_by_id(assistant_id: str) -> Optional[AssistantModel]:
+    async def get_assistant_by_id(assistant_id: str, session: AsyncSession) -> Optional[AssistantOrmModel]:
         """
         根据ID获取租户配置
 
@@ -43,22 +44,16 @@ class AssistantService:
             TenantConfig: 租户配置，不存在则返回None
         """
         try:
-            async with database_session() as session:
-                stmt = select(AssistantOrmModel).where(AssistantOrmModel.assistant_id == assistant_id)
-                result = await session.execute(stmt)
-                assistant_model = result.scalar_one_or_none()
-
-                if assistant_model:
-                    return assistant_model.to_business_model()
-
-                return None
+            stmt = select(AssistantOrmModel).where(AssistantOrmModel.assistant_id == assistant_id)
+            result = await session.execute(stmt)
+            return result.scalar_one_or_none()
 
         except Exception as e:
             logger.error(f"获取助理配置失败: {assistant_id}, 错误: {e}")
             raise
 
     @staticmethod
-    async def save(assistantData: AssistantModel) -> bool:
+    async def insert_assistant(assistantData: AssistantModel, session: AsyncSession) -> bool:
         """
         保存助理配置（创建或更新）
         
@@ -70,28 +65,24 @@ class AssistantService:
         """
 
         try:
-            async with (database_session() as session):
-                # 查找现有助理
-                assistantData.updated_at = get_current_datetime()
-                stmt = select(AssistantOrmModel).where(AssistantOrmModel.assistant_id == assistantData.assistant_id)
-                # print(stmt)  # 这将包括参数值，但如果使用了编译方言，则需要确保方言与数据库匹配。
-                # print(assistantData.assistant_id)  # 这将包括参数值，但如果使用了编译方言，则需要确保方言与数据库匹配。
+            # 查找现有助理
+            # assistantData.updated_at = get_current_datetime()
+            # stmt = select(AssistantOrmModel).where(AssistantOrmModel.assistant_id == assistantData.assistant_id)
+            #
+            # result = await session.execute(stmt)
+            # existing_assistant = result.scalar_one_or_none()
+            #
+            # if existing_assistant:
+            #     # 更新现有助理
+            #     existing_assistant.update_from_business_mode_assistant(assistantData)
+            #     logger.debug(f"更新助理: {assistantData.assistant_id}")
+            # else:
+            #     # 创建新租户
+            new_assistant = AssistantOrmModel.from_business_model(assistantData)
+            session.add(new_assistant)
+            logger.debug(f"创建助理: {assistantData.assistant_id}")
 
-                result = await session.execute(stmt)
-                existing_assistant = result.scalar_one_or_none()
-
-                if existing_assistant:
-                    # 更新现有助理
-                    existing_assistant.update_from_business_mode_assistant(assistantData)
-                    logger.debug(f"更新助理: {assistantData.assistant_id}")
-                else:
-                    # 创建新租户
-                    new_assistant = AssistantOrmModel.from_business_model(assistantData)
-                    session.add(new_assistant)
-                    logger.debug(f"创建助理: {assistantData.assistant_id}")
-
-                await session.commit()
-                return True
+            return True
 
         except Exception as e:
             logger.error(f"保存租户配置失败: {assistantData.assistant_id}, 错误: {e}")
