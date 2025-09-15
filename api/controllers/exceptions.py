@@ -22,7 +22,7 @@ class BaseHTTPException(HTTPException):
             def __init__(self, agent_id: str):
                 super().__init__(detail=f"智能体 {agent_id} 不存在")
     """
-    error_code: str = "unknown"
+    error_code: int = 200
     http_status_code: int = 500
     data: dict | None = None
 

@@ -10,7 +10,7 @@
 from typing import Optional
 
 import msgpack
-from redis import Redis
+from redis import Redis, RedisError
 from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,7 +24,7 @@ logger = get_component_logger(__name__, "TenantRepository")
 class TenantRepository:
 
     @staticmethod
-    async def get_tenant(tenant_id: str, session: AsyncSession) -> Optional[TenantOrm]:
+    async def get_tenant_by_id(tenant_id: str, session: AsyncSession) -> Optional[TenantOrm]:
         """根据ID获取租户数据库模型"""
         try:
             stmt = select(TenantOrm).where(TenantOrm.tenant_id == tenant_id)
@@ -80,7 +80,7 @@ class TenantRepository:
             tenant = await session.get(TenantOrm, tenant_id)
             if not tenant:
                 return None
-            
+
             tenant.is_active = False
             tenant.updated_at = func.now()
             logger.debug(f"删除租户: {tenant_id}")
@@ -102,6 +102,9 @@ class TenantRepository:
                 tenant_data = msgpack.unpackb(tenant_data, raw=False)
                 return TenantModel(**tenant_data)
             return None
+        except RedisError as e:
+            print(f"redis 命令执行失败: {e}")
+            raise
         except Exception as e:
             logger.error(f"获取租户缓存失败: {tenant_id}, 错误: {e}")
             raise
@@ -119,7 +122,9 @@ class TenantRepository:
                 msgpack.packb(tenant_data),
             )
             logger.debug(f"更新租户缓存: {tenant_model.tenant_id}")
-
+        except RedisError as e:
+            print(f"redis 命令执行失败: {e}")
+            raise
         except Exception as e:
             logger.error(f"更新租户缓存失败: {tenant_model.tenant_id}, 错误: {e}")
             raise
@@ -130,14 +135,16 @@ class TenantRepository:
         try:
             redis_key = f"tenant:{tenant_id}"
             deleted_count = await redis_client.delete(redis_key)
-            
+
             if deleted_count > 0:
                 logger.debug(f"删除租户缓存成功: {tenant_id}")
                 return True
             else:
                 logger.debug(f"租户缓存不存在，无需删除: {tenant_id}")
                 return True
-                
+        except RedisError as e:
+            print(f"redis 命令执行失败: {e}")
+            raise
         except Exception as e:
             logger.error(f"删除租户缓存失败: {tenant_id}, 错误: {e}")
             raise

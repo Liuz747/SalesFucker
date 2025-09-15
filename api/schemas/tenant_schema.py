@@ -44,4 +44,5 @@ class TenantStatusResponse(BaseResponse, BaseTenant):
 
 
 class TenantDeleteResponse(BaseResponse, BaseTenant):
-    is_active: bool = Field(description="是否删除成功")
+    pass
+    # is_active: bool = Field(description="是否删除成功")
