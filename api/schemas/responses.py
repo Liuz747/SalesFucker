@@ -23,7 +23,7 @@ class BaseResponse(BaseModel):
     """
 
     code: int = Field(default=0, description="业务状态码，0表示成功")
-    message: str = Field(default="success", description="响应消息")
+    message: str = Field(default="请求成功", description="响应消息")
     timestamp: datetime = Field(default_factory=get_current_datetime, description="响应时间戳")
     metadata: Optional[dict[str, Any]] = Field(None, description="响应元数据")
 

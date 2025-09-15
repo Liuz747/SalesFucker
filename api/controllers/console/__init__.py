@@ -1,4 +1,4 @@
-from .app.tenant_controller import router as tenant_router
+from .app.tenant import router as tenant_router
 from .service_auth import router as auth_router
 
 __all__ = [
