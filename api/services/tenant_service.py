@@ -14,7 +14,7 @@
 import asyncio
 from typing import Optional
 
-from controllers.console.console_error_code import TenantNotFoundException
+from schemas.console_error_code import TenantNotFoundException
 from infra.db import database_session
 from infra.cache import get_redis_client
 from repositories.tenant_repo import TenantRepository, TenantModel

@@ -17,7 +17,7 @@ from schemas.tenant_schema import (
     TenantUpdateRequest,
     TenantDeleteResponse
 )
-from ..console_error_code import (
+from schemas.console_error_code import (
     TenantNotFoundException,
     TenantSyncException
 )
