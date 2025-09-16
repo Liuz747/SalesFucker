@@ -18,12 +18,9 @@ class SentimentAnalysisAgent(BaseAgent):
     专注于美妆咨询场景的情感识别和客户满意度评估。
     """
     
-    def __init__(self, tenant_id: str):
+    def __init__(self):
         # 简化初始化
-        super().__init__(
-            agent_id=f"sentiment_analysis_{tenant_id}", 
-            tenant_id=tenant_id
-        )
+        super().__init__()
         
         
         self.logger.info(f"情感分析智能体初始化完成: {self.agent_id}")

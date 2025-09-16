@@ -346,9 +346,10 @@ async def check_api_server_health() -> Dict[str, Any]:
 async def check_agents_registry_health() -> Dict[str, Any]:
     """检查智能体注册表健康状态"""
     try:
-        from core.agents import agent_registry
-        
-        total_agents = len(agent_registry.agents)
+        from core.factories.agent_factory import get_all_agents
+
+        all_agents = get_all_agents()
+        total_agents = len(all_agents)
         
         return {
             "status": "healthy" if total_agents >= 0 else "unhealthy",
@@ -509,12 +510,11 @@ async def check_anthropic_connection() -> Dict[str, Any]:
 async def check_agents_status(tenant_id: Optional[str]) -> Dict[str, Any]:
     """检查智能体状态"""
     try:
-        from core.agents import agent_registry
-        
-        agents = agent_registry.agents
-        
-        if tenant_id:
-            agents = {aid: agent for aid, agent in agents.items() if agent.tenant_id == tenant_id}
+        from core.factories.agent_factory import get_all_agents
+
+        agents = get_all_agents()
+
+        # Note: tenant_id filtering removed since agents are now stateless
         
         healthy_agents = sum(1 for agent in agents.values() if agent.is_active)
         unhealthy_agents = len(agents) - healthy_agents

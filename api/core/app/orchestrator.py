@@ -67,8 +67,8 @@ class Orchestrator:
         from core.factories.agent_factory import create_agent_set
         
         try:
-            # 创建并自动注册智能体集合
-            agents = create_agent_set(auto_register=True)
+            # 创建智能体集合
+            agents = create_agent_set()
             
             self.logger.info(f"智能体初始化完成，成功创建 {len(agents)} 个智能体")
             

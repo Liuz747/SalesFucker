@@ -31,18 +31,14 @@ class ProductExpertAgent(BaseAgent):
     - RecommendationFormatter: 推荐结果格式化器
     """
     
-    def __init__(self, tenant_id: str):
+    def __init__(self):
         # MAS架构：所有智能体都具备LLM能力，自动使用产品推荐优化配置
-        super().__init__(
-            agent_id=f"product_expert_{tenant_id}",
-            tenant_id=tenant_id,
-            
-        )
-        
+        super().__init__()
+
         # 初始化模块化组件
-        self.recommendation_coordinator = RecommendationCoordinator(tenant_id, self.agent_id)
-        self.needs_analyzer = CustomerNeedsAnalyzer(tenant_id)
-        self.knowledge_manager = ProductKnowledgeManager(tenant_id)
+        self.recommendation_coordinator = RecommendationCoordinator(self.agent_id)
+        self.needs_analyzer = CustomerNeedsAnalyzer()
+        self.knowledge_manager = ProductKnowledgeManager()
         
         # 系统初始化状态
         self._initialized = False

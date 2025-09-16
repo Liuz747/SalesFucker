@@ -23,13 +23,9 @@ class MemoryAgent(BaseAgent):
     存储客户偏好、购买历史和对话记录。
     """
     
-    def __init__(self, tenant_id: str):
+    def __init__(self):
         # MAS架构：使用成本优化策略进行客户档案管理
-        super().__init__(
-            agent_id=f"memory_agent_{tenant_id}", 
-            tenant_id=tenant_id,
-            
-        )
+        super().__init__()
         
         # 优化的内存存储结构
         self.customer_profiles: Dict[str, Dict[str, Any]] = {}

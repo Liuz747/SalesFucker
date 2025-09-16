@@ -9,7 +9,8 @@ from collections.abc import Callable
 
 from langgraph.graph import StateGraph
 
-from core.agents.base import agent_registry, ThreadState
+from core.agents.base import ThreadState
+from core.factories.agent_factory import get_agent
 from libs.constants import WorkflowConstants, StatusConstants
 from .base_workflow import BaseWorkflow
 
@@ -163,7 +164,7 @@ class ChatWorkflow(BaseWorkflow):
         返回:
             dict: 更新后的状态字典
         """
-        agent = agent_registry.get_agent(node_name)
+        agent = get_agent(node_name)
         if not agent:
             self.logger.warning(f"智能体未找到: {node_name}")
             return self._apply_fallback(state, node_name, None)

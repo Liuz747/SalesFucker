@@ -7,7 +7,6 @@
 - BaseAgent: 智能体抽象基类
 - AgentMessage: 智能体间消息传递
 - ThreadState: 对话状态管理
-- AgentRegistry: 智能体注册中心
 
 注意: LangGraph工作流组件现在位于 src.core 模块中。
 """
@@ -15,13 +14,10 @@
 # 核心智能体组件导入
 from .agent import BaseAgent
 from .message import AgentMessage, ThreadState
-from .registry import AgentRegistry, agent_registry
 
 __all__ = [
     # 核心智能体组件
     "BaseAgent",
-    "AgentMessage", 
-    "ThreadState",
-    "AgentRegistry",
-    "agent_registry"
+    "AgentMessage",
+    "ThreadState"
 ] 

@@ -30,7 +30,6 @@ class BaseAgent(ABC):
     
     属性:
         agent_id: 智能体唯一标识符
-        tenant_id: 租户标识符，用于多租户隔离
         agent_type: 智能体类型（从agent_id提取）
         logger: 日志记录器
         is_active: 智能体活跃状态
@@ -41,23 +40,24 @@ class BaseAgent(ABC):
         process_conversation: 处理对话状态的具体实现
     """
     
-    def __init__(
-        self, 
-        agent_id: str, 
-        tenant_id: Optional[str] = None
-    ):
-        # 设置基本属性
-        self.agent_id = agent_id
-        self.tenant_id = tenant_id
-        self.is_active = False
-        
+    def __init__(self):
+        # Auto-derive agent_id from class name
+        class_name = self.__class__.__name__
+        if class_name.endswith('Agent'):
+            self.agent_id = class_name[:-5].lower()  # ComplianceAgent -> compliance
+        else:
+            self.agent_id = class_name.lower()
+
+        # 默认即为活跃状态；无需显式激活流程即可直接使用
+        self.is_active = True
+
         # 初始化LLM客户端
         llm_config = LLMConfig()
         self.llm_client = LLMClient(llm_config)
-        
+
         # 初始化其他组件
-        self.logger = get_component_logger(__name__, agent_id)
-        self.monitor = AgentMonitor(agent_id, self.agent_type, tenant_id)
+        self.logger = get_component_logger(__name__, self.agent_id)
+        self.monitor = AgentMonitor(self.agent_id, self.agent_type)
     
     @abstractmethod
     async def process_message(self, message: AgentMessage) -> AgentMessage:
@@ -117,8 +117,7 @@ class BaseAgent(ABC):
             recipient=recipient,
             message_type=message_type,
             payload=payload,
-            context=context or {},
-            tenant_id=self.tenant_id
+            context=context or {}
         )
         
         self.logger.info(f"发送{message_type}消息给 {recipient}")
@@ -151,8 +150,7 @@ class BaseAgent(ABC):
             model=model,
             provider=provider,
             temperature=temperature,
-            max_tokens=max_tokens,
-            tenant_id=self.tenant_id
+            max_tokens=max_tokens
         )
         
         response = await self.llm_client.completions(request)
@@ -186,12 +184,12 @@ class BaseAgent(ABC):
         self.logger.debug(f"处理完成，耗时: {actual_time:.2f}ms")
     
     def activate(self):
-        """激活智能体，使其开始处理消息"""
+        """保留兼容接口：无需调用即可使用（默认已激活）。"""
         self.is_active = True
-        self.logger.info(f"智能体 {self.agent_id} 已激活")
+        self.logger.debug(f"智能体 {self.agent_id} 激活接口调用（默认已激活）")
     
     def deactivate(self):
-        """停用智能体，停止处理新消息"""
+        """可选：停用智能体以停止新消息处理。"""
         self.is_active = False
         self.logger.info(f"智能体 {self.agent_id} 已停用")
     
@@ -229,7 +227,6 @@ class BaseAgent(ABC):
             },
             "details": {
                 'agent_id': self.agent_id,
-                'tenant_id': self.tenant_id,
                 'agent_type': self.agent_type,
                 'is_active': self.is_active
             },
@@ -243,4 +240,4 @@ class BaseAgent(ABC):
         return self.agent_id.split('_')[0] if '_' in self.agent_id else "unknown"
     
     def __repr__(self) -> str:
-        return f"BaseAgent(id={self.agent_id}, tenant={self.tenant_id}, active={self.is_active})"
+        return f"BaseAgent(id={self.agent_id}, active={self.is_active})"

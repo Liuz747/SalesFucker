@@ -19,12 +19,9 @@ class MarketStrategyCoordinator(BaseAgent):
     协调高端、预算、年轻和成熟客户的不同销售方法。
     """
     
-    def __init__(self, tenant_id: str):
+    def __init__(self):
         # 简化初始化
-        super().__init__(
-            agent_id=f"market_strategy_{tenant_id}", 
-            tenant_id=tenant_id
-        )
+        super().__init__()
         
         
         # Strategy definitions for different segments
