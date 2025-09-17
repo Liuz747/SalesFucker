@@ -26,7 +26,6 @@ from .inner import completion_router, health_router
 from .workspace import conversations_router
 # Legacy API 路由器导入
 from legacy_api.endpoints import (
-    agents_router,
     multimodal_router,
     assistants_router,
     prompts_router,
@@ -38,7 +37,6 @@ app_router = APIRouter()
 # 注册所有路由器，包含统一的prefix和tags配置
 app_router.include_router(health_router, prefix="/health", tags=["health"])
 app_router.include_router(auth_router, prefix="/auth", tags=["auth"])
-app_router.include_router(agents_router, prefix="/agents", tags=["agents"])
 app_router.include_router(conversations_router, prefix="/threads", tags=["conversation-threads"])
 app_router.include_router(multimodal_router, prefix="/multimodal", tags=["multimodal"])
 app_router.include_router(assistants_router, prefix="/assistants", tags=["assistants"])

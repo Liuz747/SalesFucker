@@ -17,7 +17,6 @@ import asyncio
 from datetime import datetime
 from fastapi import HTTPException
 
-from core.agents import agent_registry, AgentRegistry
 from utils import get_component_logger
 from ..schemas.agents import (
     AgentTestRequest,
@@ -39,15 +38,13 @@ class AgentHandler:
     
     def __init__(self):
         """初始化处理器"""
-        self.registry = agent_registry
         self.logger = logger
     
     async def list_agents(
         self,
         tenant_id: str,
         pagination: PaginationRequest,
-        filters: Optional[Dict[str, Any]] = None,
-        registry: Optional[AgentRegistry] = None
+        filters: Optional[Dict[str, Any]] = None
     ) -> AgentListResponse:
         """
         获取智能体列表
@@ -126,8 +123,7 @@ class AgentHandler:
     async def get_agent_status(
         self,
         agent_id: str,
-        tenant_id: str,
-        registry: Optional[AgentRegistry] = None
+        tenant_id: str
     ) -> AgentStatusResponse:
         """
         获取特定智能体的状态
@@ -179,8 +175,7 @@ class AgentHandler:
         self,
         agent_id: str,
         test_request: AgentTestRequest,
-        tenant_id: str,
-        registry: Optional[AgentRegistry] = None
+        tenant_id: str
     ) -> AgentTestResponse:
         """
         测试特定智能体
@@ -282,8 +277,7 @@ class AgentHandler:
     async def batch_test_agents(
         self,
         batch_request: AgentBatchTestRequest,
-        tenant_id: str,
-        registry: Optional[AgentRegistry] = None
+        tenant_id: str
     ) -> AgentBatchTestResponse:
         """
         批量测试多个智能体
@@ -366,8 +360,7 @@ class AgentHandler:
         self,
         agent_id: str,
         test_request: AgentTestRequest,
-        tenant_id: str,
-        registry: Optional[AgentRegistry] = None
+        tenant_id: str
     ) -> AgentTestResponse:
         """执行单个智能体测试的内部方法"""
         return await self.test_agent(agent_id, test_request, tenant_id, registry)
@@ -376,8 +369,7 @@ class AgentHandler:
         self,
         agent_id: str,
         config_request: AgentConfigUpdateRequest,
-        tenant_id: str,
-        registry: Optional[AgentRegistry] = None
+        tenant_id: str
     ) -> AgentOperationResponse:
         """
         更新智能体配置
@@ -432,8 +424,7 @@ class AgentHandler:
     async def activate_agent(
         self,
         agent_id: str,
-        tenant_id: str,
-        registry: Optional[AgentRegistry] = None
+        tenant_id: str
     ) -> AgentOperationResponse:
         """激活智能体"""
         return await self._agent_lifecycle_operation(
@@ -443,8 +434,7 @@ class AgentHandler:
     async def deactivate_agent(
         self,
         agent_id: str,
-        tenant_id: str,
-        registry: Optional[AgentRegistry] = None
+        tenant_id: str
     ) -> AgentOperationResponse:
         """停用智能体"""
         return await self._agent_lifecycle_operation(
@@ -454,8 +444,7 @@ class AgentHandler:
     async def restart_agent(
         self,
         agent_id: str,
-        tenant_id: str,
-        registry: Optional[AgentRegistry] = None
+        tenant_id: str
     ) -> AgentOperationResponse:
         """重启智能体"""
         return await self._agent_lifecycle_operation(
@@ -466,8 +455,7 @@ class AgentHandler:
         self,
         agent_id: str,
         tenant_id: str,
-        operation: str,
-        registry: Optional[AgentRegistry] = None
+        operation: str
     ) -> AgentOperationResponse:
         """执行智能体生命周期操作的内部方法"""
         try:
@@ -518,8 +506,7 @@ class AgentHandler:
     
     async def get_tenant_registry_status(
         self,
-        tenant_id: str,
-        registry: Optional[AgentRegistry] = None
+        tenant_id: str
     ) -> Dict[str, Any]:
         """获取租户智能体注册状态（遗留兼容方法）"""
         try:
