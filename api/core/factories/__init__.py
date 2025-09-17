@@ -20,8 +20,7 @@
 from .agent_factory import (
     create_agent_set,
     create_single_agent,
-    get_available_agent_types,
-    cleanup_tenant_agents
+    get_available_agent_types
 )
 
 # 系统工厂  
@@ -36,7 +35,6 @@ __all__ = [
     "create_agent_set",
     "create_single_agent", 
     "get_available_agent_types",
-    "cleanup_tenant_agents",
     
     # 系统工厂函数
     "get_orchestrator",

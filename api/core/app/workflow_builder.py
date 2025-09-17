@@ -11,8 +11,6 @@
 - 工作流状态管理
 """
 
-from typing import Any
-
 from langgraph.graph import StateGraph
 
 from utils import get_component_logger
@@ -66,37 +64,3 @@ class WorkflowBuilder:
         self.logger.info("工作流图构建完成")
         return compiled_graph
     
-    def get_workflow_info(self) -> dict[str, Any]:
-        """
-        获取工作流配置信息
-        
-        返回:
-            dict[str, Any]: 工作流配置信息
-        """
-        return {
-            "node_count": 7,
-            "nodes": ["compliance_review", "sentiment_analysis", "intent_analysis", "strategy", "sales", "product_expert", "memory"],
-            "entry_point": "compliance_review",
-            "exit_point": "memory",
-            "conditional_routers": ["compliance_router"],
-            "workflow_type": "ChatWorkflow",
-            "component": "WorkflowBuilder"
-        }
-    
-    def get_performance_metrics(self) -> dict[str, Any]:
-        """
-        获取工作流性能指标
-        
-        返回:
-            dict[str, Any]: 性能相关指标
-        """
-        return {
-            "parallel_processing_enabled": True,
-            "max_concurrent_agents": 3,
-            "performance_optimizations": [
-                "parallel_sentiment_intent_analysis",
-                "parallel_product_memory_processing",
-                "async_agent_execution",
-                "conditional_routing_optimization"
-            ]
-        }

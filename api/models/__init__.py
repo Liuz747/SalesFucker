@@ -23,6 +23,11 @@ from .conversation import (
     ThreadOrm,
     Thread
 )
+from .workflow import (
+    WorkflowOrm,
+    WorkflowRun,
+    WorkflowExecutionModel
+)
 
 __all__ = [
     # Enums
@@ -37,5 +42,10 @@ __all__ = [
 
     # Conversation
     "ThreadOrm",
-    "Thread"
+    "Thread",
+
+    # Workflow
+    "WorkflowOrm",
+    "WorkflowRun",
+    "WorkflowExecutionModel"
 ]

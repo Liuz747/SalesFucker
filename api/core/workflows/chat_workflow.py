@@ -9,7 +9,6 @@ from collections.abc import Callable
 
 from langgraph.graph import StateGraph
 
-from core.agents.base import ThreadState
 from core.factories.agent_factory import get_agent
 from libs.constants import WorkflowConstants, StatusConstants
 from .base_workflow import BaseWorkflow
@@ -170,11 +169,11 @@ class ChatWorkflow(BaseWorkflow):
             return self._apply_fallback(state, node_name, None)
         
         try:
-            conversation_state = ThreadState(**state)
-            result_state = await agent.process_conversation(conversation_state)
-            
+            # 直接使用 dict 状态，与新的无兼容策略一致
+            result_state = await agent.process_conversation(state)
+
             self.logger.debug(f"节点处理完成: {node_name}")
-            return result_state.model_dump()
+            return result_state
             
         except Exception as e:
             self.logger.error(f"节点 {node_name} 处理错误: {e}", exc_info=True)
@@ -200,7 +199,7 @@ class ChatWorkflow(BaseWorkflow):
             state["error_state"] = f"{node_name}_unavailable"
             return state
     
-    async def _create_agent_node(self, node_name: str):
+    def _create_agent_node(self, node_name: str):
         """创建智能体节点的通用方法"""
         async def agent_node(state: dict) -> dict:
             return await self._process_agent_node(state, node_name)

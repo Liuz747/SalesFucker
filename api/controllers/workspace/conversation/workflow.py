@@ -12,10 +12,11 @@
 from uuid import UUID, uuid4
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 
-from controllers.dependencies import get_orchestrator_service
+from core.app.orchestrator import get_orchestrator
 from models import ThreadStatus
+from models.workflow import WorkflowRun
 from services import ThreadService
-from schemas.conversation_schema import MessageCreateRequest, WorkflowData
+from schemas.conversation_schema import MessageCreateRequest
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms
 from ..wraps import validate_and_get_tenant_id
 from .background_process import BackgroundWorkflowProcessor
@@ -68,38 +69,41 @@ async def create_run(
                 detail="租户ID不匹配，无法访问此线程"
             )
         
-        # 调用编排器处理对话
+        # 创建工作流执行模型
         start_time = get_current_datetime()
-        
-        # 获取租户专用编排器实例
-        orchestrator = get_orchestrator_service(str(tenant_id))
-        
-        # 使用编排器处理消息 - 这是核心工作流调用
-        result = await orchestrator.process_conversation(
-            customer_input=request.input.content,
-            customer_id=None,  # 客户ID可以从其他地方获取，暂时设为None
-            input_type="text"
+        execution_id = uuid4()
+
+        workflow = WorkflowRun(
+            run_id=execution_id,
+            thread_id=thread_id,
+            assistant_id=request.assistant_id,
+            tenant_id=tenant_id,
+            input=request.input.content,
+            type="text"
         )
+
+        # 获取租户专用编排器实例
+        orchestrator = get_orchestrator()
+
+        # 使用编排器处理消息 - 这是核心工作流调用
+        result = await orchestrator.process_conversation(workflow)
 
         workflow_data = []
         for agent_type, agent_response in result.agent_responses.items():
             workflow_data.append(
-                WorkflowData(
-                    type=agent_type,
-                    content=agent_response
-                )
+                {
+                    "type": agent_type,
+                    "content": agent_response
+                }
             )
-        
+
         processing_time = get_processing_time_ms(start_time)
-        
-        # 生成运行ID
-        workflow_id = uuid4()
-        
-        logger.info(f"运行处理完成 - 线程: {thread_id}, 运行: {workflow_id}, 耗时: {processing_time:.2f}ms")
-        
+
+        logger.info(f"运行处理完成 - 线程: {thread_id}, 执行: {execution_id}, 耗时: {processing_time:.2f}ms")
+
         # 返回标准化响应
         return {
-            "id": workflow_id,
+            "id": result.execution_id,
             "thread_id": thread_id,
             "data": workflow_data,
             "created_at": start_time,
@@ -107,7 +111,8 @@ async def create_run(
             # 元数据
             "metadata": {
                 "tenant_id": tenant_id,
-                "assistant_id": request.assistant_id
+                "assistant_id": request.assistant_id,
+                "execution_id": str(result.execution_id)
             }
         }
         
@@ -175,6 +180,7 @@ async def create_background_run(
             thread_id=thread_id,
             input=request.input,
             assistant_id=request.assistant_id,
+            tenant_id=tenant_id,
             customer_id=None,  # 客户ID可以从其他地方获取，暂时设为None
             input_type="text"
         )

@@ -10,10 +10,11 @@
 - 多租户工作流隔离
 """
 
-from typing import Dict, Any, Optional
+from typing import Any, Optional
 
-from core.agents.base import ThreadState
-from .workflow import WorkflowBuilder
+from models import WorkflowRun, WorkflowExecutionModel
+from core.factories import create_agent_set
+from .workflow_builder import WorkflowBuilder
 from .state_manager import StateManager
 from utils import (
     get_component_logger,
@@ -64,7 +65,6 @@ class Orchestrator:
         
         创建并注册所有必要的智能体。
         """
-        from core.factories.agent_factory import create_agent_set
         
         try:
             # 创建智能体集合
@@ -80,13 +80,7 @@ class Orchestrator:
             self.logger.error(f"智能体初始化失败: {e}", exc_info=True)
             # 不抛出异常，允许编排器继续运行（可能会有部分功能降级）
     
-    async def process_conversation(
-            self, 
-            customer_input: str, 
-            tenant_id: str,
-            customer_id: Optional[str] = None,
-            input_type: str = "text"
-        ) -> Dict[str, Any]:
+    async def process_conversation(self, workflow: WorkflowRun) -> WorkflowExecutionModel:
         """
         处理客户对话的主入口函数
         
@@ -94,99 +88,80 @@ class Orchestrator:
         返回完整的对话处理结果。
         
         参数:
-            customer_input: 客户输入内容
-            tenant_id: 租户标识符
-            customer_id: 可选的客户标识符
-            input_type: 输入类型 (text/voice/image)
+            workflow: 工作流运行
             
         返回:
-            ThreadState: 处理完成的对话状态
+            WorkflowRun: 处理完成的工作流运行
         """
-        # 创建初始对话状态
-        initial_state = self.state_manager.create_initial_state(
-            customer_input, customer_id, input_type, tenant_id
-        )
-        
-        # 验证状态有效性
-        if not self.state_manager.validate_state(initial_state):
-            error_msg = "无效的对话状态"
-            return self.state_manager.create_error_state(
-                initial_state, Exception(error_msg)
-            )
-        
         self.logger.info(
-            f"开始处理对话 - 租户: {tenant_id}, "
-            f"客户: {customer_id}, 输入类型: {input_type}"
+            f"开始处理对话 - 租户: {workflow.tenant_id}, "
+            f"助手: {workflow.assistant_id}, 输入类型: {workflow.type}"
         )
-        
+        start_time = get_current_datetime()
         try:
-            # 执行工作流处理
-            result = await self._execute_workflow(initial_state)
+            # 构建初始工作流状态
+            initial_state = self.state_manager.create_initial_state(workflow)
+
+            # 执行工作流
+            result_dict = await self.graph.ainvoke(initial_state)
+            processing_time = get_processing_time_ms(start_time)
+
+            self.logger.info(
+                f"对话处理完成 - 耗时: {processing_time:.2f}ms, "
+                f"状态: {'成功' if result_dict.get('processing_complete') else '失败'}"
+            )
             
             # Simple Langfuse tracing - just log the conversation
             trace_conversation(
                 input_data={
-                    "customer_input": customer_input,
-                    "customer_id": customer_id,
-                    "input_type": input_type,
-                    "tenant_id": tenant_id
+                    "customer_input": workflow.input,
+                    "input_type": workflow.type,
+                    "tenant_id": workflow.tenant_id
                 },
                 output_data={
-                    "final_response": result.final_response,
-                    "agents_executed": list(result.agent_responses.keys()),
-                    "processing_complete": result.processing_complete
+                    "final_response": result_dict.get("final_response"),
+                    "agents_executed": list(result_dict.get("agent_responses", {}).keys()),
+                    "processing_complete": result_dict.get("processing_complete", False)
                 },
                 metadata={
-                    "tenant_id": tenant_id,
+                    "tenant_id": workflow.tenant_id,
                     "workflow_type": "multi_agent_conversation"
                 }
             )
-            
-            return result
+
+            # 构建执行结果模型（元数据 + 会话结果）
+            execution = WorkflowExecutionModel(
+                execution_id=workflow.run_id,
+                thread_id=workflow.thread_id,
+                assistant_id=workflow.assistant_id,
+                tenant_id=workflow.tenant_id,
+                input_content=workflow.input,
+                input_type=workflow.type,
+                created_at=start_time,
+                final_response=result_dict.get("final_response", ""),
+                processing_complete=result_dict.get("processing_complete", False),
+                agent_responses=result_dict.get("agent_responses", {}),
+            )
+            return execution
             
         except Exception as e:
             self.logger.error(f"对话处理失败: {e}", exc_info=True)
-            return self.state_manager.create_error_state(initial_state, e)
-    
-    async def _execute_workflow(self, initial_state: ThreadState) -> ThreadState:
-        """
-        执行工作流处理
-        
-        参数:
-            initial_state: 初始对话状态
-            
-        返回:
-            ThreadState: 处理完成的对话状态
-        """
-        start_time = get_current_datetime()
-        
-        try:
-            # 将状态转换为字典格式供LangGraph使用
-            state_dict = initial_state.model_dump()
-            
-            # 执行工作流
-            result_dict = await self.graph.ainvoke(state_dict)
-            processing_time = get_processing_time_ms(start_time)
-            
-            # 转换回线程状态对象
-            result = ThreadState(**result_dict)
-            
-            # 更新统计信息
-            self.state_manager.update_completion_stats(result, processing_time)
-            
-            self.logger.info(
-                f"对话处理完成 - 耗时: {processing_time:.2f}ms, "
-                f"状态: {'成功' if result.processing_complete else '失败'}"
+            # 返回统一错误状态
+            # 统一错误时返回执行模型
+            return WorkflowExecutionModel(
+                execution_id=workflow.run_id,
+                thread_id=workflow.thread_id,
+                assistant_id=workflow.assistant_id,
+                tenant_id=workflow.tenant_id,
+                input_content=workflow.input,
+                input_type=workflow.type,
+                created_at=start_time,
+                final_response="系统暂时不可用，请稍后重试。",
+                processing_complete=True,
+                agent_responses={},
             )
-            
-            return result
-            
-        except Exception as e:
-            processing_time = get_processing_time_ms(start_time)
-            self.logger.error(f"工作流执行失败，耗时: {processing_time:.2f}ms, 错误: {e}")
-            raise
     
-    def get_workflow_status(self) -> Dict[str, Any]:
+    def get_workflow_status(self) -> dict[str, Any]:
         """
         获取工作流状态信息
         
@@ -195,33 +170,8 @@ class Orchestrator:
         """
         return {
             "graph_compiled": self.graph is not None,
-            "state_statistics": self.state_manager.get_state_statistics()
         }
     
-    def get_system_health(self) -> Dict[str, Any]:
-        """
-        获取系统健康状态
-        
-        返回:
-            Dict[str, Any]: 系统健康状态信息
-        """
-        # 获取状态管理器健康状态
-        state_health = self.state_manager.get_health_status()
-        
-        return {
-            "status": "healthy" if self.graph is not None else "critical",
-            "workflow_compiled": self.graph is not None,
-            "state_manager_health": state_health
-        }
-    
-    def reset_statistics(self):
-        """
-        重置所有统计信息
-        """
-        self.state_manager.reset_statistics()
-        self.logger.info("编排器统计信息已重置")
-    
-
 
 # 全局编排器实例管理
 _orchestrator_instance: Optional[Orchestrator] = None
@@ -248,5 +198,4 @@ def shutdown_orchestrator():
     global _orchestrator_instance
     
     if _orchestrator_instance is not None:
-        _orchestrator_instance.reset_statistics()
         _orchestrator_instance = None 
