@@ -1,233 +1,39 @@
-"""
-API异常处理模块
+from collections.abc import Mapping
 
-该模块定义了API层的自定义异常类，提供标准化的错误响应格式。
-
-核心功能:
-- 统一异常格式
-- 错误代码标准化
-- 多语言错误消息支持
-- 异常链追踪
-"""
-
-from typing import Optional, Dict, Any
-from datetime import datetime
-from fastapi import HTTPException
+from starlette.exceptions import HTTPException
 
 
-class APIException(Exception):
+class BaseHTTPException(HTTPException):
     """
-    API基础异常类
-    
-    提供标准化的API错误响应格式，包含错误代码、消息、详细信息和时间戳。
+    HTTP异常基类
+
+    继承Starlette的HTTPException，提供标准化的HTTP错误响应格式。
+    所有需要返回HTTP错误响应的异常都应该继承此类。
+
+    属性:
+        error_code: 业务错误代码，子类应该重写此属性
+        error_message: 错误描述，子类应该重写此属性
+        data: 结构化的错误响应数据
+
+    用法示例:
+        class AgentNotFound(BaseHTTPException):
+            error_code = 10011
+            error_message = "AGENT_NOT_FOUND"
+            status_code = 404
+
+            def __init__(self, agent_id: str):
+                super().__init__(detail=f"智能体 {agent_id} 不存在")
     """
-    
-    def __init__(
-        self,
-        status_code: int,
-        error_code: str,
-        message: str,
-        details: Optional[Dict[str, Any]] = None,
-        original_exception: Optional[Exception] = None
-    ):
-        """
-        初始化API异常
-        
-        参数:
-            status_code: HTTP状态码
-            error_code: 业务错误代码
-            message: 错误消息
-            details: 详细错误信息
-            original_exception: 原始异常（用于异常链）
-        """
-        self.status_code = status_code
-        self.error_code = error_code
-        self.message = message
-        self.details = details or {}
-        self.original_exception = original_exception
-        self.timestamp = datetime.now()
-        
-        super().__init__(message)
+    error_code: int = 200
+    error_message: str = "SUCCESS"
+    http_status_code: int = 500
+    data: dict | None = None
 
+    def __init__(self, detail: str | None = None, headers: Mapping[str, str] | None = None):
+        super().__init__(self.http_status_code, detail, headers)
 
-class ValidationException(APIException):
-    """请求参数验证异常"""
-    
-    def __init__(self, message: str = "请求参数验证失败", details: Optional[Dict[str, Any]] = None):
-        super().__init__(
-            status_code=400,
-            error_code="VALIDATION_ERROR",
-            message=message,
-            details=details
-        )
-
-
-class AgentNotFoundException(APIException):
-    """智能体未找到异常"""
-    
-    def __init__(self, agent_id: str):
-        super().__init__(
-            status_code=404,
-            error_code="AGENT_NOT_FOUND",
-            message=f"智能体 {agent_id} 不存在",
-            details={"agent_id": agent_id}
-        )
-
-
-class AgentUnavailableException(APIException):
-    """智能体不可用异常"""
-    
-    def __init__(self, agent_id: str, reason: str = "智能体服务暂时不可用"):
-        super().__init__(
-            status_code=503,
-            error_code="AGENT_UNAVAILABLE",
-            message=reason,
-            details={"agent_id": agent_id}
-        )
-
-
-class TenantAccessDeniedException(APIException):
-    """租户访问拒绝异常"""
-    
-    def __init__(self, tenant_id: str, resource: str = "资源"):
-        super().__init__(
-            status_code=403,
-            error_code="TENANT_ACCESS_DENIED",
-            message=f"租户 {tenant_id} 无权访问{resource}",
-            details={"tenant_id": tenant_id, "resource": resource}
-        )
-
-
-class LLMProviderException(APIException):
-    """LLM提供商异常"""
-    
-    def __init__(self, provider_name: str, message: str = "LLM提供商服务异常"):
-        super().__init__(
-            status_code=502,
-            error_code="LLM_PROVIDER_ERROR",
-            message=message,
-            details={"provider": provider_name}
-        )
-
-
-class ConversationException(APIException):
-    """对话处理异常"""
-    
-    def __init__(self, message: str = "对话处理失败", thread_id: Optional[str] = None):
-        details = {}
-        if thread_id:
-            details["thread_id"] = thread_id
-            
-        super().__init__(
-            status_code=500,
-            error_code="CONVERSATION_ERROR",
-            message=message,
-            details=details
-        )
-
-
-class ProcessingException(APIException):
-    """处理异常"""
-    
-    def __init__(self, message: str = "处理失败", details: Optional[Dict[str, Any]] = None):
-        super().__init__(
-            status_code=500,
-            error_code="PROCESSING_ERROR",
-            message=message,
-            details=details or {}
-        )
-
-
-class MultimodalProcessingException(APIException):
-    """多模态处理异常"""
-    
-    def __init__(self, processing_type: str, message: str = "多模态处理失败"):
-        super().__init__(
-            status_code=500,
-            error_code="MULTIMODAL_PROCESSING_ERROR",
-            message=message,
-            details={"processing_type": processing_type}
-        )
-
-
-class RateLimitExceededException(APIException):
-    """速率限制超出异常"""
-    
-    def __init__(self, limit: int, window_seconds: int):
-        super().__init__(
-            status_code=429,
-            error_code="RATE_LIMIT_EXCEEDED",
-            message=f"请求频率超限：{limit}次/{window_seconds}秒",
-            details={"limit": limit, "window_seconds": window_seconds}
-        )
-
-
-class SafetyViolationException(APIException):
-    """安全策略违规异常"""
-    
-    def __init__(self, violation_type: str, message: str = "内容违反安全策略"):
-        super().__init__(
-            status_code=400,
-            error_code="SAFETY_VIOLATION",
-            message=message,
-            details={"violation_type": violation_type}
-        )
-
-
-class SystemMaintenanceException(APIException):
-    """系统维护异常"""
-    
-    def __init__(self, estimated_restore_time: Optional[str] = None):
-        message = "系统正在维护中"
-        if estimated_restore_time:
-            message += f"，预计恢复时间：{estimated_restore_time}"
-            
-        super().__init__(
-            status_code=503,
-            error_code="SYSTEM_MAINTENANCE",
-            message=message,
-            details={"estimated_restore_time": estimated_restore_time}
-        )
-
-
-# 异常映射字典，用于将内部异常转换为API异常
-EXCEPTION_MAPPING = {
-    "AgentNotFound": AgentNotFoundException,
-    "AgentUnavailable": AgentUnavailableException,
-    "TenantAccessDenied": TenantAccessDeniedException,
-    "LLMProviderError": LLMProviderException,
-    "ConversationError": ConversationException,
-    "MultimodalProcessingError": MultimodalProcessingException,
-    "RateLimitExceeded": RateLimitExceededException,
-    "SafetyViolation": SafetyViolationException,
-    "SystemMaintenance": SystemMaintenanceException,
-}
-
-
-def map_internal_exception(exc: Exception) -> APIException:
-    """
-    将内部异常映射为API异常
-    
-    参数:
-        exc: 内部异常
-        
-    返回:
-        APIException: 对应的API异常
-    """
-    exc_name = exc.__class__.__name__
-    
-    if exc_name in EXCEPTION_MAPPING:
-        exception_class = EXCEPTION_MAPPING[exc_name]
-        # 尝试从原始异常中提取参数
-        if hasattr(exc, 'args') and exc.args:
-            return exception_class(exc.args[0])
-        else:
-            return exception_class()
-    
-    # 默认返回通用API异常
-    return APIException(
-        status_code=500,
-        error_code="INTERNAL_ERROR",
-        message="服务器内部错误",
-        original_exception=exc
-    )
+        self.data = {
+            "code": self.error_code,
+            "error": self.error_message,
+            "message": self.detail
+        }

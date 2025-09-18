@@ -1,9 +1,15 @@
-from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, Field
 
 from models.enums import TenantStatus
+from schemas.responses import BaseResponse
+
+
+class BaseTenant(BaseModel):
+    tenant_id: str = Field(description="租户ID")
+    tenant_name: Optional[str] = Field(None, description="租户名称")
+    status: TenantStatus = Field(default=TenantStatus.ACTIVE, description="租户状态")
 
 
 class FeatureFlags(BaseModel):
@@ -15,10 +21,7 @@ class FeatureFlags(BaseModel):
     enabled_features: Optional[bool] = Field(default_factory=bool, description="启用的功能列表")
 
 
-class TenantSyncRequest(BaseModel):
-    tenant_id: str = Field(description="租户ID")
-    tenant_name: str = Field(description="租户名称")
-    status: TenantStatus = Field(default=TenantStatus.ACTIVE, description="状态：1-活跃，0-禁用")
+class TenantSyncRequest(BaseTenant):
     industry: Optional[str] = Field(description="行业类型：1-美容诊所，2-化妆品公司等")
     area_id: Optional[str] = Field(description="地区ID")
     creator: Optional[int] = Field(description="创建者ID")
@@ -26,21 +29,17 @@ class TenantSyncRequest(BaseModel):
     features: Optional[FeatureFlags] = Field(default=None, description="启用的功能")
 
 
-class TenantUpdateRequest(BaseModel):
+class TenantUpdateRequest(BaseTenant):
     features: Optional[dict[str, bool]] = Field(None, description="功能列表")
-    status: Optional[TenantStatus] = Field(None, description="状态：1-活跃，0-禁用")
 
 
-class TenantSyncResponse(BaseModel):
-    tenant_id: str
-    message: str
-    synced_at: datetime
-    features_enabled: Optional[FeatureFlags] = None
+class TenantSyncResponse(BaseResponse, BaseTenant):
+    features: Optional[FeatureFlags] = Field(None, description="启用的功能")
 
 
-class TenantStatusResponse(BaseModel):
-    tenant_id: str
-    tenant_name: Optional[str] = None
-    status: TenantStatus
-    updated_at: Optional[datetime] = None
+class TenantStatusResponse(BaseResponse, BaseTenant):
+    pass
 
+
+class TenantDeleteResponse(BaseResponse, BaseTenant):
+    is_active: bool = Field(description="是否删除成功")

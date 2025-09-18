@@ -18,7 +18,7 @@ from utils import get_current_datetime, to_isoformat
 from infra.auth import get_service_context, require_service_scopes, ServiceContext, key_manager
 
 
-router = APIRouter(prefix="/auth", tags=["auth"])
+router = APIRouter()
 
 
 @router.post("/token")

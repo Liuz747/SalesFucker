@@ -17,7 +17,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 import json
 
-from src.llm.cost_optimizer.models import (
+from core.llm.cost_optimizer.models import (
     CostRecord, UsageMetrics, CostBreakdown, 
     OptimizationOpportunity, BudgetStatus
 )

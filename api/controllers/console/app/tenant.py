@@ -1,154 +1,114 @@
 """
-Tenant Management Endpoints
+租户管理
 
-These endpoints are used by the backend system to sync tenant information
-and public keys to the AI service. Only accessible with admin API keys.
+这些端点由后端系统用于同步租户信息到AI服务。
+仅允许使用管理API密钥访问。
 
-Flow:
-Backend System → POST /tenants/{tenant_id}/sync → AI Service
+流程:
+后端系统 → POST /tenants/{tenant_id}/sync → AI服务
 """
 
 from fastapi import APIRouter
 
-from legacy_api.schemas import resp_code, SimpleResponse
-from models import Tenant
+from schemas.tenant_schema import (
+    TenantSyncRequest,
+    TenantSyncResponse,
+    TenantStatusResponse,
+    TenantUpdateRequest,
+    TenantDeleteResponse,
+    TenantStatus
+)
+from ..error import (
+    TenantManagementException,
+    TenantNotFoundException,
+    TenantSyncException,
+    TenantAlreadyExistsException
+)
+from models import TenantModel
 from services import TenantService
-from utils import get_component_logger, get_current_datetime
-from schemas.tenant_schema import TenantSyncRequest, TenantSyncResponse, TenantStatusResponse, TenantUpdateRequest
+from utils import get_component_logger
 
 logger = get_component_logger(__name__, "TenantEndpoints")
 
-# Create router with prefix
-router = APIRouter(prefix="/tenants", tags=["tenant"])
+router = APIRouter()
 
-@router.post("/{tenant_id}/sync", response_model=SimpleResponse[TenantSyncResponse])
-async def sync_tenant(
-    tenant_id: str,
-    request: TenantSyncRequest
-):
+@router.post("/sync", response_model=TenantSyncResponse)
+async def sync_tenant(request: TenantSyncRequest):
     """
-    Sync tenant from backend system to AI service
+    从后端系统同步租户到AI服务
     """
     try:
-        logger.info(f"Backend tenant sync request: {tenant_id} \n param: {request}")
+        logger.info(f"后端租户同步请求: {request.tenant_id}")
 
-        # Validate tenant_id matches request
-        if request.tenant_id != tenant_id:
-            return SimpleResponse(
-                code=resp_code.tenant_id_not_equal_resp.code,
-                message=resp_code.tenant_id_not_equal_resp.message
-            )
-        # Sync tenant to AI service database
-        try:
-            tenant = Tenant(
-                tenant_id=request.tenant_id,
-                tenant_name=request.tenant_name,
-                industry=request.industry,
-                area_id=request.area_id,
-                creator=request.creator,
-                company_size=request.company_size,
-                feature_flags=request.features.model_dump()
-            )
-            flag = await TenantService.create_tenant(tenant)
-            
-            if flag:
-                logger.info(f"租户配置已更新: {request.tenant_id}")
-            else:
-                logger.error(f"保存租户配置失败: {request.tenant_id}")
-                raise ValueError(f"Failed to save tenant configuration for {request.tenant_id}")
-            
-            return SimpleResponse[TenantSyncResponse](
-                code=0,
-                message="success",
-                data=TenantSyncResponse(
-                    tenant_id=tenant_id,
-                    message="Tenant synced successfully",
-                    synced_at=get_current_datetime(),
-                    features_enabled=request.features
-                )
-            )
-
-        except Exception as e:
-            logger.error(f"获取或保存租户配置失败: {request.tenant_id}, 错误: {e}")
-            return SimpleResponse(
-                code=resp_code.internal_server_error_resp.code,
-                message=resp_code.internal_server_error_resp.message,
-                request_id=""
-            )
-
-    except ValueError as e:
-        logger.warning(f"Invalid tenant sync data: {e}")
-        return SimpleResponse(
-            code=resp_code.value_err_resp.code,
-            message=str(e)
+        tenant = TenantModel(
+            tenant_id=request.tenant_id,
+            tenant_name=request.tenant_name,
+            industry=request.industry,
+            area_id=request.area_id,
+            creator=request.creator,
+            company_size=request.company_size,
+            features=request.features.model_dump()
         )
+        tenant = await TenantService.create_tenant(tenant)
+        
+        if not tenant:
+            logger.error(f"保存租户配置失败: {request.tenant_id}")
+            raise TenantSyncException(request.tenant_id, "Failed to save tenant configuration")
+        
+        logger.info(f"租户配置已保存: {tenant.tenant_id}")
+
+        return TenantSyncResponse(
+            tenant_id=tenant.tenant_id,
+            tenant_name=tenant.tenant_name,
+            message="租户同步成功",
+            features=tenant.features
+        )
+
+    except TenantAlreadyExistsException:
+        raise
     except Exception as e:
-        error_msg = str(e).lower()
-        logger.error(f"Tenant sync failed for {tenant_id}: {e}", exc_info=True)
-
-        # Provide specific error messages for database issues
-        if "connection" in error_msg or "database" in error_msg:
-            return SimpleResponse(
-                code=resp_code.database_not_available_resp.code,
-                message=f"Database not available: {str(e)}"
-            )
-        else:
-            return SimpleResponse(
-                code=resp_code.internal_server_error_resp.code,
-                message=f"Tenant sync failed: {str(e)}"
-            )
+        logger.error(f"租户同步失败 {request.tenant_id}: {e}", exc_info=True)
+        raise TenantSyncException(request.tenant_id, str(e))
 
 
-@router.get("/{tenant_id}/status", response_model=SimpleResponse[TenantStatusResponse])
+@router.get("/{tenant_id}/status", response_model=TenantStatusResponse)
 async def get_tenant_status(tenant_id: str):
-    """
-    Get tenant status
-    """
+    """获取租户状态"""
     try:
-        logger.info(f"Tenant status request: {tenant_id}")
-        
+        logger.info(f"租户状态请求: {tenant_id}")
+
         tenant = await TenantService.query_tenant(tenant_id)
-        
+
         if tenant:
-            return SimpleResponse[TenantStatusResponse](
-                code=0,
-                message="success",
-                data=TenantStatusResponse(
-                    tenant_id=tenant.tenant_id,
-                    tenant_name=tenant.tenant_name,
-                    status=tenant.status,
-                    updated_at=tenant.updated_at
-                )
+            return TenantStatusResponse(
+                tenant_id=tenant.tenant_id,
+                tenant_name=tenant.tenant_name,
+                status=tenant.status,
+                message="租户状态获取成功"
             )
         else:
-            return SimpleResponse(
-                code=resp_code.missing_resp.code,
-                message=f"Tenant {tenant_id} not found in AI service"
-            )
+            raise TenantNotFoundException(tenant_id)
+    except TenantNotFoundException:
+        raise
     except Exception as e:
-        logger.error(f"Get tenant status failed for {tenant_id}: {e}", exc_info=True)
-        return SimpleResponse(
-            code=resp_code.internal_server_error_resp.code,
-            message="Failed to retrieve tenant status"
-        )
+        logger.error(f"获取租户状态失败 {tenant_id}: {e}", exc_info=True)
+        raise TenantManagementException
 
 
-@router.put("/{tenant_id}", response_model=SimpleResponse[TenantSyncResponse])
+@router.put("/{tenant_id}", response_model=TenantSyncResponse)
 async def update_tenant(
     tenant_id: str,
     request: TenantUpdateRequest,
 ):
-    """
-    Update tenant information
-    """
+    """更新租户信息"""
     try:
-        logger.info(f"Tenant update request: {tenant_id}")
+        logger.info(f"租户更新请求: {tenant_id}")
         
         existing_tenant = await TenantService.query_tenant(tenant_id)
         if not existing_tenant:
-            raise ValueError(f"Tenant {tenant_id} not found")
+            raise TenantNotFoundException(tenant_id)
         
-        tenant = Tenant(
+        tenant = TenantModel(
             tenant_id=tenant_id,
             tenant_name=request.tenant_name,
             status=request.status,
@@ -156,7 +116,7 @@ async def update_tenant(
             area_id=request.area_id,
             creator=request.creator,
             company_size=request.company_size,
-            feature_flags=request.features.model_dump()
+            features=request.features.model_dump() if request.features else None
         )
         flag = await TenantService.update_tenant(tenant)
         
@@ -164,67 +124,40 @@ async def update_tenant(
             logger.info(f"租户配置已更新: {tenant_id}")
         else:
             logger.error(f"保存租户配置失败: {tenant_id}")
-            raise ValueError(f"获取或更新租户配置失败: {tenant_id}")
+            raise TenantSyncException(tenant_id, "更新租户配置失败")
 
-        return SimpleResponse[TenantSyncResponse](
-            code=0,
-            message="success",
-            handler_process_time=get_current_datetime(),
-            data=TenantSyncResponse(
-                tenant_id=tenant_id,
-                message="Tenant updated successfully",
-                features_enabled=request.features,
-                synced_at=get_current_datetime()
-            )
+        return TenantSyncResponse(
+            tenant_id=tenant_id,
+            tenant_name=request.tenant_name,
+            status=request.status,
+            message="租户更新成功",
+            features=request.features
         )
 
-    except ValueError as e:
-        logger.warning(f"Invalid tenant update data: {e}")
-        return SimpleResponse(
-            code=resp_code.value_err_resp.code,
-            message=str(e)
-        )
     except Exception as e:
-        logger.error(f"Tenant update failed for {tenant_id}: {e}", exc_info=True)
-        return SimpleResponse(
-            code=resp_code.internal_server_error_resp.code,
-            message="Tenant update failed"
-        )
+        logger.error(f"租户更新失败 {tenant_id}: {e}", exc_info=True)
+        raise TenantSyncException(tenant_id, f"租户更新失败: {str(e)}")
 
 
-@router.delete("/{tenant_id}", response_model=SimpleResponse[bool])
+@router.delete("/{tenant_id}", response_model=TenantDeleteResponse)
 async def delete_tenant(tenant_id: str):
-    """
-    Delete tenant from AI service
-    """
+    """删除租户"""
     try:
-        logger.info(f"Tenant deletion request: {tenant_id},")
+        logger.info(f"租户删除请求: {tenant_id}")
         
         flag = await TenantService.delete_tenant(tenant_id)
         
         if not flag:
             logger.error(f"删除租户失败: {tenant_id}")
-            return SimpleResponse[bool](
-                code=resp_code.internal_server_error_resp.code,
-                message=f"Failed to delete tenant: {tenant_id}",
-                data=False,
-            )
-        return SimpleResponse[bool](
-            code=0,
-            message="success",
-            data=True,
-            handler_process_time=get_current_datetime().isoformat()
+            raise TenantSyncException(tenant_id, "删除租户失败")
+            
+        return TenantDeleteResponse(
+            tenant_id=tenant_id,
+            status=TenantStatus.CLOSED,
+            is_active=False,
+            message="租户删除成功"
         )
 
-    except ValueError as e:
-        logger.warning(f"Tenant deletion validation error: {e}")
-        return SimpleResponse[bool](
-            code=resp_code.value_err_resp.code,
-            message=f"Tenant deletion validation error: {e}",
-        )
     except Exception as e:
-        logger.error(f"Tenant deletion failed for {tenant_id}: {e}", exc_info=True)
-        return SimpleResponse[bool](
-            code=resp_code.internal_server_error_resp.code,
-            message=f"Tenant deletion failed for {tenant_id}"
-        )
+        logger.error(f"租户删除失败 {tenant_id}: {e}", exc_info=True)
+        raise TenantSyncException(tenant_id, f"租户删除失败: {str(e)}")

@@ -256,7 +256,7 @@ class TestUnifiedBaseAgentArchitecture:
     def test_unified_base_agent_import(self):
         """确认统一BaseAgent导入正常工作"""
         try:
-            from src.agents.base import BaseAgent
+            from core.agents.base import BaseAgent
             # Note: Intelligent routing simplified in new system
             from infra.runtimes.config import LLMConfig
 from infra.runtimes.entities.providers import ProviderType
@@ -268,7 +268,7 @@ from infra.runtimes.entities.providers import ProviderType
     
     def test_base_agent_mas_llm_features(self):
         """测试BaseAgent的MAS多LLM功能"""
-        from src.agents.base import BaseAgent
+        from core.agents.base import BaseAgent
         # Note: Intelligent routing simplified in new system
         
         # MAS架构：所有智能体都具备LLM能力
@@ -296,8 +296,8 @@ from infra.runtimes.entities.providers import ProviderType
     
     def test_mas_agent_preference_loading(self):
         """测试MAS智能体偏好配置加载"""
-        from src.agents.base import BaseAgent
-        from src.llm.agent_preferences import get_agent_preferences
+        from core.agents.base import BaseAgent
+        from core.llm.agent_preferences import get_agent_preferences
         
         # 测试智能体类型配置自动加载
         compliance_agent = BaseAgent(
@@ -346,7 +346,7 @@ from infra.runtimes.entities.providers import ProviderType
             # Note: Cost optimization removed in simplified system
             
             # 测试新的统一架构
-            from src.agents.base import BaseAgent
+            from core.agents.base import BaseAgent
             
             # 如果能导入说明整合成功
             assert True

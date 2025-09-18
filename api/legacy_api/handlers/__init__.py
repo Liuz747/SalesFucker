@@ -10,10 +10,8 @@ API业务逻辑处理器模块
 - multimodal_handler.py: 多模态处理业务逻辑
 """
 
-from .agent_handler import AgentHandler
 from .multimodal_handler import MultimodalHandler
 
 __all__ = [
-    "AgentHandler",
     "MultimodalHandler"
 ]

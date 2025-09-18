@@ -15,8 +15,8 @@
 from typing import Dict, Any, Optional
 import asyncio
 from datetime import datetime
+from fastapi import HTTPException
 
-from src.agents import agent_registry, AgentRegistry
 from utils import get_component_logger
 from ..schemas.agents import (
     AgentTestRequest,
@@ -29,11 +29,6 @@ from ..schemas.agents import (
     AgentOperationResponse
 )
 from ..schemas.requests import PaginationRequest
-from controllers.exceptions import (
-    AgentNotFoundException,
-    AgentUnavailableException,
-    ValidationException
-)
 
 logger = get_component_logger(__name__, "AgentHandler")
 
@@ -43,15 +38,13 @@ class AgentHandler:
     
     def __init__(self):
         """初始化处理器"""
-        self.registry = agent_registry
         self.logger = logger
     
     async def list_agents(
         self,
         tenant_id: str,
         pagination: PaginationRequest,
-        filters: Optional[Dict[str, Any]] = None,
-        registry: Optional[AgentRegistry] = None
+        filters: Optional[Dict[str, Any]] = None
     ) -> AgentListResponse:
         """
         获取智能体列表
@@ -125,13 +118,12 @@ class AgentHandler:
             
         except Exception as e:
             self.logger.error(f"获取智能体列表失败: {e}", exc_info=True)
-            raise ValidationException(f"获取智能体列表失败: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"获取智能体列表失败: {str(e)}")
     
     async def get_agent_status(
         self,
         agent_id: str,
-        tenant_id: str,
-        registry: Optional[AgentRegistry] = None
+        tenant_id: str
     ) -> AgentStatusResponse:
         """
         获取特定智能体的状态
@@ -150,11 +142,11 @@ class AgentHandler:
             # 查找智能体
             agent = used_registry.agents.get(agent_id)
             if not agent:
-                raise AgentNotFoundException(agent_id)
+                raise HTTPException(status_code=404, detail=f"智能体 {agent_id} 不存在")
             
             # 验证租户权限
             if agent.tenant_id != tenant_id:
-                raise AgentNotFoundException(agent_id)
+                raise HTTPException(status_code=404, detail=f"智能体 {agent_id} 不存在")
             
             return AgentStatusResponse(
                 agent_id=agent.agent_id,
@@ -173,18 +165,17 @@ class AgentHandler:
                 recent_errors=agent.processing_stats.get("recent_errors", [])
             )
             
-        except AgentNotFoundException:
+        except HTTPException:
             raise
         except Exception as e:
             self.logger.error(f"获取智能体状态失败 {agent_id}: {e}", exc_info=True)
-            raise ValidationException(f"获取智能体状态失败: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"获取智能体状态失败: {str(e)}")
     
     async def test_agent(
         self,
         agent_id: str,
         test_request: AgentTestRequest,
-        tenant_id: str,
-        registry: Optional[AgentRegistry] = None
+        tenant_id: str
     ) -> AgentTestResponse:
         """
         测试特定智能体
@@ -204,15 +195,15 @@ class AgentHandler:
             # 查找智能体
             agent = used_registry.agents.get(agent_id)
             if not agent:
-                raise AgentNotFoundException(agent_id)
+                raise HTTPException(status_code=404, detail=f"智能体 {agent_id} 不存在")
             
             # 验证租户权限
             if agent.tenant_id != tenant_id:
-                raise AgentNotFoundException(agent_id)
+                raise HTTPException(status_code=404, detail=f"智能体 {agent_id} 不存在")
             
             # 检查智能体是否可用
             if not agent.is_active:
-                raise AgentUnavailableException(agent_id)
+                raise HTTPException(status_code=503, detail=f"智能体 {agent_id} 服务暂时不可用")
             
             # 执行测试
             start_time = datetime.now()
@@ -277,17 +268,16 @@ class AgentHandler:
                     }
                 )
                 
-        except (AgentNotFoundException, AgentUnavailableException):
+        except HTTPException:
             raise
         except Exception as e:
             self.logger.error(f"智能体测试失败 {agent_id}: {e}", exc_info=True)
-            raise ValidationException(f"智能体测试失败: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"智能体测试失败: {str(e)}")
     
     async def batch_test_agents(
         self,
         batch_request: AgentBatchTestRequest,
-        tenant_id: str,
-        registry: Optional[AgentRegistry] = None
+        tenant_id: str
     ) -> AgentBatchTestResponse:
         """
         批量测试多个智能体
@@ -364,14 +354,13 @@ class AgentHandler:
             
         except Exception as e:
             self.logger.error(f"批量测试失败: {e}", exc_info=True)
-            raise ValidationException(f"批量测试失败: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"批量测试失败: {str(e)}")
     
     async def _single_agent_test(
         self,
         agent_id: str,
         test_request: AgentTestRequest,
-        tenant_id: str,
-        registry: Optional[AgentRegistry] = None
+        tenant_id: str
     ) -> AgentTestResponse:
         """执行单个智能体测试的内部方法"""
         return await self.test_agent(agent_id, test_request, tenant_id, registry)
@@ -380,8 +369,7 @@ class AgentHandler:
         self,
         agent_id: str,
         config_request: AgentConfigUpdateRequest,
-        tenant_id: str,
-        registry: Optional[AgentRegistry] = None
+        tenant_id: str
     ) -> AgentOperationResponse:
         """
         更新智能体配置
@@ -401,11 +389,11 @@ class AgentHandler:
             # 查找智能体
             agent = used_registry.agents.get(agent_id)
             if not agent:
-                raise AgentNotFoundException(agent_id)
+                raise HTTPException(status_code=404, detail=f"智能体 {agent_id} 不存在")
             
             # 验证租户权限
             if agent.tenant_id != tenant_id:
-                raise AgentNotFoundException(agent_id)
+                raise HTTPException(status_code=404, detail=f"智能体 {agent_id} 不存在")
             
             # 更新配置
             if hasattr(agent, 'update_config'):
@@ -427,17 +415,16 @@ class AgentHandler:
                 }
             )
             
-        except AgentNotFoundException:
+        except HTTPException:
             raise
         except Exception as e:
             self.logger.error(f"更新智能体配置失败 {agent_id}: {e}", exc_info=True)
-            raise ValidationException(f"更新智能体配置失败: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"更新智能体配置失败: {str(e)}")
     
     async def activate_agent(
         self,
         agent_id: str,
-        tenant_id: str,
-        registry: Optional[AgentRegistry] = None
+        tenant_id: str
     ) -> AgentOperationResponse:
         """激活智能体"""
         return await self._agent_lifecycle_operation(
@@ -447,8 +434,7 @@ class AgentHandler:
     async def deactivate_agent(
         self,
         agent_id: str,
-        tenant_id: str,
-        registry: Optional[AgentRegistry] = None
+        tenant_id: str
     ) -> AgentOperationResponse:
         """停用智能体"""
         return await self._agent_lifecycle_operation(
@@ -458,8 +444,7 @@ class AgentHandler:
     async def restart_agent(
         self,
         agent_id: str,
-        tenant_id: str,
-        registry: Optional[AgentRegistry] = None
+        tenant_id: str
     ) -> AgentOperationResponse:
         """重启智能体"""
         return await self._agent_lifecycle_operation(
@@ -470,8 +455,7 @@ class AgentHandler:
         self,
         agent_id: str,
         tenant_id: str,
-        operation: str,
-        registry: Optional[AgentRegistry] = None
+        operation: str
     ) -> AgentOperationResponse:
         """执行智能体生命周期操作的内部方法"""
         try:
@@ -480,11 +464,11 @@ class AgentHandler:
             # 查找智能体
             agent = used_registry.agents.get(agent_id)
             if not agent:
-                raise AgentNotFoundException(agent_id)
+                raise HTTPException(status_code=404, detail=f"智能体 {agent_id} 不存在")
             
             # 验证租户权限
             if agent.tenant_id != tenant_id:
-                raise AgentNotFoundException(agent_id)
+                raise HTTPException(status_code=404, detail=f"智能体 {agent_id} 不存在")
             
             # 执行操作
             if operation == "activate":
@@ -499,7 +483,7 @@ class AgentHandler:
                 agent.is_active = True
                 message = f"智能体 {agent_id} 已重启"
             else:
-                raise ValidationException(f"不支持的操作: {operation}")
+                raise HTTPException(status_code=400, detail=f"不支持的操作: {operation}")
             
             return AgentOperationResponse(
                 operation_id=f"{operation}_{agent_id}_{int(datetime.now().timestamp())}",
@@ -514,16 +498,15 @@ class AgentHandler:
                 }
             )
             
-        except (AgentNotFoundException, ValidationException):
+        except HTTPException:
             raise
         except Exception as e:
             self.logger.error(f"智能体 {operation} 操作失败 {agent_id}: {e}", exc_info=True)
-            raise ValidationException(f"智能体 {operation} 操作失败: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"智能体 {operation} 操作失败: {str(e)}")
     
     async def get_tenant_registry_status(
         self,
-        tenant_id: str,
-        registry: Optional[AgentRegistry] = None
+        tenant_id: str
     ) -> Dict[str, Any]:
         """获取租户智能体注册状态（遗留兼容方法）"""
         try:
@@ -554,4 +537,4 @@ class AgentHandler:
             
         except Exception as e:
             self.logger.error(f"获取租户注册状态失败 {tenant_id}: {e}", exc_info=True)
-            raise ValidationException(f"获取租户注册状态失败: {str(e)}")
+            raise HTTPException(status_code=400, detail=f"获取租户注册状态失败: {str(e)}")

@@ -35,7 +35,6 @@ class ThreadCreateRequest(BaseModel):
     """线程创建请求模型"""
     
     thread_id: Optional[UUID] = Field(None, description="线程标识符")
-    metadata: Optional[ThreadMetadata] = Field(None, description="线程元数据")
 
 
 class MessageCreateRequest(BaseModel):

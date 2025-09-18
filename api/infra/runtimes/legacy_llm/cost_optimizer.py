@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 
 from .base_provider import LLMRequest, LLMResponse
 from .provider_config import ProviderType, CostConfig
-from utils import get_component_logger, ErrorHandler
+from utils import get_component_logger
 
 
 # 集成的数据模型 (原 models.py)
@@ -93,7 +93,6 @@ class CostOptimizer:
     def __init__(self):
         """初始化成本优化器"""
         self.logger = get_component_logger(__name__, "CostOptimizer")
-        self.error_handler = ErrorHandler("cost_optimizer")
         
         # 预算告警状态 (集成 BudgetMonitor 功能)
         self.budget_alerts: Dict[str, Dict[str, bool]] = defaultdict(dict)
@@ -232,7 +231,8 @@ class CostOptimizer:
             )
             
         except Exception as e:
-            self.error_handler.handle_error(e, {
+            self.logger.error(f"Error occurred: {e}", exc_info=True)
+            # Context: {
                 "request_id": request.request_id,
                 "provider_type": provider_type,
                 "operation": "record_cost"
@@ -356,7 +356,8 @@ class CostOptimizer:
             return analysis
             
         except Exception as e:
-            self.error_handler.handle_error(e, {
+            self.logger.error(f"Error occurred: {e}", exc_info=True)
+            # Context: {
                 "tenant_id": tenant_id,
                 "start_time": start_time.isoformat() if start_time else None,
                 "end_time": end_time.isoformat() if end_time else None,
@@ -405,7 +406,8 @@ class CostOptimizer:
             return suggestions
             
         except Exception as e:
-            self.error_handler.handle_error(e, {
+            self.logger.error(f"Error occurred: {e}", exc_info=True)
+            # Context: {
                 "tenant_id": tenant_id,
                 "min_savings": min_savings,
                 "operation": "get_optimization_suggestions"

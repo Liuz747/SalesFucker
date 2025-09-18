@@ -17,11 +17,16 @@ from .enums import (
 )
 from .tenant import (
     TenantOrm,
-    Tenant
+    TenantModel
 )
 from .conversation import (
     ThreadOrm,
     Thread
+)
+from .workflow import (
+    WorkflowOrm,
+    WorkflowRun,
+    WorkflowExecutionModel
 )
 
 __all__ = [
@@ -33,9 +38,14 @@ __all__ = [
 
     # Tenant
     "TenantOrm",
-    "Tenant",
+    "TenantModel",
 
     # Conversation
     "ThreadOrm",
-    "Thread"
+    "Thread",
+
+    # Workflow
+    "WorkflowOrm",
+    "WorkflowRun",
+    "WorkflowExecutionModel"
 ]

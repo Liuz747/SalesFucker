@@ -56,23 +56,22 @@ class ThreadRepository:
             raise
 
     @staticmethod
-    async def insert_thread(thread: ThreadOrm, session: AsyncSession) -> UUID:
+    async def insert_thread(thread: ThreadOrm, session: AsyncSession) -> Optional[ThreadOrm]:
         """创建线程数据库模型"""
         try:
             session.add(thread)
-            logger.debug(f"创建线程: {thread.thread_id}")
-            return thread.id
+            return thread
         except Exception as e:
             logger.error(f"创建线程数据库模型失败: {thread.thread_id}, 错误: {e}")
             raise
 
     @staticmethod
-    async def update_thread(thread: ThreadOrm, session: AsyncSession) -> UUID:
+    async def update_thread(thread: ThreadOrm, session: AsyncSession) -> Optional[ThreadOrm]:
         """更新线程数据库模型"""
         try:
             session.merge(thread)
             logger.debug(f"更新线程: {thread.thread_id}")
-            return thread.id
+            return thread
         except Exception as e:
             logger.error(f"更新线程数据库模型失败: {thread.thread_id}, 错误: {e}")
             raise

@@ -23,17 +23,17 @@ from unittest.mock import Mock, patch, AsyncMock
 from typing import Dict, Any, Optional, List
 from datetime import datetime, timedelta
 
-from src.agents.base import ConversationState, AgentMessage
-from src.agents.compliance import ComplianceAgent, ComplianceRule
-from src.agents.sales import SalesAgent
-from src.agents.sentiment import SentimentAnalysisAgent
-from src.agents.intent import IntentAnalysisAgent
-from src.agents.product import ProductExpertAgent
-from src.agents.memory import MemoryAgent
-from src.agents.strategy import MarketStrategyCoordinator
-from src.agents.proactive import ProactiveAgent
-from src.agents.suggestion import AISuggestionAgent
-from src.agents import create_agent_set, get_orchestrator, agent_registry
+from core.agents.base import ConversationState, AgentMessage
+from core.agents.compliance import ComplianceAgent, ComplianceRule
+from core.agents.sales import SalesAgent
+from core.agents.sentiment import SentimentAnalysisAgent
+from core.agents.intent import IntentAnalysisAgent
+from core.agents.product import ProductExpertAgent
+from core.agents.memory import MemoryAgent
+from core.agents.strategy import MarketStrategyCoordinator
+from core.agents.proactive import ProactiveAgent
+from core.agents.suggestion import AISuggestionAgent
+from core.agents import create_agent_set, get_orchestrator, agent_registry
 
 # Simplified LLM system imports
 from infra.runtimes.client import LLMClient

@@ -16,7 +16,7 @@ from uuid import UUID, uuid4
 from fastapi import APIRouter, HTTPException, Depends
 
 from utils import get_component_logger
-from models import Thread, ThreadStatus
+from models import Thread, ThreadStatus, TenantModel
 from services import ThreadService
 from schemas.conversation_schema import ThreadCreateRequest, ThreadMetadata
 from ..wraps import validate_and_get_tenant_id
@@ -26,14 +26,14 @@ from .workflow import router as workflow_router
 logger = get_component_logger(__name__, "ConversationRouter")
 
 # 创建路由器
-router = APIRouter(prefix="/threads", tags=["conversation-threads"])
+router = APIRouter()
 
 router.include_router(workflow_router, prefix="/{thread_id}/runs", tags=["workflows"])
 
 @router.post("")
 async def create_thread(
     request: ThreadCreateRequest,
-    tenant_id: str = Depends(validate_and_get_tenant_id)
+    tenant: TenantModel = Depends(validate_and_get_tenant_id)
 ):
     """
     创建新的对话线程
@@ -43,24 +43,23 @@ async def create_thread(
     """
     try:
         # 生成线程ID
-        thread_id = request.thread_id or uuid4()
+        thread_id = request.thread_id
         
         # 创建业务模型对象
         thread = Thread(
             thread_id=thread_id,
-            assistant_id=request.assistant_id,
             status=ThreadStatus.ACTIVE,
             metadata=ThreadMetadata(
-                tenant_id=tenant_id
+                tenant_id=tenant.tenant_id
             )
         )
         
-        await ThreadService.create_thread(thread)
+        thread_id = await ThreadService.create_thread(thread)
         
         return {
             "thread_id": thread_id,
             "metadata": {
-                "tenant_id": tenant_id,
+                "tenant_id": tenant.tenant_id,
                 "assistant_id": thread.assistant_id
             },
             "status": thread.status,
@@ -78,7 +77,7 @@ async def create_thread(
 @router.get("/{thread_id}")
 async def get_thread(
     thread_id: UUID,
-    tenant_id: str = Depends(validate_and_get_tenant_id)
+    tenant: str = Depends(validate_and_get_tenant_id)
 ):
     """
     获取线程详情
@@ -95,7 +94,7 @@ async def get_thread(
                 detail=f"线程不存在: {thread_id}"
             )
         
-        if thread.metadata.tenant_id != tenant_id:
+        if thread.metadata.tenant_id != tenant.tenant_id:
             raise HTTPException(
                 status_code=403, 
                 detail="租户ID不匹配，无法访问此线程"

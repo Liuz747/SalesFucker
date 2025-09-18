@@ -15,7 +15,6 @@
 from fastapi import APIRouter, HTTPException, Depends, Query, Request
 from typing import Optional
 
-from legacy_api.agents import get_agent_registry_service, validate_agent_id
 from ..schemas.agents import (
     AgentTestRequest,
     AgentBatchTestRequest,
@@ -27,17 +26,13 @@ from ..schemas.agents import (
     AgentOperationResponse
 )
 from ..schemas.requests import PaginationRequest
-from controllers.exceptions import (
-    AgentNotFoundException,
-    AgentUnavailableException
-)
 from ..handlers.agent_handler import AgentHandler
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "AgentEndpoints")
 
 # 创建路由器
-router = APIRouter(prefix="/agents", tags=["agents"])
+router = APIRouter()
 
 # 创建处理器实例
 agent_handler = AgentHandler()
@@ -48,8 +43,7 @@ async def list_agents(
     tenant_id: str = Query(..., description="租户标识符"),
     pagination: PaginationRequest = Depends(),
     agent_type: Optional[str] = Query(None, description="按智能体类型筛选"),
-    status: Optional[str] = Query(None, description="按状态筛选"),
-    registry = Depends(get_agent_registry_service)
+    status: Optional[str] = Query(None, description="按状态筛选")
 ):
     """
     获取智能体列表
@@ -72,7 +66,6 @@ async def list_agents(
 async def get_agent_status(
     agent_id: str = Depends(validate_agent_id),
     tenant_id: str = Query(..., description="租户标识符"),
-    registry = Depends(get_agent_registry_service)
 ):
     """
     获取特定智能体的状态信息
@@ -83,12 +76,11 @@ async def get_agent_status(
         return await agent_handler.get_agent_status(
             agent_id=agent_id,
             tenant_id=tenant_id,
-            registry=registry
         )
     except Exception as e:
         logger.error(f"获取智能体状态失败 {agent_id}: {e}", exc_info=True)
         if "not found" in str(e).lower():
-            raise AgentNotFoundException(agent_id)
+            raise HTTPException(status_code=404, detail=f"智能体 {agent_id} 不存在")
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -113,7 +105,7 @@ async def test_agent(
     except Exception as e:
         logger.error(f"智能体测试失败 {agent_id}: {e}", exc_info=True)
         if "unavailable" in str(e).lower():
-            raise AgentUnavailableException(agent_id)
+            raise HTTPException(status_code=503, detail=f"智能体 {agent_id} 服务暂时不可用")
         raise HTTPException(status_code=500, detail=str(e))
 
 

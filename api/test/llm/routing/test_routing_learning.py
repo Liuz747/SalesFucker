@@ -15,7 +15,7 @@ import random
 from unittest.mock import Mock
 from datetime import datetime, timedelta
 
-from src.llm.intelligent_router.learning_engine import LearningEngine, PerformanceMetrics
+from core.llm.intelligent_router.learning_engine import LearningEngine, PerformanceMetrics
 from infra.runtimes.config import LLMConfig
 from infra.runtimes.entities.providers import ProviderType
 
