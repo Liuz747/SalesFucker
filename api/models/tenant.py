@@ -94,7 +94,7 @@ class TenantModel(BaseModel):
     updated_at: Optional[datetime] = Field(None, description="最后更新时间")
     
     # 业务配置
-    feature_flags: dict[str, bool] = Field(
+    features: dict[str, bool] = Field(
         default_factory=dict, 
         description="功能开关配置"
     )
@@ -115,7 +115,7 @@ class TenantModel(BaseModel):
             is_active=tenant_orm.is_active,
             created_at=tenant_orm.created_at,
             updated_at=tenant_orm.updated_at,
-            feature_flags=tenant_orm.feature_flags or {},
+            features=tenant_orm.features or {},
         )
 
     def to_orm(self) -> TenantOrm:
@@ -133,5 +133,5 @@ class TenantModel(BaseModel):
             is_active=self.is_active,
             created_at=self.created_at,
             updated_at=self.updated_at,
-            feature_flags=self.feature_flags,
+            features=self.features,
         )
