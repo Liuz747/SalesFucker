@@ -35,7 +35,7 @@ from ..schemas.multimodal import (
     ImageFormat,
     AnalysisType
 )
-from controller.exceptions import (
+from controllers.exceptions import (
     MultimodalProcessingException,
     ValidationException
 )

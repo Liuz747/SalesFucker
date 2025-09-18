@@ -8,10 +8,11 @@ MessagePack序列化 + 异步数据库写入优化。
 import pytest
 import asyncio
 import time
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, patch
 
-from controller.workspace.conversation.schema import ThreadModel, ThreadMetadata
-from repositories.thread_repository import ThreadRepository, get_thread_repository
+from models import Thread
+from schemas.conversation_schema import ThreadMetadata
+from services.thread_service import ThreadRepository
 
 
 class TestThreadPerformance:
@@ -35,7 +36,7 @@ class TestThreadPerformance:
     @pytest.fixture
     def sample_thread(self):
         """示例线程fixture"""
-        return ThreadModel(
+        return Thread(
             thread_id="test-thread-123",
             assistant_id="assistant-456", 
             metadata=ThreadMetadata(tenant_id="tenant-789")
@@ -75,7 +76,7 @@ class TestThreadPerformance:
         # 创建50个测试线程
         threads = []
         for i in range(50):
-            thread = ThreadModel(
+            thread = Thread(
                 thread_id=f"concurrent-test-{i}",
                 assistant_id=f"assistant-{i}",
                 metadata=ThreadMetadata(tenant_id="tenant-concurrent")

@@ -18,8 +18,8 @@ services:
   minio:
     image: docker.io/minio/minio
     entrypoint: sh
-    # create the 'langfuse' bucket before starting the service
-    command: -c 'mkdir -p /data/langfuse && minio server --address ":9000" --console-address ":9001" /data'
+    # create the 'huanmu' bucket before starting the service
+    command: -c 'mkdir -p /data/huanmu && minio server --address ":9000" --console-address ":9001" /data'
     environment:
       MINIO_ACCESS_KEY: minio
       MINIO_SECRET_KEY: miniosecret
@@ -39,7 +39,7 @@ services:
     image: docker.io/redis:7.2.4
     restart: always
     command: >
-      --requirepass ${REDIS_AUTH:-myredissecret}
+      --requirepass ${REDIS_PASSWORD:-myredissecret}
     ports:
       - 127.0.0.1:6379:6379
 

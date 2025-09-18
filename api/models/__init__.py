@@ -9,22 +9,33 @@
 - conversation.py: 对话相关的所有模型（业务模型）
 """
 
-from .tenant import (
+from .enums import (
+    InputType,
+    ThreadStatus,
     TenantRole,
-    TenantOrm, 
-    TenantModel
+    TenantStatus
+)
+from .tenant import (
+    TenantOrm,
+    Tenant
 )
 from .conversation import (
-    ConversationStatus,
-    InputType,
-    ThreadOrm
+    ThreadOrm,
+    Thread
 )
 
 __all__ = [
+    # Enums
     "TenantRole",
-    "TenantOrm",
-    "TenantModel",
-    "ConversationStatus",
+    "TenantStatus",
+    "ThreadStatus",
     "InputType",
-    "ThreadOrm"
+
+    # Tenant
+    "TenantOrm",
+    "Tenant",
+
+    # Conversation
+    "ThreadOrm",
+    "Thread"
 ]

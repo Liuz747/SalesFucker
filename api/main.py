@@ -18,29 +18,25 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from controller.middleware import (
-    SafetyInterceptor,
-    TenantIsolation,
-    JWTMiddleware
-)
+from controllers.middleware import SafetyInterceptor, JWTMiddleware
 from legacy_api.endpoints import (
     agents_router,
     multimodal_router,
     assistants_router,
     prompts_router,
 )
-from controller import (
+from controllers import (
     auth_router,
     conversations_router,
     completion_router,
     health_router,
     tenant_router,
 )
-from controller.exceptions import APIException
+from controllers.exceptions import APIException
 from config import mas_config
 from utils import get_component_logger, configure_logging
-from repositories.thread_repository import get_thread_repository
 from infra.db.connection import test_db_connection, close_db_connections
+from infra.cache.redis_client import test_redis_connection, close_redis_client
 
 # 配置日志
 logger = get_component_logger(__name__)
@@ -53,13 +49,13 @@ async def lifespan(app: FastAPI):
     configure_logging()
     # 初始化数据库连接池
     await test_db_connection()
-    repository = await get_thread_repository()
+    # 测试Redis连接
+    await test_redis_connection()
     
     yield
     # 关闭时执行
     await close_db_connections()
-    repository = await get_thread_repository()
-    await repository.cleanup()
+    await close_redis_client()
 
 
 # 创建FastAPI应用
@@ -95,7 +91,6 @@ app.add_middleware(JWTMiddleware, exclude_paths=[
     "/assets/"
 ])
 app.add_middleware(SafetyInterceptor)
-app.add_middleware(TenantIsolation)
 
 # 全局异常处理
 @app.exception_handler(APIException)
@@ -163,7 +158,7 @@ def main():
         host=mas_config.APP_HOST,
         port=mas_config.APP_PORT,
         reload=mas_config.DEBUG,
-        log_level="info" if not mas_config.DEBUG else "debug"
+        log_level=mas_config.LOG_LEVEL.lower()
     )
 
 

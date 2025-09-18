@@ -8,6 +8,7 @@ from pydantic import Field
 from pydantic_settings import BaseSettings
 
 from .provider import LLMConfig
+from .tracer import TracerConfig
 
 class AuthConfig(BaseSettings):
     """
@@ -54,8 +55,10 @@ class LogConfig(BaseSettings):
         default=False,
     )
 
-class ServiceConfig(AuthConfig, LLMConfig, LogConfig):
-    """
-    服务配置类
-    """
+class ServiceConfig(
+    AuthConfig,
+    LLMConfig,
+    LogConfig,
+    TracerConfig,
+):
     pass

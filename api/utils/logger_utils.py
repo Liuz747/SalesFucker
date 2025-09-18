@@ -27,7 +27,7 @@ def configure_logging():
     # 配置根日志器
     logging.basicConfig(
         level=mas_config.LOG_LEVEL,
-        format='%(levelname)s:     %(asctime)s - %(name)s - Line %(lineno)d - %(message)s'
+        format='%(levelname)s:\t  %(asctime)s - %(name)s - Line %(lineno)d - %(message)s'
     )
 
 def get_component_logger(component_name: str, identifier: Optional[str] = None) -> logging.Logger:

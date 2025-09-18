@@ -8,10 +8,13 @@ JWT认证模块
 - jwt_auth: JWT验证中间件
 """
 
-from .jwt_auth import ServiceContext
-from .jwt_auth import get_service_context
+from .jwt_auth import ServiceContext, get_service_context, require_service_scopes
+from .key_manager import key_manager
 
 __all__ = [
     "ServiceContext",
-    "get_service_context"
+    "get_service_context",
+    "require_service_scopes",
+    
+    "key_manager"
 ]
