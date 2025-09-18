@@ -53,16 +53,8 @@ class TenantManagementException(BaseHTTPException):
     http_status_code = 400
 
 
-class TenantIdMismatchException(TenantManagementException):
-    error_code = 40002
-    error_message = "TENANT_ID_MISMATCH"
-    
-    def __init__(self, url_tenant_id: str, body_tenant_id: str):
-        super().__init__(detail=f"租户ID不匹配: URL中为 {url_tenant_id}, 请求体中为 {body_tenant_id}")
-
-
 class TenantNotFoundException(TenantManagementException):
-    error_code = 40401
+    error_code = 40002
     error_message = "TENANT_NOT_FOUND"
     http_status_code = 404
     

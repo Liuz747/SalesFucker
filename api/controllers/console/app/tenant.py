@@ -19,6 +19,7 @@ from schemas.tenant_schema import (
     TenantStatus
 )
 from ..error import (
+    TenantManagementException,
     TenantNotFoundException,
     TenantSyncException,
     TenantAlreadyExistsException
@@ -75,9 +76,9 @@ async def get_tenant_status(tenant_id: str):
     """获取租户状态"""
     try:
         logger.info(f"租户状态请求: {tenant_id}")
-        
+
         tenant = await TenantService.query_tenant(tenant_id)
-        
+
         if tenant:
             return TenantStatusResponse(
                 tenant_id=tenant.tenant_id,
@@ -87,9 +88,11 @@ async def get_tenant_status(tenant_id: str):
             )
         else:
             raise TenantNotFoundException(tenant_id)
+    except TenantNotFoundException:
+        raise
     except Exception as e:
         logger.error(f"获取租户状态失败 {tenant_id}: {e}", exc_info=True)
-        raise TenantSyncException(tenant_id, f"获取租户状态失败: {str(e)}")
+        raise TenantManagementException
 
 
 @router.put("/{tenant_id}", response_model=TenantSyncResponse)
