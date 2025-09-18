@@ -54,8 +54,8 @@ class ComplianceAgent(BaseAgent):
         
         # 初始化模块化组件
         self.checker = ComplianceChecker(self.rule_set, self.agent_id)
-        self.auditor = ComplianceAuditor(self.agent_id)
-        self.metrics = ComplianceMetricsManager(self.agent_id)
+        self.auditor = ComplianceAuditor()
+        self.metrics = ComplianceMetricsManager()
         
         # LLM integration for enhanced analysis
         

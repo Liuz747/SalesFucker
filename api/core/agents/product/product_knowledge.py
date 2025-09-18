@@ -14,9 +14,8 @@ logger = logging.getLogger(__name__)
 class ProductKnowledgeManager:
     """产品知识管理器"""
     
-    def __init__(self, tenant_id: str):
-        self.tenant_id = tenant_id
-        self.logger = logging.getLogger(f"{__name__}.{tenant_id}")
+    def __init__(self):
+        self.logger = logging.getLogger(f"{__name__}")
         
         # 产品分类体系
         self.product_categories = {
@@ -29,7 +28,7 @@ class ProductKnowledgeManager:
         # 预计算的热门产品（生产环境中会从数据库加载）
         self._popular_products = self._init_popular_products()
         
-        self.logger.info(f"产品知识管理器初始化完成: {tenant_id}")
+        self.logger.info(f"产品知识管理器初始化完成")
     
     def get_product_categories(self) -> Dict[str, List[str]]:
         """获取产品分类"""
@@ -109,7 +108,7 @@ class ProductKnowledgeManager:
             context_parts.append(f"Available {category} products: {', '.join(available_products)}")
         
         # 品牌信息
-        context_parts.append(f"Brand focus: {self.tenant_id} premium beauty products")
+        context_parts.append(f"Brand focus: premium beauty products")
         
         # 季节性建议
         context_parts.append("Current season: Consider hydration for winter, sun protection for summer")
@@ -182,7 +181,6 @@ class ProductKnowledgeManager:
         total_products = sum(len(products) for products in self._popular_products.values())
         
         return {
-            "tenant_id": self.tenant_id,
             "total_categories": len(self.product_categories),
             "category_details": {
                 cat: len(products) for cat, products in self.product_categories.items()

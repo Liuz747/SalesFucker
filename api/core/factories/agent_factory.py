@@ -21,6 +21,7 @@ from core.agents.memory import MemoryAgent
 from core.agents.strategy import MarketStrategyCoordinator
 from core.agents.proactive import ProactiveAgent
 from core.agents.suggestion import AISuggestionAgent
+from libs.constants import WorkflowConstants
 
 
 # Global agent storage - simple dictionary for agent lookup
@@ -48,19 +49,38 @@ def create_agent_set() -> Dict[str, BaseAgent]:
         Dict[str, BaseAgent]: 智能体集合 {"agent_type": agent_instance}
     """
     agents = {}
-    
+
+    # 映射简单agent类型到工作流节点名称
+    workflow_mappings = {
+        "compliance": WorkflowConstants.COMPLIANCE_NODE,
+        "sentiment": WorkflowConstants.SENTIMENT_NODE,
+        "intent": WorkflowConstants.INTENT_NODE,
+        "strategy": WorkflowConstants.STRATEGY_NODE,
+        "sales": WorkflowConstants.SALES_NODE,
+        "product": WorkflowConstants.PRODUCT_NODE,
+        "memory": WorkflowConstants.MEMORY_NODE,
+    }
+
     # 创建完整的9智能体系统
     for agent_type, agent_class in AGENT_TYPE_MAPPING.items():
         try:
             agent = agent_class()  # No parameters - agent_id auto-derived
             agent.agent_id = agent_type  # Override with proper ID from mapping
             agents[agent_type] = agent
-            _global_agents[agent_type] = agent  # Store in global dict
+
+            # 在全局注册表中注册智能体
+            _global_agents[agent_type] = agent
+
+            # 如果有对应的工作流节点名称，也注册该名称
+            if agent_type in workflow_mappings:
+                workflow_node = workflow_mappings[agent_type]
+                _global_agents[workflow_node] = agent
+
         except Exception as e:
             # 如果某个智能体创建失败，记录错误但继续创建其他智能体
             print(f"警告: 创建智能体 {agent_type} 失败: {e}")
             continue
-    
+
     return agents
 
 

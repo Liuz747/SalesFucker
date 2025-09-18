@@ -36,7 +36,7 @@ class ProductExpertAgent(BaseAgent):
         super().__init__()
 
         # 初始化模块化组件
-        self.recommendation_coordinator = RecommendationCoordinator(self.agent_id)
+        self.recommendation_coordinator = RecommendationCoordinator()
         self.needs_analyzer = CustomerNeedsAnalyzer()
         self.knowledge_manager = ProductKnowledgeManager()
         
@@ -247,8 +247,7 @@ class ProductExpertAgent(BaseAgent):
                 "error_rate": self.processing_stats["errors"] / max(1, self.processing_stats["messages_processed"]) * 100,
                 "average_processing_time": self.processing_stats["average_response_time"],
                 "last_activity": self.processing_stats["last_activity"],
-                "agent_id": self.agent_id,
-                "tenant_id": self.tenant_id
+                "agent_id": self.agent_id
             }
             
             # 获取综合统计
@@ -267,6 +266,5 @@ class ProductExpertAgent(BaseAgent):
                 "average_processing_time": 0,
                 "last_activity": None,
                 "agent_id": self.agent_id,
-                "tenant_id": self.tenant_id,
                 "error": str(e)
             }

@@ -19,16 +19,15 @@ logger = logging.getLogger(__name__)
 class RecommendationCoordinator:
     """推荐协调器 - 统一管理各种推荐策略"""
     
-    def __init__(self, tenant_id: str, agent_id: str):
-        self.tenant_id = tenant_id
-        self.agent_id = agent_id
-        self.logger = logging.getLogger(f"{__name__}.{tenant_id}")
-        
+    def __init__(self):
+        self.agent_id = "product"  # 硬编码智能体标识符
+        self.logger = logging.getLogger(f"{__name__}.{self.agent_id}")
+
         # 初始化各组件
-        self.rag_engine = RAGRecommendationEngine(tenant_id)
-        self.fallback_system = FallbackRecommendationSystem(tenant_id, agent_id)
-        self.formatter = RecommendationFormatter(tenant_id, agent_id)
-        self.knowledge_manager = ProductKnowledgeManager(tenant_id)
+        self.rag_engine = RAGRecommendationEngine()
+        self.fallback_system = FallbackRecommendationSystem()
+        self.formatter = RecommendationFormatter()
+        self.knowledge_manager = ProductKnowledgeManager()
         
         # 系统状态
         self.rag_available = False
@@ -38,7 +37,7 @@ class RecommendationCoordinator:
         self.max_retries = 2
         self.timeout_seconds = 30
         
-        self.logger.info(f"推荐协调器初始化: {agent_id}")
+        self.logger.info(f"推荐协调器初始化")
     
     async def initialize(self) -> None:
         """初始化推荐系统"""
@@ -289,7 +288,6 @@ class RecommendationCoordinator:
         """获取推荐系统状态"""
         return {
             "coordinator_id": self.agent_id,
-            "tenant_id": self.tenant_id,
             "rag_available": self.rag_available,
             "initialization_attempted": self.initialization_attempted,
             "active_strategy": "rag" if self.rag_available else "fallback",
