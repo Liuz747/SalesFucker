@@ -13,8 +13,7 @@ from uuid import UUID, uuid4
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 
 from core.app.orchestrator import get_orchestrator
-from models import ThreadStatus
-from models.workflow import WorkflowRun
+from models import ThreadStatus, WorkflowRun
 from services import ThreadService
 from schemas.conversation_schema import MessageCreateRequest
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms
@@ -32,7 +31,7 @@ router = APIRouter()
 async def create_run(
     thread_id: UUID,
     request: MessageCreateRequest,
-    tenant_id: str = Depends(validate_and_get_tenant_id)
+    tenant: str = Depends(validate_and_get_tenant_id)
 ):
     """
     创建运行实例 - 核心工作流端点
@@ -46,7 +45,7 @@ async def create_run(
     3. 返回处理结果和状态信息
     """
     try:
-        logger.info(f"开始运行处理 - 线程: {thread_id}, 租户: {tenant_id}")
+        logger.info(f"开始运行处理 - 线程: {thread_id}, 租户: {tenant.tenant_id}")
 
         thread = await ThreadService.get_thread(thread_id)
         
@@ -63,7 +62,7 @@ async def create_run(
             )
         
         # 验证线程租户ID匹配
-        if thread.metadata.tenant_id != tenant_id:
+        if thread.metadata.tenant_id != tenant.tenant_id:
             raise HTTPException(
                 status_code=403,
                 detail="租户ID不匹配，无法访问此线程"
@@ -77,7 +76,7 @@ async def create_run(
             run_id=execution_id,
             thread_id=thread_id,
             assistant_id=request.assistant_id,
-            tenant_id=tenant_id,
+            tenant_id=tenant.tenant_id,
             input=request.input.content,
             type="text"
         )
@@ -110,7 +109,7 @@ async def create_run(
             "processing_time": processing_time,
             # 元数据
             "metadata": {
-                "tenant_id": tenant_id,
+                "tenant_id": tenant.tenant_id,
                 "assistant_id": request.assistant_id,
                 "execution_id": str(result.execution_id)
             }
@@ -128,7 +127,7 @@ async def create_background_run(
     thread_id: UUID,
     request: MessageCreateRequest,
     background_tasks: BackgroundTasks,
-    tenant_id: str = Depends(validate_and_get_tenant_id)
+    tenant: str = Depends(validate_and_get_tenant_id)
 ):
     """
     创建后台运行实例 - 异步工作流端点
@@ -143,7 +142,7 @@ async def create_background_run(
     4. 处理完成后调用用户指定的回调API
     """
     try:
-        logger.info(f"开始后台运行处理 - 线程: {thread_id}, 租户: {tenant_id}")
+        logger.info(f"开始后台运行处理 - 线程: {thread_id}, 租户: {tenant.tenant_id}")
 
         thread = await ThreadService.get_thread(thread_id)
         
@@ -160,7 +159,7 @@ async def create_background_run(
             )
         
         # 验证线程租户ID匹配
-        if thread.metadata.tenant_id != tenant_id:
+        if thread.metadata.tenant_id != tenant.tenant_id:
             raise HTTPException(
                 status_code=403,
                 detail="租户ID不匹配，无法访问此线程"
@@ -180,7 +179,7 @@ async def create_background_run(
             thread_id=thread_id,
             input=request.input,
             assistant_id=request.assistant_id,
-            tenant_id=tenant_id,
+            tenant_id=tenant.tenant_id,
             customer_id=None,  # 客户ID可以从其他地方获取，暂时设为None
             input_type="text"
         )
@@ -208,7 +207,7 @@ async def create_background_run(
 async def get_run_status(
     thread_id: UUID,
     run_id: UUID,
-    tenant_id: str = Depends(validate_and_get_tenant_id)
+    tenant: str = Depends(validate_and_get_tenant_id)
 ):
     """
     获取后台运行状态
@@ -224,7 +223,7 @@ async def get_run_status(
                 detail=f"线程不存在: {thread_id}"
             )
         
-        if thread.metadata.tenant_id != tenant_id:
+        if thread.metadata.tenant_id != tenant.tenant_id:
             raise HTTPException(
                 status_code=403,
                 detail="租户ID不匹配，无法访问此线程"
