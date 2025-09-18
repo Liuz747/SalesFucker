@@ -84,33 +84,6 @@ def create_agent_set() -> Dict[str, BaseAgent]:
     return agents
 
 
-def create_single_agent(agent_type: str) -> Optional[BaseAgent]:
-    """
-    创建单个智能体实例
-
-    参数:
-        agent_type: 智能体类型 (compliance, sentiment, intent, sales, etc.)
-
-    返回:
-        Optional[BaseAgent]: 智能体实例，创建失败时返回None
-    """
-    if agent_type not in AGENT_TYPE_MAPPING:
-        print(f"错误: 不支持的智能体类型 '{agent_type}'")
-        print(f"支持的类型: {list(AGENT_TYPE_MAPPING.keys())}")
-        return None
-    
-    try:
-        agent_class = AGENT_TYPE_MAPPING[agent_type]
-        agent = agent_class()  # No parameters - agent_id auto-derived
-        agent.agent_id = agent_type  # Override with proper ID from mapping
-        _global_agents[agent_type] = agent  # Store in global dict
-        return agent
-
-    except Exception as e:
-        print(f"错误: 创建智能体 {agent_type} 失败: {e}")
-        return None
-
-
 def get_agent(agent_id: str) -> Optional[BaseAgent]:
     """
     根据ID获取智能体实例
@@ -122,35 +95,3 @@ def get_agent(agent_id: str) -> Optional[BaseAgent]:
         Optional[BaseAgent]: 智能体实例，不存在时返回None
     """
     return _global_agents.get(agent_id)
-
-
-def get_all_agents() -> Dict[str, BaseAgent]:
-    """
-    获取所有已创建的智能体
-
-    返回:
-        Dict[str, BaseAgent]: 所有智能体的副本
-    """
-    return _global_agents.copy()
-
-
-def get_available_agent_types() -> list:
-    """
-    获取所有可用的智能体类型
-    
-    返回:
-        list: 可用的智能体类型列表
-    """
-    return list(AGENT_TYPE_MAPPING.keys())
-
-
-def cleanup_all_agents() -> int:
-    """
-    清理所有智能体
-
-    返回:
-        int: 清理的智能体数量
-    """
-    count = len(_global_agents)
-    _global_agents.clear()
-    return count

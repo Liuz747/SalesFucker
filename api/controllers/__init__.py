@@ -22,7 +22,7 @@ API Package - Multi-Agent System API
 from fastapi import APIRouter
 
 from .console import tenant_router, auth_router
-from .inner import completion_router, health_router
+from .inner import completion_router
 from .workspace import conversations_router
 # Legacy API 路由器导入
 from legacy_api.endpoints import (
@@ -35,7 +35,6 @@ from legacy_api.endpoints import (
 app_router = APIRouter()
 
 # 注册所有路由器，包含统一的prefix和tags配置
-app_router.include_router(health_router, prefix="/health", tags=["health"])
 app_router.include_router(auth_router, prefix="/auth", tags=["auth"])
 app_router.include_router(conversations_router, prefix="/threads", tags=["conversation-threads"])
 app_router.include_router(multimodal_router, prefix="/multimodal", tags=["multimodal"])
