@@ -59,7 +59,7 @@ class TenantService:
             logger.error(f"创建租户失败，租户ID已存在: {tenant_orm.tenant_id}")
             raise TenantAlreadyExistsException(tenant_orm.tenant_id)
         except Exception as e:
-            logger.error(f"创建租户失败: {tenant_orm.tenant_id}, 错误: {e}")
+            logger.error(f"创建租户失败: {tenant.tenant_id}, 错误: {e}")
             raise
 
     @staticmethod

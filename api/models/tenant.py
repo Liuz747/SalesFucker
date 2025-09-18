@@ -56,7 +56,7 @@ class TenantOrm(Base):
     is_active = Column(Boolean, nullable=False, default=True)
 
     # 扩展配置（新增JSONB字段用于存储复杂配置）
-    feature_flags = Column(JSONB, default=dict)
+    features = Column(JSONB, default=dict)
     
     # 数据库索引优化
     __table_args__ = (

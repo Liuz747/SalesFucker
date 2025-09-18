@@ -14,8 +14,7 @@ class WorkflowOrm(Base):
 
     __tablename__ = "workflows"
 
-    id = Column(Uuid, primary_key=True, autoincrement=True)
-    workflow_id = Column(Uuid, nullable=False, index=True)
+    workflow_id = Column(Uuid, primary_key=True, server_default=func.gen_random_uuid())
     thread_id = Column(Uuid, nullable=False, index=True)
     assistant_id = Column(Uuid, nullable=False, index=True)
     tenant_id = Column(String(255), nullable=False, index=True)
