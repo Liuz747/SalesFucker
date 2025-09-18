@@ -31,12 +31,9 @@ class SalesAgent(BaseAgent):
     - 错误处理和降级
     """
     
-    def __init__(self, tenant_id: str):
+    def __init__(self):
         # 简化初始化
-        super().__init__(
-            agent_id=f"sales_agent_{tenant_id}",
-            tenant_id=tenant_id
-        )
+        super().__init__()
         
         # Strategy management
         self.sales_strategies = get_sales_strategies()

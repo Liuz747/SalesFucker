@@ -18,10 +18,10 @@ class EscalationAnalyzer:
     使用规则引擎和置信度计算提供升级建议。
     """
     
-    def __init__(self, tenant_id: str):
-        self.tenant_id = tenant_id
-        self.logger = get_component_logger(f"escalation_analyzer_{tenant_id}")
-        
+    def __init__(self):
+        self.agent_id = "suggestion"  # 硬编码智能体标识符
+        self.logger = get_component_logger(f"escalation_analyzer_{self.agent_id}")
+
         # 升级规则配置
         self.escalation_rules = {
             "complexity_threshold": 0.8,
@@ -30,8 +30,8 @@ class EscalationAnalyzer:
             "compliance_escalation": ["blocked", "flagged"],
             "intent_escalation": ["complaint", "refund", "technical_issue"]
         }
-        
-        self.logger.info(f"升级分析器初始化完成: tenant_id={tenant_id}")
+
+        self.logger.info(f"升级分析器初始化完成: agent_id={self.agent_id}")
     
     async def analyze_escalation_need(self, context_data: Dict[str, Any]) -> Dict[str, Any]:
         """

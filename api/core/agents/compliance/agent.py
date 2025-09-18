@@ -42,26 +42,20 @@ class ComplianceAgent(BaseAgent):
         tenant_rules: 租户特定规则
     """
     
-    def __init__(self, tenant_id: str):
+    def __init__(self):
         """
         初始化合规审查智能体
-        
-        参数:
-            tenant_id: 租户标识符，用于多租户规则隔离
         """
         # MAS架构：使用质量优化策略确保合规检查精确性
-        super().__init__(
-            agent_id=f"compliance_review_{tenant_id}", 
-            tenant_id=tenant_id,
-        )
+        super().__init__()
         
         # 初始化规则集
         self.rule_set = ComplianceRuleManager()
         
         # 初始化模块化组件
         self.checker = ComplianceChecker(self.rule_set, self.agent_id)
-        self.auditor = ComplianceAuditor(tenant_id, self.agent_id)
-        self.metrics = ComplianceMetricsManager(tenant_id, self.agent_id)
+        self.auditor = ComplianceAuditor()
+        self.metrics = ComplianceMetricsManager()
         
         # LLM integration for enhanced analysis
         

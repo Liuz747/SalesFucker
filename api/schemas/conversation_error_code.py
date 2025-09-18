@@ -4,7 +4,7 @@ from controllers.exceptions import BaseHTTPException
 
 class WorkspaceException(BaseHTTPException):
     error_code = "WORKSPACE_ERROR"
-    status_code = 400
+    http_status_code = 400
 
 
 class TenantManagementException(BaseHTTPException):
@@ -45,13 +45,13 @@ class TenantSyncException(TenantManagementException):
 class TenantValidationException:
     error_code = 1000005
     detail = "TENANT_VALIDATION_ERROR"
-    status_code = 403
+    http_status_code = 403
 
 
 class TenantIdRequiredException(TenantValidationException):
     error_code = 1000006
     detail = "TENANT_ID_REQUIRED"
-    status_code = 400
+    http_status_code = 400
 
     def __init__(self):
         super().__init__(detail="请求必须包含租户ID，请在请求头中添加 X-Tenant-ID")
@@ -112,7 +112,7 @@ class ThreadException(WorkspaceException):
 class ThreadNotFoundException(ThreadException):
     error_code = 1300002
     detail = "THREAD_NOT_FOUND"
-    status_code = 404
+    http_status_code = 404
 
     def __init__(self, thread_id: UUID | str):
         super().__init__(detail=f"线程 {thread_id} 不存在")
@@ -121,7 +121,7 @@ class ThreadNotFoundException(ThreadException):
 class ThreadCreationException(ThreadException):
     error_code = 1300003
     detail = "THREAD_CREATION_FAILED"
-    status_code = 500
+    http_status_code = 500
 
     def __init__(self, reason: str = ""):
         detail = "线程创建失败"
@@ -133,7 +133,7 @@ class ThreadCreationException(ThreadException):
 class ThreadAccessDeniedException(ThreadException):
     error_code = 1300004
     detail = "THREAD_ACCESS_DENIED"
-    status_code = 403
+    http_status_code = 403
 
     def __init__(self, thread_id: UUID | str, tenant_id: str):
         super().__init__(detail=f"租户 {tenant_id} 无权访问线程 {thread_id}")
@@ -147,7 +147,7 @@ class ConversationException(WorkspaceException):
 class ConversationProcessingException(ConversationException):
     error_code = 1400002
     detail = "CONVERSATION_PROCESSING_FAILED"
-    status_code = 500
+    http_status_code = 500
 
     def __init__(self, reason: str = ""):
         detail = "对话处理失败"
@@ -167,7 +167,7 @@ class MessageValidationException(ConversationException):
 class WorkflowException(WorkspaceException):
     error_code = 1400004
     detail = "WORKFLOW_ERROR"
-    status_code = 500
+    http_status_code = 500
 
 
 class WorkflowExecutionException(WorkflowException):
@@ -179,3 +179,23 @@ class WorkflowExecutionException(WorkflowException):
         if reason:
             detail += f": {reason}"
         super().__init__(detail=detail)
+
+
+class AssistantException(WorkspaceException):
+    error_code = "ASSISTANT_ERROR"
+
+
+class AssistantNotFoundException(AssistantException):
+    error_code = "ASSISTANT_NOT_FOUND"
+    http_status_code = 404
+    
+    def __init__(self, assistant_id: str):
+        super().__init__(detail=f"AI助手 {assistant_id} 不存在")
+
+
+class AssistantUnavailableException(AssistantException):
+    error_code = "ASSISTANT_UNAVAILABLE"
+    http_status_code = 503
+    
+    def __init__(self, assistant_id: str):
+        super().__init__(detail=f"AI助手 {assistant_id} 暂时不可用")

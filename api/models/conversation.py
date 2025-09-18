@@ -9,9 +9,9 @@ from datetime import datetime
 from typing import Optional, Self
 
 from pydantic import BaseModel, Field
-from sqlalchemy import Column, DateTime, Enum, BigInteger, String, Uuid, func
+from sqlalchemy import Column, DateTime, Enum, String, Uuid, func
 
-from schemas.conversation_schema import ThreadMetadata, WorkflowData
+from schemas.conversation_schema import ThreadMetadata
 from utils import get_current_datetime
 from .base import Base
 from .enums import ThreadStatus
@@ -22,7 +22,7 @@ class ThreadOrm(Base):
     
     __tablename__ = "threads"
     
-    thread_id = Column(Uuid, primary_key=True)
+    thread_id = Column(Uuid, primary_key=True, server_default=func.gen_random_uuid())
     assistant_id = Column(Uuid, index=True)
     tenant_id = Column(String(64), nullable=False, index=True)
     status = Column(Enum(ThreadStatus, name='thread_status'), default=ThreadStatus.ACTIVE, nullable=False, index=True)
@@ -30,24 +30,10 @@ class ThreadOrm(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
-class WorkFlowOrm(Base):
-    """工作流数据库ORM模型"""
-    
-    __tablename__ = "workflows"
-    
-    id = Column(BigInteger, primary_key=True, autoincrement=True)
-    workflow_id = Column(String, nullable=False, index=True)
-    thread_id = Column(String, nullable=False, index=True)
-    assistant_id = Column(String, nullable=False, index=True)
-    tenant_id = Column(String, nullable=False, index=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
-
-
 class Thread(BaseModel):
     """对话线程数据模型"""
     
-    thread_id: UUID = Field(description="线程标识符")
+    thread_id: Optional[UUID] = Field(None, description="线程标识符")
     assistant_id: Optional[UUID] = Field(None, description="助手标识符")
     status: ThreadStatus = Field(default=ThreadStatus.ACTIVE, description="线程状态")
     created_at: datetime = Field(default_factory=get_current_datetime, description="创建时间")
@@ -81,12 +67,3 @@ class Thread(BaseModel):
             created_at=self.created_at,
             updated_at=self.updated_at
         )
-
-
-class Workflow(BaseModel):
-    """工作流模型"""
-    
-    id: UUID = Field(description="工作流标识符")
-    thread_id: UUID = Field(description="线程标识符")
-    data: list[WorkflowData] = Field(description="工作流数据")
-    created_at: datetime = Field(default_factory=get_current_datetime, description="创建时间")

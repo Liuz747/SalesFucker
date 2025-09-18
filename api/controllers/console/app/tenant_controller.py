@@ -15,15 +15,22 @@ from schemas.tenant_schema import (
     TenantSyncResponse,
     TenantStatusResponse,
     TenantUpdateRequest,
-    TenantDeleteResponse
+    TenantDeleteResponse,
+    TenantStatus
 )
 from schemas.console_error_code import (
     TenantNotFoundException,
     TenantSyncException
 )
+from ..error import (
+    TenantManagementException,
+    TenantNotFoundException,
+    TenantSyncException,
+    TenantAlreadyExistsException
+)
 from models import TenantModel
 from services import TenantService
-from utils import get_component_logger, get_current_datetime
+from utils import get_component_logger
 
 logger = get_component_logger(__name__, "TenantEndpoints")
 
@@ -44,27 +51,28 @@ async def sync_tenant(request: TenantSyncRequest):
             area_id=request.area_id,
             creator=request.creator,
             company_size=request.company_size,
-            feature_flags=request.features.model_dump()
+            features=request.features.model_dump()
         )
-        flag = await TenantService.create_tenant(tenant)
+        tenant = await TenantService.create_tenant(tenant)
 
-        if not flag:
+        if not tenant:
             logger.error(f"保存租户配置失败: {request.tenant_id}")
             raise TenantSyncException(request.tenant_id, "Failed to save tenant configuration")
-
-        logger.info(f"租户配置已保存: {request.tenant_id}")
+        
+        logger.info(f"租户配置已保存: {tenant.tenant_id}")
 
         return TenantSyncResponse(
-            tenant_id=request.tenant_id,
+            tenant_id=tenant.tenant_id,
+            tenant_name=tenant.tenant_name,
             message="租户同步成功",
-            timestamp=get_current_datetime(),
-            features=request.features,
-            tenant_name=request.tenant_name
+            features=tenant.features
         )
 
     except ValueError as e:
         logger.warning(f"无效的租户同步数据: {e}")
         raise TenantSyncException(request.tenant_id, f"验证错误: {str(e)}")
+    except TenantAlreadyExistsException:
+        raise
     except Exception as e:
         logger.error(f"租户同步失败 {request.tenant_id}: {e}", exc_info=True)
         raise TenantSyncException(request.tenant_id, str(e))
@@ -83,14 +91,15 @@ async def get_tenant_status(tenant_id: str):
                 tenant_id=tenant.tenant_id,
                 tenant_name=tenant.tenant_name,
                 status=tenant.status,
-                updated_at=tenant.updated_at,
                 message="租户状态获取成功"
             )
         else:
             raise TenantNotFoundException(tenant_id)
+    except TenantNotFoundException:
+        raise
     except Exception as e:
         logger.error(f"获取租户状态失败 {tenant_id}: {e}", exc_info=True)
-        raise TenantSyncException(tenant_id, f"获取租户状态失败: {str(e)}")
+        raise TenantManagementException
 
 
 @router.put("/{tenant_id}", response_model=TenantSyncResponse)
@@ -122,6 +131,8 @@ async def update_tenant(
 
         return TenantSyncResponse(
             tenant_id=tenant_id,
+            tenant_name=request.tenant_name,
+            status=request.status,
             message="租户更新成功",
             features=request.features,
             timestamp=get_current_datetime()

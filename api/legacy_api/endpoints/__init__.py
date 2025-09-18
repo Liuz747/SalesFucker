@@ -8,13 +8,11 @@ API端点模块
 - multimodal.py: 多模态处理端点
 """
 
-from .agents import router as agents_router
 from .multimodal import router as multimodal_router
 from .assistants_controller import router as assistants_router
 from .prompts import router as prompts_router
 
 __all__ = [
-    "agents_router",
     "multimodal_router",
     "assistants_router",
     "prompts_router"

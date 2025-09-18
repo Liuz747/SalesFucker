@@ -24,10 +24,9 @@ logger = logging.getLogger(__name__)
 class RAGRecommendationEngine:
     """RAG推荐引擎"""
     
-    def __init__(self, tenant_id: str):
-        self.tenant_id = tenant_id
-        self.recommender = ProductRecommender(tenant_id)
-        self.search = ProductSearch(tenant_id)
+    def __init__(self):
+        self.recommender = ProductRecommender()
+        self.search = ProductSearch()
         
         # 配置参数
         self.max_recommendations = 5
@@ -41,7 +40,7 @@ class RAGRecommendationEngine:
             RecommendationType.TRENDING
         ]
         
-        self.logger = logging.getLogger(f"{__name__}.{tenant_id}")
+        self.logger = logging.getLogger(f"{__name__}")
         self.initialized = False
     
     async def initialize(self) -> None:
@@ -50,7 +49,7 @@ class RAGRecommendationEngine:
             await self.recommender.initialize()
             await self.search.initialize()
             self.initialized = True
-            self.logger.info(f"RAG推荐引擎初始化完成: {self.tenant_id}")
+            self.logger.info(f"RAG推荐引擎初始化完成")
         except Exception as e:
             self.logger.error(f"RAG推荐引擎初始化失败: {e}")
             raise
@@ -192,7 +191,6 @@ class RAGRecommendationEngine:
         try:
             search_query = SearchQuery(
                 text=query,
-                tenant_id=self.tenant_id,
                 top_k=top_k
             )
             
@@ -226,7 +224,6 @@ class RAGRecommendationEngine:
             
             return {
                 "initialized": True,
-                "tenant_id": self.tenant_id,
                 "configuration": {
                     "max_recommendations": self.max_recommendations,
                     "similarity_threshold": self.similarity_threshold,

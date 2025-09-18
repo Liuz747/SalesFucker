@@ -20,13 +20,9 @@ class IntentAnalysisAgent(BaseAgent):
     专注于美妆咨询场景的意图识别和对话阶段判断。
     """
     
-    def __init__(self, tenant_id: str):
+    def __init__(self):
         # MAS架构：使用成本优化策略进行快速意图分析
-        super().__init__(
-            agent_id=f"intent_analysis_{tenant_id}", 
-            tenant_id=tenant_id,
-            
-        )
+        super().__init__()
         
         # LLM integration
 

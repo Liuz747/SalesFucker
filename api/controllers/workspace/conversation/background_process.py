@@ -15,10 +15,11 @@ from uuid import UUID
 from typing import Optional
 
 from config import mas_config
-from controllers.dependencies import get_orchestrator_service
+from core.app import get_orchestrator
 from models import ThreadStatus
+from models.workflow import WorkflowRun
 from services import ThreadService
-from schemas.conversation_schema import CallbackPayload, WorkflowData, InputContent
+from schemas.conversation_schema import CallbackPayload, InputContent
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms, ExternalClient
 
 
@@ -73,6 +74,7 @@ class BackgroundWorkflowProcessor:
         thread_id: UUID,
         input: InputContent,
         assistant_id: UUID,
+        tenant_id: str,
         customer_id: Optional[str] = None,
         input_type: str = "text"
     ):
@@ -90,24 +92,30 @@ class BackgroundWorkflowProcessor:
                 await ThreadService.update_thread(thread)
                 logger.debug(f"线程状态更新为处理中: {thread_id}")
 
+            # 创建工作流执行模型
+            workflow = WorkflowRun(
+                run_id=run_id,
+                thread_id=thread_id,
+                assistant_id=assistant_id,
+                tenant_id=tenant_id,
+                input=input.content,
+                type=input_type
+            )
+
             # 获取租户专用编排器实例
-            orchestrator = get_orchestrator_service(thread.metadata.tenant_id)
+            orchestrator = get_orchestrator()
 
             # 使用编排器处理消息 - 核心工作流调用
-            result = await orchestrator.process_conversation(
-                customer_input=input.content,
-                customer_id=customer_id,
-                input_type=input_type
-            )
+            result = await orchestrator.process_conversation(workflow)
 
             # 构建工作流数据
             workflow_data = []
             for agent_type, agent_response in result.agent_responses.items():
                 workflow_data.append(
-                    WorkflowData(
-                        type=agent_type,
-                        content=agent_response
-                    )
+                    {
+                        "type": agent_type,
+                        "content": agent_response
+                    }
                 )
 
             processing_time = get_processing_time_ms(start_time)
@@ -119,7 +127,7 @@ class BackgroundWorkflowProcessor:
                 await ThreadService.update_thread(thread)
                 logger.debug(f"线程状态更新为完成: {thread_id}")
 
-            logger.info(f"工作流处理完成 - 运行: {run_id}, 耗时: {processing_time:.2f}ms")
+            logger.info(f"工作流处理完成 - 运行: {run_id}, 工作流: {run_id}, 耗时: {processing_time:.2f}ms")
 
             payload = CallbackPayload(
                 run_id=run_id,
@@ -129,8 +137,9 @@ class BackgroundWorkflowProcessor:
                 processing_time=processing_time,
                 completed_at=completed_at.isoformat(),
                 metadata={
-                    "tenant_id": thread.metadata.tenant_id,
-                    "assistant_id": assistant_id
+                    "tenant_id": tenant_id,
+                    "assistant_id": assistant_id,
+                    "execution_id": str(run_id)
                 }
             )
 

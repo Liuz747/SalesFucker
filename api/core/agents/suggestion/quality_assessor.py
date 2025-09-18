@@ -19,9 +19,9 @@ class QualityAssessor:
     提供系统优化和用户体验提升的建议。
     """
     
-    def __init__(self, tenant_id: str):
-        self.tenant_id = tenant_id
-        self.logger = get_component_logger(f"quality_assessor_{tenant_id}")
+    def __init__(self):
+        self.agent_id = "suggestion"
+        self.logger = get_component_logger(f"quality_assessor_{self.agent_id}")
         
         # 质量评估配置
         self.quality_thresholds = {
@@ -40,7 +40,7 @@ class QualityAssessor:
             "efficiency": "Workflow efficiency improvement"
         }
         
-        self.logger.info(f"质量评估器初始化完成: tenant_id={tenant_id}")
+        self.logger.info(f"质量评估器初始化完成")
     
     async def assess_conversation_quality(self, state: ThreadState) -> List[Dict[str, Any]]:
         """
@@ -307,6 +307,5 @@ class QualityAssessor:
         return {
             "quality_thresholds": self.quality_thresholds.copy(),
             "improvement_categories": list(self.improvement_categories.keys()),
-            "tenant_id": self.tenant_id,
-            "assessor_id": f"quality_assessor_{self.tenant_id}"
+            "assessor_id": f"quality_assessor_{self.agent_id}"
         }

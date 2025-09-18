@@ -19,13 +19,9 @@ class ProactiveAgent(BaseAgent):
     识别营销机会并自动化客户接触。
     """
     
-    def __init__(self, tenant_id: str):
+    def __init__(self):
         # MAS架构：使用销售优化策略生成主动营销内容
-        super().__init__(
-            agent_id=f"proactive_agent_{tenant_id}", 
-            tenant_id=tenant_id,
-            
-        )
+        super().__init__()
         
         # 触发器配置
         self.trigger_rules = {

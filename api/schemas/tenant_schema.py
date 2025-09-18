@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Optional
 
 from pydantic import BaseModel, Field
@@ -9,9 +8,8 @@ from schemas.responses import BaseResponse
 
 class BaseTenant(BaseModel):
     tenant_id: str = Field(description="租户ID")
-    tenant_name: str = Field(description="租户名称")
+    tenant_name: Optional[str] = Field(None, description="租户名称")
     status: TenantStatus = Field(default=TenantStatus.ACTIVE, description="租户状态")
-    updated_at: Optional[datetime] = Field(None, description="更新时间")
 
 
 class FeatureFlags(BaseModel):

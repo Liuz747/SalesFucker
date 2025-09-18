@@ -23,19 +23,15 @@ class AISuggestionAgent(BaseAgent):
     使用模块化组件处理升级决策、质量评估和系统改进建议。
     """
     
-    def __init__(self, tenant_id: str):
+    def __init__(self):
         # MAS架构：使用智能体优化策略提供系统建议
-        super().__init__(
-            agent_id=f"ai_suggestion_{tenant_id}", 
-            tenant_id=tenant_id,
-            
-        )
-        
+        super().__init__()
+
         # 初始化功能模块
-        self.escalation_analyzer = EscalationAnalyzer(tenant_id)
-        self.quality_assessor = QualityAssessor(tenant_id)
-        self.llm_analyzer = LLMAnalyzer(tenant_id)
-        self.suggestion_generator = SuggestionGenerator(tenant_id)
+        self.escalation_analyzer = EscalationAnalyzer()
+        self.quality_assessor = QualityAssessor()
+        self.llm_analyzer = LLMAnalyzer()
+        self.suggestion_generator = SuggestionGenerator()
         
         # 建议类型映射
         self.request_handlers = {

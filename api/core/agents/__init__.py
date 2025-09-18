@@ -23,9 +23,7 @@
 from .base import (
     BaseAgent,
     AgentMessage,
-    ThreadState,
-    AgentRegistry,
-    agent_registry
+    ThreadState
 )
 
 # 导入常量
@@ -51,10 +49,8 @@ from .suggestion import AISuggestionAgent
 __all__ = [
     # 核心基础组件
     "BaseAgent",
-    "AgentMessage", 
+    "AgentMessage",
     "ThreadState",
-    "AgentRegistry",
-    "agent_registry",
     "MessagePriority",
     "MessageType",
     "ComplianceStatus",
