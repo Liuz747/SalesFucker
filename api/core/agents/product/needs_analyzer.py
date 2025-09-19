@@ -15,10 +15,9 @@ logger = logging.getLogger(__name__)
 class CustomerNeedsAnalyzer:
     """客户需求分析器"""
     
-    def __init__(self, tenant_id: str):
-        self.tenant_id = tenant_id
-        self.product_search = ProductSearch(tenant_id)
-        self.logger = logging.getLogger(f"{__name__}.{tenant_id}")
+    def __init__(self):
+        self.product_search = ProductSearch()
+        self.logger = logging.getLogger(__name__)
         self.semantic_analysis_enabled = False
     
     async def initialize(self) -> None:
@@ -26,7 +25,7 @@ class CustomerNeedsAnalyzer:
         try:
             await self.product_search.initialize()
             self.semantic_analysis_enabled = True
-            self.logger.info(f"需求分析器初始化完成: {self.tenant_id}")
+            self.logger.info("需求分析器初始化完成")
         except Exception as e:
             self.logger.warning(f"语义分析初始化失败，使用基础分析: {e}")
             self.semantic_analysis_enabled = False
@@ -35,8 +34,8 @@ class CustomerNeedsAnalyzer:
         self,
         customer_input: str,
         customer_profile: Dict[str, Any],
-        intent_analysis: Dict[str, Any] = None
-    ) -> Dict[str, Any]:
+        intent_analysis: dict = None
+    ) -> dict:
         """
         分析客户需求（增强版）
         
@@ -54,16 +53,16 @@ class CustomerNeedsAnalyzer:
         )
         
         # 语义增强分析
-        if self.semantic_analysis_enabled:
-            try:
-                semantic_insights = await self._analyze_semantic_needs(customer_input)
-                basic_needs.update(semantic_insights)
-                basic_needs["semantic_analysis_available"] = True
-            except Exception as e:
-                self.logger.warning(f"语义需求分析失败: {e}")
-                basic_needs["semantic_analysis_available"] = False
-        else:
-            basic_needs["semantic_analysis_available"] = False
+        # if self.semantic_analysis_enabled:
+        #     try:
+        #         semantic_insights = await self._analyze_semantic_needs(customer_input)
+        #         basic_needs.update(semantic_insights)
+        #         basic_needs["semantic_analysis_available"] = True
+        #     except Exception as e:
+        #         self.logger.warning(f"语义需求分析失败: {e}")
+        #         basic_needs["semantic_analysis_available"] = False
+        # else:
+        #     basic_needs["semantic_analysis_available"] = False
         
         return basic_needs
     

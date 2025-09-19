@@ -6,7 +6,7 @@ AI建议智能体 - 重构版
 """
 
 from typing import Dict, Any
-from ..base import BaseAgent, AgentMessage, ThreadState
+from ..base import BaseAgent, AgentMessage
 
 from utils import get_current_datetime, get_processing_time_ms
 
@@ -79,7 +79,7 @@ class AISuggestionAgent(BaseAgent):
         except Exception as e:
             return await self._handle_processing_error(e, message)
     
-    async def process_conversation(self, state: ThreadState) -> ThreadState:
+    async def process_conversation(self, state: dict) -> dict:
         """
         处理对话状态中的AI建议分析
         
@@ -156,15 +156,15 @@ class AISuggestionAgent(BaseAgent):
         llm_analysis = await self.llm_analyzer.analyze_escalation_context(context_data)
         return self._merge_escalation_analyses(rule_analysis, llm_analysis)
     
-    async def _perform_quality_assessment(self, state: ThreadState) -> Dict[str, Any]:
+    async def _perform_quality_assessment(self, state: dict) -> dict:
         """执行质量评估"""
         quality_suggestions = await self.quality_assessor.assess_conversation_quality(state)
         conversation_data = {
-            "total_exchanges": len(state.conversation_history),
-            "agent_responses": state.agent_responses,
-            "sentiment": getattr(state, 'sentiment_analysis', {}),
-            "resolution_status": "pending" if not state.processing_complete else "complete",
-            "error_count": len([r for r in state.agent_responses.values() if r.get("error")])
+            "total_exchanges": len(state.get("conversation_history", [])),
+            "agent_responses": state.get("agent_responses", {}),
+            "sentiment": state.get('sentiment_analysis', {}),
+            "resolution_status": "pending" if not state.get("processing_complete") else "complete",
+            "error_count": len([r for r in state.get("agent_responses", {}).values() if r.get("error")])
         }
         llm_quality = await self.llm_analyzer.analyze_conversation_quality(conversation_data)
         return {
@@ -173,19 +173,18 @@ class AISuggestionAgent(BaseAgent):
             "combined_score": (self.quality_assessor.calculate_conversation_quality_score(state) + llm_quality.get("quality_score", 0.5)) / 2
         }
     
-    def _prepare_conversation_context(self, state: ThreadState) -> Dict[str, Any]:
+    def _prepare_conversation_context(self, state: dict) -> dict:
         """准备对话分析上下文"""
         return {
-            "sentiment": getattr(state, 'sentiment_analysis', {}),
-            "intent": getattr(state, 'intent_analysis', {}),
-            "compliance": getattr(state, 'compliance_result', {}),
-            "agent_responses": state.agent_responses,
-            "conversation_complexity": len(state.conversation_history),
-            "customer_profile_available": bool(state.customer_profile)
+            "sentiment": state.get('sentiment_analysis', {}),
+            "intent": state.get('intent_analysis', {}),
+            "compliance": state.get('compliance_result', {}),
+            "agent_responses": state.get('agent_responses', {}),
+            "conversation_complexity": len(state.get('conversation_history', [])),
+            "customer_profile_available": bool(state.get('customer_profile'))
         }
     
-    def _merge_escalation_analyses(self, rule_analysis: Dict[str, Any], 
-                                 llm_analysis: Dict[str, Any]) -> Dict[str, Any]:
+    def _merge_escalation_analyses(self, rule_analysis: dict, llm_analysis: dict) -> dict:
         """合并升级分析结果"""
         # 综合决策逻辑
         rule_recommendation = rule_analysis.get("escalation_recommended", False)
@@ -207,33 +206,36 @@ class AISuggestionAgent(BaseAgent):
             "decision_basis": "combined_analysis"
         }
     
-    def _update_conversation_state(self, state: ThreadState, 
-                                 analysis: Dict[str, Any],
-                                 escalation_analysis: Dict[str, Any]) -> ThreadState:
+    def _update_conversation_state(
+        self,
+        state: dict,
+        analysis: dict,
+        escalation_analysis: dict
+    ) -> dict:
         """更新对话状态"""
         # 更新代理响应
-        state.agent_responses[self.agent_id] = analysis
+        state.setdefault("agent_responses", {})[self.agent_id] = analysis
         
         # 更新活跃代理列表
-        if self.agent_id not in state.active_agents:
-            state.active_agents.append(self.agent_id)
+        active_agents = state.setdefault("active_agents", [])
+        if self.agent_id not in active_agents:
+            active_agents.append(self.agent_id)
         
         # 设置升级标志
         if escalation_analysis.get("escalation_recommended", False):
-            state.human_escalation = True
+            state["human_escalation"] = True
         
         return state
     
-    def _build_mock_conversation_state(self, context_data: Dict[str, Any]) -> ThreadState:
+    def _build_mock_conversation_state(self, context_data: dict) -> dict:
         """从上下文数据构建模拟的对话状态"""
-        # 这是一个简化的实现，实际使用中可能需要更完整的构建逻辑
-        mock_state = ThreadState()
-        mock_state.agent_responses = context_data.get("agent_responses", {})
-        mock_state.conversation_history = context_data.get("conversation_history", [])
-        mock_state.customer_profile = context_data.get("customer_profile", {})
-        mock_state.processing_complete = context_data.get("processing_complete", False)
-        
-        return mock_state
+        # 简化：直接返回 dict 形态
+        return {
+            "agent_responses": context_data.get("agent_responses", {}),
+            "conversation_history": context_data.get("conversation_history", []),
+            "customer_profile": context_data.get("customer_profile", {}),
+            "processing_complete": context_data.get("processing_complete", False)
+        }
     
     async def _handle_processing_error(self, error: Exception, message: AgentMessage) -> AgentMessage:
         """处理处理错误"""
@@ -257,13 +259,12 @@ class AISuggestionAgent(BaseAgent):
             context=message.context
         )
     
-    async def _handle_conversation_error(self, error: Exception, 
-                                       state: ThreadState) -> ThreadState:
+    async def _handle_conversation_error(self, error: Exception, state: dict) -> dict:
         """处理对话处理错误"""
-        await self.handle_error(error, {"thread_id": state.thread_id})
+        await self.handle_error(error, {"thread_id": state.get("thread_id")})
         
         # 设置保守的建议状态
-        state.agent_responses[self.agent_id] = {
+        state.setdefault("agent_responses", {})[self.agent_id] = {
             "escalation_analysis": {"escalation_recommended": True, "reason": "Error in AI analysis"},
             "improvement_suggestions": [],
             "error": str(error),

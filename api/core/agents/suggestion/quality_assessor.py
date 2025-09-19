@@ -6,8 +6,7 @@
 """
 
 from typing import Dict, Any, List
-import logging
-from ..base import ThreadState
+
 from utils import get_component_logger
 
 
@@ -42,7 +41,7 @@ class QualityAssessor:
         
         self.logger.info(f"质量评估器初始化完成")
     
-    async def assess_conversation_quality(self, state: ThreadState) -> List[Dict[str, Any]]:
+    async def assess_conversation_quality(self, state: dict) -> list[dict]:
         """
         分析对话质量并提供改进建议
         
@@ -50,7 +49,7 @@ class QualityAssessor:
             state: 对话状态
             
         返回:
-            List[Dict[str, Any]]: 改进建议列表
+            list[dict]: 改进建议列表
         """
         suggestions = []
         
@@ -76,23 +75,24 @@ class QualityAssessor:
         self.logger.info(f"生成了 {len(filtered_suggestions)} 条质量改进建议")
         return filtered_suggestions
     
-    def _assess_response_efficiency(self, state: ThreadState) -> List[Dict[str, Any]]:
+    def _assess_response_efficiency(self, state: dict) -> list[dict]:
         """评估响应效率"""
         suggestions = []
         
         # 检查涉及的代理数量
-        if len(state.active_agents) > self.quality_thresholds["max_agents_involved"]:
+        active_agents = state.get("active_agents", [])
+        if len(active_agents) > self.quality_thresholds["max_agents_involved"]:
             suggestions.append({
                 "type": "performance",
                 "priority": "medium",
                 "suggestion": "Consider optimizing agent workflow - many agents involved",
                 "impact": "Improve response time",
-                "metric": f"Active agents: {len(state.active_agents)}",
+                "metric": f"Active agents: {len(active_agents)}",
                 "target": f"Target: ≤{self.quality_thresholds['max_agents_involved']} agents"
             })
         
         # 检查处理完成度
-        if not state.processing_complete:
+        if not state.get("processing_complete"):
             suggestions.append({
                 "type": "efficiency",
                 "priority": "high",
@@ -104,13 +104,14 @@ class QualityAssessor:
         
         return suggestions
     
-    def _assess_system_reliability(self, state: ThreadState) -> List[Dict[str, Any]]:
+    def _assess_system_reliability(self, state: dict) -> list[dict]:
         """评估系统可靠性"""
         suggestions = []
         
         # 计算错误率
-        total_responses = len(state.agent_responses)
-        error_responses = [resp for resp in state.agent_responses.values() 
+        agent_responses = state.get("agent_responses", {})
+        total_responses = len(agent_responses)
+        error_responses = [resp for resp in agent_responses.values() 
                          if resp.get("error") or resp.get("fallback")]
         
         if total_responses > 0:
@@ -124,18 +125,19 @@ class QualityAssessor:
                     "impact": "Improve conversation success rate",
                     "metric": f"Error rate: {error_rate:.2%}",
                     "target": f"Target: ≤{self.quality_thresholds['max_error_rate']:.0%}",
-                    "affected_agents": [agent_id for agent_id, resp in state.agent_responses.items() 
+                    "affected_agents": [agent_id for agent_id, resp in agent_responses.items() 
                                       if resp.get("error") or resp.get("fallback")]
                 })
         
         return suggestions
     
-    def _assess_personalization_level(self, state: ThreadState) -> List[Dict[str, Any]]:
+    def _assess_personalization_level(self, state: dict) -> list[dict]:
         """评估个性化程度"""
         suggestions = []
         
         # 检查客户档案完整性
-        if not state.customer_profile:
+        customer_profile = state.get("customer_profile", {})
+        if not customer_profile:
             suggestions.append({
                 "type": "personalization",
                 "priority": "medium",
@@ -144,25 +146,25 @@ class QualityAssessor:
                 "metric": "No customer profile",
                 "target": "Complete customer profile"
             })
-        elif isinstance(state.customer_profile, dict) and len(state.customer_profile) < 3:
+        elif isinstance(customer_profile, dict) and len(customer_profile) < 3:
             suggestions.append({
                 "type": "personalization",
                 "priority": "low",
                 "suggestion": "Expand customer profile data collection",
                 "impact": "Improve personalized recommendations",
-                "metric": f"Profile fields: {len(state.customer_profile)}",
+                "metric": f"Profile fields: {len(customer_profile)}",
                 "target": "≥5 profile fields"
             })
         
         return suggestions
     
-    def _assess_response_accuracy(self, state: ThreadState) -> List[Dict[str, Any]]:
+    def _assess_response_accuracy(self, state: dict) -> list[dict]:
         """评估响应准确性"""
         suggestions = []
         
         # 检查置信度水平
         low_confidence_agents = []
-        for agent_id, response in state.agent_responses.items():
+        for agent_id, response in state.get("agent_responses", {}).items():
             confidence = response.get("confidence", 1.0)
             if confidence < self.quality_thresholds["min_response_confidence"]:
                 low_confidence_agents.append(agent_id)
@@ -196,7 +198,7 @@ class QualityAssessor:
         max_suggestions = 10
         return suggestions[:max_suggestions]
     
-    def calculate_conversation_quality_score(self, state: ThreadState) -> float:
+    def calculate_conversation_quality_score(self, state: dict) -> float:
         """
         计算对话质量分数
         
@@ -209,32 +211,32 @@ class QualityAssessor:
         score = 0.5  # 基础分数
         
         # 完成度评分 (20%)
-        if state.processing_complete:
+        if state.get("processing_complete"):
             score += 0.2
         
         # 错误率评分 (30%)
-        total_responses = len(state.agent_responses)
+        total_responses = len(state.get("agent_responses", {}))
         if total_responses > 0:
-            error_responses = len([resp for resp in state.agent_responses.values() 
+            error_responses = len([resp for resp in state.get("agent_responses", {}).values() 
                                  if resp.get("error") or resp.get("fallback")])
             error_rate = error_responses / total_responses
             score += 0.3 * (1 - error_rate)
         
         # 个性化评分 (20%)
-        if state.customer_profile and len(state.customer_profile) > 2:
-            profile_completeness = min(1.0, len(state.customer_profile) / 5)
+        if state.get("customer_profile") and len(state["customer_profile"]) > 2:
+            profile_completeness = min(1.0, len(state["customer_profile"]) / 5)
             score += 0.2 * profile_completeness
         
         # 效率评分 (20%)
-        if len(state.active_agents) <= self.quality_thresholds["max_agents_involved"]:
+        if len(state.get("active_agents", [])) <= self.quality_thresholds["max_agents_involved"]:
             score += 0.2
         else:
             # 超出理想代理数量时降分
-            excess_ratio = (len(state.active_agents) - self.quality_thresholds["max_agents_involved"]) / 5
+            excess_ratio = (len(state.get("active_agents", [])) - self.quality_thresholds["max_agents_involved"]) / 5
             score += 0.2 * max(0, 1 - excess_ratio)
         
         # 一致性评分 (10%)
-        if not any(resp.get("fallback") for resp in state.agent_responses.values()):
+        if not any(resp.get("fallback") for resp in state.get("agent_responses", {}).values()):
             score += 0.1
         
         return min(1.0, max(0.0, score))

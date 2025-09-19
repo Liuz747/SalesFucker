@@ -5,9 +5,9 @@ AI-powered product recommendation engine for beauty consultations.
 Provides expert product knowledge and personalized recommendations.
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any
 import asyncio
-from ..base import BaseAgent, AgentMessage, ThreadState
+from ..base import BaseAgent, AgentMessage
 from utils import get_current_datetime, get_processing_time_ms
 
 # 导入模块化组件
@@ -120,7 +120,7 @@ class ProductExpertAgent(BaseAgent):
                 context=message.context
             )
     
-    async def process_conversation(self, state: ThreadState) -> ThreadState:
+    async def process_conversation(self, state: dict) -> dict:
         """
         处理对话状态中的产品推荐
         
@@ -137,13 +137,13 @@ class ProductExpertAgent(BaseAgent):
         try:
             await self._ensure_initialized()
             
-            customer_input = state.customer_input
-            customer_profile = state.customer_profile
-            customer_history = getattr(state, 'customer_history', [])
+            customer_input = state.get("customer_input", "")
+            customer_profile = state.get("customer_profile", {})
+            customer_history = state.get('customer_history', [])
             
             # 分析客户需求和偏好
             needs_analysis = await self.needs_analyzer.analyze_customer_needs(
-                customer_input, customer_profile, state.intent_analysis
+                customer_input, customer_profile, state.get("intent_analysis")
             )
             
             # 生成产品推荐
@@ -152,12 +152,12 @@ class ProductExpertAgent(BaseAgent):
             )
             
             # 更新对话状态
-            state.agent_responses[self.agent_id] = {
+            state.setdefault("agent_responses", {})[self.agent_id] = {
                 "product_recommendations": product_recommendations,
                 "needs_analysis": needs_analysis,
                 "processing_complete": True
             }
-            state.active_agents.append(self.agent_id)
+            state.setdefault("active_agents", []).append(self.agent_id)
             
             # 更新处理统计
             processing_time = get_processing_time_ms(start_time)
@@ -166,11 +166,11 @@ class ProductExpertAgent(BaseAgent):
             return state
             
         except Exception as e:
-            await self.handle_error(e, {"thread_id": state.thread_id})
+            await self.handle_error(e, {"thread_id": state.get("thread_id")})
             
             # 使用协调器设置降级推荐
             fallback_response = self.recommendation_coordinator.formatter.create_fallback_response(str(e))
-            state.agent_responses[self.agent_id] = {
+            state.setdefault("agent_responses", {})[self.agent_id] = {
                 "product_recommendations": fallback_response,
                 "error": str(e),
                 "agent_id": self.agent_id
@@ -181,10 +181,10 @@ class ProductExpertAgent(BaseAgent):
     async def _generate_product_recommendations(
         self, 
         customer_input: str, 
-        customer_profile: Dict[str, Any],
-        customer_history: List[Dict[str, Any]] = None,
-        needs_analysis: Dict[str, Any] = None
-    ) -> Dict[str, Any]:
+        customer_profile: dict,
+        customer_history: list[dict] = None,
+        needs_analysis: dict = None
+    ) -> dict:
         """
         生成产品推荐
         

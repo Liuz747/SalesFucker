@@ -13,7 +13,7 @@
 
 from typing import Dict, Any, Optional
 
-from ..base import BaseAgent, AgentMessage, ThreadState
+from ..base import BaseAgent, AgentMessage
 from .sales_strategies import get_sales_strategies, analyze_customer_segment, get_strategy_for_segment, adapt_strategy_to_context
 from utils import to_isoformat
 
@@ -88,7 +88,7 @@ class SalesAgent(BaseAgent):
                 context=message.context
             )
     
-    async def process_conversation(self, state: ThreadState) -> ThreadState:
+    async def process_conversation(self, state: dict) -> dict:
         """
         处理对话状态（LangGraph工作流节点）
         
@@ -101,10 +101,10 @@ class SalesAgent(BaseAgent):
             ThreadState: 更新后的对话状态
         """
         try:
-            customer_input = state.customer_input
+            customer_input = state.get("customer_input", "")
             
             # 从IntentAnalysisAgent获取增强的客户分析数据
-            intent_analysis = state.intent_analysis or {}
+            intent_analysis = state.get("intent_analysis", {}) or {}
             customer_profile_data = intent_analysis.get("customer_profile", {})
             
             # 提取客户需求信息 (来自LLM分析)
@@ -120,22 +120,23 @@ class SalesAgent(BaseAgent):
             stage_value = intent_analysis.get("conversation_stage", "consultation")
             
             # 使用LLM提取的信息丰富客户档案
+            state.setdefault("customer_profile", {})
             if customer_profile_data.get("skin_type_indicators"):
-                state.customer_profile["inferred_skin_type"] = customer_profile_data["skin_type_indicators"][0]
+                state["customer_profile"]["inferred_skin_type"] = customer_profile_data["skin_type_indicators"][0]
             if customer_profile_data.get("budget_signals"):
-                state.customer_profile["budget_preference"] = customer_profile_data["budget_signals"][0]
+                state["customer_profile"]["budget_preference"] = customer_profile_data["budget_signals"][0]
             if customer_profile_data.get("experience_level"):
-                state.customer_profile["experience_level"] = customer_profile_data["experience_level"]
+                state["customer_profile"]["experience_level"] = customer_profile_data["experience_level"]
             
             # 客户细分和策略选择
-            customer_segment = analyze_customer_segment(state.customer_profile)
+            customer_segment = analyze_customer_segment(state["customer_profile"])
             strategy = get_strategy_for_segment(customer_segment)
             
             # 根据上下文调整策略
             context = {
-                "sentiment": getattr(state, "sentiment", "neutral"),
+                "sentiment": (state.get("sentiment_analysis", {}) or {}).get("sentiment", "neutral"),
                 "urgency": needs.get("urgency", "normal"),
-                "purchase_intent": getattr(state, "purchase_intent", "browsing")
+                "purchase_intent": state.get("purchase_intent", "browsing")
             }
             adapted_strategy = adapt_strategy_to_context(strategy, context)
             
@@ -145,9 +146,9 @@ class SalesAgent(BaseAgent):
             )
             
             # 更新对话状态
-            state.sales_response = response
-            state.active_agents.append(self.agent_id)
-            state.conversation_history.extend([
+            state["sales_response"] = response
+            state.setdefault("active_agents", []).append(self.agent_id)
+            state.setdefault("conversation_history", []).extend([
                 {"role": "user", "content": customer_input},
                 {"role": "assistant", "content": response}
             ])
@@ -158,17 +159,17 @@ class SalesAgent(BaseAgent):
             return state
             
         except Exception as e:
-            await self.handle_error(e, {"thread_id": state.thread_id})
-            state.error_state = "sales_processing_error"
+            await self.handle_error(e, {"thread_id": state.get("thread_id")})
+            state["error_state"] = "sales_processing_error"
             return state
     
     async def _generate_llm_response(
             self, 
             customer_input: str, 
-            needs: Dict[str, Any],
+            needs: dict,
             stage: str, 
-            strategy: Dict[str, Any], 
-            state: ThreadState
+            strategy: dict, 
+            state: dict
     ) -> str:
         """
         使用MAS多LLM生成个性化销售响应
@@ -188,12 +189,12 @@ class SalesAgent(BaseAgent):
         try:
             # 构建上下文信息
             context = {
-                "customer_profile": state.customer_profile,
-                "conversation_history": state.conversation_history[-5:],  # 最近5轮对话
+                "customer_profile": state.get("customer_profile", {}),
+                "conversation_history": state.get("conversation_history", [])[-5:],
                 "product_context": {
                     "concerns": needs.get("concerns", []),
-                    "budget_range": state.customer_profile.get("budget_range", "medium"),
-                    "skin_type": state.customer_profile.get("skin_type", "not specified")
+                    "budget_range": state.get("customer_profile", {}).get("budget_range", "medium"),
+                    "skin_type": state.get("customer_profile", {}).get("skin_type", "not specified")
                 }
             }
             
@@ -204,9 +205,9 @@ class SalesAgent(BaseAgent):
             客户咨询：{customer_input}
 
             客户档案：
-            - 肌肤类型：{state.customer_profile.get('skin_type', '未知')}
+            - 肌肤类型：{state.get('customer_profile', {}).get('skin_type', '未知')}
             - 关注问题：{', '.join(needs.get('concerns', ['一般咨询']))}
-            - 预算范围：{state.customer_profile.get('budget_range', '中等')}
+            - 预算范围：{state.get('customer_profile', {}).get('budget_range', '中等')}
             - 经验水平：{needs.get('experience_level', '中级')}
 
             销售策略：

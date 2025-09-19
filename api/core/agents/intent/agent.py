@@ -6,7 +6,7 @@ Identifies purchase intent, conversation stage, and specific customer needs.
 """
 
 from typing import Dict, Any
-from ..base import BaseAgent, AgentMessage, ThreadState
+from ..base import BaseAgent, AgentMessage
 
 from utils import parse_intent_response
 
@@ -81,7 +81,7 @@ class IntentAnalysisAgent(BaseAgent):
                 context=message.context
             )
     
-    async def process_conversation(self, state: ThreadState) -> ThreadState:
+    async def process_conversation(self, state: dict) -> dict:
         """
         处理对话状态中的意图分析
         
@@ -96,15 +96,15 @@ class IntentAnalysisAgent(BaseAgent):
         start_time = get_current_datetime()
         
         try:
-            customer_input = state.customer_input
-            conversation_history = state.conversation_history
+            customer_input = state.get("customer_input", "")
+            conversation_history = state.get("conversation_history", [])
             
             # 执行意图分析
             intent_result = await self._analyze_intent(customer_input, conversation_history)
             
             # 更新对话状态
-            state.intent_analysis = intent_result
-            state.active_agents.append(self.agent_id)
+            state["intent_analysis"] = intent_result
+            state.setdefault("active_agents", []).append(self.agent_id)
             
             # 根据意图分析结果设置市场策略提示
             self._set_strategy_hints(state, intent_result)
@@ -116,10 +116,10 @@ class IntentAnalysisAgent(BaseAgent):
             return state
             
         except Exception as e:
-            await self.handle_error(e, {"thread_id": state.thread_id})
+            await self.handle_error(e, {"thread_id": state.get("thread_id")})
             
             # 设置降级意图分析
-            state.intent_analysis = {
+            state["intent_analysis"] = {
                 "intent": "browsing",
                 "category": "general",
                 "confidence": 0.5,
@@ -187,7 +187,7 @@ class IntentAnalysisAgent(BaseAgent):
                 "agent_id": self.agent_id
             }
     
-    def _set_strategy_hints(self, state: ThreadState, intent_result: Dict[str, Any]):
+    def _set_strategy_hints(self, state: dict, intent_result: dict):
         """
         根据意图分析结果设置策略提示
         
@@ -225,9 +225,7 @@ class IntentAnalysisAgent(BaseAgent):
             strategy_hints["detail_level"] = "comprehensive"
         
         # 将策略提示存储在状态中
-        if not hasattr(state, 'strategy_hints'):
-            state.strategy_hints = {}
-        state.strategy_hints.update(strategy_hints)
+        state.setdefault("strategy_hints", {}).update(strategy_hints)
     
     def get_intent_metrics(self) -> Dict[str, Any]:
         """

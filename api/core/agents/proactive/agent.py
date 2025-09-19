@@ -7,7 +7,7 @@ Identifies opportunities for proactive customer contact and follow-up.
 
 from typing import Dict, Any, List
 from datetime import datetime, timedelta
-from ..base import BaseAgent, AgentMessage, ThreadState
+from ..base import BaseAgent, AgentMessage
 
 from utils import get_current_datetime, get_processing_time_ms
 
@@ -110,7 +110,7 @@ class ProactiveAgent(BaseAgent):
                 context=message.context
             )
     
-    async def process_conversation(self, state: ThreadState) -> ThreadState:
+    async def process_conversation(self, state: dict) -> dict:
         """
         处理对话状态中的主动营销分析
         
@@ -120,12 +120,12 @@ class ProactiveAgent(BaseAgent):
             state: 当前对话状态
             
         返回:
-            ThreadState: 更新后的对话状态
+            dict: 更新后的对话状态
         """
         start_time = get_current_datetime()
         
         try:
-            customer_id = state.customer_id
+            customer_id = state.get("customer_id")
             
             # 记录客户行为
             if customer_id:
@@ -135,12 +135,12 @@ class ProactiveAgent(BaseAgent):
             proactive_opportunities = await self._analyze_conversation_opportunities(state)
             
             # 更新对话状态
-            state.agent_responses[self.agent_id] = {
+            state.setdefault("agent_responses", {})[self.agent_id] = {
                 "proactive_opportunities": proactive_opportunities,
                 "behavior_recorded": customer_id is not None,
                 "processing_complete": True
             }
-            state.active_agents.append(self.agent_id)
+            state.setdefault("active_agents", []).append(self.agent_id)
             
             # 更新处理统计
             processing_time = get_processing_time_ms(start_time)
@@ -149,10 +149,10 @@ class ProactiveAgent(BaseAgent):
             return state
             
         except Exception as e:
-            await self.handle_error(e, {"thread_id": state.thread_id})
+            await self.handle_error(e, {"thread_id": state.get("thread_id")})
             
             # 设置降级状态
-            state.agent_responses[self.agent_id] = {
+            state.setdefault("agent_responses", {})[self.agent_id] = {
                 "proactive_opportunities": [],
                 "behavior_recorded": False,
                 "error": str(e),
@@ -205,11 +205,11 @@ class ProactiveAgent(BaseAgent):
     async def _check_trigger_condition(
         self, 
         trigger_name: str, 
-        trigger_config: Dict[str, Any], 
+        trigger_config: dict, 
         customer_id: str,
-        customer_history: List[Dict[str, Any]], 
-        current_data: Dict[str, Any]
-    ) -> Dict[str, Any]:
+        customer_history: list[dict], 
+        current_data: dict
+    ) -> dict:
         """
         检查触发条件
         
@@ -271,11 +271,11 @@ class ProactiveAgent(BaseAgent):
     
     def _find_recent_activity(
         self, 
-        history: List[Dict[str, Any]], 
+        history: list[dict], 
         activity_type: str, 
         hours: int = None, 
         days: int = None
-    ) -> Dict[str, Any]:
+    ) -> dict:
         """
         查找最近的活动记录
         
@@ -314,7 +314,7 @@ class ProactiveAgent(BaseAgent):
         priority_scores = {"high": 3, "medium": 2, "low": 1}
         return priority_scores.get(priority, 1)
     
-    async def _record_customer_behavior(self, state: ThreadState):
+    async def _record_customer_behavior(self, state: dict):
         """
         记录客户行为
         
@@ -322,7 +322,7 @@ class ProactiveAgent(BaseAgent):
             state: 对话状态
         """
         try:
-            customer_id = state.customer_id
+            customer_id = state.get("customer_id")
             if not customer_id:
                 return
             
@@ -330,11 +330,11 @@ class ProactiveAgent(BaseAgent):
             behavior_record = {
                 "timestamp": get_current_datetime().isoformat(),
                 "type": "conversation",
-                "thread_id": state.thread_id,
-                "customer_input": state.customer_input,
-                "sentiment": state.sentiment_analysis.get("sentiment", "neutral") if state.sentiment_analysis else "neutral",
-                "intent": state.intent_analysis.get("intent", "browsing") if state.intent_analysis else "browsing",
-                "agent_responses": list(state.agent_responses.keys())
+                "thread_id": state.get("thread_id"),
+                "customer_input": state.get("customer_input"),
+                "sentiment": (state.get("sentiment_analysis", {}) or {}).get("sentiment", "neutral"),
+                "intent": (state.get("intent_analysis", {}) or {}).get("intent", "browsing"),
+                "agent_responses": list(state.get("agent_responses", {}).keys())
             }
             
             # 存储行为记录
@@ -350,7 +350,7 @@ class ProactiveAgent(BaseAgent):
         except Exception as e:
             self.logger.error(f"客户行为记录失败: {e}")
     
-    async def _analyze_conversation_opportunities(self, state: ThreadState) -> List[Dict[str, Any]]:
+    async def _analyze_conversation_opportunities(self, state: dict) -> list[dict]:
         """
         分析当前对话的主动营销机会
         
@@ -363,8 +363,8 @@ class ProactiveAgent(BaseAgent):
         opportunities = []
         
         # 基于意图分析的机会
-        if state.intent_analysis:
-            intent = state.intent_analysis.get("intent", "browsing")
+        if state.get("intent_analysis"):
+            intent = state["intent_analysis"].get("intent", "browsing")
             if intent == "interested":
                 opportunities.append({
                     "type": "follow_up",
@@ -381,8 +381,8 @@ class ProactiveAgent(BaseAgent):
                 })
         
         # 基于情感分析的机会
-        if state.sentiment_analysis:
-            sentiment = state.sentiment_analysis.get("sentiment", "neutral")
+        if state.get("sentiment_analysis"):
+            sentiment = state["sentiment_analysis"].get("sentiment", "neutral")
             if sentiment == "negative":
                 opportunities.append({
                     "type": "service_recovery",
@@ -393,12 +393,12 @@ class ProactiveAgent(BaseAgent):
         
         return opportunities
     
-    def get_proactive_metrics(self) -> Dict[str, Any]:
+    def get_proactive_metrics(self) -> dict:
         """
         获取主动营销性能指标
         
         返回:
-            Dict[str, Any]: 性能指标信息
+            dict: 性能指标信息
         """
         total_customers_tracked = len(self.customer_behaviors)
         total_behaviors = sum(len(behaviors) for behaviors in self.customer_behaviors.values())

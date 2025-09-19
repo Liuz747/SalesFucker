@@ -6,7 +6,7 @@ Provides emotional context and customer satisfaction insights.
 """
 
 from typing import Dict, Any
-from ..base import BaseAgent, AgentMessage, ThreadState
+from ..base import BaseAgent, AgentMessage
 from utils import parse_sentiment_response, get_current_datetime, get_processing_time_ms
 
 
@@ -77,7 +77,7 @@ class SentimentAnalysisAgent(BaseAgent):
                 context=message.context
             )
     
-    async def process_conversation(self, state: ThreadState) -> ThreadState:
+    async def process_conversation(self, state: dict) -> dict:
         """
         处理对话状态中的情感分析
         
@@ -92,15 +92,15 @@ class SentimentAnalysisAgent(BaseAgent):
         start_time = get_current_datetime()
         
         try:
-            customer_input = state.customer_input
+            customer_input = state.get("customer_input", "")
             conversation_context = self._build_conversation_context(state)
             
             # 执行情感分析
             sentiment_result = await self._analyze_sentiment(customer_input, conversation_context)
             
             # 更新对话状态
-            state.sentiment_analysis = sentiment_result
-            state.active_agents.append(self.agent_id)
+            state["sentiment_analysis"] = sentiment_result
+            state.setdefault("active_agents", []).append(self.agent_id)
             
             # 更新处理统计
             processing_time = get_processing_time_ms(start_time)
@@ -109,10 +109,10 @@ class SentimentAnalysisAgent(BaseAgent):
             return state
             
         except Exception as e:
-            await self.handle_error(e, {"thread_id": state.thread_id})
+            await self.handle_error(e, {"thread_id": state.get("thread_id")})
             
             # 设置降级情感分析
-            state.sentiment_analysis = {
+            state["sentiment_analysis"] = {
                 "sentiment": "neutral",
                 "score": 0.0,
                 "confidence": 0.5,
@@ -173,7 +173,7 @@ class SentimentAnalysisAgent(BaseAgent):
                 "agent_id": self.agent_id
             }
     
-    def _build_conversation_context(self, state: ThreadState) -> str:
+    def _build_conversation_context(self, state: dict) -> str:
         """
         构建对话上下文信息
         
@@ -186,24 +186,26 @@ class SentimentAnalysisAgent(BaseAgent):
         context_parts = []
         
         # 客户档案信息
-        if state.customer_profile:
+        if state.get("customer_profile"):
             profile_info = []
-            if state.customer_profile.get("skin_type"):
-                profile_info.append(f"Skin type: {state.customer_profile['skin_type']}")
-            if state.customer_profile.get("previous_purchases"):
-                profile_info.append(f"Previous purchases: {len(state.customer_profile['previous_purchases'])} items")
+            customer_profile = state.get("customer_profile", {})
+            if customer_profile.get("skin_type"):
+                profile_info.append(f"Skin type: {customer_profile['skin_type']}")
+            if customer_profile.get("previous_purchases"):
+                profile_info.append(f"Previous purchases: {len(customer_profile['previous_purchases'])} items")
             
             if profile_info:
                 context_parts.append("Customer profile: " + ", ".join(profile_info))
         
         # 对话历史
-        if state.conversation_history:
-            recent_history = state.conversation_history[-3:]  # 最近3条对话
+        if state.get("conversation_history"):
+            recent_history = state["conversation_history"][-3:]
             context_parts.append("Recent conversation: " + " | ".join(recent_history))
         
         # 合规和意图信息
-        if state.compliance_result:
-            context_parts.append(f"Compliance status: {state.compliance_result.get('status', 'unknown')}")
+        compliance_result = state.get("compliance_result")
+        if compliance_result:
+            context_parts.append(f"Compliance status: {compliance_result.get('status', 'unknown')}")
         
         return " | ".join(context_parts) if context_parts else "Initial interaction"
     

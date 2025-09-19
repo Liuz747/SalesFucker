@@ -77,10 +77,10 @@ async def create_run(
         
         # 创建工作流执行模型
         start_time = get_current_datetime()
-        execution_id = uuid4()
+        workflow_id = uuid4()
 
         workflow = WorkflowRun(
-            run_id=execution_id,
+            workflow_id=workflow_id,
             thread_id=thread_id,
             assistant_id=request.assistant_id,
             tenant_id=tenant.tenant_id,
@@ -101,11 +101,11 @@ async def create_run(
 
         processing_time = get_processing_time_ms(start_time)
 
-        logger.info(f"运行处理完成 - 线程: {thread_id}, 执行: {execution_id}, 耗时: {processing_time:.2f}ms")
+        logger.info(f"运行处理完成 - 线程: {thread_id}, 执行: {workflow_id}, 耗时: {processing_time:.2f}ms")
 
         # 返回标准化响应
         return {
-            "id": result.execution_id,
+            "id": result.workflow_id,
             "thread_id": thread_id,
             "data": workflow_data,
             "created_at": start_time,
@@ -114,7 +114,7 @@ async def create_run(
             "metadata": {
                 "tenant_id": tenant.tenant_id,
                 "assistant_id": request.assistant_id,
-                "execution_id": str(result.execution_id)
+                "workflow_id": str(result.workflow_id)
             }
         }
         

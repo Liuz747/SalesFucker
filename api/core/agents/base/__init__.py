@@ -13,11 +13,10 @@
 
 # 核心智能体组件导入
 from .agent import BaseAgent
-from .message import AgentMessage, ThreadState
+from .message import AgentMessage
 
 __all__ = [
     # 核心智能体组件
     "BaseAgent",
-    "AgentMessage",
-    "ThreadState"
+    "AgentMessage"
 ] 
