@@ -13,7 +13,7 @@
 from typing import Any
 
 from models import WorkflowRun, WorkflowExecutionModel
-from core.factories import create_agent_set
+from core.factories import create_agents_set
 from .workflow_builder import WorkflowBuilder
 from .state_manager import StateManager
 from utils import (
@@ -48,13 +48,13 @@ class Orchestrator:
         self.logger = get_component_logger(__name__)
         
         # 初始化模块化组件
-        self.workflow_builder = WorkflowBuilder()
         self.state_manager = StateManager()
-        
+
         # 初始化智能体
-        self._initialize_agents()
-        
-        # 构建工作流图
+        self.agents = self._initialize_agents()
+
+        # 使用注入的智能体构建工作流图
+        self.workflow_builder = WorkflowBuilder(self.agents)
         self.graph = self.workflow_builder.build_graph()
         
         self.logger.info("多智能体编排器初始化完成")
@@ -68,7 +68,7 @@ class Orchestrator:
         
         try:
             # 创建智能体集合
-            agents = create_agent_set()
+            agents = create_agents_set()
             
             self.logger.info(f"智能体初始化完成，成功创建 {len(agents)} 个智能体")
             
@@ -76,9 +76,10 @@ class Orchestrator:
             for agent_type, agent in agents.items():
                 self.logger.debug(f"已创建智能体: {agent_type} -> {agent.agent_id}")
                 
+            return agents
         except Exception as e:
             self.logger.error(f"智能体初始化失败: {e}", exc_info=True)
-            # 不抛出异常，允许编排器继续运行（可能会有部分功能降级）
+            return {}
     
     async def process_conversation(self, workflow: WorkflowRun) -> WorkflowExecutionModel:
         """

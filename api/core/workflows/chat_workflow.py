@@ -9,7 +9,7 @@ from collections.abc import Callable
 
 from langgraph.graph import StateGraph
 
-from core.factories.agent_factory import get_agent
+from core.agents.base import BaseAgent
 from libs.constants import WorkflowConstants, StatusConstants
 from .base_workflow import BaseWorkflow
 
@@ -27,11 +27,12 @@ class ChatWorkflow(BaseWorkflow):
     - 并行处理优化
     """
     
-    def __init__(self):
+    def __init__(self, agents: dict[str, BaseAgent]):
         """
         初始化聊天工作流
         """
         super().__init__()
+        self.agents = agents
         self.fallback_handlers = self._init_fallback_handlers()
     
     def _register_nodes(self, graph: StateGraph):
@@ -163,7 +164,7 @@ class ChatWorkflow(BaseWorkflow):
         返回:
             dict: 更新后的状态字典
         """
-        agent = get_agent(node_name)
+        agent = self.agents.get(node_name)
         if not agent:
             self.logger.warning(f"智能体未找到: {node_name}")
             return self._apply_fallback(state, node_name, None)

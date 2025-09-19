@@ -15,6 +15,7 @@ from langgraph.graph import StateGraph
 
 from utils import get_component_logger
 from core.workflows import ChatWorkflow
+from core.agents.base import BaseAgent
 
 
 class WorkflowBuilder:
@@ -29,12 +30,12 @@ class WorkflowBuilder:
         workflow: 具体工作流实现
     """
     
-    def __init__(self):
+    def __init__(self, agents: dict[str, BaseAgent]):
         """
         初始化工作流构建器
         """
         self.logger = get_component_logger(__name__)
-        self.workflow = ChatWorkflow()
+        self.workflow = ChatWorkflow(agents)
     
     def build_graph(self) -> StateGraph:
         """
