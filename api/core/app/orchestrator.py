@@ -10,7 +10,7 @@
 - 多租户工作流隔离
 """
 
-from typing import Any, Optional
+from typing import Any
 
 from models import WorkflowRun, WorkflowExecutionModel
 from core.factories import create_agent_set
@@ -172,30 +172,3 @@ class Orchestrator:
             "graph_compiled": self.graph is not None,
         }
     
-
-# 全局编排器实例管理
-_orchestrator_instance: Optional[Orchestrator] = None
-
-
-def get_orchestrator() -> Orchestrator:
-    """
-    获取全局编排器实例
-    
-    返回:
-        Orchestrator: 编排器实例
-    """
-    global _orchestrator_instance
-    if _orchestrator_instance is None:
-        _orchestrator_instance = Orchestrator()
-    
-    return _orchestrator_instance
-
-
-def shutdown_orchestrator():
-    """
-    关闭编排器实例
-    """
-    global _orchestrator_instance
-    
-    if _orchestrator_instance is not None:
-        _orchestrator_instance = None 

@@ -12,7 +12,8 @@
 - 客户档案管理集成
 """
 
-from uuid import UUID, uuid4
+from uuid import UUID
+from typing import Annotated
 from fastapi import APIRouter, HTTPException, Depends
 
 from utils import get_component_logger
@@ -33,7 +34,7 @@ router.include_router(workflow_router, prefix="/{thread_id}/runs", tags=["workfl
 @router.post("")
 async def create_thread(
     request: ThreadCreateRequest,
-    tenant: TenantModel = Depends(validate_and_get_tenant_id)
+    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant_id)]
 ):
     """
     创建新的对话线程
@@ -77,7 +78,7 @@ async def create_thread(
 @router.get("/{thread_id}")
 async def get_thread(
     thread_id: UUID,
-    tenant: str = Depends(validate_and_get_tenant_id)
+    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant_id)]
 ):
     """
     获取线程详情
