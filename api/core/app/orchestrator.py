@@ -10,8 +10,6 @@
 - 多租户工作流隔离
 """
 
-from typing import Any
-
 from models import WorkflowRun
 from ..factories import create_agents_set
 from .entities import WorkflowExecutionModel
@@ -42,7 +40,6 @@ class Orchestrator:
         graph: LangGraph工作流图实例
         workflow_builder: 工作流构建器
         state_manager: 状态管理器
-        logger: 日志记录器
     """
     
     def __init__(self):
@@ -130,7 +127,7 @@ class Orchestrator:
             )
 
             # 构建执行结果模型（元数据 + 会话结果）
-            execution = WorkflowExecutionModel(
+            return WorkflowExecutionModel(
                 workflow_id=workflow.workflow_id,
                 thread_id=workflow.thread_id,
                 assistant_id=workflow.assistant_id,
@@ -142,12 +139,10 @@ class Orchestrator:
                 processing_complete=result_dict.get("processing_complete", False),
                 agent_responses=result_dict.get("agent_responses", {}),
             )
-            return execution
             
         except Exception as e:
             logger.error(f"对话处理失败: {e}", exc_info=True)
             # 返回统一错误状态
-            # 统一错误时返回执行模型
             return WorkflowExecutionModel(
                 workflow_id=workflow.workflow_id,
                 thread_id=workflow.thread_id,
@@ -160,15 +155,4 @@ class Orchestrator:
                 processing_complete=True,
                 agent_responses={},
             )
-    
-    def get_workflow_status(self) -> dict[str, Any]:
-        """
-        获取工作流状态信息
-        
-        返回:
-            Dict[str, Any]: 工作流状态和统计信息
-        """
-        return {
-            "graph_compiled": self.graph is not None,
-        }
     
