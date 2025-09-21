@@ -1,6 +1,8 @@
+drop table tenants;
 CREATE TABLE tenants (
-    id uuid PRIMARY KEY NOT NULL,
-    tenant_id varchar(255) NOT NULL,
+--     id uuid PRIMARY KEY NOT NULL,
+--     tenant_id varchar(255) NOT NULL,
+    tenant_id varchar(50) PRIMARY KEY NOT NULL,
     tenant_name varchar(500) NOT NULL,
     brand_settings jsonb,
     ai_model_preferences jsonb,
@@ -14,6 +16,17 @@ CREATE TABLE tenants (
     enable_rate_limiting BOOLEAN NOT NULL DEFAULT FALSE,
     enable_device_validation BOOLEAN NOT NULL DEFAULT FALSE,
 
+    area_id varchar(50) NOT NULL,
+    industry varchar(50) NOT NULL,
+    company_size bigint NOT NULL,
+    user_count bigint NOT NULL,
+    status varchar(50) NULL,
+    tenant_status varchar(50) NULL,
+    creator varchar(50) NOT NULL,
+    editor varchar(50) NULL,
+    expires_at TIMESTAMPTZ NULL DEFAULT CURRENT_TIMESTAMP, -- 使用当前时区的时间戳作为默认值
+    features jsonb,
+
     is_active BOOLEAN NULL DEFAULT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 使用当前时区的时间戳作为默认值
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 使用当前时区的时间戳作为默认值
@@ -23,6 +36,9 @@ CREATE TABLE tenants (
 
     constraint uk_tenant_id_is_active UNIQUE (tenant_id, is_active)
 );
+
+CREATE TYPE tenant_status AS ENUM ('ACTIVE', 'BANNED', 'CLOSED');
+CREATE TYPE status AS ENUM ('ACTIVE', 'BANNED', 'CLOSED');
 
 
 drop table assistant;
