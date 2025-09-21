@@ -9,10 +9,13 @@ from collections.abc import Callable
 
 from langgraph.graph import StateGraph
 
-from core.factories.agent_factory import get_agent
+from core.agents.base import BaseAgent
+from utils import get_component_logger
 from libs.constants import WorkflowConstants, StatusConstants
 from .base_workflow import BaseWorkflow
 
+
+logger = get_component_logger(__name__)
 
 class ChatWorkflow(BaseWorkflow):
     """
@@ -27,11 +30,11 @@ class ChatWorkflow(BaseWorkflow):
     - 并行处理优化
     """
     
-    def __init__(self):
+    def __init__(self, agents: dict[str, BaseAgent]):
         """
         初始化聊天工作流
         """
-        super().__init__()
+        self.agents = agents
         self.fallback_handlers = self._init_fallback_handlers()
     
     def _register_nodes(self, graph: StateGraph):
@@ -58,7 +61,7 @@ class ChatWorkflow(BaseWorkflow):
         for node_name in node_mappings:
             graph.add_node(node_name, self._create_agent_node(node_name))
         
-        self.logger.debug(f"已注册 {len(node_mappings)} 个工作流节点")
+        logger.debug(f"已注册 {len(node_mappings)} 个工作流节点")
     
     def _define_edges(self, graph: StateGraph):
         """
@@ -91,7 +94,7 @@ class ChatWorkflow(BaseWorkflow):
         graph.add_edge(WorkflowConstants.SALES_NODE, WorkflowConstants.PRODUCT_NODE)
         graph.add_edge(WorkflowConstants.PRODUCT_NODE, WorkflowConstants.MEMORY_NODE)
         
-        self.logger.debug("优化工作流边定义完成 - 启用并行处理")
+        logger.debug("优化工作流边定义完成 - 启用并行处理")
     
     def _set_entry_exit_points(self, graph: StateGraph):
         """
@@ -106,7 +109,7 @@ class ChatWorkflow(BaseWorkflow):
         # 设置工作流出口点 - 内存节点是正常流程的结束，阻止完成是异常流程的结束
         graph.set_finish_point([WorkflowConstants.MEMORY_NODE, "blocked_completion"])
         
-        self.logger.debug("工作流入口出口点设置完成")
+        logger.debug("工作流入口出口点设置完成")
     
     def _compliance_router(self, state: dict[str, Any]) -> str:
         """
@@ -126,7 +129,7 @@ class ChatWorkflow(BaseWorkflow):
         compliance_status = compliance_result.get("status", "approved")
         
         if compliance_status == "blocked":
-            self.logger.warning(f"内容被合规系统阻止: {state.get('customer_input', '')[:50]}...")
+            logger.warning(f"内容被合规系统阻止: {state.get('customer_input', '')[:50]}...")
             return "block"
         
         return "continue"
@@ -163,20 +166,20 @@ class ChatWorkflow(BaseWorkflow):
         返回:
             dict: 更新后的状态字典
         """
-        agent = get_agent(node_name)
+        agent = self.agents.get(node_name)
         if not agent:
-            self.logger.warning(f"智能体未找到: {node_name}")
+            logger.warning(f"智能体未找到: {node_name}")
             return self._apply_fallback(state, node_name, None)
         
         try:
             # 直接使用 dict 状态，与新的无兼容策略一致
             result_state = await agent.process_conversation(state)
 
-            self.logger.debug(f"节点处理完成: {node_name}")
+            logger.debug(f"节点处理完成: {node_name}")
             return result_state
             
         except Exception as e:
-            self.logger.error(f"节点 {node_name} 处理错误: {e}", exc_info=True)
+            logger.error(f"节点 {node_name} 处理错误: {e}", exc_info=True)
             return self._apply_fallback(state, node_name, e)
     
     def _apply_fallback(self, state: dict, node_name: str, error: Optional[Exception]) -> dict:

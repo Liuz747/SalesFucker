@@ -6,12 +6,10 @@ Handles customer data storage, retrieval, and profile updates.
 """
 
 from typing import Dict, Any, List, Optional
-from datetime import datetime
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
-import json
 
-from ..base import BaseAgent, AgentMessage, ThreadState
+from ..base import BaseAgent, AgentMessage
 
 from utils import get_current_datetime, get_processing_time_ms
 
@@ -94,7 +92,7 @@ class MemoryAgent(BaseAgent):
                 context=message.context
             )
     
-    async def process_conversation(self, state: ThreadState) -> ThreadState:
+    async def process_conversation(self, state: dict) -> dict:
         """
         处理对话状态中的记忆管理
         
@@ -109,13 +107,13 @@ class MemoryAgent(BaseAgent):
         start_time = get_current_datetime()
         
         try:
-            customer_id = state.customer_id
+            customer_id = state.get("customer_id")
             
             # 检索现有客户档案
             if customer_id:
                 existing_profile = await self._retrieve_customer_data(customer_id)
                 if existing_profile.get("profile"):
-                    state.customer_profile.update(existing_profile["profile"])
+                    state.setdefault("customer_profile", {}).update(existing_profile["profile"])
             
             # 更新客户档案信息
             profile_updates = self._extract_profile_updates(state)
@@ -124,18 +122,25 @@ class MemoryAgent(BaseAgent):
                     "customer_id": customer_id,
                     "updates": profile_updates
                 })
-                state.customer_profile.update(profile_updates)
+                state.setdefault("customer_profile", {}).update(profile_updates)
             
             # 存储对话记录
             await self._store_conversation_record(state)
             
             # 更新对话状态
-            state.agent_responses[self.agent_id] = {
+            state.setdefault("agent_responses", {})[self.agent_id] = {
                 "memory_updated": True,
                 "profile_updates": profile_updates,
                 "processing_complete": True
             }
-            state.active_agents.append(self.agent_id)
+            state.setdefault("active_agents", []).append(self.agent_id)
+
+            # 设置工作流完成标志和最终响应
+            state["processing_complete"] = True
+
+            # 生成最终响应（整合所有智能体的结果）
+            if not state.get("final_response"):
+                state["final_response"] = self._generate_final_response(state)
             
             # 更新处理统计
             processing_time = get_processing_time_ms(start_time)
@@ -144,10 +149,10 @@ class MemoryAgent(BaseAgent):
             return state
             
         except Exception as e:
-            await self.handle_error(e, {"thread_id": state.thread_id})
+            await self.handle_error(e, {"thread_id": state.get("thread_id")})
             
             # 设置错误状态但不影响对话继续
-            state.agent_responses[self.agent_id] = {
+            state.setdefault("agent_responses", {})[self.agent_id] = {
                 "memory_updated": False,
                 "error": str(e),
                 "fallback": True,
@@ -307,7 +312,7 @@ class MemoryAgent(BaseAgent):
             self.logger.error(f"客户档案更新失败: {e}")
             return {"success": False, "error": str(e)}
     
-    async def _store_conversation_record(self, state: ThreadState) -> Dict[str, Any]:
+    async def _store_conversation_record(self, state: dict) -> dict:
         """
         存储对话记录
         
@@ -318,19 +323,19 @@ class MemoryAgent(BaseAgent):
             Dict[str, Any]: 存储结果
         """
         try:
-            customer_id = state.customer_id
+            customer_id = state.get("customer_id")
             if not customer_id:
                 return {"success": False, "error": "No customer ID"}
             
             # 构建对话记录
             conversation_record = {
-                "thread_id": state.thread_id,
+                "thread_id": state.get("thread_id"),
                 "timestamp": get_current_datetime().isoformat(),
-                "customer_input": state.customer_input,
-                "final_response": state.final_response,
-                "sentiment": state.sentiment_analysis.get("sentiment", "neutral") if state.sentiment_analysis else "neutral",
-                "intent": state.intent_analysis.get("intent", "unknown") if state.intent_analysis else "unknown",
-                "active_agents": state.active_agents.copy(),
+                "customer_input": state.get("customer_input"),
+                "final_response": state.get("final_response"),
+                "sentiment": (state.get("sentiment_analysis", {}) or {}).get("sentiment", "neutral"),
+                "intent": (state.get("intent_analysis", {}) or {}).get("intent", "unknown"),
+                "active_agents": list(state.get("active_agents", [])),
                 "tenant_id": self.tenant_id
             }
             
@@ -350,7 +355,7 @@ class MemoryAgent(BaseAgent):
             self.logger.error(f"对话记录存储失败: {e}")
             return {"success": False, "error": str(e)}
     
-    def _extract_profile_updates(self, state: ThreadState) -> Dict[str, Any]:
+    def _extract_profile_updates(self, state: dict) -> dict:
         """
         从对话状态中提取客户档案更新
         
@@ -363,8 +368,8 @@ class MemoryAgent(BaseAgent):
         updates = {}
         
         # 从意图分析中提取信息
-        if state.intent_analysis:
-            intent_data = state.intent_analysis
+        if state.get("intent_analysis"):
+            intent_data = state["intent_analysis"]
             if intent_data.get("category") and intent_data["category"] != "general":
                 updates["preferred_category"] = intent_data["category"]
             
@@ -372,20 +377,20 @@ class MemoryAgent(BaseAgent):
                 updates["last_urgency_level"] = intent_data["urgency"]
         
         # 从情感分析中提取信息
-        if state.sentiment_analysis:
-            sentiment_data = state.sentiment_analysis
+        if state.get("sentiment_analysis"):
+            sentiment_data = state["sentiment_analysis"]
             if sentiment_data.get("sentiment"):
                 updates["last_sentiment"] = sentiment_data["sentiment"]
         
         # 从合规结果中提取偏好 (如果有特殊需求)
-        if state.compliance_result:
-            compliance_data = state.compliance_result
+        if state.get("compliance_result"):
+            compliance_data = state["compliance_result"]
             if compliance_data.get("status") == "flagged":
                 updates["requires_careful_handling"] = True
         
         # 从客户输入中推断偏好 (简化版本)
-        if state.customer_input:
-            input_lower = state.customer_input.lower()
+        if state.get("customer_input"):
+            input_lower = state["customer_input"].lower()
             
             # 检测皮肤类型偏好
             if "oily" in input_lower or "greasy" in input_lower:
@@ -406,7 +411,43 @@ class MemoryAgent(BaseAgent):
             updates["last_interaction"] = get_current_datetime().isoformat()
         
         return updates
-    
+
+    def _generate_final_response(self, state: dict) -> str:
+        """
+        生成最终响应，整合所有智能体的结果
+
+        参数:
+            state: 对话状态
+
+        返回:
+            str: 最终响应文本
+        """
+        try:
+            # 获取销售智能体的响应（通常包含主要回复）
+            agent_responses = state.get("agent_responses", {})
+            sales_response = agent_responses.get("sales_agent", {})
+
+            if sales_response.get("sales_response"):
+                return sales_response["sales_response"]
+
+            # 如果没有销售响应，尝试产品推荐
+            product_response = agent_responses.get("product_expert", {})
+            if product_response.get("recommendations"):
+                recommendations = product_response["recommendations"]
+                if isinstance(recommendations, dict) and recommendations.get("general_advice"):
+                    return recommendations["general_advice"]
+
+            # 降级到通用响应
+            customer_input = state.get("customer_input", "")
+            if "你好" in customer_input or "hello" in customer_input.lower():
+                return "您好！很高兴为您服务。请告诉我您的美妆需求，我会为您提供专业的建议和推荐。"
+            else:
+                return "感谢您的咨询！我们已经为您分析了需求，如需更多建议请随时告诉我。"
+
+        except Exception as e:
+            self.logger.error(f"生成最终响应失败: {e}")
+            return "感谢您的咨询，我会尽力为您提供帮助。"
+
     def get_memory_metrics(self) -> Dict[str, Any]:
         """
         获取记忆管理性能指标

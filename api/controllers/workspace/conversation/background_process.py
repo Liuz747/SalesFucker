@@ -15,7 +15,7 @@ from uuid import UUID
 from typing import Optional
 
 from config import mas_config
-from core.app import get_orchestrator
+from core.app import Orchestrator
 from models import ThreadStatus
 from models.workflow import WorkflowRun
 from services import ThreadService
@@ -70,6 +70,7 @@ class BackgroundWorkflowProcessor:
     
     async def process_workflow_background(
         self,
+        orchestrator: Orchestrator,
         run_id: UUID,
         thread_id: UUID,
         input: InputContent,
@@ -101,9 +102,6 @@ class BackgroundWorkflowProcessor:
                 input=input.content,
                 type=input_type
             )
-
-            # 获取租户专用编排器实例
-            orchestrator = get_orchestrator()
 
             # 使用编排器处理消息 - 核心工作流调用
             result = await orchestrator.process_conversation(workflow)

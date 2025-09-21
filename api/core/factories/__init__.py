@@ -14,9 +14,9 @@
 """
 
 # 智能体工厂
-from .agent_factory import create_agent_set
+from .agent_factory import create_agents_set
 
 __all__ = [
     # 智能体工厂函数
-    "create_agent_set",
+    "create_agents_set",
 ]

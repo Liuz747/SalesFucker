@@ -5,8 +5,12 @@
 每个文件包含相关业务的所有模型（Pydantic业务模型 + SQLAlchemy数据库模型）。
 
 模型文件:
-- tenant.py: 租户管理相关的所有模型（业务模型 + 数据库模型）
-- conversation.py: 对话相关的所有模型（业务模型）
+- tenant.py: 租户管理相关的所有模型
+- conversation.py: 对话相关的所有模型
+- workflow.py: 工作流相关的所有模型
+- prompts.py: 提示词相关的所有模型
+- assistant.py: 助理相关的所有模型
+- enums.py: 枚举相关的所有模型
 """
 
 from .enums import (
@@ -25,8 +29,7 @@ from .conversation import (
 )
 from .workflow import (
     WorkflowOrm,
-    WorkflowRun,
-    WorkflowExecutionModel
+    WorkflowRun
 )
 
 __all__ = [
@@ -46,6 +49,5 @@ __all__ = [
 
     # Workflow
     "WorkflowOrm",
-    "WorkflowRun",
-    "WorkflowExecutionModel"
+    "WorkflowRun"
 ]

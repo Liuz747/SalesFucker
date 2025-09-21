@@ -12,14 +12,12 @@
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Optional
 
-from .message import AgentMessage, ThreadState
+from .message import AgentMessage
 from utils import get_component_logger, get_current_datetime
 from infra.monitoring import AgentMonitor
-from infra.runtimes.client import LLMClient
-from infra.runtimes.config import LLMConfig
-from infra.runtimes.entities import LLMRequest, LLMResponse
+from infra.runtimes.client import LLMClient, LLMConfig, LLMRequest
 
 class BaseAgent(ABC):
     """
@@ -76,7 +74,7 @@ class BaseAgent(ABC):
         pass
     
     @abstractmethod
-    async def process_conversation(self, state: ThreadState) -> ThreadState:
+    async def process_conversation(self, state: dict) -> dict:
         """
         处理对话状态的具体实现 (抽象方法)
         
@@ -84,10 +82,10 @@ class BaseAgent(ABC):
         子类必须实现此方法来定义具体的对话处理逻辑。
         
         参数:
-            state: 当前对话状态对象
+            state: 当前对话状态字典
             
         返回:
-            ThreadState: 更新后的对话状态
+            dict[str, Any]: 更新后的对话状态
         """
         pass
     
@@ -95,8 +93,8 @@ class BaseAgent(ABC):
             self,
             recipient: str,
             message_type: str,
-            payload: Dict[str, Any], 
-            context: Optional[Dict[str, Any]] = None
+            payload: dict, 
+            context: Optional[dict] = None
     ) -> AgentMessage:
         """
         发送消息给其他智能体
@@ -156,7 +154,7 @@ class BaseAgent(ABC):
         response = await self.llm_client.completions(request)
         return response.content
     
-    async def handle_error(self, error: Exception, context: Dict[str, Any] = None):
+    async def handle_error(self, error: Exception, context: dict = None):
         """
         处理智能体错误
         
@@ -193,7 +191,7 @@ class BaseAgent(ABC):
         self.is_active = False
         self.logger.info(f"智能体 {self.agent_id} 已停用")
     
-    def get_status(self) -> Dict[str, Any]:
+    def get_status(self) -> dict:
         """获取智能体状态信息（直接使用AgentMonitor）"""
         # 直接使用AgentMonitor的全面状态数据
         status_data = self.monitor.get_comprehensive_status()
@@ -215,7 +213,7 @@ class BaseAgent(ABC):
         """
         self.logger.debug(f"智能体提示词预加载完成: {self.agent_id}")
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict:
         """获取智能体指标数据"""
         comprehensive_status = self.monitor.get_comprehensive_status()
         

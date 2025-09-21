@@ -6,7 +6,7 @@ Selects and applies Premium, Budget, Youth, or Mature strategies.
 """
 
 from typing import Dict, Any
-from ..base import BaseAgent, AgentMessage, ThreadState
+from ..base import BaseAgent, AgentMessage
 from ..sales.sales_strategies import analyze_customer_segment, get_strategy_for_segment, adapt_strategy_to_context
 from utils import get_current_datetime, get_processing_time_ms
 
@@ -116,7 +116,7 @@ class MarketStrategyCoordinator(BaseAgent):
                 context=message.context
             )
     
-    async def process_conversation(self, state: ThreadState) -> ThreadState:
+    async def process_conversation(self, state: dict) -> dict:
         """
         处理对话状态中的策略选择
         
@@ -131,12 +131,12 @@ class MarketStrategyCoordinator(BaseAgent):
         start_time = get_current_datetime()
         
         try:
-            customer_profile = state.customer_profile
+            customer_profile = state.get("customer_profile", {})
             conversation_context = {
-                "sentiment": state.sentiment_analysis.get("sentiment", "neutral") if state.sentiment_analysis else "neutral",
-                "intent": state.intent_analysis.get("intent", "browsing") if state.intent_analysis else "browsing",
-                "urgency": state.intent_analysis.get("urgency", "medium") if state.intent_analysis else "medium",
-                "customer_input": state.customer_input
+                "sentiment": (state.get("sentiment_analysis", {}) or {}).get("sentiment", "neutral"),
+                "intent": (state.get("intent_analysis", {}) or {}).get("intent", "browsing"),
+                "urgency": (state.get("intent_analysis", {}) or {}).get("urgency", "medium"),
+                "customer_input": state.get("customer_input", "")
             }
             
             # 选择和优化策略
@@ -145,18 +145,16 @@ class MarketStrategyCoordinator(BaseAgent):
             )
             
             # 更新对话状态
-            state.agent_responses[self.agent_id] = {
+            state.setdefault("agent_responses", {})[self.agent_id] = {
                 "strategy_recommendation": strategy_recommendation,
                 "selected_segment": strategy_recommendation["segment"],
                 "strategy_profile": strategy_recommendation["strategy"],
                 "processing_complete": True
             }
-            state.active_agents.append(self.agent_id)
+            state.setdefault("active_agents", []).append(self.agent_id)
             
             # 为其他智能体提供策略提示
-            if not hasattr(state, 'strategy_hints'):
-                state.strategy_hints = {}
-            state.strategy_hints.update(strategy_recommendation["strategy"])
+            state.setdefault("strategy_hints", {}).update(strategy_recommendation["strategy"])
             
             # 更新处理统计
             processing_time = get_processing_time_ms(start_time)
@@ -165,10 +163,10 @@ class MarketStrategyCoordinator(BaseAgent):
             return state
             
         except Exception as e:
-            await self.handle_error(e, {"thread_id": state.thread_id})
+            await self.handle_error(e, {"thread_id": state.get("thread_id")})
             
             # 设置默认策略
-            state.agent_responses[self.agent_id] = {
+            state.setdefault("agent_responses", {})[self.agent_id] = {
                 "strategy_recommendation": {
                     "segment": "premium",
                     "strategy": self.strategy_profiles["premium"],

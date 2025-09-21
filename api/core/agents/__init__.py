@@ -22,8 +22,7 @@
 # 导入核心组件
 from .base import (
     BaseAgent,
-    AgentMessage,
-    ThreadState
+    AgentMessage
 )
 
 # 导入常量
@@ -50,7 +49,6 @@ __all__ = [
     # 核心基础组件
     "BaseAgent",
     "AgentMessage",
-    "ThreadState",
     "MessagePriority",
     "MessageType",
     "ComplianceStatus",

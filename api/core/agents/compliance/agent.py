@@ -14,7 +14,7 @@
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-from ..base import BaseAgent, AgentMessage, ThreadState
+from ..base import BaseAgent, AgentMessage
 from .rule_manager import ComplianceRuleManager
 from .checker import ComplianceChecker
 from .audit import ComplianceAuditor
@@ -127,7 +127,7 @@ class ComplianceAgent(BaseAgent):
                 context=message.context
             )
     
-    async def process_conversation(self, state: ThreadState) -> ThreadState:
+    async def process_conversation(self, state: dict) -> dict:
         """
         处理对话状态中的合规检查
         
@@ -142,14 +142,14 @@ class ComplianceAgent(BaseAgent):
         start_time = get_current_datetime()
         
         try:
-            customer_input = state.customer_input
+            customer_input = state.get("customer_input", "")
             
             # 执行综合合规检查 (规则 + LLM分析)
             compliance_result = await self._enhanced_compliance_check(customer_input)
             
             # 更新对话状态
-            state.compliance_result = compliance_result
-            state.active_agents.append(self.agent_id)
+            state["compliance_result"] = compliance_result
+            state.setdefault("active_agents", []).append(self.agent_id)
             
             # 根据合规结果确定后续处理
             self._update_conversation_state(state, compliance_result)
@@ -157,7 +157,7 @@ class ComplianceAgent(BaseAgent):
             # 更新统计和审计
             processing_time = get_processing_time_ms(start_time)
             self._update_metrics_and_audit(
-                state.thread_id,
+                state.get("thread_id", "unknown"),
                 customer_input,
                 compliance_result,
                 processing_time
@@ -179,8 +179,7 @@ class ComplianceAgent(BaseAgent):
             
             return state
     
-    def _update_conversation_state(self, state: ThreadState, 
-                                 compliance_result: Dict[str, Any]):
+    def _update_conversation_state(self, state: dict, compliance_result: dict):
         """
         根据合规结果更新对话状态
         
@@ -191,23 +190,23 @@ class ComplianceAgent(BaseAgent):
         status = compliance_result["status"]
         
         if status == "blocked":
-            state.error_state = "compliance_violation"
-            state.final_response = compliance_result["user_message"]
-            state.processing_complete = True
-            state.human_escalation = False  # 直接阻止，无需人工干预
+            state["error_state"] = "compliance_violation"
+            state["final_response"] = compliance_result.get("user_message", "")
+            state["processing_complete"] = True
+            state["human_escalation"] = False
             
         elif status == "flagged":
             # 标记需要人工审核但继续处理
-            state.human_escalation = True
+            state["human_escalation"] = True
     
-    def _set_error_state(self, state: ThreadState):
+    def _set_error_state(self, state: dict):
         """
         设置错误状态
         
         参数:
             state: 对话状态
         """
-        state.compliance_result = {
+        state["compliance_result"] = {
             "status": "error",
             "message": "合规检查系统暂时不可用",
             "fallback_applied": True,
@@ -215,7 +214,7 @@ class ComplianceAgent(BaseAgent):
         }
         
         # 出错时采用保守策略，标记为需要人工审核
-        state.human_escalation = True
+        state["human_escalation"] = True
         
         # 更新错误指标
         self.metrics.update_status_metrics("error")

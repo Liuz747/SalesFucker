@@ -144,13 +144,13 @@ class RAGEnhancedProductExpertAgent(BaseAgent):
         start_time = get_current_datetime()
         
         try:
-            customer_input = state.customer_input
-            customer_profile = state.customer_profile
-            customer_history = getattr(state, 'customer_history', [])
-            
+            customer_input = state.get("customer_input", "")
+            customer_profile = state.get("customer_profile", {})
+            customer_history = state.get('customer_history', [])
+
             # 分析客户需求
             needs_analysis = await self.needs_analyzer.analyze_customer_needs(
-                customer_input, customer_profile, state.intent_analysis
+                customer_input, customer_profile, state.get("intent_analysis")
             )
             
             # 生成推荐
@@ -159,7 +159,7 @@ class RAGEnhancedProductExpertAgent(BaseAgent):
             )
             
             # 更新对话状态
-            state.agent_responses[self.agent_id] = {
+            state.setdefault("agent_responses", {})[self.agent_id] = {
                 "product_recommendations": recommendations,
                 "needs_analysis": needs_analysis,
                 "processing_complete": True,
@@ -170,7 +170,7 @@ class RAGEnhancedProductExpertAgent(BaseAgent):
                     "fallback_used": not self.rag_initialized
                 }
             }
-            state.active_agents.append(self.agent_id)
+            state.setdefault("active_agents", []).append(self.agent_id)
             
             # 更新处理统计
             processing_time = get_processing_time_ms(start_time)
@@ -179,12 +179,12 @@ class RAGEnhancedProductExpertAgent(BaseAgent):
             return state
             
         except Exception as e:
-            await self.handle_error(e, {"conversation_id": state.conversation_id})
+            await self.handle_error(e, {"conversation_id": state.get("conversation_id")})
             
             # 使用格式化器创建错误响应
             error_recommendations = self.formatter.create_fallback_response(str(e))
             
-            state.agent_responses[self.agent_id] = {
+            state.setdefault("agent_responses", {})[self.agent_id] = {
                 "product_recommendations": error_recommendations,
                 "error": str(e),
                 "agent_id": self.agent_id,
@@ -221,14 +221,14 @@ class RAGEnhancedProductExpertAgent(BaseAgent):
             # 构建推荐请求
             request = RecommendationRequest(
                 customer_id=customer_profile.get("customer_id", "anonymous"),
-                request_type=recommendation_type,
+                tenant_id="default",
+                rec_type=recommendation_type,
                 context={
                     "query": customer_input,
                     "needs_analysis": needs_analysis or {},
                     "conversation_context": True
                 },
-                max_results=self.max_recommendations,
-                include_explanations=True
+                max_results=self.max_recommendations
             )
             
             # 获取智能推荐
