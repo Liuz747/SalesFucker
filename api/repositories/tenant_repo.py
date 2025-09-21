@@ -25,7 +25,7 @@ logger = get_component_logger(__name__, "TenantRepository")
 class TenantRepository:
 
     @staticmethod
-    async def get_tenant_by_id(tenant_id: str, session: AsyncSession) -> Optional[TenantOrm]:
+    async def get_tenant_by_tenant_id(tenant_id: str, session: AsyncSession) -> Optional[TenantOrm]:
         """根据ID获取租户数据库模型"""
         try:
             stmt = select(TenantOrm).where(TenantOrm.tenant_id == tenant_id)
@@ -75,7 +75,7 @@ class TenantRepository:
             raise
 
     @staticmethod
-    async def delete_tenant(tenant_id: str, session: AsyncSession) -> TenantOrm:
+    async def delete_tenant(tenant_id: str, session: AsyncSession) -> Optional[TenantOrm]:
         """删除租户数据库模型"""
         try:
             tenant = await session.get(TenantOrm, tenant_id)

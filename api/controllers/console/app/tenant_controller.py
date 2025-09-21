@@ -18,10 +18,7 @@ from schemas.tenant_schema import (
     TenantDeleteResponse,
     TenantStatus
 )
-from schemas.console_error_code import (
-    TenantNotFoundException,
-    TenantSyncException
-)
+
 from ..error import (
     TenantManagementException,
     TenantNotFoundException,
@@ -30,11 +27,12 @@ from ..error import (
 )
 from models import TenantModel
 from services import TenantService
-from utils import get_component_logger
+from utils import get_component_logger, get_current_datetime
 
 logger = get_component_logger(__name__, "TenantEndpoints")
 
 router = APIRouter()
+
 
 @router.post("/sync", response_model=TenantSyncResponse)
 async def sync_tenant(request: TenantSyncRequest):
@@ -53,19 +51,19 @@ async def sync_tenant(request: TenantSyncRequest):
             company_size=request.company_size,
             features=request.features.model_dump()
         )
-        tenant = await TenantService.create_tenant(tenant)
+        flag = await TenantService.create_tenant(tenant)
 
-        if not tenant:
+        if not flag:
             logger.error(f"保存租户配置失败: {request.tenant_id}")
             raise TenantSyncException(request.tenant_id, "Failed to save tenant configuration")
-        
+
         logger.info(f"租户配置已保存: {tenant.tenant_id}")
 
         return TenantSyncResponse(
             tenant_id=tenant.tenant_id,
             tenant_name=tenant.tenant_name,
             message="租户同步成功",
-            features=tenant.features
+            features=request.features
         )
 
     except ValueError as e:
@@ -119,7 +117,7 @@ async def update_tenant(
             area_id=request.area_id,
             creator=request.creator,
             company_size=request.company_size,
-            feature_flags=request.features.model_dump() if request.features else None
+            features=request.features.model_dump() if request.features else None
         )
         flag = await TenantService.update_tenant(tenant)
 

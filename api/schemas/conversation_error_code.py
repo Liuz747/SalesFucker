@@ -42,7 +42,7 @@ class TenantSyncException(TenantManagementException):
         super().__init__(detail=detail)
 
 
-class TenantValidationException:
+class TenantValidationException(BaseHTTPException):
     error_code = 1000005
     detail = "TENANT_VALIDATION_ERROR"
     http_status_code = 403

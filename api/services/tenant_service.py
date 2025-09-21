@@ -14,10 +14,10 @@
 import asyncio
 from typing import Optional
 
-from schemas.console_error_code import TenantNotFoundException
 from infra.db import database_session
 from infra.cache import get_redis_client
 from repositories.tenant_repo import TenantRepository, TenantModel
+from schemas.conversation_error_code import TenantNotFoundException
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "TenantService")
@@ -75,7 +75,7 @@ class TenantService:
 
 
     @staticmethod
-    async def query_tenant(tenant_id: str) -> Optional[TenantModel]:
+    async def query_tenant(tenant_id: str, use_cache=False) -> Optional[TenantModel]:
         """
         根据ID获取租户业务模型
         
@@ -86,20 +86,22 @@ class TenantService:
             Optional[Tenant]: 租户业务模型，不存在则返回None
         """
         try:
-            # 直接获取Redis客户端，使用连接池
-            redis_client = await get_redis_client()
-            
-            # Level 1: Redis缓存 (< 10ms)
-            tenant_model = await TenantRepository.get_tenant_cache(tenant_id, redis_client)
-            if tenant_model:
-                return tenant_model
+            if use_cache:
+                # 直接获取Redis客户端，使用连接池
+                redis_client = await get_redis_client()
+
+                # Level 1: Redis缓存 (< 10ms)
+                tenant_model = await TenantRepository.get_tenant_cache(tenant_id, redis_client)
+                if tenant_model:
+                    return tenant_model
             
             # Level 2: 数据库查询
             async with database_session() as session:
-                tenant_orm = await TenantRepository.get_tenant_by_id(tenant_id, session)
+                tenant_orm = await TenantRepository.get_tenant_by_tenant_id(tenant_id, session)
             
             if tenant_orm:
                 tenant_model = TenantModel.to_model(tenant_orm)
+                redis_client = await get_redis_client()
                 asyncio.create_task(TenantRepository.update_tenant_cache(
                     tenant_model,
                     redis_client
