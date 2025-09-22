@@ -107,14 +107,11 @@ class BackgroundWorkflowProcessor:
             result = await orchestrator.process_conversation(workflow)
 
             # 构建工作流数据
-            workflow_data = []
-            for agent_type, agent_response in result.agent_responses.items():
-                workflow_data.append(
-                    {
-                        "type": agent_type,
-                        "content": agent_response
-                    }
-                )
+            workflow_data = {
+                "input": result.input,
+                "output": result.output,
+                "total_tokens": result.total_tokens
+            }
 
             processing_time = get_processing_time_ms(start_time)
             completed_at = get_current_datetime()
@@ -133,7 +130,7 @@ class BackgroundWorkflowProcessor:
                 status=ThreadStatus.COMPLETED,
                 data=workflow_data,
                 processing_time=processing_time,
-                completed_at=completed_at.isoformat(),
+                finished_at=completed_at.isoformat(),
                 metadata={
                     "tenant_id": tenant_id,
                     "assistant_id": assistant_id,

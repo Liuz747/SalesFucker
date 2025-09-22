@@ -67,10 +67,8 @@ class AgentMessage(BaseModel):
     )
     tenant_id: Optional[str] = Field(None, description="多租户标识符，用于区分不同的化妆品品牌")
     assistant_id: Optional[str] = Field(None, description="销售助理标识符，用于区分租户内不同的销售人员")
-    device_id: Optional[str] = Field(None, description="设备标识符，用于区分销售助理使用的不同终端设备")
     customer_id: Optional[str] = Field(None, description="客户唯一标识符")
     thread_id: Optional[str] = Field(None, description="对话会话标识符")
-    session_id: Optional[str] = Field(None, description="用户会话标识符")
     
     # 分析上下文
     sentiment_score: Optional[float] = Field(

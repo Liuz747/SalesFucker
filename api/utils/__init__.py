@@ -27,6 +27,7 @@ from .response_parser import (
     parse_sentiment_response,
     parse_intent_response
 )
+from .tracer_client import flush_traces
 from .external_client import ExternalClient
 from .yaml_loader import load_yaml_file
 
@@ -54,5 +55,8 @@ __all__ = [
     "ExternalClient",
 
     # YAML工具
-    "load_yaml_file"
+    "load_yaml_file",
+
+    # Langfuse 追踪工具
+    "flush_traces"
 ] 

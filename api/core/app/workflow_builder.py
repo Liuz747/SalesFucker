@@ -11,11 +11,17 @@
 - 工作流状态管理
 """
 
+from typing import Type
+
 from langgraph.graph import StateGraph
 
+from core.app.entities import WorkflowExecutionModel
 from utils import get_component_logger
-from core.workflows import ChatWorkflow
-from core.agents.base import BaseAgent
+from core.workflows import BaseWorkflow
+from ..factories import create_agents_set
+
+
+logger = get_component_logger(__name__)
 
 
 class WorkflowBuilder:
@@ -30,12 +36,15 @@ class WorkflowBuilder:
         workflow: 具体工作流实现
     """
     
-    def __init__(self, agents: dict[str, BaseAgent]):
+    def __init__(self, workflow: Type[BaseWorkflow]):
         """
         初始化工作流构建器
+        
+        参数: workflow: 工作流类
         """
-        self.logger = get_component_logger(__name__)
-        self.workflow = ChatWorkflow(agents)
+
+        self.agents = create_agents_set()
+        self.workflow = workflow(self.agents)
     
     def build_graph(self) -> StateGraph:
         """
@@ -48,7 +57,7 @@ class WorkflowBuilder:
             StateGraph: 配置完成的LangGraph状态图
         """
         # 创建状态图，使用字典作为状态类型
-        graph = StateGraph(dict)
+        graph = StateGraph(WorkflowExecutionModel)
         
         # 注册节点处理函数
         self.workflow._register_nodes(graph)
@@ -62,6 +71,6 @@ class WorkflowBuilder:
         # 编译工作流图
         compiled_graph = graph.compile()
         
-        self.logger.info("工作流图构建完成")
+        logger.info("工作流图构建完成")
         return compiled_graph
     

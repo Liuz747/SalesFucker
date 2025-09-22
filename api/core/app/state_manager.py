@@ -10,10 +10,9 @@
 - 错误状态处理
 """
 
-from typing import Any
-
 from models import WorkflowRun
 from utils import get_component_logger
+from .entities import WorkflowExecutionModel
 
 
 logger = get_component_logger(__name__)
@@ -32,35 +31,38 @@ class StateManager:
     def __init__(self):
         pass
     
-    def create_initial_state(self, workflow: WorkflowRun) -> dict[str, Any]:
+    def create_initial_state(self, workflow: WorkflowRun) -> WorkflowExecutionModel:
         """
-        将工作流运行信息映射为 LangGraph 初始状态字典（最小必需字段）。
+        将工作流信息映射为 LangGraph 初始状态模型。
         """
-        return {
-            "tenant_id": workflow.tenant_id,
-            "assistant_id": str(workflow.assistant_id),
-            "thread_id": str(workflow.thread_id),
-            "customer_input": workflow.input,
-            "input_type": workflow.type,
-        }
+        return WorkflowExecutionModel(
+            workflow_id=workflow.workflow_id,
+            thread_id=workflow.thread_id,
+            assistant_id=workflow.assistant_id,
+            tenant_id=workflow.tenant_id,
+            input=workflow.input,
+            started_at=workflow.created_at,
+            exception_count=0,
+            total_tokens=0
+        )
     
     def create_error_state(
         self,
-        workflow: WorkflowRun,
+        state: WorkflowExecutionModel,
         message: str = "系统暂时不可用，请稍后重试。",
-        error_state: str = "orchestrator_failed",
-    ) -> dict[str, Any]:
+    ) -> WorkflowExecutionModel:
         """
-        构建统一的错误状态字典。
+        构建统一的错误状态模型。
         """
-        return {
-            "tenant_id": workflow.tenant_id,
-            "assistant_id": str(workflow.assistant_id),
-            "thread_id": str(workflow.thread_id),
-            "customer_input": workflow.input,
-            "input_type": workflow.type,
-            "final_response": message,
-            "processing_complete": True,
-            "error_state": error_state,
-        }
+        return WorkflowExecutionModel(
+            workflow_id=state.workflow_id,
+            thread_id=state.thread_id,
+            assistant_id=state.assistant_id,
+            tenant_id=state.tenant_id,
+            input=state.input,
+            started_at=state.started_at,
+            finished_at=state.finished_at,
+            exception_count=state.exception_count + 1,
+            error_message=message
+        )
     

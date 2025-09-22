@@ -5,17 +5,19 @@ LLM客户端
 专为快速启动设计，无复杂功能。
 """
 
-from typing import Dict
-
 from infra.runtimes.providers import OpenAIProvider, AnthropicProvider, BaseProvider
 from infra.runtimes.entities import LLMRequest, LLMResponse, ProviderType
 # from infra.runtimes.routing import SimpleRouter
 from infra.runtimes.config import LLMConfig
 
+
+config = LLMConfig()
+
+
 class LLMClient:
     """统一LLM客户端"""
 
-    def __init__(self, config: LLMConfig):
+    def __init__(self):
         """
         初始化LLM客户端
         
@@ -23,7 +25,7 @@ class LLMClient:
             config: LLM配置对象
         """
         self.config = config
-        self.active_providers: Dict[str, BaseProvider] = {}
+        self.active_providers: dict[str, BaseProvider] = {}
         # self.router = SimpleRouter(config.routing_config)
         self._dispatch()
 

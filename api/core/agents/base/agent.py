@@ -15,9 +15,9 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 from .message import AgentMessage
-from utils import get_component_logger, get_current_datetime
+from utils import get_component_logger
 from infra.monitoring import AgentMonitor
-from infra.runtimes.client import LLMClient, LLMConfig, LLMRequest
+from infra.runtimes import LLMClient, LLMRequest
 
 class BaseAgent(ABC):
     """
@@ -50,12 +50,10 @@ class BaseAgent(ABC):
         self.is_active = True
 
         # 初始化LLM客户端
-        llm_config = LLMConfig()
-        self.llm_client = LLMClient(llm_config)
+        self.llm_client = LLMClient()
 
         # 初始化其他组件
-        self.logger = get_component_logger(__name__, self.agent_id)
-        self.monitor = AgentMonitor(self.agent_id, self.agent_type)
+        self.logger = get_component_logger(__name__)
     
     @abstractmethod
     async def process_message(self, message: AgentMessage) -> AgentMessage:
@@ -181,61 +179,3 @@ class BaseAgent(ABC):
         # 基础统计更新，具体实现可以在子类中扩展
         self.logger.debug(f"处理完成，耗时: {actual_time:.2f}ms")
     
-    def activate(self):
-        """保留兼容接口：无需调用即可使用（默认已激活）。"""
-        self.is_active = True
-        self.logger.debug(f"智能体 {self.agent_id} 激活接口调用（默认已激活）")
-    
-    def deactivate(self):
-        """可选：停用智能体以停止新消息处理。"""
-        self.is_active = False
-        self.logger.info(f"智能体 {self.agent_id} 已停用")
-    
-    def get_status(self) -> dict:
-        """获取智能体状态信息（直接使用AgentMonitor）"""
-        # 直接使用AgentMonitor的全面状态数据
-        status_data = self.monitor.get_comprehensive_status()
-        
-        # 添加BaseAgent特定信息（没有在monitor中的）
-        status_data['is_active'] = self.is_active
-            
-        return {
-            **status_data,
-            "timestamp": get_current_datetime(),
-            "component": self.agent_id
-        }
-    
-    async def preload_prompts(self):
-        """
-        预加载智能体提示词（性能优化）
-        
-        简化版本 - 目前不需要复杂的提示词管理
-        """
-        self.logger.debug(f"智能体提示词预加载完成: {self.agent_id}")
-
-    def get_metrics(self) -> dict:
-        """获取智能体指标数据"""
-        comprehensive_status = self.monitor.get_comprehensive_status()
-        
-        return {
-            "metrics": {
-                **comprehensive_status['processing_metrics'],
-                **comprehensive_status['error_rates'],
-                **comprehensive_status['error_counts']
-            },
-            "details": {
-                'agent_id': self.agent_id,
-                'agent_type': self.agent_type,
-                'is_active': self.is_active
-            },
-            "timestamp": get_current_datetime(),
-            "component": self.agent_id
-        }
-    
-    @property
-    def agent_type(self) -> str:
-        """智能体类型（从agent_id提取）"""
-        return self.agent_id.split('_')[0] if '_' in self.agent_id else "unknown"
-    
-    def __repr__(self) -> str:
-        return f"BaseAgent(id={self.agent_id}, active={self.is_active})"
