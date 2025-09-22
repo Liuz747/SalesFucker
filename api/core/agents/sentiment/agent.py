@@ -6,6 +6,9 @@ Provides emotional context and customer satisfaction insights.
 """
 
 from typing import Dict, Any
+
+from langfuse import observe
+
 from ..base import BaseAgent, AgentMessage
 from utils import parse_sentiment_response, get_current_datetime, get_processing_time_ms
 
@@ -77,6 +80,7 @@ class SentimentAnalysisAgent(BaseAgent):
                 context=message.context
             )
     
+    @observe(name="sentiment-analysis", as_type="generation")
     async def process_conversation(self, state: dict) -> dict:
         """
         处理对话状态中的情感分析

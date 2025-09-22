@@ -5,8 +5,10 @@
 
 from .base_workflow import BaseWorkflow
 from .chat_workflow import ChatWorkflow
+from .test_workflow import TestWorkflow
 
 __all__ = [
     "BaseWorkflow",
-    "ChatWorkflow"
+    "ChatWorkflow",
+    "TestWorkflow"
 ]

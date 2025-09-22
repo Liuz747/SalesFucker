@@ -19,6 +19,9 @@ from core.agents.product import ProductExpertAgent
 from core.agents.memory import MemoryAgent
 from core.agents.strategy import MarketStrategyCoordinator
 from libs.constants import WorkflowConstants
+from utils import get_component_logger
+
+logger = get_component_logger(__name__)
 
 
 # 工作流节点名 -> 智能体类 映射
@@ -52,7 +55,7 @@ def create_agents_set() -> dict[str, BaseAgent]:
 
         except Exception as e:
             # 如果某个智能体创建失败，记录错误但继续创建其他智能体
-            print(f"警告: 创建智能体 {node_name} 失败: {e}")
+            logger.error(f"创建智能体 {node_name} 失败: {e}")
             continue
 
     return agents

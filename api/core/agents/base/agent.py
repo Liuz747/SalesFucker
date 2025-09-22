@@ -53,8 +53,7 @@ class BaseAgent(ABC):
         self.llm_client = LLMClient()
 
         # 初始化其他组件
-        self.logger = get_component_logger(__name__, self.agent_id)
-        self.monitor = AgentMonitor(self.agent_id, self.agent_type)
+        self.logger = get_component_logger(__name__)
     
     @abstractmethod
     async def process_message(self, message: AgentMessage) -> AgentMessage:

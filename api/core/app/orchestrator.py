@@ -10,18 +10,19 @@
 - 多租户工作流隔离
 """
 
+from langfuse import observe, get_client
+
 from models import WorkflowRun
-from ..workflows import ChatWorkflow
+from ..workflows import ChatWorkflow, TestWorkflow
 from .entities import WorkflowExecutionModel
 from .workflow_builder import WorkflowBuilder
 from .state_manager import StateManager
 from utils import (
     get_component_logger,
     get_current_datetime,
-    get_processing_time_ms
+    get_processing_time_ms,
+    flush_traces
 )
-from utils.tracer_client import trace_conversation
-
 
 logger = get_component_logger(__name__)
 
@@ -47,11 +48,12 @@ class Orchestrator:
         self.state_manager = StateManager()
 
         # 构建工作流图
-        self.workflow_builder = WorkflowBuilder(ChatWorkflow)
+        self.workflow_builder = WorkflowBuilder(TestWorkflow)
         self.graph = self.workflow_builder.build_graph()
         
         logger.info("多智能体编排器初始化完成")
     
+    @observe(name="multi-agent-conversation", as_type="span")
     async def process_conversation(self, workflow: WorkflowRun) -> WorkflowExecutionModel:
         """
         处理客户对话的主入口函数
@@ -83,23 +85,31 @@ class Orchestrator:
                 f"状态: {'成功' if result_dict.get('processing_complete') else '失败'}"
             )
             
-            # Simple Langfuse tracing - just log the conversation
-            trace_conversation(
-                input_data={
+            # 更新Langfuse追踪信息
+            langfuse_trace = get_client()
+            langfuse_trace.update_current_trace(
+                name=f"conversation-{workflow.workflow_id}",
+                user_id=workflow.tenant_id,
+                input={
                     "customer_input": workflow.input,
                     "input_type": workflow.type,
                     "tenant_id": workflow.tenant_id
                 },
-                output_data={
+                output={
                     "final_response": result_dict.get("final_response"),
                     "agents_executed": list(result_dict.get("agent_responses", {}).keys()),
                     "processing_complete": result_dict.get("processing_complete", False)
                 },
                 metadata={
                     "tenant_id": workflow.tenant_id,
-                    "workflow_type": "multi_agent_conversation"
-                }
+                    "workflow_type": "multi_agent_conversation",
+                    "processing_time_ms": processing_time
+                },
+                tags=["multi-agent", "conversation", workflow.type]
             )
+
+            # 强制发送追踪数据到Langfuse
+            flush_traces()
 
             # 构建执行结果模型（元数据 + 会话结果）
             return WorkflowExecutionModel(
