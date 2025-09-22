@@ -15,6 +15,7 @@ from typing import Type
 
 from langgraph.graph import StateGraph
 
+from core.app.entities import WorkflowExecutionModel
 from utils import get_component_logger
 from core.workflows import BaseWorkflow
 from ..factories import create_agents_set
@@ -56,7 +57,7 @@ class WorkflowBuilder:
             StateGraph: 配置完成的LangGraph状态图
         """
         # 创建状态图，使用字典作为状态类型
-        graph = StateGraph(dict)
+        graph = StateGraph(WorkflowExecutionModel)
         
         # 注册节点处理函数
         self.workflow._register_nodes(graph)

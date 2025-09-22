@@ -10,6 +10,7 @@ from collections.abc import Callable
 from langgraph.graph import StateGraph
 
 from core.agents.base import BaseAgent
+from core.app.entities import WorkflowExecutionModel
 from utils import get_component_logger
 from libs.constants import WorkflowConstants, StatusConstants
 from .base_workflow import BaseWorkflow
@@ -111,7 +112,7 @@ class ChatWorkflow(BaseWorkflow):
         
         logger.debug("工作流入口出口点设置完成")
     
-    def _compliance_router(self, state: dict[str, Any]) -> str:
+    def _compliance_router(self, state: WorkflowExecutionModel) -> str:
         """
         合规检查路由器
         
@@ -123,13 +124,13 @@ class ChatWorkflow(BaseWorkflow):
         返回:
             str: 路由决策结果 ("continue" 或 "block")
         """
-        compliance_result = state.get("compliance_result", {})
-        
+        compliance_result = state.compliance_result
+
         # 检查合规状态
         compliance_status = compliance_result.get("status", "approved")
-        
+
         if compliance_status == "blocked":
-            logger.warning(f"内容被合规系统阻止: {state.get('customer_input', '')[:50]}...")
+            logger.warning(f"内容被合规系统阻止: {state.customer_input[:50]}...")
             return "block"
         
         return "continue"
@@ -153,7 +154,7 @@ class ChatWorkflow(BaseWorkflow):
             WorkflowConstants.MEMORY_NODE: self._memory_fallback,
         }
     
-    async def _process_agent_node(self, state: dict, node_name: str) -> dict:
+    async def _process_agent_node(self, state: WorkflowExecutionModel, node_name: str) -> dict:
         """
         通用智能体节点处理方法
         
@@ -172,8 +173,9 @@ class ChatWorkflow(BaseWorkflow):
             return self._apply_fallback(state, node_name, None)
         
         try:
-            # 直接使用 dict 状态，与新的无兼容策略一致
-            result_state = await agent.process_conversation(state)
+            # 将 Pydantic 模型转换为 dict 供 agent 处理
+            state_dict = state.model_dump()
+            result_state = await agent.process_conversation(state_dict)
 
             logger.debug(f"节点处理完成: {node_name}")
             return result_state
@@ -182,7 +184,7 @@ class ChatWorkflow(BaseWorkflow):
             logger.error(f"节点 {node_name} 处理错误: {e}", exc_info=True)
             return self._apply_fallback(state, node_name, e)
     
-    def _apply_fallback(self, state: dict, node_name: str, error: Optional[Exception]) -> dict:
+    def _apply_fallback(self, state: WorkflowExecutionModel, node_name: str, error: Optional[Exception]) -> dict:
         """
         应用降级处理策略
         
@@ -198,61 +200,64 @@ class ChatWorkflow(BaseWorkflow):
         if fallback_handler:
             return fallback_handler(state, error)
         else:
-            # 默认降级处理
-            state["error_state"] = f"{node_name}_unavailable"
-            return state
+            # 默认降级处理 - 返回字典更新
+            return {"error_state": f"{node_name}_unavailable"}
     
     def _create_agent_node(self, node_name: str):
         """创建智能体节点的通用方法"""
-        async def agent_node(state: dict) -> dict:
+        async def agent_node(state: WorkflowExecutionModel) -> dict:
             return await self._process_agent_node(state, node_name)
         return agent_node
     
-    async def _blocked_completion_node(self, state: dict) -> dict:
+    async def _blocked_completion_node(self, state: WorkflowExecutionModel) -> dict:
         """合规阻止完成节点"""
-        compliance_result = state.get("compliance_result", {})
-        state["final_response"] = compliance_result.get(
-            "user_message", 
-            "很抱歉，您的请求涉及到敏感内容，无法继续处理。"
-        )
-        state["processing_complete"] = True
-        state["blocked_by_compliance"] = True
-        return state
+        compliance_result = state.compliance_result
+        return {
+            "final_response": compliance_result.get(
+                "user_message",
+                "很抱歉，您的请求涉及到敏感内容，无法继续处理。"
+            ),
+            "processing_complete": True,
+            "blocked_by_compliance": True
+        }
     
     # ============ 降级处理器 ============
     
-    def _compliance_fallback(self, state: dict, error: Optional[Exception]) -> dict:
+    def _compliance_fallback(self, state: WorkflowExecutionModel, error: Optional[Exception]) -> dict:
         """合规审查降级处理"""
-        state["compliance_result"] = {
-            "status": StatusConstants.APPROVED,
-            "fallback": True,
-            "message": "合规检查系统暂时不可用，默认通过"
+        return {
+            "compliance_result": {
+                "status": StatusConstants.APPROVED,
+                "fallback": True,
+                "message": "合规检查系统暂时不可用，默认通过"
+            }
         }
-        return state
     
-    def _sentiment_fallback(self, state: dict, error: Optional[Exception]) -> dict:
+    def _sentiment_fallback(self, state: WorkflowExecutionModel, error: Optional[Exception]) -> dict:
         """情感分析降级处理"""
-        state["sentiment_analysis"] = {
-            "sentiment": "neutral",
-            "score": 0.0,
-            "confidence": 0.5,
-            "fallback": True
+        return {
+            "sentiment_analysis": {
+                "sentiment": "neutral",
+                "score": 0.0,
+                "confidence": 0.5,
+                "fallback": True
+            }
         }
-        return state
     
-    def _intent_fallback(self, state: dict, error: Optional[Exception]) -> dict:
+    def _intent_fallback(self, state: WorkflowExecutionModel, error: Optional[Exception]) -> dict:
         """意图分析降级处理"""
-        state["intent_analysis"] = {
-            "intent": "general_inquiry",
-            "confidence": 0.5,
-            "category": "unknown",
-            "fallback": True
+        return {
+            "intent_analysis": {
+                "intent": "general_inquiry",
+                "confidence": 0.5,
+                "category": "unknown",
+                "fallback": True
+            }
         }
-        return state
     
-    def _strategy_fallback(self, state: dict, error: Optional[Exception]) -> dict:
+    def _strategy_fallback(self, state: WorkflowExecutionModel, error: Optional[Exception]) -> dict:
         """市场策略降级处理"""
-        customer_input = state.get("customer_input", "").lower()
+        customer_input = state.customer_input.lower()
         
         if any(word in customer_input for word in ["luxury", "premium", "expensive"]):
             strategy = "premium_strategy"
@@ -263,37 +268,40 @@ class ChatWorkflow(BaseWorkflow):
         else:
             strategy = "premium_strategy"  # 默认策略
         
-        state["market_strategy"] = {
-            "strategy": strategy,
-            "confidence": 0.6,
-            "fallback": True
+        return {
+            "market_strategy": {
+                "strategy": strategy,
+                "confidence": 0.6,
+                "fallback": True
+            }
         }
-        return state
     
-    def _sales_fallback(self, state: dict, error: Optional[Exception]) -> dict:
+    def _sales_fallback(self, state: WorkflowExecutionModel, error: Optional[Exception]) -> dict:
         """销售智能体降级处理"""
-        state["agent_responses"] = state.get("agent_responses", {})
-        state["agent_responses"]["sales_agent"] = {
+        agent_responses = state.agent_responses.copy()
+        agent_responses["sales_agent"] = {
             "response": "感谢您的咨询！我很乐意为您推荐合适的美容产品。请告诉我您具体的需求？",
             "fallback": True,
-            "timestamp": state.get("timestamp")
+            "timestamp": state.timestamp
         }
-        return state
+        return {"agent_responses": agent_responses}
     
-    def _product_fallback(self, state: dict, error: Optional[Exception]) -> dict:
+    def _product_fallback(self, state: WorkflowExecutionModel, error: Optional[Exception]) -> dict:
         """产品专家降级处理"""
-        state["product_recommendations"] = {
-            "status": "unavailable",
-            "message": "产品推荐系统暂时不可用",
-            "fallback": True
+        return {
+            "product_recommendations": {
+                "status": "unavailable",
+                "message": "产品推荐系统暂时不可用",
+                "fallback": True
+            }
         }
-        return state
     
-    def _memory_fallback(self, state: dict, error: Optional[Exception]) -> dict:
+    def _memory_fallback(self, state: WorkflowExecutionModel, error: Optional[Exception]) -> dict:
         """记忆管理降级处理"""
-        state["memory_update"] = {
-            "status": StatusConstants.FAILED,
-            "message": "记忆系统暂时不可用",
-            "fallback": True
+        return {
+            "memory_update": {
+                "status": StatusConstants.FAILED,
+                "message": "记忆系统暂时不可用",
+                "fallback": True
+            }
         }
-        return state

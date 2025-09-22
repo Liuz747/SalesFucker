@@ -77,7 +77,7 @@ class Orchestrator:
             initial_state = self.state_manager.create_initial_state(workflow)
 
             # 执行工作流
-            result_dict = await self.graph.ainvoke(initial_state.model_dump())
+            result_dict = await self.graph.ainvoke(initial_state)
             processing_time = get_processing_time_ms(start_time)
 
             logger.info(
