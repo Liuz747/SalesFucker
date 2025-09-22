@@ -29,7 +29,7 @@ class TenantSyncRequest(BaseTenant):
     features: Optional[FeatureFlags] = Field(default=None, description="启用的功能")
 
 
-class TenantUpdateRequest(BaseTenant):
+class TenantUpdateRequest(BaseModel):
     features: Optional[dict[str, bool]] = Field(None, description="功能列表")
 
 

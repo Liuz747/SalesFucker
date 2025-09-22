@@ -18,6 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from config import mas_config
 from models import TenantOrm, TenantModel
 from utils import get_component_logger
+from utils.time_utils import SHANGHAI_TZ, get_current_datetime
 
 logger = get_component_logger(__name__, "TenantRepository")
 
@@ -50,8 +51,8 @@ class TenantRepository:
     async def update_tenant(tenant: TenantOrm, session: AsyncSession) -> Optional[TenantOrm]:
         """更新租户数据库模型"""
         try:
-            tenant.updated_at = func.now()
-            session.merge(tenant)
+            tenant.updated_at = get_current_datetime()
+            await session.merge(tenant)
             logger.debug(f"更新租户: {tenant.tenant_id}")
             # todo 需要判断修改行数
             return tenant

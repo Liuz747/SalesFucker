@@ -109,19 +109,19 @@ async def update_tenant(
     try:
         logger.info(f"租户更新请求: {tenant_id}")
 
-        tenant = TenantModel(
-            tenant_id=tenant_id,
-            tenant_name=request.tenant_name,
-            status=request.status,
-            industry=request.industry,
-            area_id=request.area_id,
-            creator=request.creator,
-            company_size=request.company_size,
-            features=request.features.model_dump() if request.features else None
-        )
-        flag = await TenantService.update_tenant(tenant)
+        # tenant = TenantModel(
+        #     tenant_id=tenant_id,
+        #     tenant_name=request.tenant_name,
+        #     status=request.status,
+        #     industry=request.industry,
+        #     area_id=request.area_id,
+        #     creator=request.creator,
+        #     company_size=request.company_size,
+        #     features=request.features.model_dump() if request.features else None
+        # )
+        tenantModel = await TenantService.update_tenant(tenant_id, request.features)
 
-        if flag:
+        if tenantModel:
             logger.info(f"租户配置已更新: {tenant_id}")
         else:
             logger.error(f"保存租户配置失败: {tenant_id}")
@@ -129,10 +129,10 @@ async def update_tenant(
 
         return TenantSyncResponse(
             tenant_id=tenant_id,
-            tenant_name=request.tenant_name,
-            status=request.status,
+            tenant_name=tenantModel.tenant_name,
+            status=tenantModel.status,
             message="租户更新成功",
-            features=request.features,
+            features=tenantModel.features,
             timestamp=get_current_datetime()
         )
 
