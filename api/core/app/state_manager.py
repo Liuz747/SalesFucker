@@ -33,7 +33,7 @@ class StateManager:
     
     def create_initial_state(self, workflow: WorkflowRun) -> WorkflowExecutionModel:
         """
-        将工作流运行信息映射为 LangGraph 初始状态模型（最小必需字段）。
+        将工作流信息映射为 LangGraph 初始状态模型。
         """
         return WorkflowExecutionModel(
             workflow_id=workflow.workflow_id,
@@ -41,33 +41,28 @@ class StateManager:
             assistant_id=workflow.assistant_id,
             tenant_id=workflow.tenant_id,
             input=workflow.input,
-            type=workflow.type,
-            # LangGraph 期望的初始状态字段
-            customer_input=workflow.input,
-            input_type=workflow.type,
+            started_at=workflow.created_at,
+            exception_count=0,
+            total_tokens=0
         )
     
     def create_error_state(
         self,
-        workflow: WorkflowRun,
+        state: WorkflowExecutionModel,
         message: str = "系统暂时不可用，请稍后重试。",
-        error_state: str = "orchestrator_failed",
     ) -> WorkflowExecutionModel:
         """
         构建统一的错误状态模型。
         """
         return WorkflowExecutionModel(
-            workflow_id=workflow.workflow_id,
-            thread_id=workflow.thread_id,
-            assistant_id=workflow.assistant_id,
-            tenant_id=workflow.tenant_id,
-            input=workflow.input,
-            type=workflow.type,
-            customer_input=workflow.input,
-            input_type=workflow.type,
-            final_response=message,
-            processing_complete=True,
-            error_state=error_state,
-            agent_responses={},
+            workflow_id=state.workflow_id,
+            thread_id=state.thread_id,
+            assistant_id=state.assistant_id,
+            tenant_id=state.tenant_id,
+            input=state.input,
+            started_at=state.started_at,
+            finished_at=state.finished_at,
+            exception_count=state.exception_count + 1,
+            error_message=message
         )
     

@@ -20,7 +20,7 @@ from .state_manager import StateManager
 from utils import (
     get_component_logger,
     get_current_datetime,
-    get_processing_time_ms,
+    get_processing_time,
     flush_traces
 )
 
@@ -77,12 +77,12 @@ class Orchestrator:
             initial_state = self.state_manager.create_initial_state(workflow)
 
             # 执行工作流
-            result_dict = await self.graph.ainvoke(initial_state)
-            processing_time = get_processing_time_ms(start_time)
+            result = await self.graph.ainvoke(initial_state)
+            elapsed_time = get_processing_time(start_time)
 
             logger.info(
-                f"对话处理完成 - 耗时: {processing_time:.2f}ms, "
-                f"状态: {'成功' if result_dict.get('processing_complete') else '失败'}"
+                f"对话处理完成 - 耗时: {elapsed_time:.2f}s, "
+                f"状态: {'成功' if not result.get('exception_count') else '失败'}"
             )
             
             # 更新Langfuse追踪信息
@@ -96,14 +96,14 @@ class Orchestrator:
                     "tenant_id": workflow.tenant_id
                 },
                 output={
-                    "final_response": result_dict.get("final_response"),
-                    "agents_executed": list(result_dict.get("agent_responses", {}).keys()),
-                    "processing_complete": result_dict.get("processing_complete", False)
+                    "final_response": result.get("final_response"),
+                    "agents_executed": list(result.get("values", {}).keys()),
+                    "processing_complete": result.get("processing_complete", False)
                 },
                 metadata={
                     "tenant_id": workflow.tenant_id,
                     "workflow_type": "multi_agent_conversation",
-                    "processing_time_ms": processing_time
+                    "processing_time": elapsed_time
                 },
                 tags=["multi-agent", "conversation", workflow.type]
             )
@@ -112,46 +112,10 @@ class Orchestrator:
             flush_traces()
 
             # 构建执行结果模型（元数据 + 会话结果）
-            return WorkflowExecutionModel(
-                workflow_id=workflow.workflow_id,
-                thread_id=workflow.thread_id,
-                assistant_id=workflow.assistant_id,
-                tenant_id=workflow.tenant_id,
-                input=workflow.input,
-                type=workflow.type,
-                created_at=start_time,
-                # 状态字段
-                customer_input=result_dict.get("customer_input", workflow.input),
-                input_type=result_dict.get("input_type", workflow.type),
-                compliance_result=result_dict.get("compliance_result", {}),
-                sentiment_analysis=result_dict.get("sentiment_analysis", {}),
-                intent_analysis=result_dict.get("intent_analysis", {}),
-                market_strategy=result_dict.get("market_strategy", {}),
-                product_recommendations=result_dict.get("product_recommendations", {}),
-                memory_update=result_dict.get("memory_update", {}),
-                agent_responses=result_dict.get("agent_responses", {}),
-                final_response=result_dict.get("final_response", ""),
-                processing_complete=result_dict.get("processing_complete", False),
-                error_state=result_dict.get("error_state"),
-                blocked_by_compliance=result_dict.get("blocked_by_compliance", False),
-            )
+            return WorkflowExecutionModel(**result)
             
         except Exception as e:
             logger.error(f"对话处理失败: {e}", exc_info=True)
             # 返回统一错误状态
-            return WorkflowExecutionModel(
-                workflow_id=workflow.workflow_id,
-                thread_id=workflow.thread_id,
-                assistant_id=workflow.assistant_id,
-                tenant_id=workflow.tenant_id,
-                input=workflow.input,
-                type=workflow.type,
-                created_at=start_time,
-                customer_input=workflow.input,
-                input_type=workflow.type,
-                final_response="系统暂时不可用，请稍后重试。",
-                processing_complete=True,
-                error_state="orchestrator_failed",
-                agent_responses={},
-            )
+            raise
     

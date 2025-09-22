@@ -90,15 +90,6 @@ async def create_run(
         # 使用编排器处理消息 - 这是核心工作流调用
         result = await orchestrator.process_conversation(workflow)
 
-        workflow_data = []
-        for agent_type, agent_response in result.agent_responses.items():
-            workflow_data.append(
-                {
-                    "type": agent_type,
-                    "content": agent_response
-                }
-            )
-
         processing_time = get_processing_time_ms(start_time)
 
         logger.info(f"运行处理完成 - 线程: {thread_id}, 执行: {workflow_id}, 耗时: {processing_time:.2f}ms")
@@ -106,14 +97,18 @@ async def create_run(
         # 返回标准化响应
         return {
             "id": result.workflow_id,
-            "thread_id": thread_id,
-            "data": workflow_data,
+            "thread_id": result.thread_id,
+            "data": {
+                "input": result.input,
+                "output": result.output,
+                "total_tokens": result.total_tokens
+            },
             "created_at": start_time,
             "processing_time": processing_time,
             # 元数据
             "metadata": {
-                "tenant_id": tenant.tenant_id,
-                "assistant_id": request.assistant_id,
+                "tenant_id": result.tenant_id,
+                "assistant_id": result.assistant_id,
                 "workflow_id": str(result.workflow_id)
             }
         }

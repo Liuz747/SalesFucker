@@ -29,6 +29,7 @@ def configure_logging():
 
     # 设置sqlalchemy logger不传播到项目根logger
     logging.getLogger('sqlalchemy').propagate = False
+    logging.getLogger('httpx').propagate = False
 
 def get_component_logger(component_name: str, identifier: Optional[str] = None) -> logging.Logger:
     """
