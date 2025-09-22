@@ -11,7 +11,7 @@
 """
 
 from models import WorkflowRun
-from ..factories import create_agents_set
+from ..workflows import ChatWorkflow
 from .entities import WorkflowExecutionModel
 from .workflow_builder import WorkflowBuilder
 from .state_manager import StateManager
@@ -46,36 +46,11 @@ class Orchestrator:
         # 初始化模块化组件
         self.state_manager = StateManager()
 
-        # 初始化智能体
-        self.agents = self._initialize_agents()
-
-        # 使用注入的智能体构建工作流图
-        self.workflow_builder = WorkflowBuilder(self.agents)
+        # 构建工作流图
+        self.workflow_builder = WorkflowBuilder(ChatWorkflow)
         self.graph = self.workflow_builder.build_graph()
         
         logger.info("多智能体编排器初始化完成")
-    
-    def _initialize_agents(self):
-        """
-        初始化智能体集合
-        
-        创建并注册所有必要的智能体。
-        """
-        
-        try:
-            # 创建智能体集合
-            agents = create_agents_set()
-            
-            logger.info(f"智能体初始化完成，成功创建 {len(agents)} 个智能体")
-            
-            # 记录创建的智能体
-            for agent_type, agent in agents.items():
-                logger.debug(f"已创建智能体: {agent_type} -> {agent.agent_id}")
-                
-            return agents
-        except Exception as e:
-            logger.error(f"智能体初始化失败: {e}", exc_info=True)
-            return {}
     
     async def process_conversation(self, workflow: WorkflowRun) -> WorkflowExecutionModel:
         """
@@ -100,7 +75,7 @@ class Orchestrator:
             initial_state = self.state_manager.create_initial_state(workflow)
 
             # 执行工作流
-            result_dict = await self.graph.ainvoke(initial_state)
+            result_dict = await self.graph.ainvoke(initial_state.model_dump())
             processing_time = get_processing_time_ms(start_time)
 
             logger.info(
@@ -135,9 +110,20 @@ class Orchestrator:
                 input=workflow.input,
                 type=workflow.type,
                 created_at=start_time,
+                # 状态字段
+                customer_input=result_dict.get("customer_input", workflow.input),
+                input_type=result_dict.get("input_type", workflow.type),
+                compliance_result=result_dict.get("compliance_result", {}),
+                sentiment_analysis=result_dict.get("sentiment_analysis", {}),
+                intent_analysis=result_dict.get("intent_analysis", {}),
+                market_strategy=result_dict.get("market_strategy", {}),
+                product_recommendations=result_dict.get("product_recommendations", {}),
+                memory_update=result_dict.get("memory_update", {}),
+                agent_responses=result_dict.get("agent_responses", {}),
                 final_response=result_dict.get("final_response", ""),
                 processing_complete=result_dict.get("processing_complete", False),
-                agent_responses=result_dict.get("agent_responses", {}),
+                error_state=result_dict.get("error_state"),
+                blocked_by_compliance=result_dict.get("blocked_by_compliance", False),
             )
             
         except Exception as e:
@@ -151,8 +137,11 @@ class Orchestrator:
                 input=workflow.input,
                 type=workflow.type,
                 created_at=start_time,
+                customer_input=workflow.input,
+                input_type=workflow.type,
                 final_response="系统暂时不可用，请稍后重试。",
                 processing_complete=True,
+                error_state="orchestrator_failed",
                 agent_responses={},
             )
     
