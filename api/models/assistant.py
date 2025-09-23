@@ -87,7 +87,7 @@ class AssistantOrmModel(Base):
     assistant_id = Column(String(255), unique=True, nullable=False, index=True)
     assistant_name = Column(String(500), nullable=False)
 
-    # assistant_status = Column(String(500), nullable=False)
+    assistant_status = Column(String(500), nullable=False)
     assistant_sex = Column(String(500), nullable=True)
     assistant_phone = Column(String(500), nullable=True)
     assistant_personality_type = Column(String(500), nullable=False)

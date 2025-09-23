@@ -10,11 +10,14 @@
 - 数据库健康检查
 - 高效查询和索引优化
 """
+import msgpack
+from redis import Redis, RedisError
 from datetime import datetime
 from typing import Optional, List
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from config import mas_config
 from models import TenantModel
 from models.assistant import AssistantModel, AssistantOrmModel
 from infra.db.connection import database_session, test_db_connection
@@ -230,3 +233,23 @@ class AssistantRepository:
                 "total_tenants": 0,
                 "active_tenants": 0,
             }
+
+    @staticmethod
+    async def update_assistant_cache(assistant_model: AssistantModel, redis_client: Redis):
+        """更新数字员工缓存"""
+        try:
+            redis_key = f"tenant:{assistant_model.assistant_id}"
+            tenant_data = assistant_model.model_dump(mode='json')
+
+            await redis_client.setex(
+                redis_key,
+                mas_config.REDIS_TTL,
+                msgpack.packb(tenant_data),
+            )
+            logger.debug(f"更新租户缓存: {assistant_model.assistant_id}")
+        except RedisError as e:
+            print(f"redis 命令执行失败: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"更新租户缓存失败: {assistant_model.assistant_id}, 错误: {e}")
+            raise

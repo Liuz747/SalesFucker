@@ -11,11 +11,14 @@ AI员工处理器
 - 数据验证和业务规则
 """
 
+import asyncio
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 
+from infra.cache import get_redis_client
 from infra.db import database_session
 from repositories.tenant_repo import TenantRepository
+from schemas.conversation_error_code import TenantNotFoundException, AssistantConflictException
 from ..schemas.assistants import (
     AssistantCreateRequest, AssistantUpdateRequest, AssistantConfigRequest,
     AssistantListRequest, AssistantListResponse,
@@ -65,18 +68,21 @@ class AssistantService:
         """
         try:
             async with database_session() as session:
+                # 1. 先查询 tenant 是否存在
+                tenant_orm = await TenantRepository.get_tenant_by_tenant_id(request.tenant_id, session)
+                if not tenant_orm:
+                    # 需要 raise 个错误
+                    raise TenantNotFoundException(tenant_id=request.tenant_id)
+
+                # 2. 再查询 assistant 是否存在
                 assistant_orm = await AssistantRepository.get_assistant_by_id(request.assistant_id, session)
                 if assistant_orm:
-                    pass
                     # 需要 raise 个错误
-                tenant_orm = await TenantRepository.get_tenant_by_id(request.tenant_id, session)
-                if tenant_orm:
-                    pass
-                    # 需要 raise 个错误
+                    raise AssistantConflictException(assistant_id=request.assistant_id)
 
                 # 创建助理数据
                 now = datetime.utcnow()
-                assistant_data = AssistantModel(
+                assistant_model = AssistantModel(
                     assistant_id=request.assistant_id,
                     assistant_name=request.assistant_name,
                     tenant_id=request.tenant_id,
@@ -98,7 +104,16 @@ class AssistantService:
                 )
 
                 # 存储助理数据
-                status = await AssistantRepository.insert_assistant(assistant_data)
+                status = await AssistantRepository.insert_assistant(assistant_model, session)
+                if not status:
+                    raise Exception(f"AssistantRepository.insert_assistant is error. {request.assistant_id}")
+                redis_client = await get_redis_client()
+                asyncio.create_task(AssistantRepository.update_assistant_cache(
+                    assistant_model,
+                    redis_client
+                ))
+
+                assistant_orm = await AssistantRepository.get_assistant_by_id(assistant_model.assistant_id, session)
 
                 if 1 != 2:
                     # todo 先跳过提示词配置
@@ -121,34 +136,19 @@ class AssistantService:
         except Exception as e:
             self.logger.error(f"助理创建失败: {e}")
             raise
-            # 初始化统计数据
-            # self._assistant_stats[assistant_key] = {
-            #     "total_conversations": 0,
-            #     "total_customers": 0,
-            #     "current_customers": 0,
-            #     "average_rating": 0.0,
-            #     "activity_by_hour": {},
-            #     "device_usage": {}
-            # }
 
-            # return AssistantResponse(
-            #     success=True,
-            #     message="助理创建成功",
-            #     data={},
-            #     **assistant_data,
-            #     current_customers=0,
-            #     total_conversations=0,
-            #     average_rating=0.0
-            # )
+        # return assistant_orm.to_business_model()
 
-        return SimpleResponse(
+        return SimpleResponse[AssistantModel](
+            code=0,
             message="助理创建成功",
-            data=assistant_data,
+            data=assistant_orm.to_business_model(),
             # **assistant_data,
             # current_customers=0,
             # total_conversations=0,
             # average_rating=0.0
         )
+
     async def list_assistants(self, request: AssistantListRequest) -> AssistantListResponse:
         """
         获取助理列表

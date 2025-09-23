@@ -57,47 +57,37 @@ class AssistantCreateRequest(BaseRequest):
     """
 
     tenant_id: str = Field(description="租户标识符", min_length=1, max_length=100)
-
     assistant_name: str = Field(description="助理姓名", min_length=1, max_length=100)
-
     assistant_id: str = Field(
         description="助理唯一标识符", min_length=1, max_length=100
     )
-
     # 助理配置
     personality_type: PersonalityType = Field(
         default=PersonalityType.PROFESSIONAL,
         description="助理个性类型（可选，优先使用 prompt_config）",
     )
-
     expertise_level: ExpertiseLevel = Field(
         default=ExpertiseLevel.INTERMEDIATE, description="专业等级"
     )
-
     # 提示词配置（新的核心配置）
     prompt_config: Optional[AssistantPromptConfig] = Field(
         None, description="智能体提示词配置 - 定义个性、行为和交互方式"
     )
-
     # 销售配置（保持向后兼容）
     sales_style: Dict[str, Any] = Field(
         default_factory=dict, description="销售风格配置（可选，建议使用prompt_config）"
     )
-
     voice_tone: Dict[str, Any] = Field(
         default_factory=dict, description="语音语调配置（可选，建议使用prompt_config）"
     )
-
     # 专业领域
     specializations: List[str] = Field(
         default_factory=list, description="专业领域列表（如：护肤、彩妆、香水等）"
     )
-
     # 工作配置
     working_hours: Dict[str, Any] = Field(
         default_factory=dict, description="工作时间配置"
     )
-
     max_concurrent_customers: int = Field(
         default=10, description="最大并发客户数", ge=1, le=100
     )

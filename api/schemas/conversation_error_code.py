@@ -104,6 +104,15 @@ class AssistantUnavailableException(AssistantException):
         super().__init__(detail=f"AI助手 {assistant_id} 暂时不可用")
 
 
+class AssistantConflictException(AssistantException):
+    error_code = 1100003
+    detail = "Assistant_Conflict"
+    status_code = 503
+
+    def __init__(self, assistant_id: str):
+        super().__init__(detail=f"AI助手 {assistant_id} 已存在")
+
+
 class ThreadException(WorkspaceException):
     error_code = 1300001
     detail = "THREAD_ERROR"
@@ -188,7 +197,7 @@ class AssistantException(WorkspaceException):
 class AssistantNotFoundException(AssistantException):
     error_code = "ASSISTANT_NOT_FOUND"
     http_status_code = 404
-    
+
     def __init__(self, assistant_id: str):
         super().__init__(detail=f"AI助手 {assistant_id} 不存在")
 
@@ -196,6 +205,6 @@ class AssistantNotFoundException(AssistantException):
 class AssistantUnavailableException(AssistantException):
     error_code = "ASSISTANT_UNAVAILABLE"
     http_status_code = 503
-    
+
     def __init__(self, assistant_id: str):
         super().__init__(detail=f"AI助手 {assistant_id} 暂时不可用")
