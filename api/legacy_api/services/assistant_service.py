@@ -29,7 +29,7 @@ from models.assistant import AssistantModel
 
 from repositories.assistant_repo import AssistantRepository
 from ..schemas.prompts import PromptCreateRequest
-from .prompts_handler import PromptHandler
+from .prompts_services import PromptHandler
 from utils import get_component_logger
 from ..schemas.responses import SimpleResponse
 

@@ -8,7 +8,7 @@
 - tenant.py: 租户管理相关的所有模型
 - conversation.py: 对话相关的所有模型
 - workflow.py: 工作流相关的所有模型
-- prompts.py: 提示词相关的所有模型
+- prompts_controller.py: 提示词相关的所有模型
 - assistant.py: 助理相关的所有模型
 - enums.py: 枚举相关的所有模型
 """

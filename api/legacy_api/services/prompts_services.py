@@ -17,7 +17,7 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime
 
 from models.prompts import PromptsModel, PromptsOrmModel
-from services.prompts_dao import PromptsDao
+from repositories.prompts_repo import PromptsDao
 from ..schemas.prompts import (
     PromptCreateRequest, PromptUpdateRequest, PromptTestRequest,
     PromptLibrarySearchRequest, PromptConfigResponse, PromptTestResponse,

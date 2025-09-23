@@ -26,7 +26,7 @@ from ..schemas.prompts import (
     PromptLibraryResponse, PromptValidationResponse,
     AssistantPromptConfig, PromptCategory, PromptType, PromptLanguage
 )
-from ..services.prompts_handler import PromptHandler
+from ..services.prompts_services import PromptHandler
 from utils import get_component_logger
 from ..schemas.responses import SimpleResponse
 
