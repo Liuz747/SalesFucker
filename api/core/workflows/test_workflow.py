@@ -33,6 +33,6 @@ class TestWorkflow(BaseWorkflow):
 
     async def _single_node(self, state: dict[str, Any]) -> dict[str, Any]:
         """按 target_node 运行对应代理并直接返回结果"""
-        target_node = "compliance_review"
+        target_node = "chat_agent"  # Use ChatAgent for testing
         agent = self.agents.get(target_node)
         return await agent.process_conversation(state)

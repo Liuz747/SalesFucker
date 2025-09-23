@@ -11,13 +11,11 @@
 """
 
 import uuid
-from typing import Dict, Any, Optional, List
-from datetime import datetime
+from typing import Any, Optional
 from pydantic import BaseModel, Field
 
-from libs.constants import StatusConstants, MessageConstants
-from libs.types import MessageType, ComplianceStatus, MarketStrategy, PriorityLevel, InputType
-from utils import get_current_datetime
+from libs.constants import MessageConstants
+from libs.types import MessageType, InputType
 
 
 class AgentMessage(BaseModel):
@@ -28,81 +26,27 @@ class AgentMessage(BaseModel):
     支持多种消息类型和优先级管理。
     
     属性:
-        message_id: 消息唯一标识符
         sender: 发送方智能体ID
-        recipient: 接收方智能体ID
         message_type: 消息类型(查询/响应/通知/触发/建议)
         context: 消息上下文信息
-        tenant_id: 多租户标识符
-        assistant_id: 销售助理标识符
-        device_id: 设备标识符
-        customer_id: 客户标识符
-        thread_id: 对话标识符
-        session_id: 会话标识符
-        sentiment_score: 客户情感分数(-1到1)
-        intent_classification: 客户意图分类
-        compliance_status: 合规审查状态
-        market_strategy: 选定的市场策略
         payload: 消息特定数据载荷
-        timestamp: 消息时间戳
-        priority: 消息优先级
-        human_loop_required: 是否需要人工干预
     """
     
     # 消息基本信息
-    message_id: str = Field(
-        default_factory=lambda: str(uuid.uuid4()),
-        description="消息唯一标识符，自动生成UUID"
-    )
     sender: str = Field(description="发送方智能体的唯一标识符")
-    recipient: str = Field(description="接收方智能体的唯一标识符")
     message_type: MessageType = Field(
         description="消息类型：query=查询, response=响应, notification=通知, trigger=触发, suggestion=建议"
     )
     
     # 上下文信息
-    context: Dict[str, Any] = Field(
+    context: dict[str, Any] = Field(
         default_factory=dict, 
         description="消息上下文信息，包含处理消息所需的环境数据"
     )
-    tenant_id: Optional[str] = Field(None, description="多租户标识符，用于区分不同的化妆品品牌")
-    assistant_id: Optional[str] = Field(None, description="销售助理标识符，用于区分租户内不同的销售人员")
-    customer_id: Optional[str] = Field(None, description="客户唯一标识符")
-    thread_id: Optional[str] = Field(None, description="对话会话标识符")
-    
-    # 分析上下文
-    sentiment_score: Optional[float] = Field(
-        None, 
-        description="客户情感分数，范围-1(负面)到1(正面)，0为中性"
-    )
-    intent_classification: Optional[str] = Field(None, description="客户意图分类结果")
-    compliance_status: ComplianceStatus = Field(
-        StatusConstants.APPROVED, 
-        description="合规审查状态：approved=通过, flagged=标记, blocked=阻止"
-    )
-    market_strategy: Optional[MarketStrategy] = Field(
-        None, 
-        description="选定的市场策略：premium=高端, budget=预算, youth=年轻, mature=成熟"
-    )
-    
     # 消息内容
-    payload: Dict[str, Any] = Field(
+    payload: dict[str, Any] = Field(
         default_factory=dict, 
         description="消息特定数据载荷，包含具体的处理数据"
-    )
-    
-    # 元数据
-    timestamp: datetime = Field(
-        default_factory=get_current_datetime,
-        description="消息创建时间戳"
-    )
-    priority: PriorityLevel = Field(
-        MessageConstants.MEDIUM_PRIORITY, 
-        description="消息优先级：low=低, medium=中, high=高, urgent=紧急"
-    )
-    human_loop_required: bool = Field(
-        False, 
-        description="是否需要人工干预标志"
     )
 
 
@@ -157,51 +101,51 @@ class ThreadState(BaseModel):
         MessageConstants.TEXT_INPUT, 
         description="输入类型：text=文本, voice=语音, image=图片"
     )
-    input_metadata: Dict[str, Any] = Field(
+    input_metadata: dict[str, Any] = Field(
         default_factory=dict,
         description="输入相关的元数据信息"
     )
     
     # 分析结果
-    compliance_result: Dict[str, Any] = Field(
+    compliance_result: dict[str, Any] = Field(
         default_factory=dict,
         description="合规审查处理结果，包含违规检测和处理建议"
     )
-    sentiment_analysis: Dict[str, Any] = Field(
+    sentiment_analysis: dict[str, Any] = Field(
         default_factory=dict,
         description="情感分析结果，包含情感倾向和强度"
     )
-    intent_analysis: Dict[str, Any] = Field(
+    intent_analysis: dict[str, Any] = Field(
         default_factory=dict,
         description="意图分析结果，包含客户意图分类和置信度"
     )
     
     # 智能体处理
-    active_agents: List[str] = Field(
+    active_agents: list[str] = Field(
         default_factory=list,
         description="当前处理对话的活跃智能体ID列表"
     )
-    agent_responses: Dict[str, Dict[str, Any]] = Field(
+    agent_responses: dict[str, dict[str, Any]] = Field(
         default_factory=dict,
         description="各智能体的处理响应结果集合"
     )
     
     # 客户上下文
-    customer_profile: Dict[str, Any] = Field(
+    customer_profile: dict[str, Any] = Field(
         default_factory=dict,
         description="客户档案信息，包含偏好、历史和个人信息"
     )
-    thread_history: List[Dict[str, Any]] = Field(
+    thread_history: list[dict[str, Any]] = Field(
         default_factory=list,
         description="对话历史记录列表"
     )
-    conversation_history: List[Dict[str, Any]] = Field(
+    conversation_history: list[dict[str, Any]] = Field(
         default_factory=list,
-        description="对话历史记录（兼容性别名）"
+        description="对话历史记录"
     )
     
     # 智能体特定状态
-    strategy_hints: Dict[str, Any] = Field(
+    strategy_hints: dict[str, Any] = Field(
         default_factory=dict,
         description="市场策略提示信息"
     )
@@ -209,7 +153,7 @@ class ThreadState(BaseModel):
     
     # 最终响应
     final_response: str = Field("", description="系统最终响应给客户的内容")
-    response_metadata: Dict[str, Any] = Field(
+    response_metadata: dict[str, Any] = Field(
         default_factory=dict,
         description="响应相关的元数据信息"
     )

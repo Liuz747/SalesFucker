@@ -18,6 +18,7 @@ from core.agents.intent import IntentAnalysisAgent
 from core.agents.product import ProductExpertAgent
 from core.agents.memory import MemoryAgent
 from core.agents.strategy import MarketStrategyCoordinator
+from core.agents.chat.agent import ChatAgent
 from libs.constants import WorkflowConstants
 from utils import get_component_logger
 
@@ -33,6 +34,7 @@ AGENT_NODE_MAPPING = {
     WorkflowConstants.SALES_NODE: SalesAgent,
     WorkflowConstants.PRODUCT_NODE: ProductExpertAgent,
     WorkflowConstants.MEMORY_NODE: MemoryAgent,
+    "chat_agent": ChatAgent,
 }
 
 

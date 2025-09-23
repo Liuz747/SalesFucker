@@ -15,8 +15,8 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 from .message import AgentMessage
+from ...app.entities import WorkflowExecutionModel
 from utils import get_component_logger
-from infra.monitoring import AgentMonitor
 from infra.runtimes import LLMClient, LLMRequest
 
 class BaseAgent(ABC):
@@ -55,35 +55,20 @@ class BaseAgent(ABC):
         # 初始化其他组件
         self.logger = get_component_logger(__name__)
     
-    @abstractmethod
-    async def process_message(self, message: AgentMessage) -> AgentMessage:
-        """
-        处理单个智能体消息的具体实现 (抽象方法)
-        
-        每个具体的智能体子类必须实现此方法来定义具体的消息处理逻辑。
-        性能统计由基类自动处理。
-        
-        参数:
-            message: 待处理的智能体消息
-            
-        返回:
-            AgentMessage: 处理结果消息
-        """
-        pass
     
     @abstractmethod
-    async def process_conversation(self, state: dict) -> dict:
+    async def process_conversation(self, state: WorkflowExecutionModel) -> dict:
         """
         处理对话状态的具体实现 (抽象方法)
-        
+
         在LangGraph工作流中处理对话状态，更新相关信息并返回修改后的状态。
         子类必须实现此方法来定义具体的对话处理逻辑。
-        
+
         参数:
-            state: 当前对话状态字典
-            
+            state: 当前工作流执行状态模型
+
         返回:
-            dict[str, Any]: 更新后的对话状态
+            dict: 更新后的对话状态
         """
         pass
     
