@@ -9,7 +9,7 @@ from typing import Dict, Any, List, Optional
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
-from ..base import BaseAgent, AgentMessage
+from ..base import BaseAgent
 
 from utils import get_current_datetime, get_processing_time_ms
 
@@ -40,57 +40,6 @@ class MemoryAgent(BaseAgent):
         
         self.logger.info(f"记忆管理智能体初始化完成: {self.agent_id}，启用性能优化")
     
-    async def process_message(self, message: AgentMessage) -> AgentMessage:
-        """
-        处理记忆管理消息
-        
-        存储或检索客户信息。
-        
-        参数:
-            message: 包含记忆操作请求的消息
-            
-        返回:
-            AgentMessage: 包含记忆操作结果的响应
-        """
-        try:
-            operation = message.payload.get("operation", "retrieve")
-            customer_id = message.payload.get("customer_id")
-            
-            if operation == "store":
-                result = await self._store_customer_data(message.payload)
-            elif operation == "retrieve":
-                result = await self._retrieve_customer_data(customer_id)
-            elif operation == "update":
-                result = await self._update_customer_profile(message.payload)
-            else:
-                result = {"error": f"Unknown operation: {operation}"}
-            
-            response_payload = {
-                "memory_operation_result": result,
-                "processing_agent": self.agent_id,
-                "operation_timestamp": get_current_datetime().isoformat()
-            }
-            
-            return await self.send_message(
-                recipient=message.sender,
-                message_type="response",
-                payload=response_payload,
-                context=message.context
-            )
-            
-        except Exception as e:
-            error_context = {
-                "message_id": message.message_id,
-                "sender": message.sender
-            }
-            error_info = await self.handle_error(e, error_context)
-            
-            return await self.send_message(
-                recipient=message.sender,
-                message_type="response",
-                payload={"error": error_info, "memory_operation_result": {"success": False}},
-                context=message.context
-            )
     
     async def process_conversation(self, state: dict) -> dict:
         """

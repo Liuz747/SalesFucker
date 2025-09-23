@@ -34,7 +34,6 @@ class BaseAgent(ABC):
         monitor: 智能体监控器
     
     子类必须实现:
-        process_message: 处理单个消息的具体实现
         process_conversation: 处理对话状态的具体实现
     """
     

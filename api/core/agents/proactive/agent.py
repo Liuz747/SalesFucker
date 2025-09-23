@@ -7,7 +7,7 @@ Identifies opportunities for proactive customer contact and follow-up.
 
 from typing import Dict, Any, List
 from datetime import datetime, timedelta
-from ..base import BaseAgent, AgentMessage
+from ..base import BaseAgent
 
 from utils import get_current_datetime, get_processing_time_ms
 
@@ -56,59 +56,6 @@ class ProactiveAgent(BaseAgent):
         
         self.logger.info(f"主动营销智能体初始化完成: {self.agent_id}")
     
-    async def process_message(self, message: AgentMessage) -> AgentMessage:
-        """
-        处理主动营销消息
-        
-        分析客户行为并触发主动营销活动。
-        
-        参数:
-            message: 包含客户行为数据的消息
-            
-        返回:
-            AgentMessage: 包含主动营销建议的响应
-        """
-        try:
-            operation = message.payload.get("operation", "analyze")
-            customer_id = message.payload.get("customer_id")
-            
-            if operation == "analyze":
-                proactive_opportunities = await self._analyze_proactive_opportunities(
-                    customer_id, message.payload
-                )
-            elif operation == "trigger":
-                proactive_opportunities = await self._execute_proactive_trigger(
-                    message.payload
-                )
-            else:
-                proactive_opportunities = {"error": f"Unknown operation: {operation}"}
-            
-            response_payload = {
-                "proactive_opportunities": proactive_opportunities,
-                "processing_agent": self.agent_id,
-                "analysis_timestamp": get_current_datetime().isoformat()
-            }
-            
-            return await self.send_message(
-                recipient=message.sender,
-                message_type="response",
-                payload=response_payload,
-                context=message.context
-            )
-            
-        except Exception as e:
-            error_context = {
-                "message_id": message.message_id,
-                "sender": message.sender
-            }
-            error_info = await self.handle_error(e, error_context)
-            
-            return await self.send_message(
-                recipient=message.sender,
-                message_type="response",
-                payload={"error": error_info, "proactive_opportunities": []},
-                context=message.context
-            )
     
     async def process_conversation(self, state: dict) -> dict:
         """

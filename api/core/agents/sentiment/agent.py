@@ -9,7 +9,7 @@ from typing import Dict, Any
 
 from langfuse import observe
 
-from ..base import BaseAgent, AgentMessage
+from ..base import BaseAgent
 from utils import parse_sentiment_response, get_current_datetime, get_processing_time_ms
 
 
@@ -28,57 +28,6 @@ class SentimentAnalysisAgent(BaseAgent):
         
         self.logger.info(f"情感分析智能体初始化完成: {self.agent_id}")
     
-    async def process_message(self, message: AgentMessage) -> AgentMessage:
-        """
-        处理情感分析消息
-        
-        分析单个消息的情感状态。
-        
-        参数:
-            message: 包含待分析文本的消息
-            
-        返回:
-            AgentMessage: 包含情感分析结果的响应
-        """
-        try:
-            customer_input = message.payload.get("text", "")
-            context = message.context.get("conversation_context", "")
-            
-            sentiment_result = await self._analyze_sentiment(customer_input, context)
-            
-            response_payload = {
-                "sentiment_analysis": sentiment_result,
-                "processing_agent": self.agent_id,
-                "analysis_timestamp": get_current_datetime().isoformat()
-            }
-            
-            return await self.send_message(
-                recipient=message.sender,
-                message_type="response",
-                payload=response_payload,
-                context=message.context
-            )
-            
-        except Exception as e:
-            error_context = {
-                "message_id": message.message_id,
-                "sender": message.sender
-            }
-            error_info = await self.handle_error(e, error_context)
-            
-            fallback_result = {
-                "sentiment": "neutral",
-                "score": 0.0,
-                "confidence": 0.5,
-                "fallback": True
-            }
-            
-            return await self.send_message(
-                recipient=message.sender,
-                message_type="response",
-                payload={"error": error_info, "sentiment_analysis": fallback_result},
-                context=message.context
-            )
     
     @observe(name="sentiment-analysis", as_type="generation")
     async def process_conversation(self, state: dict) -> dict:

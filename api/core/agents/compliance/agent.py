@@ -14,7 +14,7 @@
 from typing import Dict, Any, Optional
 from datetime import datetime
 
-from ..base import BaseAgent, AgentMessage
+from ..base import BaseAgent
 from .rule_manager import ComplianceRuleManager
 from .checker import ComplianceChecker
 from .audit import ComplianceAuditor
@@ -64,68 +64,6 @@ class ComplianceAgent(BaseAgent):
         
         self.logger.info(f"合规审查智能体初始化完成: {self.agent_id}")
     
-    async def process_message(self, message: AgentMessage) -> AgentMessage:
-        """
-        处理合规检查消息
-        
-        对单个消息执行合规性检查，返回检查结果。
-        
-        参数:
-            message: 包含待检查文本的智能体消息
-            
-        返回:
-            AgentMessage: 包含合规检查结果的响应消息
-        """
-        start_time = get_current_datetime()
-        
-        try:
-            input_text = message.payload.get("text", "")
-            
-            # 执行合规检查
-            compliance_result = await self.checker.perform_compliance_check(input_text)
-            
-            # 构建响应载荷
-            response_payload = {
-                "compliance_result": compliance_result,
-                "original_text_hash": hash(input_text),
-                "processing_agent": self.agent_id,
-                "check_timestamp": to_isoformat(start_time)
-            }
-            
-            # 更新统计和审计
-            processing_time = get_processing_time_ms(start_time)
-            self._update_metrics_and_audit(
-                message.context.get("thread_id", "unknown"),
-                input_text, 
-                compliance_result, 
-                processing_time
-            )
-            
-            return await self.send_message(
-                recipient=message.sender,
-                message_type="response",
-                payload=response_payload,
-                context=message.context
-            )
-            
-        except Exception as e:
-            error_context = {
-                "message_id": message.message_id,
-                "sender": message.sender,
-                "processing_agent": self.agent_id
-            }
-            error_info = await self.handle_error(e, error_context)
-            
-            # 更新错误指标
-            self.metrics.update_status_metrics("error")
-            
-            # 返回错误响应
-            return await self.send_message(
-                recipient=message.sender,
-                message_type="response",
-                payload={"error": error_info, "compliance_result": {"status": "error"}},
-                context=message.context
-            )
     
     async def process_conversation(self, state: dict) -> dict:
         """

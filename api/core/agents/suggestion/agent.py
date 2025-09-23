@@ -44,40 +44,6 @@ class AISuggestionAgent(BaseAgent):
         
         self.logger.info(f"AI建议智能体初始化完成: {self.agent_id}")
     
-    async def process_message(self, message: AgentMessage) -> AgentMessage:
-        """
-        处理AI建议请求
-        
-        参数:
-            message: 包含建议请求的消息
-            
-        返回:
-            AgentMessage: 包含AI建议的响应
-        """
-        try:
-            request_type = message.payload.get("request_type", "general")
-            context_data = message.payload.get("context_data", {})
-            
-            # 路由到对应的处理器
-            handler = self.request_handlers.get(request_type, self._handle_general_request)
-            suggestions = await handler(context_data)
-            
-            response_payload = {
-                "ai_suggestions": suggestions,
-                "processing_agent": self.agent_id,
-                "suggestion_timestamp": get_current_datetime().isoformat(),
-                "request_type": request_type
-            }
-            
-            return await self.send_message(
-                recipient=message.sender,
-                message_type="response",
-                payload=response_payload,
-                context=message.context
-            )
-            
-        except Exception as e:
-            return await self._handle_processing_error(e, message)
     
     async def process_conversation(self, state: dict) -> dict:
         """
