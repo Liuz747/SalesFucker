@@ -21,7 +21,7 @@ from ..schemas.assistants import (
     AssistantListRequest, AssistantListResponse,
     AssistantStatsResponse, AssistantOperationResponse, AssistantStatus
 )
-from ..handlers.assistant_service import AssistantService
+from ..services.assistant_service import AssistantService
 from utils import get_component_logger
 from models.assistant import AssistantModel
 from ..schemas.responses import SimpleResponse
