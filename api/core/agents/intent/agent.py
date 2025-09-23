@@ -55,11 +55,7 @@ class IntentAnalysisAgent(BaseAgent):
             
             # 根据意图分析结果设置市场策略提示
             self._set_strategy_hints(state, intent_result)
-            
-            # 更新处理统计
-            processing_time = get_processing_time_ms(start_time)
-            self.update_stats(processing_time)
-            
+
             return state
             
         except Exception as e:

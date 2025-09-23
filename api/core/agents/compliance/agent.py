@@ -170,9 +170,6 @@ class ComplianceAgent(BaseAgent):
         self.auditor.log_compliance_check(
             thread_id, input_text, compliance_result, processing_time_ms
         )
-        
-        # 更新基类统计
-        self.update_stats(processing_time_ms)
     
     def add_tenant_rule(self, rule) -> bool:
         """

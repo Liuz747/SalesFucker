@@ -90,11 +90,7 @@ class MemoryAgent(BaseAgent):
             # 生成最终响应（整合所有智能体的结果）
             if not state.get("final_response"):
                 state["final_response"] = self._generate_final_response(state)
-            
-            # 更新处理统计
-            processing_time = get_processing_time_ms(start_time)
-            self.update_stats(processing_time)
-            
+
             return state
             
         except Exception as e:
