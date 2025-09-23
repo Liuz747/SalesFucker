@@ -6,7 +6,7 @@ Selects and applies Premium, Budget, Youth, or Mature strategies.
 """
 
 from typing import Dict, Any
-from ..base import BaseAgent, AgentMessage
+from ..base import BaseAgent
 from ..sales.sales_strategies import analyze_customer_segment, get_strategy_for_segment, adapt_strategy_to_context
 from utils import get_current_datetime, get_processing_time_ms
 
@@ -62,59 +62,6 @@ class MarketStrategyCoordinator(BaseAgent):
         
         self.logger.info(f"市场策略协调器初始化完成: {self.agent_id}")
     
-    async def process_message(self, message: AgentMessage) -> AgentMessage:
-        """
-        处理策略选择消息
-        
-        分析客户特征并选择合适的市场策略。
-        
-        参数:
-            message: 包含客户信息的消息
-            
-        返回:
-            AgentMessage: 包含策略建议的响应
-        """
-        try:
-            customer_profile = message.payload.get("customer_profile", {})
-            conversation_context = message.payload.get("conversation_context", {})
-            
-            strategy_recommendation = await self._select_and_refine_strategy(
-                customer_profile, conversation_context
-            )
-            
-            response_payload = {
-                "strategy_recommendation": strategy_recommendation,
-                "processing_agent": self.agent_id,
-                "strategy_timestamp": get_current_datetime().isoformat()
-            }
-            
-            return await self.send_message(
-                recipient=message.sender,
-                message_type="response",
-                payload=response_payload,
-                context=message.context
-            )
-            
-        except Exception as e:
-            error_context = {
-                "message_id": message.message_id,
-                "sender": message.sender
-            }
-            error_info = await self.handle_error(e, error_context)
-            
-            fallback_strategy = {
-                "segment": "premium",
-                "strategy": self.strategy_profiles["premium"],
-                "confidence": 0.5,
-                "fallback": True
-            }
-            
-            return await self.send_message(
-                recipient=message.sender,
-                message_type="response",
-                payload={"error": error_info, "strategy_recommendation": fallback_strategy},
-                context=message.context
-            )
     
     async def process_conversation(self, state: dict) -> dict:
         """
@@ -155,15 +102,11 @@ class MarketStrategyCoordinator(BaseAgent):
             
             # 为其他智能体提供策略提示
             state.setdefault("strategy_hints", {}).update(strategy_recommendation["strategy"])
-            
-            # 更新处理统计
-            processing_time = get_processing_time_ms(start_time)
-            self.update_stats(processing_time)
-            
+
             return state
             
         except Exception as e:
-            await self.handle_error(e, {"thread_id": state.get("thread_id")})
+            self.logger.error(f"Agent processing failed: {e}", exc_info=True)
             
             # 设置默认策略
             state.setdefault("agent_responses", {})[self.agent_id] = {

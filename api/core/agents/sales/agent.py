@@ -13,7 +13,7 @@
 
 from typing import Dict, Any, Optional
 
-from ..base import BaseAgent, AgentMessage
+from ..base import BaseAgent
 from .sales_strategies import get_sales_strategies, analyze_customer_segment, get_strategy_for_segment, adapt_strategy_to_context
 from utils import to_isoformat
 
@@ -40,53 +40,6 @@ class SalesAgent(BaseAgent):
         
         self.logger.info(f"销售智能体初始化完成: {self.agent_id}, MAS架构自动LLM优化")
     
-    async def process_message(self, message: AgentMessage) -> AgentMessage:
-        """
-        处理销售消息
-        
-        对单个消息执行销售对话处理，返回个性化销售响应。
-        
-        参数:
-            message: 包含客户输入的智能体消息
-            
-        返回:
-            AgentMessage: 包含销售响应的消息
-        """
-        try:
-            customer_input = message.payload.get("text", "")
-            
-            # 生成销售响应
-            sales_response = await self._generate_sales_response(customer_input, message.context)
-            
-            # 构建响应载荷
-            response_payload = {
-                "sales_response": sales_response,
-                "agent_type": "sales",
-                "processing_agent": self.agent_id,
-                "response_timestamp": to_isoformat()
-            }
-            
-            return await self.send_message(
-                recipient=message.sender,
-                message_type="response",
-                payload=response_payload,
-                context=message.context
-            )
-            
-        except Exception as e:
-            error_context = {
-                "message_id": message.message_id,
-                "sender": message.sender,
-                "processing_agent": self.agent_id
-            }
-            error_info = await self.handle_error(e, error_context)
-            
-            return await self.send_message(
-                recipient=message.sender,
-                message_type="response",
-                payload={"error": error_info, "sales_response": "I apologize, but I'm having trouble processing your request right now."},
-                context=message.context
-            )
     
     async def process_conversation(self, state: dict) -> dict:
         """
@@ -152,14 +105,11 @@ class SalesAgent(BaseAgent):
                 {"role": "user", "content": customer_input},
                 {"role": "assistant", "content": response}
             ])
-            
-            # 更新处理统计
-            self.update_stats(time_taken=50)
-            
+
             return state
             
         except Exception as e:
-            await self.handle_error(e, {"thread_id": state.get("thread_id")})
+            self.logger.error(f"Agent processing failed: {e}", exc_info=True)
             state["error_state"] = "sales_processing_error"
             return state
     

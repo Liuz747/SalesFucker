@@ -6,7 +6,7 @@ Identifies purchase intent, conversation stage, and specific customer needs.
 """
 
 from typing import Dict, Any
-from ..base import BaseAgent, AgentMessage
+from ..base import BaseAgent
 
 from utils import parse_intent_response
 
@@ -27,59 +27,6 @@ class IntentAnalysisAgent(BaseAgent):
         # LLM integration
 
         self.logger.info(f"意图分析智能体初始化完成: {self.agent_id}")
-    
-    async def process_message(self, message: AgentMessage) -> AgentMessage:
-        """
-        处理意图分析消息
-        
-        分析单个消息的客户意图。
-        
-        参数:
-            message: 包含待分析文本的消息
-            
-        返回:
-            AgentMessage: 包含意图分析结果的响应
-        """
-        try:
-            customer_input = message.payload.get("text", "")
-            conversation_history = message.context.get("conversation_history", [])
-            
-            intent_result = await self._analyze_intent(customer_input, conversation_history)
-            
-            response_payload = {
-                "intent_analysis": intent_result,
-                "processing_agent": self.agent_id,
-                "analysis_timestamp": get_current_datetime().isoformat()
-            }
-            
-            return await self.send_message(
-                recipient=message.sender,
-                message_type="response",
-                payload=response_payload,
-                context=message.context
-            )
-            
-        except Exception as e:
-            error_context = {
-                "message_id": message.message_id,
-                "sender": message.sender
-            }
-            error_info = await self.handle_error(e, error_context)
-            
-            fallback_result = {
-                "intent": "browsing",
-                "category": "general",
-                "confidence": 0.5,
-                "urgency": "medium",
-                "fallback": True
-            }
-            
-            return await self.send_message(
-                recipient=message.sender,
-                message_type="response", 
-                payload={"error": error_info, "intent_analysis": fallback_result},
-                context=message.context
-            )
     
     async def process_conversation(self, state: dict) -> dict:
         """
@@ -108,15 +55,11 @@ class IntentAnalysisAgent(BaseAgent):
             
             # 根据意图分析结果设置市场策略提示
             self._set_strategy_hints(state, intent_result)
-            
-            # 更新处理统计
-            processing_time = get_processing_time_ms(start_time)
-            self.update_stats(processing_time)
-            
+
             return state
             
         except Exception as e:
-            await self.handle_error(e, {"thread_id": state.get("thread_id")})
+            self.logger.error(f"Agent processing failed: {e}", exc_info=True)
             
             # 设置降级意图分析
             state["intent_analysis"] = {

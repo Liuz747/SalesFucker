@@ -216,11 +216,3 @@ class ComplianceRuleManager:
             "category_distribution": category_stats,
             "severity_distribution": severity_stats
         }
-    
-    def __len__(self) -> int:
-        """返回规则总数"""
-        return len(self.rules)
-    
-    def __contains__(self, rule_id: str) -> bool:
-        """检查规则是否存在"""
-        return rule_id in self.rules 

@@ -10,7 +10,7 @@ import logging
 from typing import Dict, Any, List
 from datetime import datetime
 
-from core.agents.base import BaseAgent, AgentMessage, ConversationState
+from core.agents.base import BaseAgent, ConversationState
 from utils import get_current_datetime, get_processing_time_ms
 
 # 导入重构后的模块
@@ -72,64 +72,6 @@ class RAGEnhancedProductExpertAgent(BaseAgent):
             else:
                 raise
     
-    async def process_message(self, message: AgentMessage) -> AgentMessage:
-        """
-        处理产品咨询消息（RAG增强版）
-        
-        Args:
-            message: 包含产品咨询的消息
-            
-        Returns:
-            AgentMessage: 包含智能推荐的响应
-        """
-        try:
-            customer_input = message.payload.get("text", "")
-            customer_profile = message.context.get("customer_profile", {})
-            customer_history = message.context.get("customer_history", [])
-            
-            # 检查RAG系统是否可用
-            if not self.rag_initialized and not self.enable_fallback:
-                raise RuntimeError("RAG系统未初始化")
-            
-            # 生成智能推荐
-            recommendations = await self._orchestrate_recommendation_process(
-                customer_input, customer_profile, customer_history
-            )
-            
-            response_payload = {
-                "product_recommendations": recommendations,
-                "processing_agent": self.agent_id,
-                "recommendation_timestamp": get_current_datetime().isoformat(),
-                "rag_enabled": self.rag_initialized
-            }
-            
-            return await self.send_message(
-                recipient=message.sender,
-                message_type="response",
-                payload=response_payload,
-                context=message.context
-            )
-            
-        except Exception as e:
-            error_context = {
-                "message_id": message.message_id,
-                "sender": message.sender,
-                "rag_initialized": self.rag_initialized
-            }
-            error_info = await self.handle_error(e, error_context)
-            
-            # 使用格式化器创建紧急响应
-            emergency_recommendations = self.formatter.create_fallback_response(str(e))
-            
-            return await self.send_message(
-                recipient=message.sender,
-                message_type="response",
-                payload={
-                    "error": error_info,
-                    "product_recommendations": emergency_recommendations
-                },
-                context=message.context
-            )
     
     async def process_conversation(self, state: ConversationState) -> ConversationState:
         """
@@ -171,15 +113,11 @@ class RAGEnhancedProductExpertAgent(BaseAgent):
                 }
             }
             state.setdefault("active_agents", []).append(self.agent_id)
-            
-            # 更新处理统计
-            processing_time = get_processing_time_ms(start_time)
-            self.update_stats(processing_time)
-            
+
             return state
             
         except Exception as e:
-            await self.handle_error(e, {"conversation_id": state.get("conversation_id")})
+            self.logger.error(f"Agent processing failed: {e}", exc_info=True)
             
             # 使用格式化器创建错误响应
             error_recommendations = self.formatter.create_fallback_response(str(e))

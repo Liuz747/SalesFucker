@@ -15,8 +15,8 @@ from abc import ABC, abstractmethod
 from typing import Optional
 
 from .message import AgentMessage
+from ...app.entities import WorkflowExecutionModel
 from utils import get_component_logger
-from infra.monitoring import AgentMonitor
 from infra.runtimes import LLMClient, LLMRequest
 
 class BaseAgent(ABC):
@@ -34,7 +34,6 @@ class BaseAgent(ABC):
         monitor: 智能体监控器
     
     子类必须实现:
-        process_message: 处理单个消息的具体实现
         process_conversation: 处理对话状态的具体实现
     """
     
@@ -55,35 +54,20 @@ class BaseAgent(ABC):
         # 初始化其他组件
         self.logger = get_component_logger(__name__)
     
-    @abstractmethod
-    async def process_message(self, message: AgentMessage) -> AgentMessage:
-        """
-        处理单个智能体消息的具体实现 (抽象方法)
-        
-        每个具体的智能体子类必须实现此方法来定义具体的消息处理逻辑。
-        性能统计由基类自动处理。
-        
-        参数:
-            message: 待处理的智能体消息
-            
-        返回:
-            AgentMessage: 处理结果消息
-        """
-        pass
     
     @abstractmethod
-    async def process_conversation(self, state: dict) -> dict:
+    async def process_conversation(self, state: WorkflowExecutionModel) -> dict:
         """
         处理对话状态的具体实现 (抽象方法)
-        
+
         在LangGraph工作流中处理对话状态，更新相关信息并返回修改后的状态。
         子类必须实现此方法来定义具体的对话处理逻辑。
-        
+
         参数:
-            state: 当前对话状态字典
-            
+            state: 当前工作流执行状态模型
+
         返回:
-            dict[str, Any]: 更新后的对话状态
+            dict: 更新后的对话状态
         """
         pass
     
@@ -151,31 +135,3 @@ class BaseAgent(ABC):
         
         response = await self.llm_client.completions(request)
         return response.content
-    
-    async def handle_error(self, error: Exception, context: dict = None):
-        """
-        处理智能体错误
-        
-        参数:
-            error: 发生的错误
-            context: 错误上下文信息
-        """
-        self.logger.error(f"智能体错误: {error}", exc_info=True)
-        if context:
-            self.logger.error(f"错误上下文: {context}")
-    
-    def update_stats(self, processing_time: float = None, time_taken: float = None, **kwargs):
-        """
-        更新处理统计信息
-        
-        参数:
-            processing_time: 处理时间（毫秒）
-            time_taken: 处理时间（向后兼容）
-            **kwargs: 其他参数
-        """
-        # 向后兼容处理
-        actual_time = processing_time or time_taken or 0
-        
-        # 基础统计更新，具体实现可以在子类中扩展
-        self.logger.debug(f"处理完成，耗时: {actual_time:.2f}ms")
-    

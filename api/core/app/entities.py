@@ -1,6 +1,7 @@
 from datetime import datetime
 from uuid import UUID
-from typing import Any, Optional, Mapping
+from typing import Any, Optional
+from collections.abc import Mapping
 
 from pydantic import BaseModel, Field
 from utils import get_current_datetime
@@ -21,7 +22,7 @@ class WorkflowExecutionModel(BaseModel):
     
     total_tokens: Optional[int] = Field(default=None, description="总Token数")
     error_message: Optional[str] = Field(default=None, description="错误信息")
-    exception_count: Optional[int] = Field(default=0, description="异常次数")
+    exception_count: int = Field(default=0, description="异常次数")
     
     started_at: datetime = Field(default_factory=get_current_datetime, description="创建时间")
     finished_at: Optional[datetime] = Field(default=None, description="创建时间")

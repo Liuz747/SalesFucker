@@ -12,12 +12,6 @@ API数据模型模块
 """
 
 # 专用模型
-from .agents import (
-    AgentCreateRequest,
-    AgentListResponse,
-    AgentStatusResponse,
-    AgentTestRequest,
-)
 from .multimodal import (
     ImageAnalysisRequest,
     MultimodalRequest,
@@ -42,11 +36,6 @@ __all__ = [
     "ErrorResponse",
     "PaginatedResponse",
     "SimpleResponse",
-    # 智能体模型
-    "AgentCreateRequest",
-    "AgentTestRequest",
-    "AgentStatusResponse",
-    "AgentListResponse",
     # 多模态模型
     "MultimodalRequest",
     "VoiceProcessingRequest",
