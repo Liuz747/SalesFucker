@@ -24,7 +24,7 @@ from ..schemas.assistants import (
 )
 from models.assistant import AssistantModel
 
-from services.assistant_repo import AssistantRepository
+from repositories.assistant_repo import AssistantRepository
 from ..schemas.prompts import PromptCreateRequest
 from .prompts_handler import PromptHandler
 from utils import get_component_logger
