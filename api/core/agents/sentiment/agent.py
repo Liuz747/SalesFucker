@@ -54,15 +54,11 @@ class SentimentAnalysisAgent(BaseAgent):
             # 更新对话状态
             state["sentiment_analysis"] = sentiment_result
             state.setdefault("active_agents", []).append(self.agent_id)
-            
-            # 更新处理统计
-            processing_time = get_processing_time_ms(start_time)
-            self.update_stats(processing_time)
-            
+
             return state
             
         except Exception as e:
-            await self.handle_error(e, {"thread_id": state.get("thread_id")})
+            self.logger.error(f"Agent processing failed: {e}", exc_info=True)
             
             # 设置降级情感分析
             state["sentiment_analysis"] = {

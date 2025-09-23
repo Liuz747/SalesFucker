@@ -102,15 +102,11 @@ class MarketStrategyCoordinator(BaseAgent):
             
             # 为其他智能体提供策略提示
             state.setdefault("strategy_hints", {}).update(strategy_recommendation["strategy"])
-            
-            # 更新处理统计
-            processing_time = get_processing_time_ms(start_time)
-            self.update_stats(processing_time)
-            
+
             return state
             
         except Exception as e:
-            await self.handle_error(e, {"thread_id": state.get("thread_id")})
+            self.logger.error(f"Agent processing failed: {e}", exc_info=True)
             
             # 设置默认策略
             state.setdefault("agent_responses", {})[self.agent_id] = {

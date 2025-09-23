@@ -104,13 +104,7 @@ class ComplianceAgent(BaseAgent):
             return state
             
         except Exception as e:
-            error_context = {
-                "thread_id": state.thread_id,
-                "customer_input_length": len(state.customer_input),
-                "tenant_id": state.tenant_id,
-                "agent": self.agent_id
-            }
-            await self.handle_error(e, error_context)
+            self.logger.error(f"Agent processing failed: {e}", exc_info=True)
             
             # 设置安全的默认状态
             self._set_error_state(state)

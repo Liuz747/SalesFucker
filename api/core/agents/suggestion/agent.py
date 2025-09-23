@@ -79,10 +79,6 @@ class AISuggestionAgent(BaseAgent):
             # 更新对话状态
             state = self._update_conversation_state(state, comprehensive_analysis, escalation_analysis)
             
-            # 更新处理统计
-            processing_time = get_processing_time_ms(start_time)
-            self.update_stats(processing_time)
-            
             return state
             
         except Exception as e:
@@ -203,31 +199,9 @@ class AISuggestionAgent(BaseAgent):
             "processing_complete": context_data.get("processing_complete", False)
         }
     
-    async def _handle_processing_error(self, error: Exception, message: AgentMessage) -> AgentMessage:
-        """处理处理错误"""
-        error_context = {
-            "message_id": message.message_id,
-            "sender": message.sender
-        }
-        error_info = await self.handle_error(error, error_context)
-        
-        fallback_suggestions = {
-            "suggestions": [],
-            "escalation_recommended": False,
-            "fallback": True,
-            "error": str(error)
-        }
-        
-        return await self.send_message(
-            recipient=message.sender,
-            message_type="response",
-            payload={"error": error_info, "ai_suggestions": fallback_suggestions},
-            context=message.context
-        )
-    
     async def _handle_conversation_error(self, error: Exception, state: dict) -> dict:
         """处理对话处理错误"""
-        await self.handle_error(error, {"thread_id": state.get("thread_id")})
+        self.logger.error(f"Agent processing failed: {error}", exc_info=True)
         
         # 设置保守的建议状态
         state.setdefault("agent_responses", {})[self.agent_id] = {

@@ -63,7 +63,7 @@ class IntentAnalysisAgent(BaseAgent):
             return state
             
         except Exception as e:
-            await self.handle_error(e, {"thread_id": state.get("thread_id")})
+            self.logger.error(f"Agent processing failed: {e}", exc_info=True)
             
             # 设置降级意图分析
             state["intent_analysis"] = {

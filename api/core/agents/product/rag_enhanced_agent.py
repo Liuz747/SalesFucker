@@ -113,15 +113,11 @@ class RAGEnhancedProductExpertAgent(BaseAgent):
                 }
             }
             state.setdefault("active_agents", []).append(self.agent_id)
-            
-            # 更新处理统计
-            processing_time = get_processing_time_ms(start_time)
-            self.update_stats(processing_time)
-            
+
             return state
             
         except Exception as e:
-            await self.handle_error(e, {"conversation_id": state.get("conversation_id")})
+            self.logger.error(f"Agent processing failed: {e}", exc_info=True)
             
             # 使用格式化器创建错误响应
             error_recommendations = self.formatter.create_fallback_response(str(e))

@@ -99,15 +99,11 @@ class ProductExpertAgent(BaseAgent):
                 "processing_complete": True
             }
             state.setdefault("active_agents", []).append(self.agent_id)
-            
-            # 更新处理统计
-            processing_time = get_processing_time_ms(start_time)
-            self.update_stats(processing_time)
-            
+
             return state
             
         except Exception as e:
-            await self.handle_error(e, {"thread_id": state.get("thread_id")})
+            self.logger.error(f"Agent processing failed: {e}", exc_info=True)
             
             # 使用协调器设置降级推荐
             fallback_response = self.recommendation_coordinator.formatter.create_fallback_response(str(e))

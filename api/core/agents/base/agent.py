@@ -135,31 +135,3 @@ class BaseAgent(ABC):
         
         response = await self.llm_client.completions(request)
         return response.content
-    
-    async def handle_error(self, error: Exception, context: dict = None):
-        """
-        处理智能体错误
-        
-        参数:
-            error: 发生的错误
-            context: 错误上下文信息
-        """
-        self.logger.error(f"智能体错误: {error}", exc_info=True)
-        if context:
-            self.logger.error(f"错误上下文: {context}")
-    
-    def update_stats(self, processing_time: float = None, time_taken: float = None, **kwargs):
-        """
-        更新处理统计信息
-        
-        参数:
-            processing_time: 处理时间（毫秒）
-            time_taken: 处理时间（向后兼容）
-            **kwargs: 其他参数
-        """
-        # 向后兼容处理
-        actual_time = processing_time or time_taken or 0
-        
-        # 基础统计更新，具体实现可以在子类中扩展
-        self.logger.debug(f"处理完成，耗时: {actual_time:.2f}ms")
-    

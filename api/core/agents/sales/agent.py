@@ -105,14 +105,11 @@ class SalesAgent(BaseAgent):
                 {"role": "user", "content": customer_input},
                 {"role": "assistant", "content": response}
             ])
-            
-            # 更新处理统计
-            self.update_stats(time_taken=50)
-            
+
             return state
             
         except Exception as e:
-            await self.handle_error(e, {"thread_id": state.get("thread_id")})
+            self.logger.error(f"Agent processing failed: {e}", exc_info=True)
             state["error_state"] = "sales_processing_error"
             return state
     

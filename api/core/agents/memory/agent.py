@@ -98,7 +98,7 @@ class MemoryAgent(BaseAgent):
             return state
             
         except Exception as e:
-            await self.handle_error(e, {"thread_id": state.get("thread_id")})
+            self.logger.error(f"Agent processing failed: {e}", exc_info=True)
             
             # 设置错误状态但不影响对话继续
             state.setdefault("agent_responses", {})[self.agent_id] = {
