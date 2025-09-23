@@ -25,7 +25,7 @@ from .console import tenant_router, auth_router
 from .inner import completion_router
 from .workspace import conversations_router
 # Legacy API 路由器导入
-from legacy_api.endpoints import (
+from legacy_api.controllers import (
     multimodal_router,
     assistants_router,
     prompts_router,
