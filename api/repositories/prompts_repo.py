@@ -24,7 +24,7 @@ from utils import get_component_logger
 logger = get_component_logger(__name__, "PromptsDao")
 
 
-class PromptsDao:
+class PromptsRepository:
     """
     租户数据库操作仓库
     
