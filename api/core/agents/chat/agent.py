@@ -39,11 +39,6 @@ class ChatAgent(BaseAgent):
         """
         处理对话状态 - LangGraph工作流节点
 
-        遵循LangGraph最佳实践:
-        - 接收Pydantic模型作为输入状态
-        - 返回字典形式的状态更新
-        - LangGraph自动处理状态合并
-
         参数:
             state: 当前工作流执行状态 (Pydantic模型)
 
@@ -67,7 +62,7 @@ class ChatAgent(BaseAgent):
             }]
 
             # 调用LLM生成回复
-            chat_response = await self.llm_call(
+            chat_response = await self.invoke_llm(
                 messages=messages,
                 model="gpt-4o-mini",
                 provider="openai",

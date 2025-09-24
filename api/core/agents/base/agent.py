@@ -71,39 +71,7 @@ class BaseAgent(ABC):
         """
         pass
     
-    async def send_message(
-            self,
-            recipient: str,
-            message_type: str,
-            payload: dict, 
-            context: Optional[dict] = None
-    ) -> AgentMessage:
-        """
-        发送消息给其他智能体
-        
-        创建标准格式的智能体消息并发送给指定接收方。
-        
-        参数:
-            recipient: 接收方智能体ID
-            message_type: 消息类型 (query/response/notification/trigger/suggestion)
-            payload: 消息载荷数据
-            context: 可选的上下文信息
-            
-        返回:
-            AgentMessage: 创建的消息对象
-        """
-        message = AgentMessage(
-            sender=self.agent_id,
-            recipient=recipient,
-            message_type=message_type,
-            payload=payload,
-            context=context or {}
-        )
-        
-        self.logger.info(f"发送{message_type}消息给 {recipient}")
-        return message
-    
-    async def llm_call(
+    async def invoke_llm(
         self,
         messages: list,
         model: str = "gpt-4o-mini",
