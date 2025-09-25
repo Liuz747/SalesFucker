@@ -10,6 +10,8 @@
 - 数据库健康检查
 - 高效查询和索引优化
 """
+import asyncio
+
 import msgpack
 from redis import Redis, RedisError
 from datetime import datetime
@@ -18,11 +20,11 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import mas_config
+from infra.cache import get_redis_client
 from models import TenantModel
 from models.assistant import AssistantModel, AssistantOrmModel
 from infra.db.connection import database_session, test_db_connection
 from utils import get_component_logger, get_current_datetime
-
 
 logger = get_component_logger(__name__, "AssistantService")
 
@@ -238,7 +240,7 @@ class AssistantRepository:
     async def update_assistant_cache(assistant_model: AssistantModel, redis_client: Redis):
         """更新数字员工缓存"""
         try:
-            redis_key = f"tenant:{assistant_model.assistant_id}"
+            redis_key = f"assistant:{assistant_model.assistant_id}"
             tenant_data = assistant_model.model_dump(mode='json')
 
             await redis_client.setex(
@@ -252,4 +254,39 @@ class AssistantRepository:
             raise
         except Exception as e:
             logger.error(f"更新租户缓存失败: {assistant_model.assistant_id}, 错误: {e}")
+            raise
+
+    @staticmethod
+    async def update_assistant_cache_4_task(assistant_model: AssistantModel, redis_client: Redis = None):
+        """
+            获取数字员工缓存
+        """
+        try:
+            if not redis_client:
+                redis_client = await get_redis_client()
+            asyncio.create_task(AssistantRepository.update_assistant_cache(
+                assistant_model,
+                redis_client
+            ))
+        except Exception as e:
+            raise
+
+    @staticmethod
+    async def get_assistant_cache(assistant_id: str, redis_client: Redis) -> Optional[AssistantModel]:
+        """
+            获取数字员工缓存
+        """
+        try:
+            redis_key = f"assistant:{assistant_id}"
+            assistant_data = await redis_client.get(redis_key)
+
+            if assistant_data:
+                assistant_data = msgpack.unpackb(assistant_data, raw=False)
+                return AssistantModel(**assistant_data)
+            return None
+        except RedisError as e:
+            print(f"redis 命令执行失败: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"获取数字员工缓存失败: {assistant_id}, 错误: {e}")
             raise

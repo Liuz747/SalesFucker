@@ -16,6 +16,7 @@ AI员工管理API端点
 from fastapi import APIRouter, HTTPException, Query, Path, status
 from typing import Optional
 
+from schemas.conversation_error_code import AssistantNotFoundException
 from ..schemas.assistants import (
     AssistantCreateRequest, AssistantUpdateRequest, AssistantConfigRequest,
     AssistantListRequest, AssistantListResponse,
@@ -70,6 +71,7 @@ async def create_assistant(
         )
 
 
+"""
 @router.get("/", response_model=AssistantListResponse)
 async def list_assistants(
         tenant_id: str = Query(..., description="租户标识符"),
@@ -85,11 +87,11 @@ async def list_assistants(
         include_stats: bool = Query(False, description="是否包含统计信息"),
         include_config: bool = Query(False, description="是否包含详细配置")
 ) -> AssistantListResponse:
-    """
-    获取助理列表
     
-    支持多种筛选条件和排序选项的助理列表查询。
-    """
+    # 获取助理列表
+    # 
+    # 支持多种筛选条件和排序选项的助理列表查询。
+    
     try:
         logger.info(f"查询助理列表: tenant={tenant_id}")
 
@@ -120,14 +122,15 @@ async def list_assistants(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="助理列表查询失败，请稍后重试"
         )
+"""
 
 
 @router.get("/{assistant_id}", response_model=Optional[SimpleResponse[AssistantModel]])
 async def get_assistant(
         assistant_id: str = Path(..., description="助理ID"),
-        tenant_id: str = Query(..., description="租户标识符"),
-        include_stats: bool = Query(False, description="是否包含统计信息"),
-        include_config: bool = Query(True, description="是否包含配置信息")
+        # tenant_id: str = Query(..., description="租户标识符"),
+        # include_stats: bool = Query(False, description="是否包含统计信息"),
+        # include_config: bool = Query(True, description="是否包含配置信息")
 ) -> Optional[SimpleResponse[AssistantModel]]:
     """
     获取助理详细信息
@@ -135,23 +138,24 @@ async def get_assistant(
     根据助理ID获取完整的助理信息，包括配置和可选的统计数据。
     """
     try:
-        logger.info(f"查询助理详情: tenant={tenant_id}, assistant={assistant_id}")
+        logger.info(f"查询助理详情: assistant={assistant_id}")
 
-        result = await assistant_service.get_assistant(
-            assistant_id, tenant_id, include_stats, include_config
+        result = await assistant_service.get_assistant_by_id(
+            assistant_id
         )
 
         if not result:
             logger.warning(f"助理不存在: {assistant_id}")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="助理不存在"
-            )
+            raise AssistantNotFoundException(assistant_id)
 
         logger.info(f"助理详情查询成功: {assistant_id} {type(result)}")
-        return result
+        return SimpleResponse[AssistantModel](
+            code=0,
+            message="success",
+            data=result,
+        )
 
-    except HTTPException:
+    except AssistantNotFoundException:
         raise
     except Exception as e:
         logger.error(f"助理详情查询失败: {e}")

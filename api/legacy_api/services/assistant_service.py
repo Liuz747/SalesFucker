@@ -21,7 +21,8 @@ from infra.db import database_session
 from models.prompts import PromptsOrmModel, PromptsModel
 from repositories.prompts_repo import PromptsRepository
 from repositories.tenant_repo import TenantRepository
-from schemas.conversation_error_code import TenantNotFoundException, AssistantConflictException
+from schemas.conversation_error_code import TenantNotFoundException, AssistantConflictException, \
+    AssistantNotFoundException
 from ..schemas.assistants import (
     AssistantCreateRequest, AssistantUpdateRequest, AssistantConfigRequest,
     AssistantListRequest, AssistantListResponse,
@@ -292,13 +293,14 @@ class AssistantService:
             self.logger.error(f"助理列表查询失败: {e}")
             raise
 
-    async def get_assistant(
+    async def get_assistant_by_id(
             self,
             assistant_id: str,
-            tenant_id: str,
-            include_stats: bool = False,
-            include_config: bool = True
-    ) -> Optional[SimpleResponse[AssistantModel]]:
+            use_cache: bool = True
+            # tenant_id: str,
+            # include_stats: bool = False,
+            # include_config: bool = True
+    ) -> Optional[AssistantModel]:
         """
         获取助理详细信息
         
@@ -311,30 +313,25 @@ class AssistantService:
         返回:
             Optional[AssistantResponse]: 助理信息
         """
+        if use_cache:
+            redis_client = await get_redis_client()
+            assistant_model = await AssistantRepository.get_assistant_cache(assistant_id, redis_client)
+            if assistant_model:
+                return assistant_model
+
         try:
-            assistant_key = f"{tenant_id}:{assistant_id}"
-            assistant = await AssistantService.get_assistant_by_id(assistant_id)
+            if use_cache:
+                # todo 上线后修改日志等级
+                logger.info("缓存失效，数据回源")
+            async with database_session() as session:
+                assistant_orm = await AssistantRepository.get_assistant_by_id(assistant_id, session)
+                if not assistant_orm:
+                    raise AssistantNotFoundException(assistant_id)
 
-            if not assistant:
-                return None
-
-            # 添加统计信息
-            if include_stats:
-                stats = self._assistant_stats.get(assistant_key, {})
-                assistant = {**assistant, **stats}
-
-            self.logger.info(f"助理详情查询成功: {assistant_id}")
-
-            return SimpleResponse(
-                success=True,
-                message="助理详情查询成功",
-                data=assistant,
-
-                # current_customers=assistant.get("current_customers", 0),
-                # total_conversations=assistant.get("total_conversations", 0),
-                # average_rating=assistant.get("average_rating", 0.0)
-            )
-
+                self.logger.info(f"助理详情查询成功: {assistant_id}")
+                assistant_model = assistant_orm.to_business_model()
+                await AssistantRepository.update_assistant_cache_4_task(assistant_model)
+                return assistant_model
         except Exception as e:
             self.logger.error(f"助理详情查询失败: {e}")
             raise
