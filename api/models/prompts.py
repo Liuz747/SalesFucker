@@ -60,7 +60,7 @@ class PromptsModel(BaseModel):
 
     brand_voice: Optional[str] = Field(default=None, description="品牌声音定义 - 品牌特色和价值观")
     product_knowledge: Optional[str] = Field(default=None, description="产品知识要点 - 重点产品信息和卖点")
-    version: str = Field(default="1.0.0", description="配置版本")
+    version: str = Field(default="1758731200000", description="配置版本")
     is_active: Optional[bool] = Field(default=None, description="租户是否激活")
     created_at: datetime = Field(description="创建时间")
     updated_at: datetime = Field(description="最后一次更新时间")
@@ -152,6 +152,7 @@ class PromptsOrmModel(Base):
         """
 
         return PromptsModel(
+            id=self.id,
             tenant_id=self.tenant_id,
             assistant_id=self.assistant_id,
             personality_prompt=self.personality_prompt,

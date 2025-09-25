@@ -12,11 +12,14 @@ AI员工处理器
 """
 
 import asyncio
+import uuid
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 
 from infra.cache import get_redis_client
 from infra.db import database_session
+from models.prompts import PromptsOrmModel, PromptsModel
+from repositories.prompts_repo import PromptsRepository
 from repositories.tenant_repo import TenantRepository
 from schemas.conversation_error_code import TenantNotFoundException, AssistantConflictException
 from ..schemas.assistants import (
@@ -30,7 +33,7 @@ from models.assistant import AssistantModel
 from repositories.assistant_repo import AssistantRepository
 from ..schemas.prompts import PromptCreateRequest
 from .prompts_services import PromptHandler
-from utils import get_component_logger
+from utils import get_component_logger, get_current_datetime
 from ..schemas.responses import SimpleResponse
 
 logger = get_component_logger(__name__, "AssistantHandler")
@@ -66,6 +69,8 @@ class AssistantService:
         返回:
             AssistantResponse: 创建结果
         """
+
+        prompts_id = uuid.UUID
         try:
             async with database_session() as session:
                 # 1. 先查询 tenant 是否存在
@@ -81,7 +86,7 @@ class AssistantService:
                     raise AssistantConflictException(assistant_id=request.assistant_id)
 
                 # 创建助理数据
-                now = datetime.utcnow()
+                now = get_current_datetime()
                 assistant_model = AssistantModel(
                     assistant_id=request.assistant_id,
                     assistant_name=request.assistant_name,
@@ -115,23 +120,50 @@ class AssistantService:
 
                 assistant_orm = await AssistantRepository.get_assistant_by_id(assistant_model.assistant_id, session)
 
-                if 1 != 2:
-                    # todo 先跳过提示词配置
+                if request.prompt_config:
 
                     # 处理提示词配置（如果提供）
-                    if request.prompt_config:
-                        try:
-                            prompt_request = PromptCreateRequest(
-                                assistant_id=request.assistant_id,
-                                tenant_id=request.tenant_id,
-                                prompt_config=request.prompt_config
-                            )
-                            # await self.prompt_handler.create_assistant_prompts(prompt_request)
-                            self.logger.info(f"助理 {request.assistant_id} 提示词配置创建成功")
-                        except Exception as e:
-                            self.logger.warning(f"助理 {request.assistant_id} 提示词配置创建失败: {e}")
-                            # 不阻止助理创建，只记录警告
+                    try:
+                        promptsModel = PromptsModel(
+                            tenant_id=request.tenant_id,
+                            assistant_id=assistant_model.assistant_id,
+                            personality_prompt=request.personality_type,
+                            greeting_prompt=request.prompt_config.greeting_prompt,
+                            product_recommendation_prompt=request.prompt_config.product_recommendation_prompt,
+                            objection_handling_prompt=request.prompt_config.objection_handling_prompt,
+                            closing_prompt=request.prompt_config.closing_prompt,
+                            context_instructions=request.prompt_config.context_instructions,
+                            llm_parameters=request.prompt_config.llm_parameters,
+                            safety_guidelines=request.prompt_config.safety_guidelines,
+                            forbidden_topics=request.prompt_config.forbidden_topics,
+                            brand_voice=request.prompt_config.brand_voice,
+                            product_knowledge=request.prompt_config.product_knowledge,
+                            version=request.prompt_config.version,
+                            is_active=request.prompt_config.is_active,
+                            created_at=now,
+                            updated_at=now,
+                        )
+                        prompts_id = await PromptsRepository.insertPrompts(promptsModel.to_orm(), session)
+                        prompts_orm = await PromptsRepository.get_prompts_by_id(prompts_id, session)
+
+                        promptsModel.id = prompts_id
+
+                        asyncio.create_task(PromptsRepository.update_prompts_cache(
+                            promptsModel,
+                            redis_client
+                        ))
+                        self.logger.info(f"助理 {request.assistant_id} 提示词配置创建成功")
+                    except Exception as e:
+                        self.logger.warning(f"助理 {request.assistant_id} 提示词配置创建失败: {e}")
+                        # 不阻止助理创建，只记录警告
                 self.logger.info(f"助理创建成功: {request.assistant_id}")
+
+            async with database_session() as session:
+                new_prompts_orm = await PromptsRepository.get_prompts_by_id(prompts_id, session)
+                new_prompts_model = new_prompts_orm.to_model()
+                new_assistant_orm = await AssistantRepository.get_assistant_by_id(request.assistant_id, session)
+                new_assistant = new_assistant_orm.to_business_model()
+                new_assistant.prompts_model_list = [new_prompts_model]
 
         except Exception as e:
             self.logger.error(f"助理创建失败: {e}")
@@ -142,7 +174,7 @@ class AssistantService:
         return SimpleResponse[AssistantModel](
             code=0,
             message="助理创建成功",
-            data=assistant_orm.to_business_model(),
+            data=new_assistant,
             # **assistant_data,
             # current_customers=0,
             # total_conversations=0,

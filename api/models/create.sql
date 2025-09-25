@@ -73,25 +73,6 @@ CREATE TABLE assistant (
 CREATE INDEX CONCURRENTLY index_tenant_id_is_active ON assistant(tenant_id, assistant_id, is_active);
 
 
-create table friends_chat (
-    id uuid PRIMARY KEY NOT NULL,
-    wechat_code varchar(255) Not Null,
-    img_url varchar(1000) NOT NULL,
-    friend_code varchar(255) Not Null,
-    name varchar(255) Not Null,
-    friend_sex varchar(100) not NULL,
-    friend_sign varchar(100) not NULL,
-    friend_area varchar(100) not NULL,
-    call_type boolean not NULL DEFAULT FALSE,
-    -- 客户到店进程 是啥？
-    remark varchar(1000) NOT NULL,
-    add_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, --添加好友的时间，使用当前时区的时间戳作为默认值
-    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 使用当前时区的时间戳作为默认值
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 使用当前时区的时间戳作为默认值
-
-    constraint uk_tenant_id_is_active UNIQUE (wechat_code, friend_code)
-);
-
 drop table prompts;
 create table prompts(
     id uuid PRIMARY KEY NOT NULL,
@@ -117,6 +98,25 @@ create table prompts(
 
 
 
+
+create table friends_chat (
+    id uuid PRIMARY KEY NOT NULL,
+    wechat_code varchar(255) Not Null,
+    img_url varchar(1000) NOT NULL,
+    friend_code varchar(255) Not Null,
+    name varchar(255) Not Null,
+    friend_sex varchar(100) not NULL,
+    friend_sign varchar(100) not NULL,
+    friend_area varchar(100) not NULL,
+    call_type boolean not NULL DEFAULT FALSE,
+    -- 客户到店进程 是啥？
+    remark varchar(1000) NOT NULL,
+    add_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, --添加好友的时间，使用当前时区的时间戳作为默认值
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 使用当前时区的时间戳作为默认值
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 使用当前时区的时间戳作为默认值
+
+    constraint uk_tenant_id_is_active UNIQUE (wechat_code, friend_code)
+);
 
 
 

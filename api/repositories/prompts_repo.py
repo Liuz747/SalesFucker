@@ -12,14 +12,21 @@
 """
 
 from datetime import datetime
+from typing import Optional
 from uuid import UUID
 
+import msgpack
+from redis import RedisError
 from sqlalchemy import select, update, and_, desc
 
-from models.prompts import PromptsOrmModel
+from config import mas_config
+from models.prompts import PromptsOrmModel, PromptsModel
 from models import TenantModel
 from infra.db.connection import database_session, test_db_connection
 from utils import get_component_logger
+from sqlalchemy.ext.asyncio import AsyncSession
+from redis import Redis, RedisError
+
 
 logger = get_component_logger(__name__, "PromptsDao")
 
@@ -32,8 +39,21 @@ class PromptsRepository:
     所有方法都是静态的，不维护状态。
     """
 
+
     @staticmethod
-    async def insertPrompts(orm: PromptsOrmModel) -> UUID:
+    async def get_prompts_by_id(prompts_id: UUID, session: AsyncSession) -> Optional[PromptsOrmModel]:
+        """根据ID获取提示词数据库模型"""
+        try:
+            stmt = select(PromptsOrmModel).where(PromptsOrmModel.id == prompts_id)
+            result = await session.execute(stmt)
+            return result.scalar_one_or_none()
+        except Exception as e:
+            logger.error(f"获取租户数据库模型失败: {prompts_id}, 错误: {e}")
+            raise
+
+
+    @staticmethod
+    async def insertPrompts(orm: PromptsOrmModel, session: AsyncSession) -> UUID:
         """
         保存租户配置（创建或更新）
         
@@ -44,16 +64,33 @@ class PromptsRepository:
             bool: 是否保存成功
         """
         try:
-            async with database_session() as session:
-                # 创建新租户
-                session.add(orm)
-                logger.debug(f"创建提示词: {orm.tenant_id} {orm.assistant_id} {orm.personality_prompt}")
-
-                await session.commit()
-                return orm.id
-
+            # 创建新租户
+            session.add(orm)
+            logger.debug(f"创建提示词: {orm.tenant_id} {orm.assistant_id} {orm.personality_prompt}")
+            await session.flush()
+            return orm.id
         except Exception as e:
             logger.error(f"创建提示词: {orm.tenant_id} {orm.assistant_id} {orm.personality_prompt} 错误：{e}")
+            raise
+
+    @staticmethod
+    async def update_prompts_cache(prompts_model: PromptsModel, redis_client: Redis):
+        """更新提示词缓存"""
+        try:
+            redis_key = f"prompts:{prompts_model.id}"
+            tenant_data = prompts_model.model_dump(mode='json')
+
+            await redis_client.setex(
+                redis_key,
+                mas_config.REDIS_TTL,
+                msgpack.packb(tenant_data),
+            )
+            logger.debug(f"更新租户缓存: {prompts_model.id}")
+        except RedisError as e:
+            print(f"redis 命令执行失败: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"更新租户缓存失败: {prompts_model.id}, 错误: {e}")
             raise
 
     @staticmethod
