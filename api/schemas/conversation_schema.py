@@ -35,7 +35,6 @@ class ThreadCreateRequest(BaseModel):
     """线程创建请求模型"""
     
     thread_id: Optional[UUID] = Field(None, description="线程标识符")
-    metadata: Optional[ThreadMetadata] = Field(None, description="线程元数据")
 
 
 class MessageCreateRequest(BaseModel):
@@ -52,8 +51,8 @@ class CallbackPayload(BaseModel):
     run_id: UUID = Field(description="运行标识符")
     thread_id: UUID = Field(description="线程标识符")
     status: str = Field(description="运行状态 (completed/failed)")
-    data: Optional[List[WorkflowData]] = Field(None, description="工作流处理结果")
+    data: Optional[WorkflowData] = Field(None, description="工作流处理结果")
     error: Optional[str] = Field(None, description="错误信息（如果失败）")
     processing_time: float = Field(description="处理时间（毫秒）")
-    completed_at: str = Field(description="完成时间（ISO格式字符串）")
+    finished_at: str = Field(description="完成时间（ISO格式字符串）")
     metadata: dict = Field(description="元数据信息")

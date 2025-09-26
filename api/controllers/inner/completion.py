@@ -7,15 +7,13 @@ from typing import Optional
 from pydantic import BaseModel
 from fastapi import APIRouter, HTTPException
 
-from infra.runtimes.client import LLMClient
-from infra.runtimes.config import LLMConfig
-from infra.runtimes.entities import LLMRequest
+from infra.runtimes import LLMClient, LLMRequest
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "LLM")
 
 # 创建路由器
-router = APIRouter(prefix="/messages", tags=["messages"])
+router = APIRouter()
 
 
 class ChatRequest(BaseModel):
@@ -37,8 +35,7 @@ async def send_message(request: ChatRequest):
     """
     try:
         # 初始化LLM客户端
-        config = LLMConfig()
-        client = LLMClient(config)
+        client = LLMClient()
         
         # 生成对话ID
         chat_id = request.chat_id or str(uuid.uuid4())

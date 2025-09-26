@@ -31,7 +31,7 @@ from utils import get_component_logger
 from ..schemas.responses import SimpleResponse
 
 # 创建路由器
-router = APIRouter(prefix="/prompts", tags=["prompts"])
+router = APIRouter()
 logger = get_component_logger(__name__, "prompts_endpoints")
 
 # 初始化处理器

@@ -13,9 +13,9 @@ import pytest
 from unittest.mock import Mock
 from datetime import datetime
 
-from src.llm.intelligent_router.rule_engine import RuleEngine, RoutingRule
-from src.llm.intelligent_router.scoring_engine import ScoringEngine, ScoringCriteria
-from src.llm.intelligent_router.selection_engine import SelectionEngine
+from core.llm.intelligent_router.rule_engine import RuleEngine, RoutingRule
+from core.llm.intelligent_router.scoring_engine import ScoringEngine, ScoringCriteria
+from core.llm.intelligent_router.selection_engine import SelectionEngine
 # Note: Intelligent routing simplified in new system
 from infra.runtimes.config import LLMConfig
 from infra.runtimes.entities.providers import ProviderType

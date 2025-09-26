@@ -20,15 +20,17 @@ def configure_logging():
     配置全局日志系统
     
     应该在应用启动时调用一次（在main.py的lifespan函数中）
-    
-    返回:
-        str: 当前日志级别
     """
     # 配置根日志器
     logging.basicConfig(
         level=mas_config.LOG_LEVEL,
         format='%(levelname)s:\t  %(asctime)s - %(name)s - Line %(lineno)d - %(message)s'
     )
+
+    # 设置sqlalchemy logger不传播到项目根logger
+    logging.getLogger('sqlalchemy').propagate = False
+    logging.getLogger('httpx').propagate = False
+    logging.getLogger('httpcore').propagate = False
 
 def get_component_logger(component_name: str, identifier: Optional[str] = None) -> logging.Logger:
     """

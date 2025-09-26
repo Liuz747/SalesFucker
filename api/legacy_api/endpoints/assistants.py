@@ -27,7 +27,7 @@ from models.assistant import AssistantModel
 from ..schemas.responses import SimpleResponse
 
 # 创建路由器
-router = APIRouter(prefix="/assistants", tags=["assistants"])
+router = APIRouter()
 logger = get_component_logger(__name__)
 
 # 初始化处理器

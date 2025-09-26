@@ -28,7 +28,7 @@ from .provider_config import (
     ProviderHealth
 )
 from .provider_manager import ProviderManager
-from utils import get_component_logger, ErrorHandler
+from utils import get_component_logger
 
 
 # Integrated models (from intelligent_router_modules/models.py)
@@ -86,7 +86,6 @@ class IntelligentRouter:
         """
         self.provider_manager = provider_manager
         self.logger = get_component_logger(__name__, "IntelligentRouter")
-        self.error_handler = ErrorHandler("intelligent_router")
         
         # 集成的引擎功能 (不再需要单独的引擎类)
         
@@ -209,7 +208,8 @@ class IntelligentRouter:
             return selected_provider
             
         except Exception as e:
-            self.error_handler.handle_error(e, {
+            self.logger.error(f"Error in routing: {e}", exc_info=True)
+            # Context: {
                 "request_id": request.request_id,
                 "agent_type": context.agent_type,
                 "tenant_id": context.tenant_id,

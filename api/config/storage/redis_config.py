@@ -59,7 +59,7 @@ class RedisConfig(BaseSettings):
     )
 
     REDIS_TTL: PositiveInt = Field(
-        description="Redis 缓存时间",
+        description="Redis 缓存时间 (秒)",
         default=7200,
     )
 

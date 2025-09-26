@@ -5,11 +5,11 @@ YAML工具函数
 """
 
 import yaml
-from typing import Dict, Any
+from typing import Any
 from pathlib import Path
 
 
-def load_yaml_file(file_path: str) -> Dict[str, Any]:
+def load_yaml_file(file_path: str) -> dict[str, Any]:
     """
     加载YAML文件
     
@@ -17,7 +17,7 @@ def load_yaml_file(file_path: str) -> Dict[str, Any]:
         file_path: YAML文件路径
         
     返回:
-        Dict[str, Any]: 解析后的YAML内容
+        dict[str, Any]: 解析后的YAML内容
     """
     path = Path(file_path)
     if not path.exists():

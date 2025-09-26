@@ -4,7 +4,6 @@ LLM配置加载器
 从YAML文件加载LLM供应商配置。
 """
 
-from typing import List
 from pathlib import Path
 
 from infra.runtimes.entities import Provider, Model, ProviderType, ModelType
@@ -22,12 +21,12 @@ class LLMConfig:
         self.config_path = str(config_path)
         self.providers = self.load_providers()
 
-    def load_providers(self) -> List[Provider]:
+    def load_providers(self) -> list[Provider]:
         """
         从YAML文件加载供应商列表
         
         返回:
-            List[Provider]: 供应商列表
+            list[Provider]: 供应商列表
         """
         yaml_content = load_yaml_file(self.config_path)
         providers = []

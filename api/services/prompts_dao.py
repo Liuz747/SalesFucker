@@ -17,7 +17,7 @@ from uuid import UUID
 from sqlalchemy import select, update, and_, desc
 
 from models.prompts import PromptsOrmModel
-from models import Tenant
+from models import TenantModel
 from infra.db.connection import database_session, test_db_connection
 from utils import get_component_logger
 
@@ -71,8 +71,8 @@ class PromptsDao:
             async with database_session() as session:
                 # 软删除：设置为非激活状态
                 stmt = (
-                    update(Tenant)
-                    .where(Tenant.tenant_id == tenant_id)
+                    update(TenantModel)
+                    .where(TenantModel.tenant_id == tenant_id)
                     .values(status=0)
                 )
                 result = await session.execute(stmt)
@@ -153,11 +153,11 @@ class PromptsDao:
         try:
             async with database_session() as session:
                 stmt = (
-                    update(Tenant)
-                    .where(Tenant.tenant_id == tenant_id)
+                    update(TenantModel)
+                    .where(TenantModel.tenant_id == tenant_id)
                     .values(
                         last_access=access_time,
-                        total_requests=Tenant.total_requests + 1
+                        total_requests=TenantModel.total_requests + 1
                     )
                 )
                 await session.execute(stmt)
@@ -177,7 +177,7 @@ class PromptsDao:
         """
         try:
             async with database_session() as session:
-                stmt = select(Tenant.tenant_id)
+                stmt = select(TenantModel.tenant_id)
                 result = await session.execute(stmt)
                 total = len(result.fetchall())
 

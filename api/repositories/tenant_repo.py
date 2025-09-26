@@ -11,11 +11,11 @@ from typing import Optional
 
 import msgpack
 from redis import Redis
+from redis.exceptions import RedisError
 from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
-
 from config import mas_config
-from models.tenant import TenantOrm, Tenant
+from models import TenantOrm, TenantModel
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "TenantRepository")
@@ -24,7 +24,7 @@ logger = get_component_logger(__name__, "TenantRepository")
 class TenantRepository:
 
     @staticmethod
-    async def get_tenant(tenant_id: str, session: AsyncSession) -> Optional[TenantOrm]:
+    async def get_tenant_by_id(tenant_id: str, session: AsyncSession) -> Optional[TenantOrm]:
         """根据ID获取租户数据库模型"""
         try:
             stmt = select(TenantOrm).where(TenantOrm.tenant_id == tenant_id)
@@ -35,25 +35,25 @@ class TenantRepository:
             raise
 
     @staticmethod
-    async def insert_tenant(tenant: TenantOrm, session: AsyncSession) -> str:
+    async def insert_tenant(tenant: TenantOrm, session: AsyncSession) -> Optional[TenantOrm]:
         """创建租户数据库模型"""
         try:
             session.add(tenant)
             logger.debug(f"创建租户: {tenant.tenant_id}")
-            return tenant.tenant_id
+            return tenant
         except Exception as e:
             logger.error(f"创建租户数据库模型失败: {tenant.tenant_id}, 错误: {e}")
             raise
 
     @staticmethod
-    async def update_tenant(tenant: TenantOrm, session: AsyncSession) -> str:
+    async def update_tenant(tenant: TenantOrm, session: AsyncSession) -> Optional[TenantOrm]:
         """更新租户数据库模型"""
         try:
             tenant.updated_at = func.now()
             session.merge(tenant)
             logger.debug(f"更新租户: {tenant.tenant_id}")
 
-            return tenant.tenant_id
+            return tenant
         except Exception as e:
             logger.error(f"更新租户数据库模型失败: {tenant.tenant_id}, 错误: {e}")
             raise
@@ -92,7 +92,7 @@ class TenantRepository:
             raise
 
     @staticmethod
-    async def get_tenant_cache(tenant_id: str, redis_client: Redis) -> Optional[Tenant]:
+    async def get_tenant_cache(tenant_id: str, redis_client: Redis) -> Optional[TenantModel]:
         """获取租户缓存"""
         try:
             redis_key = f"tenant:{tenant_id}"
@@ -100,14 +100,18 @@ class TenantRepository:
 
             if tenant_data:
                 tenant_data = msgpack.unpackb(tenant_data, raw=False)
-                return Tenant(**tenant_data)
+                return TenantModel(**tenant_data)
             return None
+
+        except RedisError as e:
+            logger.error(f"Redis 连接错误: {tenant_id}, 错误: {e}")
+            raise
         except Exception as e:
             logger.error(f"获取租户缓存失败: {tenant_id}, 错误: {e}")
             raise
 
     @staticmethod
-    async def update_tenant_cache(tenant_model: Tenant, redis_client: Redis):
+    async def update_tenant_cache(tenant_model: TenantModel, redis_client: Redis):
         """更新租户缓存"""
         try:
             redis_key = f"tenant:{tenant_model.tenant_id}"
@@ -120,6 +124,9 @@ class TenantRepository:
             )
             logger.debug(f"更新租户缓存: {tenant_model.tenant_id}")
 
+        except RedisError as e:
+            logger.error(f"Redis 连接错误: {tenant_model.tenant_id}, 错误: {e}")
+            raise
         except Exception as e:
             logger.error(f"更新租户缓存失败: {tenant_model.tenant_id}, 错误: {e}")
             raise
@@ -138,6 +145,9 @@ class TenantRepository:
                 logger.debug(f"租户缓存不存在，无需删除: {tenant_id}")
                 return True
                 
+        except RedisError as e:
+            logger.error(f"Redis 连接错误: {tenant_id}, 错误: {e}")
+            raise
         except Exception as e:
             logger.error(f"删除租户缓存失败: {tenant_id}, 错误: {e}")
             raise
