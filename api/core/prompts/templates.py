@@ -12,7 +12,6 @@
 - closing: 结束对话提示词
 """
 
-from typing import Dict, Any
 from enum import StrEnum
 
 
@@ -316,29 +315,6 @@ DEFAULT_PROMPTS = {
 }
 
 
-def get_default_prompts() -> Dict[str, Dict[str, str]]:
-    """
-    获取所有默认提示词模板
-    
-    返回:
-        默认提示词字典 {agent_type: {prompt_type: content}}
-    """
-    return DEFAULT_PROMPTS
-
-
-def get_agent_default_prompts(agent_type: AgentType) -> Dict[str, str]:
-    """
-    获取特定智能体类型的默认提示词
-    
-    参数:
-        agent_type: 智能体类型
-        
-    返回:
-        该智能体类型的所有提示词 {prompt_type: content}
-    """
-    return DEFAULT_PROMPTS.get(agent_type, {})
-
-
 def get_default_prompt(agent_type: AgentType, prompt_type: PromptType) -> str:
     """
     获取特定的默认提示词
@@ -358,13 +334,3 @@ def get_default_prompt(agent_type: AgentType, prompt_type: PromptType) -> str:
     
     # 返回通用默认提示词
     return f"你是一个专业的{agent_type.value}智能体，负责处理美妆相关的{prompt_type.value}任务。请提供专业、友好的服务。"
-
-
-def get_available_agent_types() -> list:
-    """获取所有可用的智能体类型"""
-    return list(AgentType)
-
-
-def get_available_prompt_types() -> list:
-    """获取所有可用的提示词类型"""
-    return list(PromptType)

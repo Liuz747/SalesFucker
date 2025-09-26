@@ -1,8 +1,8 @@
 from langfuse import observe
 
+from utils import get_current_datetime, get_processing_time_ms
 from ..base import BaseAgent
 from ...app.entities import WorkflowExecutionModel
-from utils import get_current_datetime, get_processing_time_ms
 
 class ChatAgent(BaseAgent):
     """
