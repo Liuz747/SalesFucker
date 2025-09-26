@@ -4,7 +4,7 @@ stages:
 build-web:
   stage: build
   tags:
-    - docker
+    - macos-docker
   image: docker:cli
   services:
     - docker:dind
