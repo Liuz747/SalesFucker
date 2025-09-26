@@ -12,14 +12,12 @@
 """
 
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+from typing import Optional
 
-from .message import AgentMessage, ThreadState
-from utils import get_component_logger, get_current_datetime
-from infra.monitoring import AgentMonitor
-from infra.runtimes.client import LLMClient
-from infra.runtimes.config import LLMConfig
-from infra.runtimes.entities import LLMRequest, LLMResponse
+from .message import AgentMessage
+from ...app.entities import WorkflowExecutionModel
+from utils import get_component_logger
+from infra.runtimes import LLMClient, LLMRequest
 
 class BaseAgent(ABC):
     """
@@ -36,7 +34,6 @@ class BaseAgent(ABC):
         monitor: 智能体监控器
     
     子类必须实现:
-        process_message: 处理单个消息的具体实现
         process_conversation: 处理对话状态的具体实现
     """
     
@@ -52,78 +49,29 @@ class BaseAgent(ABC):
         self.is_active = True
 
         # 初始化LLM客户端
-        llm_config = LLMConfig()
-        self.llm_client = LLMClient(llm_config)
+        self.llm_client = LLMClient()
 
         # 初始化其他组件
-        self.logger = get_component_logger(__name__, self.agent_id)
-        self.monitor = AgentMonitor(self.agent_id, self.agent_type)
+        self.logger = get_component_logger(__name__)
+    
     
     @abstractmethod
-    async def process_message(self, message: AgentMessage) -> AgentMessage:
-        """
-        处理单个智能体消息的具体实现 (抽象方法)
-        
-        每个具体的智能体子类必须实现此方法来定义具体的消息处理逻辑。
-        性能统计由基类自动处理。
-        
-        参数:
-            message: 待处理的智能体消息
-            
-        返回:
-            AgentMessage: 处理结果消息
-        """
-        pass
-    
-    @abstractmethod
-    async def process_conversation(self, state: ThreadState) -> ThreadState:
+    async def process_conversation(self, state: WorkflowExecutionModel) -> dict:
         """
         处理对话状态的具体实现 (抽象方法)
-        
+
         在LangGraph工作流中处理对话状态，更新相关信息并返回修改后的状态。
         子类必须实现此方法来定义具体的对话处理逻辑。
-        
+
         参数:
-            state: 当前对话状态对象
-            
+            state: 当前工作流执行状态模型
+
         返回:
-            ThreadState: 更新后的对话状态
+            dict: 更新后的对话状态
         """
         pass
     
-    async def send_message(
-            self,
-            recipient: str,
-            message_type: str,
-            payload: Dict[str, Any], 
-            context: Optional[Dict[str, Any]] = None
-    ) -> AgentMessage:
-        """
-        发送消息给其他智能体
-        
-        创建标准格式的智能体消息并发送给指定接收方。
-        
-        参数:
-            recipient: 接收方智能体ID
-            message_type: 消息类型 (query/response/notification/trigger/suggestion)
-            payload: 消息载荷数据
-            context: 可选的上下文信息
-            
-        返回:
-            AgentMessage: 创建的消息对象
-        """
-        message = AgentMessage(
-            sender=self.agent_id,
-            recipient=recipient,
-            message_type=message_type,
-            payload=payload,
-            context=context or {}
-        )
-        
-        self.logger.info(f"发送{message_type}消息给 {recipient}")
-        return message
-    
-    async def llm_call(
+    async def invoke_llm(
         self,
         messages: list,
         model: str = "gpt-4o-mini",
@@ -155,89 +103,3 @@ class BaseAgent(ABC):
         
         response = await self.llm_client.completions(request)
         return response.content
-    
-    async def handle_error(self, error: Exception, context: Dict[str, Any] = None):
-        """
-        处理智能体错误
-        
-        参数:
-            error: 发生的错误
-            context: 错误上下文信息
-        """
-        self.logger.error(f"智能体错误: {error}", exc_info=True)
-        if context:
-            self.logger.error(f"错误上下文: {context}")
-    
-    def update_stats(self, processing_time: float = None, time_taken: float = None, **kwargs):
-        """
-        更新处理统计信息
-        
-        参数:
-            processing_time: 处理时间（毫秒）
-            time_taken: 处理时间（向后兼容）
-            **kwargs: 其他参数
-        """
-        # 向后兼容处理
-        actual_time = processing_time or time_taken or 0
-        
-        # 基础统计更新，具体实现可以在子类中扩展
-        self.logger.debug(f"处理完成，耗时: {actual_time:.2f}ms")
-    
-    def activate(self):
-        """保留兼容接口：无需调用即可使用（默认已激活）。"""
-        self.is_active = True
-        self.logger.debug(f"智能体 {self.agent_id} 激活接口调用（默认已激活）")
-    
-    def deactivate(self):
-        """可选：停用智能体以停止新消息处理。"""
-        self.is_active = False
-        self.logger.info(f"智能体 {self.agent_id} 已停用")
-    
-    def get_status(self) -> Dict[str, Any]:
-        """获取智能体状态信息（直接使用AgentMonitor）"""
-        # 直接使用AgentMonitor的全面状态数据
-        status_data = self.monitor.get_comprehensive_status()
-        
-        # 添加BaseAgent特定信息（没有在monitor中的）
-        status_data['is_active'] = self.is_active
-            
-        return {
-            **status_data,
-            "timestamp": get_current_datetime(),
-            "component": self.agent_id
-        }
-    
-    async def preload_prompts(self):
-        """
-        预加载智能体提示词（性能优化）
-        
-        简化版本 - 目前不需要复杂的提示词管理
-        """
-        self.logger.debug(f"智能体提示词预加载完成: {self.agent_id}")
-
-    def get_metrics(self) -> Dict[str, Any]:
-        """获取智能体指标数据"""
-        comprehensive_status = self.monitor.get_comprehensive_status()
-        
-        return {
-            "metrics": {
-                **comprehensive_status['processing_metrics'],
-                **comprehensive_status['error_rates'],
-                **comprehensive_status['error_counts']
-            },
-            "details": {
-                'agent_id': self.agent_id,
-                'agent_type': self.agent_type,
-                'is_active': self.is_active
-            },
-            "timestamp": get_current_datetime(),
-            "component": self.agent_id
-        }
-    
-    @property
-    def agent_type(self) -> str:
-        """智能体类型（从agent_id提取）"""
-        return self.agent_id.split('_')[0] if '_' in self.agent_id else "unknown"
-    
-    def __repr__(self) -> str:
-        return f"BaseAgent(id={self.agent_id}, active={self.is_active})"

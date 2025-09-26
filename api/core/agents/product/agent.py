@@ -5,9 +5,9 @@ AI-powered product recommendation engine for beauty consultations.
 Provides expert product knowledge and personalized recommendations.
 """
 
-from typing import Dict, Any, List
+from typing import Dict, Any
 import asyncio
-from ..base import BaseAgent, AgentMessage, ThreadState
+from ..base import BaseAgent
 from utils import get_current_datetime, get_processing_time_ms
 
 # 导入模块化组件
@@ -36,7 +36,7 @@ class ProductExpertAgent(BaseAgent):
         super().__init__()
 
         # 初始化模块化组件
-        self.recommendation_coordinator = RecommendationCoordinator(self.agent_id)
+        self.recommendation_coordinator = RecommendationCoordinator()
         self.needs_analyzer = CustomerNeedsAnalyzer()
         self.knowledge_manager = ProductKnowledgeManager()
         
@@ -60,67 +60,8 @@ class ProductExpertAgent(BaseAgent):
                 self.logger.warning(f"组件初始化部分失败: {e}")
                 self._initialized = True  # 继续使用降级功能
     
-    async def process_message(self, message: AgentMessage) -> AgentMessage:
-        """
-        处理产品咨询消息
-        
-        分析客户需求并提供产品推荐。
-        
-        参数:
-            message: 包含产品咨询的消息
-            
-        返回:
-            AgentMessage: 包含产品推荐的响应
-        """
-        try:
-            await self._ensure_initialized()
-            
-            customer_input = message.payload.get("text", "")
-            customer_profile = message.context.get("customer_profile", {})
-            customer_history = message.context.get("customer_history", [])
-            
-            # 分析客户需求
-            needs_analysis = await self.needs_analyzer.analyze_customer_needs(
-                customer_input, customer_profile
-            )
-            
-            # 生成推荐
-            product_recommendations = await self._generate_product_recommendations(
-                customer_input, customer_profile, customer_history, needs_analysis
-            )
-            
-            response_payload = {
-                "product_recommendations": product_recommendations,
-                "needs_analysis": needs_analysis,
-                "processing_agent": self.agent_id,
-                "recommendation_timestamp": get_current_datetime().isoformat()
-            }
-            
-            return await self.send_message(
-                recipient=message.sender,
-                message_type="response",
-                payload=response_payload,
-                context=message.context
-            )
-            
-        except Exception as e:
-            error_context = {
-                "message_id": message.message_id,
-                "sender": message.sender
-            }
-            error_info = await self.handle_error(e, error_context)
-            
-            # 使用协调器创建降级响应
-            fallback_recommendations = self.recommendation_coordinator.formatter.create_fallback_response(str(e))
-            
-            return await self.send_message(
-                recipient=message.sender,
-                message_type="response",
-                payload={"error": error_info, "product_recommendations": fallback_recommendations},
-                context=message.context
-            )
     
-    async def process_conversation(self, state: ThreadState) -> ThreadState:
+    async def process_conversation(self, state: dict) -> dict:
         """
         处理对话状态中的产品推荐
         
@@ -137,13 +78,13 @@ class ProductExpertAgent(BaseAgent):
         try:
             await self._ensure_initialized()
             
-            customer_input = state.customer_input
-            customer_profile = state.customer_profile
-            customer_history = getattr(state, 'customer_history', [])
+            customer_input = state.get("customer_input", "")
+            customer_profile = state.get("customer_profile", {})
+            customer_history = state.get('customer_history', [])
             
             # 分析客户需求和偏好
             needs_analysis = await self.needs_analyzer.analyze_customer_needs(
-                customer_input, customer_profile, state.intent_analysis
+                customer_input, customer_profile, state.get("intent_analysis")
             )
             
             # 生成产品推荐
@@ -152,25 +93,21 @@ class ProductExpertAgent(BaseAgent):
             )
             
             # 更新对话状态
-            state.agent_responses[self.agent_id] = {
+            state.setdefault("agent_responses", {})[self.agent_id] = {
                 "product_recommendations": product_recommendations,
                 "needs_analysis": needs_analysis,
                 "processing_complete": True
             }
-            state.active_agents.append(self.agent_id)
-            
-            # 更新处理统计
-            processing_time = get_processing_time_ms(start_time)
-            self.update_stats(processing_time)
-            
+            state.setdefault("active_agents", []).append(self.agent_id)
+
             return state
             
         except Exception as e:
-            await self.handle_error(e, {"thread_id": state.thread_id})
+            self.logger.error(f"Agent processing failed: {e}", exc_info=True)
             
             # 使用协调器设置降级推荐
             fallback_response = self.recommendation_coordinator.formatter.create_fallback_response(str(e))
-            state.agent_responses[self.agent_id] = {
+            state.setdefault("agent_responses", {})[self.agent_id] = {
                 "product_recommendations": fallback_response,
                 "error": str(e),
                 "agent_id": self.agent_id
@@ -181,10 +118,10 @@ class ProductExpertAgent(BaseAgent):
     async def _generate_product_recommendations(
         self, 
         customer_input: str, 
-        customer_profile: Dict[str, Any],
-        customer_history: List[Dict[str, Any]] = None,
-        needs_analysis: Dict[str, Any] = None
-    ) -> Dict[str, Any]:
+        customer_profile: dict,
+        customer_history: list[dict] = None,
+        needs_analysis: dict = None
+    ) -> dict:
         """
         生成产品推荐
         
@@ -247,8 +184,7 @@ class ProductExpertAgent(BaseAgent):
                 "error_rate": self.processing_stats["errors"] / max(1, self.processing_stats["messages_processed"]) * 100,
                 "average_processing_time": self.processing_stats["average_response_time"],
                 "last_activity": self.processing_stats["last_activity"],
-                "agent_id": self.agent_id,
-                "tenant_id": self.tenant_id
+                "agent_id": self.agent_id
             }
             
             # 获取综合统计
@@ -267,6 +203,5 @@ class ProductExpertAgent(BaseAgent):
                 "average_processing_time": 0,
                 "last_activity": None,
                 "agent_id": self.agent_id,
-                "tenant_id": self.tenant_id,
                 "error": str(e)
             }

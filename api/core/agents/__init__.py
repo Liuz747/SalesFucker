@@ -22,16 +22,7 @@
 # 导入核心组件
 from .base import (
     BaseAgent,
-    AgentMessage,
-    ThreadState
-)
-
-# 导入常量
-from libs.types import (
-    MessageType,
-    ComplianceStatus,
-    MarketStrategy,
-    PriorityLevel as MessagePriority
+    AgentMessage
 )
 
 # 导入专业智能体
@@ -50,11 +41,6 @@ __all__ = [
     # 核心基础组件
     "BaseAgent",
     "AgentMessage",
-    "ThreadState",
-    "MessagePriority",
-    "MessageType",
-    "ComplianceStatus",
-    "MarketStrategy",
     
     # 专业智能体实现
     "ComplianceAgent",

@@ -13,13 +13,15 @@
 
 from typing import Dict, Any, Optional
 from datetime import datetime
+import json
+import re
 
-from ..base import BaseAgent, AgentMessage, ThreadState
+from ..base import BaseAgent
 from .rule_manager import ComplianceRuleManager
 from .checker import ComplianceChecker
 from .audit import ComplianceAuditor
 from .metrics import ComplianceMetricsManager
-from utils import get_current_datetime, get_processing_time_ms, to_isoformat, parse_compliance_response
+from utils import get_current_datetime, get_processing_time_ms, to_isoformat
 
 
 class ComplianceAgent(BaseAgent):
@@ -54,8 +56,8 @@ class ComplianceAgent(BaseAgent):
         
         # 初始化模块化组件
         self.checker = ComplianceChecker(self.rule_set, self.agent_id)
-        self.auditor = ComplianceAuditor(self.agent_id)
-        self.metrics = ComplianceMetricsManager(self.agent_id)
+        self.auditor = ComplianceAuditor()
+        self.metrics = ComplianceMetricsManager()
         
         # LLM integration for enhanced analysis
         
@@ -64,70 +66,8 @@ class ComplianceAgent(BaseAgent):
         
         self.logger.info(f"合规审查智能体初始化完成: {self.agent_id}")
     
-    async def process_message(self, message: AgentMessage) -> AgentMessage:
-        """
-        处理合规检查消息
-        
-        对单个消息执行合规性检查，返回检查结果。
-        
-        参数:
-            message: 包含待检查文本的智能体消息
-            
-        返回:
-            AgentMessage: 包含合规检查结果的响应消息
-        """
-        start_time = get_current_datetime()
-        
-        try:
-            input_text = message.payload.get("text", "")
-            
-            # 执行合规检查
-            compliance_result = await self.checker.perform_compliance_check(input_text)
-            
-            # 构建响应载荷
-            response_payload = {
-                "compliance_result": compliance_result,
-                "original_text_hash": hash(input_text),
-                "processing_agent": self.agent_id,
-                "check_timestamp": to_isoformat(start_time)
-            }
-            
-            # 更新统计和审计
-            processing_time = get_processing_time_ms(start_time)
-            self._update_metrics_and_audit(
-                message.context.get("thread_id", "unknown"),
-                input_text, 
-                compliance_result, 
-                processing_time
-            )
-            
-            return await self.send_message(
-                recipient=message.sender,
-                message_type="response",
-                payload=response_payload,
-                context=message.context
-            )
-            
-        except Exception as e:
-            error_context = {
-                "message_id": message.message_id,
-                "sender": message.sender,
-                "processing_agent": self.agent_id
-            }
-            error_info = await self.handle_error(e, error_context)
-            
-            # 更新错误指标
-            self.metrics.update_status_metrics("error")
-            
-            # 返回错误响应
-            return await self.send_message(
-                recipient=message.sender,
-                message_type="response",
-                payload={"error": error_info, "compliance_result": {"status": "error"}},
-                context=message.context
-            )
     
-    async def process_conversation(self, state: ThreadState) -> ThreadState:
+    async def process_conversation(self, state: dict) -> dict:
         """
         处理对话状态中的合规检查
         
@@ -142,14 +82,14 @@ class ComplianceAgent(BaseAgent):
         start_time = get_current_datetime()
         
         try:
-            customer_input = state.customer_input
+            customer_input = state.get("customer_input", "")
             
             # 执行综合合规检查 (规则 + LLM分析)
             compliance_result = await self._enhanced_compliance_check(customer_input)
             
             # 更新对话状态
-            state.compliance_result = compliance_result
-            state.active_agents.append(self.agent_id)
+            state["compliance_result"] = compliance_result
+            state.setdefault("active_agents", []).append(self.agent_id)
             
             # 根据合规结果确定后续处理
             self._update_conversation_state(state, compliance_result)
@@ -157,7 +97,7 @@ class ComplianceAgent(BaseAgent):
             # 更新统计和审计
             processing_time = get_processing_time_ms(start_time)
             self._update_metrics_and_audit(
-                state.thread_id,
+                state.get("thread_id", "unknown"),
                 customer_input,
                 compliance_result,
                 processing_time
@@ -166,21 +106,14 @@ class ComplianceAgent(BaseAgent):
             return state
             
         except Exception as e:
-            error_context = {
-                "thread_id": state.thread_id,
-                "customer_input_length": len(state.customer_input),
-                "tenant_id": state.tenant_id,
-                "agent": self.agent_id
-            }
-            await self.handle_error(e, error_context)
+            self.logger.error(f"Agent processing failed: {e}", exc_info=True)
             
             # 设置安全的默认状态
             self._set_error_state(state)
             
             return state
     
-    def _update_conversation_state(self, state: ThreadState, 
-                                 compliance_result: Dict[str, Any]):
+    def _update_conversation_state(self, state: dict, compliance_result: dict):
         """
         根据合规结果更新对话状态
         
@@ -191,23 +124,23 @@ class ComplianceAgent(BaseAgent):
         status = compliance_result["status"]
         
         if status == "blocked":
-            state.error_state = "compliance_violation"
-            state.final_response = compliance_result["user_message"]
-            state.processing_complete = True
-            state.human_escalation = False  # 直接阻止，无需人工干预
+            state["error_state"] = "compliance_violation"
+            state["final_response"] = compliance_result.get("user_message", "")
+            state["processing_complete"] = True
+            state["human_escalation"] = False
             
         elif status == "flagged":
             # 标记需要人工审核但继续处理
-            state.human_escalation = True
+            state["human_escalation"] = True
     
-    def _set_error_state(self, state: ThreadState):
+    def _set_error_state(self, state: dict):
         """
         设置错误状态
         
         参数:
             state: 对话状态
         """
-        state.compliance_result = {
+        state["compliance_result"] = {
             "status": "error",
             "message": "合规检查系统暂时不可用",
             "fallback_applied": True,
@@ -215,7 +148,7 @@ class ComplianceAgent(BaseAgent):
         }
         
         # 出错时采用保守策略，标记为需要人工审核
-        state.human_escalation = True
+        state["human_escalation"] = True
         
         # 更新错误指标
         self.metrics.update_status_metrics("error")
@@ -239,9 +172,6 @@ class ComplianceAgent(BaseAgent):
         self.auditor.log_compliance_check(
             thread_id, input_text, compliance_result, processing_time_ms
         )
-        
-        # 更新基类统计
-        self.update_stats(processing_time_ms)
     
     def add_tenant_rule(self, rule) -> bool:
         """
@@ -362,7 +292,7 @@ class ComplianceAgent(BaseAgent):
             response = await self.llm_call(messages, temperature=0.3)
             
             # 解析结构化响应
-            return parse_compliance_response(response)
+            return self._parse_json_response(response)
             
         except Exception as e:
             self.logger.warning(f"LLM合规分析失败: {e}")
@@ -415,4 +345,50 @@ class ComplianceAgent(BaseAgent):
             "rule_analysis": rule_result,
             "llm_analysis": llm_result,
             "agent_id": self.agent_id
+        }
+
+    def _parse_json_response(self, response: str) -> Dict[str, Any]:
+        """
+        从LLM响应中提取并解析JSON
+
+        参数:
+            response: LLM响应文本
+
+        返回:
+            Dict[str, Any]: 解析后的JSON数据，或默认值
+        """
+        try:
+            # 尝试提取JSON内容
+            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            if json_match:
+                json_str = json_match.group()
+                result = json.loads(json_str)
+
+                # 确保必需字段存在
+                default_result = {
+                    "status": "approved",
+                    "violations": [],
+                    "severity": "low",
+                    "user_message": "",
+                    "recommended_action": "proceed"
+                }
+
+                # 合并结果，缺失字段使用默认值
+                for key, default_value in default_result.items():
+                    if key not in result:
+                        result[key] = default_value
+
+                return result
+
+        except (json.JSONDecodeError, Exception) as e:
+            self.logger.warning(f"JSON解析失败: {e}")
+
+        # 返回默认响应
+        return {
+            "status": "approved",
+            "violations": [],
+            "severity": "low",
+            "user_message": "",
+            "recommended_action": "proceed",
+            "fallback": True
         } 

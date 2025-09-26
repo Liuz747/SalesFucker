@@ -9,15 +9,21 @@
 - 异步工作流执行（后台处理）
 - 运行状态查询和监控
 """
+
+from typing import Annotated
 from uuid import UUID, uuid4
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 
-from core.app.orchestrator import get_orchestrator
 from models import ThreadStatus, WorkflowRun
 from services import ThreadService
 from schemas.conversation_schema import MessageCreateRequest
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms
-from ..wraps import validate_and_get_tenant_id
+from ..wraps import (
+    validate_and_get_tenant_id,
+    get_orchestrator,
+    TenantModel,
+    Orchestrator
+)
 from .background_process import BackgroundWorkflowProcessor
 
 
@@ -31,7 +37,8 @@ router = APIRouter()
 async def create_run(
     thread_id: UUID,
     request: MessageCreateRequest,
-    tenant: str = Depends(validate_and_get_tenant_id)
+    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant_id)],
+    orchestrator: Annotated[Orchestrator, Depends(get_orchestrator)]
 ):
     """
     创建运行实例 - 核心工作流端点
@@ -70,48 +77,39 @@ async def create_run(
         
         # 创建工作流执行模型
         start_time = get_current_datetime()
-        execution_id = uuid4()
+        workflow_id = uuid4()
 
         workflow = WorkflowRun(
-            run_id=execution_id,
+            workflow_id=workflow_id,
             thread_id=thread_id,
             assistant_id=request.assistant_id,
             tenant_id=tenant.tenant_id,
             input=request.input.content,
             type="text"
         )
-
-        # 获取租户专用编排器实例
-        orchestrator = get_orchestrator()
-
         # 使用编排器处理消息 - 这是核心工作流调用
         result = await orchestrator.process_conversation(workflow)
 
-        workflow_data = []
-        for agent_type, agent_response in result.agent_responses.items():
-            workflow_data.append(
-                {
-                    "type": agent_type,
-                    "content": agent_response
-                }
-            )
-
         processing_time = get_processing_time_ms(start_time)
 
-        logger.info(f"运行处理完成 - 线程: {thread_id}, 执行: {execution_id}, 耗时: {processing_time:.2f}ms")
+        logger.info(f"运行处理完成 - 线程: {thread_id}, 执行: {workflow_id}, 耗时: {processing_time:.2f}ms")
 
         # 返回标准化响应
         return {
-            "id": result.execution_id,
-            "thread_id": thread_id,
-            "data": workflow_data,
+            "id": result.workflow_id,
+            "thread_id": result.thread_id,
+            "data": {
+                "input": result.input,
+                "output": result.output,
+                "total_tokens": result.total_tokens
+            },
             "created_at": start_time,
             "processing_time": processing_time,
             # 元数据
             "metadata": {
-                "tenant_id": tenant.tenant_id,
-                "assistant_id": request.assistant_id,
-                "execution_id": str(result.execution_id)
+                "tenant_id": result.tenant_id,
+                "assistant_id": result.assistant_id,
+                "workflow_id": str(result.workflow_id)
             }
         }
         
@@ -127,7 +125,8 @@ async def create_background_run(
     thread_id: UUID,
     request: MessageCreateRequest,
     background_tasks: BackgroundTasks,
-    tenant: str = Depends(validate_and_get_tenant_id)
+    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant_id)],
+    orchestrator: Annotated[Orchestrator, Depends(get_orchestrator)]
 ):
     """
     创建后台运行实例 - 异步工作流端点
@@ -175,6 +174,7 @@ async def create_background_run(
         # 添加后台任务
         background_tasks.add_task(
             processor.process_workflow_background,
+            orchestrator=orchestrator,
             run_id=run_id,
             thread_id=thread_id,
             input=request.input,
@@ -207,7 +207,7 @@ async def create_background_run(
 async def get_run_status(
     thread_id: UUID,
     run_id: UUID,
-    tenant: str = Depends(validate_and_get_tenant_id)
+    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant_id)]
 ):
     """
     获取后台运行状态

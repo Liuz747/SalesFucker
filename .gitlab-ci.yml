@@ -1,0 +1,34 @@
+stages:
+  - build
+
+build-web:
+  stage: build
+  tags:
+    - docker
+  image: docker:cli
+  services:
+    - docker:dind
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" $CI_REGISTRY
+    - cd web
+  script:
+    - echo "Building web application with Docker Compose..."
+    # Build web
+    - docker build --pull -t "$CI_REGISTRY_IMAGE/web:$CI_COMMIT_REF_SLUG" ./web
+    - docker push "$CI_REGISTRY_IMAGE/web:$CI_COMMIT_REF_SLUG"
+    
+    # Build worker
+    - docker build --pull -t "$CI_REGISTRY_IMAGE/worker:$CI_COMMIT_REF_SLUG" ./worker
+    - docker push "$CI_REGISTRY_IMAGE/worker:$CI_COMMIT_REF_SLUG"
+    - |
+      if [[ "$CI_COMMIT_BRANCH" == "$CI_DEFAULT_BRANCH" ]]; then
+        docker tag "$CI_REGISTRY_IMAGE/web:$CI_COMMIT_REF_SLUG" "$CI_REGISTRY_IMAGE/web:latest"
+        docker tag "$CI_REGISTRY_IMAGE/worker:$CI_COMMIT_REF_SLUG" "$CI_REGISTRY_IMAGE/worker:latest"
+        docker push "$CI_REGISTRY_IMAGE/web:latest"
+        docker push "$CI_REGISTRY_IMAGE/worker:latest"
+      fi
+    - echo "Build completed successfully"
+  rules:
+    - changes:
+        - web/**
+    - if: $CI_COMMIT_BRANCH

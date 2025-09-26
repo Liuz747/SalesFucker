@@ -10,15 +10,13 @@ LangGraph工作流核心模块
 """
 
 # LangGraph工作流核心组件导入
-from .orchestrator import Orchestrator, get_orchestrator, shutdown_orchestrator
+from .orchestrator import Orchestrator
 from .workflow_builder import WorkflowBuilder
 from .state_manager import StateManager
 
 __all__ = [
     # LangGraph工作流组件
     "Orchestrator",
-    "get_orchestrator",
-    "shutdown_orchestrator",
     "WorkflowBuilder",
     "StateManager"
 ]

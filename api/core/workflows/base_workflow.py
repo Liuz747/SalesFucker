@@ -8,8 +8,6 @@ from abc import ABC, abstractmethod
 
 from langgraph.graph import StateGraph
 
-from utils import get_component_logger
-
 
 class BaseWorkflow(ABC):
     """
@@ -17,16 +15,11 @@ class BaseWorkflow(ABC):
     
     定义工作流的抽象接口和通用功能。
     所有具体工作流实现都应该继承此基类。
-    
-    属性:
-        logger: 日志记录器
     """
     
     def __init__(self):
-        """
-        初始化基础工作流
-        """
-        self.logger = get_component_logger(__name__)
+        """初始化基础工作流"""
+        pass
     
     @abstractmethod
     def _register_nodes(self, graph: StateGraph):

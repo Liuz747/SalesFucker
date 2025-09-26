@@ -13,10 +13,9 @@ logger = logging.getLogger(__name__)
 class FallbackRecommendationSystem:
     """降级推荐系统"""
     
-    def __init__(self, tenant_id: str, agent_id: str):
-        self.tenant_id = tenant_id
-        self.agent_id = agent_id
-        self.logger = logging.getLogger(f"{__name__}.{tenant_id}")
+    def __init__(self):
+        self.agent_id = 'recommendation'
+        self.logger = logging.getLogger(f"{__name__}")
         
         # 基础产品库
         self.fallback_products = self._init_fallback_products()
@@ -357,7 +356,6 @@ class FallbackRecommendationSystem:
         return {
             "system_type": "fallback",
             "available_products": len(self.fallback_products),
-            "tenant_id": self.tenant_id,
             "agent_id": self.agent_id,
             "product_categories": list(set(p["category"] for p in self.fallback_products)),
             "supported_concerns": list(set(

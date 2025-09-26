@@ -33,14 +33,15 @@ class ProductSearch:
     def __init__(self, cache_ttl: int = 300):
         self.embedding_gen = EmbeddingGenerator()
         self.vector_db = MilvusDB()
-        self.redis_client = get_redis_client()
+        self.redis_client = None
         self.cache_ttl = cache_ttl
         self._initialized = False
     
     async def initialize(self):
         """初始化搜索组件"""
         try:
-            # 在MVP中简化初始化
+            # 初始化Redis客户端
+            self.redis_client = await get_redis_client()
             self._initialized = True
             return True
         except Exception as e:

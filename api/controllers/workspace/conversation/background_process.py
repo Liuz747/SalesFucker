@@ -15,7 +15,7 @@ from uuid import UUID
 from typing import Optional
 
 from config import mas_config
-from core.app import get_orchestrator
+from core.app import Orchestrator
 from models import ThreadStatus
 from models.workflow import WorkflowRun
 from services import ThreadService
@@ -70,6 +70,7 @@ class BackgroundWorkflowProcessor:
     
     async def process_workflow_background(
         self,
+        orchestrator: Orchestrator,
         run_id: UUID,
         thread_id: UUID,
         input: InputContent,
@@ -102,21 +103,15 @@ class BackgroundWorkflowProcessor:
                 type=input_type
             )
 
-            # 获取租户专用编排器实例
-            orchestrator = get_orchestrator()
-
             # 使用编排器处理消息 - 核心工作流调用
             result = await orchestrator.process_conversation(workflow)
 
             # 构建工作流数据
-            workflow_data = []
-            for agent_type, agent_response in result.agent_responses.items():
-                workflow_data.append(
-                    {
-                        "type": agent_type,
-                        "content": agent_response
-                    }
-                )
+            workflow_data = {
+                "input": result.input,
+                "output": result.output,
+                "total_tokens": result.total_tokens
+            }
 
             processing_time = get_processing_time_ms(start_time)
             completed_at = get_current_datetime()
@@ -135,7 +130,7 @@ class BackgroundWorkflowProcessor:
                 status=ThreadStatus.COMPLETED,
                 data=workflow_data,
                 processing_time=processing_time,
-                completed_at=completed_at.isoformat(),
+                finished_at=completed_at.isoformat(),
                 metadata={
                     "tenant_id": tenant_id,
                     "assistant_id": assistant_id,

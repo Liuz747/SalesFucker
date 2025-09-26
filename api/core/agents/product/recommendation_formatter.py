@@ -14,10 +14,9 @@ logger = logging.getLogger(__name__)
 class RecommendationFormatter:
     """推荐结果格式化器"""
     
-    def __init__(self, tenant_id: str, agent_id: str):
-        self.tenant_id = tenant_id
-        self.agent_id = agent_id
-        self.logger = logging.getLogger(f"{__name__}.{tenant_id}")
+    def __init__(self):
+        self.agent_id = 'recommendation'
+        self.logger = logging.getLogger(f"{__name__}")
     
     async def format_recommendations(
         self,

@@ -7,7 +7,7 @@ RAG Recommendation Engine Core Logic
 
 import asyncio
 import logging
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List
 from datetime import datetime
 
 from core.rag import (
@@ -17,17 +17,15 @@ from core.rag import (
     ProductSearch,
     SearchQuery
 )
-from utils import get_current_datetime, get_processing_time_ms
 
 logger = logging.getLogger(__name__)
 
 class RAGRecommendationEngine:
     """RAG推荐引擎"""
     
-    def __init__(self, tenant_id: str):
-        self.tenant_id = tenant_id
-        self.recommender = ProductRecommender(tenant_id)
-        self.search = ProductSearch(tenant_id)
+    def __init__(self):
+        self.recommender = ProductRecommender()
+        self.search = ProductSearch()
         
         # 配置参数
         self.max_recommendations = 5
@@ -41,7 +39,7 @@ class RAGRecommendationEngine:
             RecommendationType.TRENDING
         ]
         
-        self.logger = logging.getLogger(f"{__name__}.{tenant_id}")
+        self.logger = logging.getLogger(f"{__name__}")
         self.initialized = False
     
     async def initialize(self) -> None:
@@ -50,7 +48,7 @@ class RAGRecommendationEngine:
             await self.recommender.initialize()
             await self.search.initialize()
             self.initialized = True
-            self.logger.info(f"RAG推荐引擎初始化完成: {self.tenant_id}")
+            self.logger.info(f"RAG推荐引擎初始化完成")
         except Exception as e:
             self.logger.error(f"RAG推荐引擎初始化失败: {e}")
             raise
@@ -86,32 +84,30 @@ class RAGRecommendationEngine:
             # 构建推荐请求
             request = RecommendationRequest(
                 customer_id=customer_profile.get("customer_id", "anonymous"),
-                request_type=recommendation_type,
+                tenant_id="default",
+                rec_type=recommendation_type,
                 context={
                     "query": customer_input,
                     "needs_analysis": needs_analysis or {},
                     "conversation_context": True
                 },
-                max_results=self.max_recommendations,
-                include_explanations=True
+                max_results=self.max_recommendations
             )
             
             # 获取推荐结果
-            recommendation_response = await asyncio.wait_for(
-                self.recommender.get_recommendations(
-                    request, customer_profile, customer_history
-                ),
+            recommendations = await asyncio.wait_for(
+                self.recommender.recommend(request),
                 timeout=self.response_timeout
             )
             
             return {
                 "success": True,
-                "recommendations": recommendation_response.recommendations,
-                "strategy": recommendation_response.recommendation_strategy,
-                "total_candidates": recommendation_response.total_candidates,
-                "processing_time": recommendation_response.processing_time,
-                "cache_hit": recommendation_response.cache_hit,
-                "metadata": recommendation_response.metadata
+                "recommendations": recommendations,
+                "strategy": recommendation_type.value,
+                "total_candidates": len(recommendations),
+                "processing_time": 0,
+                "cache_hit": False,
+                "metadata": {}
             }
             
         except asyncio.TimeoutError:
@@ -153,24 +149,24 @@ class RAGRecommendationEngine:
             "find", "looking for", "need", "want", "recommend", "suggest"
         ]):
             return RecommendationType.QUERY_BASED
-        
+
         # 相似产品推荐
         if any(keyword in input_lower for keyword in [
             "similar", "like this", "alternatives", "compare"
         ]):
-            return RecommendationType.SIMILAR_PRODUCTS
-        
+            return RecommendationType.SIMILAR
+
         # 热门推荐
         if any(keyword in input_lower for keyword in [
             "popular", "trending", "best seller", "top rated"
         ]):
             return RecommendationType.TRENDING
-        
-        # 复购推荐
+
+        # 交叉销售推荐
         if customer_profile.get("purchase_history") and any(keyword in input_lower for keyword in [
             "reorder", "buy again", "same as before", "usual"
         ]):
-            return RecommendationType.REPLENISHMENT
+            return RecommendationType.CROSS_SELL
         
         # 默认使用个性化推荐
         return RecommendationType.PERSONALIZED
@@ -192,7 +188,6 @@ class RAGRecommendationEngine:
         try:
             search_query = SearchQuery(
                 text=query,
-                tenant_id=self.tenant_id,
                 top_k=top_k
             )
             
@@ -226,7 +221,6 @@ class RAGRecommendationEngine:
             
             return {
                 "initialized": True,
-                "tenant_id": self.tenant_id,
                 "configuration": {
                     "max_recommendations": self.max_recommendations,
                     "similarity_threshold": self.similarity_threshold,

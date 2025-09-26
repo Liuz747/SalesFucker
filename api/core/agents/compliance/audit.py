@@ -19,29 +19,23 @@ from datetime import datetime
 class ComplianceAuditor:
     """
     合规审计器
-    
+
     负责记录所有合规检查活动，生成审计报告，
     为监管审查和系统监控提供详细的追踪信息。
-    
+
     属性:
         audit_log: 审计日志存储
-        tenant_id: 租户标识符
         agent_id: 智能体标识符
         logger: 日志记录器
     """
     
-    def __init__(self, tenant_id: str, agent_id: str):
+    def __init__(self):
         """
         初始化合规审计器
-        
-        参数:
-            tenant_id: 租户标识符
-            agent_id: 智能体标识符
         """
-        self.tenant_id = tenant_id
-        self.agent_id = agent_id
+        self.agent_id = "compliance"
         self.audit_log: List[Dict[str, Any]] = []
-        self.logger = logging.getLogger(f"{__name__}.{agent_id}")
+        self.logger = logging.getLogger(f"{__name__}.{self.agent_id}")
     
     def log_compliance_check(self, conversation_id: str, input_text: str, 
                            compliance_result: Dict[str, Any], processing_time_ms: float = 0.0):
@@ -83,7 +77,6 @@ class ComplianceAuditor:
         return {
             "timestamp": datetime.utcnow().isoformat(),
             "conversation_id": conversation_id,
-            "tenant_id": self.tenant_id,
             "agent_id": self.agent_id,
             
             # 隐私保护：只记录文本特征，不记录原文
@@ -172,7 +165,6 @@ class ComplianceAuditor:
         return {
             "total_checks": 0,
             "compliance_rate": 100.0,
-            "tenant_id": self.tenant_id,
             "agent_id": self.agent_id
         }
     
@@ -208,7 +200,6 @@ class ComplianceAuditor:
             "category_violations": category_violations,
             "compliance_rate": compliance_rate,
             "risk_score": 100 - compliance_rate,  # 风险评分
-            "tenant_id": self.tenant_id,
             "agent_id": self.agent_id,
             "reporting_period": {
                 "start": start_date.isoformat() if start_date else None,

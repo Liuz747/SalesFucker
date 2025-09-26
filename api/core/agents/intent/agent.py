@@ -6,9 +6,9 @@ Identifies purchase intent, conversation stage, and specific customer needs.
 """
 
 from typing import Dict, Any
-from ..base import BaseAgent, AgentMessage, ThreadState
-
-from utils import parse_intent_response
+import json
+import re
+from ..base import BaseAgent
 
 from utils import get_current_datetime, get_processing_time_ms
 
@@ -28,60 +28,7 @@ class IntentAnalysisAgent(BaseAgent):
 
         self.logger.info(f"意图分析智能体初始化完成: {self.agent_id}")
     
-    async def process_message(self, message: AgentMessage) -> AgentMessage:
-        """
-        处理意图分析消息
-        
-        分析单个消息的客户意图。
-        
-        参数:
-            message: 包含待分析文本的消息
-            
-        返回:
-            AgentMessage: 包含意图分析结果的响应
-        """
-        try:
-            customer_input = message.payload.get("text", "")
-            conversation_history = message.context.get("conversation_history", [])
-            
-            intent_result = await self._analyze_intent(customer_input, conversation_history)
-            
-            response_payload = {
-                "intent_analysis": intent_result,
-                "processing_agent": self.agent_id,
-                "analysis_timestamp": get_current_datetime().isoformat()
-            }
-            
-            return await self.send_message(
-                recipient=message.sender,
-                message_type="response",
-                payload=response_payload,
-                context=message.context
-            )
-            
-        except Exception as e:
-            error_context = {
-                "message_id": message.message_id,
-                "sender": message.sender
-            }
-            error_info = await self.handle_error(e, error_context)
-            
-            fallback_result = {
-                "intent": "browsing",
-                "category": "general",
-                "confidence": 0.5,
-                "urgency": "medium",
-                "fallback": True
-            }
-            
-            return await self.send_message(
-                recipient=message.sender,
-                message_type="response", 
-                payload={"error": error_info, "intent_analysis": fallback_result},
-                context=message.context
-            )
-    
-    async def process_conversation(self, state: ThreadState) -> ThreadState:
+    async def process_conversation(self, state: dict) -> dict:
         """
         处理对话状态中的意图分析
         
@@ -96,30 +43,26 @@ class IntentAnalysisAgent(BaseAgent):
         start_time = get_current_datetime()
         
         try:
-            customer_input = state.customer_input
-            conversation_history = state.conversation_history
+            customer_input = state.get("customer_input", "")
+            conversation_history = state.get("conversation_history", [])
             
             # 执行意图分析
             intent_result = await self._analyze_intent(customer_input, conversation_history)
             
             # 更新对话状态
-            state.intent_analysis = intent_result
-            state.active_agents.append(self.agent_id)
+            state["intent_analysis"] = intent_result
+            state.setdefault("active_agents", []).append(self.agent_id)
             
             # 根据意图分析结果设置市场策略提示
             self._set_strategy_hints(state, intent_result)
-            
-            # 更新处理统计
-            processing_time = get_processing_time_ms(start_time)
-            self.update_stats(processing_time)
-            
+
             return state
             
         except Exception as e:
-            await self.handle_error(e, {"thread_id": state.thread_id})
+            self.logger.error(f"Agent processing failed: {e}", exc_info=True)
             
             # 设置降级意图分析
-            state.intent_analysis = {
+            state["intent_analysis"] = {
                 "intent": "browsing",
                 "category": "general",
                 "confidence": 0.5,
@@ -165,7 +108,7 @@ class IntentAnalysisAgent(BaseAgent):
             response = await self.llm_call(messages, temperature=0.3)
             
             # 解析结构化响应
-            intent_result = parse_intent_response(response)
+            intent_result = self._parse_json_response(response)
             
             # 添加额外的分析信息
             intent_result["agent_id"] = self.agent_id
@@ -187,7 +130,7 @@ class IntentAnalysisAgent(BaseAgent):
                 "agent_id": self.agent_id
             }
     
-    def _set_strategy_hints(self, state: ThreadState, intent_result: Dict[str, Any]):
+    def _set_strategy_hints(self, state: dict, intent_result: dict):
         """
         根据意图分析结果设置策略提示
         
@@ -225,10 +168,54 @@ class IntentAnalysisAgent(BaseAgent):
             strategy_hints["detail_level"] = "comprehensive"
         
         # 将策略提示存储在状态中
-        if not hasattr(state, 'strategy_hints'):
-            state.strategy_hints = {}
-        state.strategy_hints.update(strategy_hints)
-    
+        state.setdefault("strategy_hints", {}).update(strategy_hints)
+
+    def _parse_json_response(self, response: str) -> Dict[str, Any]:
+        """
+        从LLM响应中提取并解析JSON
+
+        参数:
+            response: LLM响应文本
+
+        返回:
+            Dict[str, Any]: 解析后的JSON数据，或默认值
+        """
+        try:
+            # 尝试提取JSON内容
+            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            if json_match:
+                json_str = json_match.group()
+                result = json.loads(json_str)
+
+                # 确保必需字段存在
+                default_result = {
+                    "intent": "browsing",
+                    "confidence": 0.5,
+                    "needs": [],
+                    "priority": "medium",
+                    "next_action": "continue"
+                }
+
+                # 合并结果，缺失字段使用默认值
+                for key, default_value in default_result.items():
+                    if key not in result:
+                        result[key] = default_value
+
+                return result
+
+        except (json.JSONDecodeError, Exception) as e:
+            self.logger.warning(f"JSON解析失败: {e}")
+
+        # 返回默认响应
+        return {
+            "intent": "browsing",
+            "confidence": 0.5,
+            "needs": [],
+            "priority": "medium",
+            "next_action": "continue",
+            "fallback": True
+        }
+
     def get_intent_metrics(self) -> Dict[str, Any]:
         """
         获取意图分析性能指标

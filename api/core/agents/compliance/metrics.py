@@ -31,20 +31,17 @@ class ComplianceMetricsManager:
     
     属性:
         processing_metrics: 处理统计信息
-        tenant_id: 租户标识符
         agent_id: 智能体标识符
         start_time: 启动时间
     """
     
-    def __init__(self, tenant_id: str, agent_id: str):
+    def __init__(self, agent_id: str = "compliance"):
         """
         初始化性能指标管理器
-        
+
         参数:
-            tenant_id: 租户标识符
             agent_id: 智能体标识符
         """
-        self.tenant_id = tenant_id
         self.agent_id = agent_id
         self.start_time = get_current_datetime()
         
@@ -140,7 +137,7 @@ class ComplianceMetricsManager:
         """
         return {
             "agent_id": self.agent_id,
-            "tenant_id": self.tenant_id,
+            "agent_id": self.agent_id,
             "rule_set_stats": rule_set_stats,
             "processing_metrics": self.get_performance_stats(),
             "audit_log_size": audit_log_size,

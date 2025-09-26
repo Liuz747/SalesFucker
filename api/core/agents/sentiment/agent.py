@@ -6,8 +6,13 @@ Provides emotional context and customer satisfaction insights.
 """
 
 from typing import Dict, Any
-from ..base import BaseAgent, AgentMessage, ThreadState
-from utils import parse_sentiment_response, get_current_datetime, get_processing_time_ms
+import json
+import re
+
+from langfuse import observe
+
+from ..base import BaseAgent
+from utils import get_current_datetime, get_processing_time_ms
 
 
 class SentimentAnalysisAgent(BaseAgent):
@@ -25,59 +30,9 @@ class SentimentAnalysisAgent(BaseAgent):
         
         self.logger.info(f"情感分析智能体初始化完成: {self.agent_id}")
     
-    async def process_message(self, message: AgentMessage) -> AgentMessage:
-        """
-        处理情感分析消息
-        
-        分析单个消息的情感状态。
-        
-        参数:
-            message: 包含待分析文本的消息
-            
-        返回:
-            AgentMessage: 包含情感分析结果的响应
-        """
-        try:
-            customer_input = message.payload.get("text", "")
-            context = message.context.get("conversation_context", "")
-            
-            sentiment_result = await self._analyze_sentiment(customer_input, context)
-            
-            response_payload = {
-                "sentiment_analysis": sentiment_result,
-                "processing_agent": self.agent_id,
-                "analysis_timestamp": get_current_datetime().isoformat()
-            }
-            
-            return await self.send_message(
-                recipient=message.sender,
-                message_type="response",
-                payload=response_payload,
-                context=message.context
-            )
-            
-        except Exception as e:
-            error_context = {
-                "message_id": message.message_id,
-                "sender": message.sender
-            }
-            error_info = await self.handle_error(e, error_context)
-            
-            fallback_result = {
-                "sentiment": "neutral",
-                "score": 0.0,
-                "confidence": 0.5,
-                "fallback": True
-            }
-            
-            return await self.send_message(
-                recipient=message.sender,
-                message_type="response",
-                payload={"error": error_info, "sentiment_analysis": fallback_result},
-                context=message.context
-            )
     
-    async def process_conversation(self, state: ThreadState) -> ThreadState:
+    @observe(name="sentiment-analysis", as_type="generation")
+    async def process_conversation(self, state: dict) -> dict:
         """
         处理对话状态中的情感分析
         
@@ -92,27 +47,23 @@ class SentimentAnalysisAgent(BaseAgent):
         start_time = get_current_datetime()
         
         try:
-            customer_input = state.customer_input
+            customer_input = state.get("customer_input", "")
             conversation_context = self._build_conversation_context(state)
             
             # 执行情感分析
             sentiment_result = await self._analyze_sentiment(customer_input, conversation_context)
             
             # 更新对话状态
-            state.sentiment_analysis = sentiment_result
-            state.active_agents.append(self.agent_id)
-            
-            # 更新处理统计
-            processing_time = get_processing_time_ms(start_time)
-            self.update_stats(processing_time)
-            
+            state["sentiment_analysis"] = sentiment_result
+            state.setdefault("active_agents", []).append(self.agent_id)
+
             return state
             
         except Exception as e:
-            await self.handle_error(e, {"thread_id": state.thread_id})
+            self.logger.error(f"Agent processing failed: {e}", exc_info=True)
             
             # 设置降级情感分析
-            state.sentiment_analysis = {
+            state["sentiment_analysis"] = {
                 "sentiment": "neutral",
                 "score": 0.0,
                 "confidence": 0.5,
@@ -153,7 +104,7 @@ class SentimentAnalysisAgent(BaseAgent):
             response = await self.llm_call(messages, temperature=0.3)
             
             # 解析结构化响应
-            sentiment_result = parse_sentiment_response(response)
+            sentiment_result = self._parse_json_response(response)
             
             # 添加额外的分析信息
             sentiment_result["agent_id"] = self.agent_id
@@ -173,7 +124,7 @@ class SentimentAnalysisAgent(BaseAgent):
                 "agent_id": self.agent_id
             }
     
-    def _build_conversation_context(self, state: ThreadState) -> str:
+    def _build_conversation_context(self, state: dict) -> str:
         """
         构建对话上下文信息
         
@@ -186,27 +137,75 @@ class SentimentAnalysisAgent(BaseAgent):
         context_parts = []
         
         # 客户档案信息
-        if state.customer_profile:
+        if state.get("customer_profile"):
             profile_info = []
-            if state.customer_profile.get("skin_type"):
-                profile_info.append(f"Skin type: {state.customer_profile['skin_type']}")
-            if state.customer_profile.get("previous_purchases"):
-                profile_info.append(f"Previous purchases: {len(state.customer_profile['previous_purchases'])} items")
+            customer_profile = state.get("customer_profile", {})
+            if customer_profile.get("skin_type"):
+                profile_info.append(f"Skin type: {customer_profile['skin_type']}")
+            if customer_profile.get("previous_purchases"):
+                profile_info.append(f"Previous purchases: {len(customer_profile['previous_purchases'])} items")
             
             if profile_info:
                 context_parts.append("Customer profile: " + ", ".join(profile_info))
         
         # 对话历史
-        if state.conversation_history:
-            recent_history = state.conversation_history[-3:]  # 最近3条对话
+        if state.get("conversation_history"):
+            recent_history = state["conversation_history"][-3:]
             context_parts.append("Recent conversation: " + " | ".join(recent_history))
         
         # 合规和意图信息
-        if state.compliance_result:
-            context_parts.append(f"Compliance status: {state.compliance_result.get('status', 'unknown')}")
+        compliance_result = state.get("compliance_result")
+        if compliance_result:
+            context_parts.append(f"Compliance status: {compliance_result.get('status', 'unknown')}")
         
         return " | ".join(context_parts) if context_parts else "Initial interaction"
-    
+
+    def _parse_json_response(self, response: str) -> Dict[str, Any]:
+        """
+        从LLM响应中提取并解析JSON
+
+        参数:
+            response: LLM响应文本
+
+        返回:
+            Dict[str, Any]: 解析后的JSON数据，或默认值
+        """
+        try:
+            # 尝试提取JSON内容
+            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            if json_match:
+                json_str = json_match.group()
+                result = json.loads(json_str)
+
+                # 确保必需字段存在
+                default_result = {
+                    "sentiment": "neutral",
+                    "confidence": 0.5,
+                    "emotions": [],
+                    "satisfaction": "unknown",
+                    "urgency": "low"
+                }
+
+                # 合并结果，缺失字段使用默认值
+                for key, default_value in default_result.items():
+                    if key not in result:
+                        result[key] = default_value
+
+                return result
+
+        except (json.JSONDecodeError, Exception) as e:
+            self.logger.warning(f"JSON解析失败: {e}")
+
+        # 返回默认响应
+        return {
+            "sentiment": "neutral",
+            "confidence": 0.5,
+            "emotions": [],
+            "satisfaction": "unknown",
+            "urgency": "low",
+            "fallback": True
+        }
+
     def get_sentiment_metrics(self) -> Dict[str, Any]:
         """
         获取情感分析性能指标

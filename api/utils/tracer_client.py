@@ -1,35 +1,42 @@
 """
-Langfuse integration
+Langfuse 链路追踪工具模块
+
+为 MAS 多智能体系统提供 Langfuse 集成功能。
+
+核心功能:
+- 提供 flush_traces 工具函数
+- 简化的追踪数据刷新机制
+- 标准化的错误处理
+
+使用方式:
+    from langfuse import observe
+    from utils.tracer_client import flush_traces
+
+    @observe()
+    def my_function():
+        return "Hello, world!"
+
+    @observe(as_type="generation")
+    def llm_call():
+        return "LLM response"
 """
 
-from typing import Dict, Any, Optional
-from langfuse import Langfuse
+import logging
+from langfuse import get_client
 
-from config import mas_config
+# 配置日志记录器
+logger = logging.getLogger(__name__)
 
 
-def trace_conversation(input_data: Dict[str, Any], output_data: Dict[str, Any], metadata: Optional[Dict[str, Any]] = None):
+def flush_traces():
     """
-    Trace a conversation
-    
-    Args:
-        input_data: Input data to trace
-        output_data: Output data to trace  
-        metadata: Optional metadata
+    强制发送所有待处理的追踪数据
+
+    建议在应用程序关闭或长时间运行的任务结束时调用
     """
-    client = Langfuse(
-        secret_key=mas_config.LANGFUSE_SECRET_KEY,
-        public_key=mas_config.LANGFUSE_PUBLIC_KEY,
-        host=mas_config.LANGFUSE_HOST
-    )
-    
+    client = get_client()
     try:
-        client.trace(
-            name="conversation",
-            input=input_data,
-            output=output_data,
-            metadata=metadata or {}
-        )
         client.flush()
+        logger.info("Langfuse 成功发送所有追踪数据")
     except Exception as e:
-        print(f"Langfuse trace failed: {e}")
+        logger.error(f"Langfuse 发送追踪数据失败: {e}")

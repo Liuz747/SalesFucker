@@ -10,18 +10,21 @@
 - 多租户工作流隔离
 """
 
-from typing import Any, Optional
+from langfuse import observe, get_client
 
-from models import WorkflowRun, WorkflowExecutionModel
-from core.factories import create_agent_set
+from models import WorkflowRun
+from ..workflows import ChatWorkflow, TestWorkflow
+from .entities import WorkflowExecutionModel
 from .workflow_builder import WorkflowBuilder
 from .state_manager import StateManager
 from utils import (
     get_component_logger,
     get_current_datetime,
-    get_processing_time_ms
+    get_processing_time,
+    flush_traces
 )
-from utils.tracer_client import trace_conversation
+
+logger = get_component_logger(__name__)
 
 
 class Orchestrator:
@@ -38,48 +41,19 @@ class Orchestrator:
         graph: LangGraph工作流图实例
         workflow_builder: 工作流构建器
         state_manager: 状态管理器
-        logger: 日志记录器
     """
     
     def __init__(self):
-        """
-        初始化多智能体编排器
-        """
-        self.logger = get_component_logger(__name__)
-        
         # 初始化模块化组件
-        self.workflow_builder = WorkflowBuilder()
         self.state_manager = StateManager()
-        
-        # 初始化智能体
-        self._initialize_agents()
-        
+
         # 构建工作流图
+        self.workflow_builder = WorkflowBuilder(TestWorkflow)
         self.graph = self.workflow_builder.build_graph()
         
-        self.logger.info("多智能体编排器初始化完成")
+        logger.info("多智能体编排器初始化完成")
     
-    def _initialize_agents(self):
-        """
-        初始化智能体集合
-        
-        创建并注册所有必要的智能体。
-        """
-        
-        try:
-            # 创建智能体集合
-            agents = create_agent_set()
-            
-            self.logger.info(f"智能体初始化完成，成功创建 {len(agents)} 个智能体")
-            
-            # 记录创建的智能体
-            for agent_type, agent in agents.items():
-                self.logger.debug(f"已创建智能体: {agent_type} -> {agent.agent_id}")
-                
-        except Exception as e:
-            self.logger.error(f"智能体初始化失败: {e}", exc_info=True)
-            # 不抛出异常，允许编排器继续运行（可能会有部分功能降级）
-    
+    @observe(name="multi-agent-conversation", as_type="span")
     async def process_conversation(self, workflow: WorkflowRun) -> WorkflowExecutionModel:
         """
         处理客户对话的主入口函数
@@ -93,7 +67,7 @@ class Orchestrator:
         返回:
             WorkflowRun: 处理完成的工作流运行
         """
-        self.logger.info(
+        logger.info(
             f"开始处理对话 - 租户: {workflow.tenant_id}, "
             f"助手: {workflow.assistant_id}, 输入类型: {workflow.type}"
         )
@@ -103,99 +77,45 @@ class Orchestrator:
             initial_state = self.state_manager.create_initial_state(workflow)
 
             # 执行工作流
-            result_dict = await self.graph.ainvoke(initial_state)
-            processing_time = get_processing_time_ms(start_time)
+            result = await self.graph.ainvoke(initial_state)
+            elapsed_time = get_processing_time(start_time)
 
-            self.logger.info(
-                f"对话处理完成 - 耗时: {processing_time:.2f}ms, "
-                f"状态: {'成功' if result_dict.get('processing_complete') else '失败'}"
+            logger.info(
+                f"对话处理完成 - 耗时: {elapsed_time:.2f}s, "
+                f"状态: {'成功' if not result.get('exception_count') else '失败'}"
             )
             
-            # Simple Langfuse tracing - just log the conversation
-            trace_conversation(
-                input_data={
+            # 更新Langfuse追踪信息
+            langfuse_trace = get_client()
+            langfuse_trace.update_current_trace(
+                name=f"conversation-{workflow.workflow_id}",
+                user_id=workflow.tenant_id,
+                input={
                     "customer_input": workflow.input,
                     "input_type": workflow.type,
                     "tenant_id": workflow.tenant_id
                 },
-                output_data={
-                    "final_response": result_dict.get("final_response"),
-                    "agents_executed": list(result_dict.get("agent_responses", {}).keys()),
-                    "processing_complete": result_dict.get("processing_complete", False)
+                output={
+                    "final_response": result.get("final_response"),
+                    "agents_executed": list(result.get("values", {}).keys()),
+                    "processing_complete": result.get("processing_complete", False)
                 },
                 metadata={
                     "tenant_id": workflow.tenant_id,
-                    "workflow_type": "multi_agent_conversation"
-                }
+                    "workflow_type": "multi_agent_conversation",
+                    "processing_time": elapsed_time
+                },
+                tags=["multi-agent", "conversation", workflow.type]
             )
+
+            # 强制发送追踪数据到Langfuse
+            flush_traces()
 
             # 构建执行结果模型（元数据 + 会话结果）
-            execution = WorkflowExecutionModel(
-                execution_id=workflow.run_id,
-                thread_id=workflow.thread_id,
-                assistant_id=workflow.assistant_id,
-                tenant_id=workflow.tenant_id,
-                input_content=workflow.input,
-                input_type=workflow.type,
-                created_at=start_time,
-                final_response=result_dict.get("final_response", ""),
-                processing_complete=result_dict.get("processing_complete", False),
-                agent_responses=result_dict.get("agent_responses", {}),
-            )
-            return execution
+            return WorkflowExecutionModel(**result)
             
         except Exception as e:
-            self.logger.error(f"对话处理失败: {e}", exc_info=True)
+            logger.error(f"对话处理失败: {e}", exc_info=True)
             # 返回统一错误状态
-            # 统一错误时返回执行模型
-            return WorkflowExecutionModel(
-                execution_id=workflow.run_id,
-                thread_id=workflow.thread_id,
-                assistant_id=workflow.assistant_id,
-                tenant_id=workflow.tenant_id,
-                input_content=workflow.input,
-                input_type=workflow.type,
-                created_at=start_time,
-                final_response="系统暂时不可用，请稍后重试。",
-                processing_complete=True,
-                agent_responses={},
-            )
+            raise
     
-    def get_workflow_status(self) -> dict[str, Any]:
-        """
-        获取工作流状态信息
-        
-        返回:
-            Dict[str, Any]: 工作流状态和统计信息
-        """
-        return {
-            "graph_compiled": self.graph is not None,
-        }
-    
-
-# 全局编排器实例管理
-_orchestrator_instance: Optional[Orchestrator] = None
-
-
-def get_orchestrator() -> Orchestrator:
-    """
-    获取全局编排器实例
-    
-    返回:
-        Orchestrator: 编排器实例
-    """
-    global _orchestrator_instance
-    if _orchestrator_instance is None:
-        _orchestrator_instance = Orchestrator()
-    
-    return _orchestrator_instance
-
-
-def shutdown_orchestrator():
-    """
-    关闭编排器实例
-    """
-    global _orchestrator_instance
-    
-    if _orchestrator_instance is not None:
-        _orchestrator_instance = None 

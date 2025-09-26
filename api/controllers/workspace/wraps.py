@@ -14,6 +14,7 @@ from typing import Optional
 
 from fastapi import HTTPException, Request
 
+from core.app.orchestrator import Orchestrator
 from services.tenant_service import TenantService, TenantModel
 from utils import get_component_logger
 
@@ -62,3 +63,19 @@ async def validate_and_get_tenant_id(request: Request) -> Optional[TenantModel]:
     except Exception as e:
         logger.error(f"租户验证失败: {tenant_id}, 错误: {e}")
         raise HTTPException(status_code=500, detail="租户验证失败")
+
+
+async def get_orchestrator(request: Request):
+    """
+    Lazy loading（并缓存）编排器实例。
+    - 仅在首次被工作流端点请求时创建
+    - 实例存放于 app.state，供后续请求复用
+    """
+    orchestrator = getattr(request.app.state, "orchestrator", None)
+    if orchestrator is None:
+        orchestrator = Orchestrator()
+        request.app.state.orchestrator = orchestrator
+    try:
+        yield orchestrator
+    finally:
+        pass
