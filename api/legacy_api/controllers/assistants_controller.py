@@ -177,22 +177,22 @@ async def update_assistant(
     更新指定助理的配置信息，支持部分字段更新。
     """
     try:
-        logger.info(f"更新助理请求: tenant={request.tenant_id}, assistant={assistant_id}")
+        logger.info(f"更新助理请求: assistant={assistant_id}")
 
         result = await assistant_service.update_assistant(
-            assistant_id, request.tenant_id, request
+            assistant_id,  request
         )
 
         if not result:
-            logger.warning(f"助理不存在: {assistant_id}")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="助理不存在"
-            )
-
+            raise AssistantNotFoundException(assistant_id)
         logger.info(f"助理更新成功: {assistant_id}")
-        return result
-
+        return SimpleResponse[AssistantModel](
+            content=0,
+            message="success",
+            data=result
+        )
+    except AssistantNotFoundException:
+        raise
     except HTTPException:
         raise
     except ValueError as e:

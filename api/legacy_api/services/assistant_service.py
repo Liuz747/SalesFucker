@@ -339,9 +339,8 @@ class AssistantService:
     async def update_assistant(
             self,
             assistant_id: str,
-            tenant_id: str,
             request: AssistantUpdateRequest
-    ) -> Optional[SimpleResponse[AssistantModel]]:
+    ) -> Optional[AssistantModel]:
         """
         更新助理信息
         
@@ -354,104 +353,94 @@ class AssistantService:
             Optional[AssistantResponse]: 更新后的助理信息
         """
         try:
-            # 从缓存中获取数据
-            assistant_key = f"{tenant_id}:{assistant_id}"
-            # assistant = self._assistants_store.get(assistant_key)
 
-            # 从数据库中获取数据
-            assistant = await AssistantService.get_assistant_by_id(assistant_id)
-            if not assistant:
-                return None
+            async with database_session() as session:
+                assistant_orm = await AssistantRepository.get_assistant_by_id(assistant_id, session)
+                if not assistant_orm:
+                    raise AssistantNotFoundException(assistant_id)
 
-            # 更新字段
-            update_fields = {}
-            if request.assistant_name is not None:
-                # update_fields["assistant_name"] = request.assistant_name
-                assistant.assistant_name = request.assistant_name
-            if request.personality_type is not None:
-                # update_fields["personality_type"] = request.personality_type
-                assistant.personality_type = request.personality_type
-            if request.expertise_level is not None:
-                # update_fields["expertise_level"] = request.expertise_level
-                assistant.expertise_level = request.expertise_level
-            if request.sales_style is not None:
-                # update_fields["sales_style"] = {**assistant["sales_style"], **request.sales_style}
-                assistant.sales_style = request.sales_style
-            if request.voice_tone is not None:
-                # update_fields["voice_tone"] = {**assistant["voice_tone"], **request.voice_tone}
-                assistant.voice_tone = request.voice_tone
-            if request.specializations is not None:
-                # update_fields["specializations"] = request.specializations
-                assistant.specializations = request.specializations
-            if request.working_hours is not None:
-                # update_fields["working_hours"] = {**assistant["working_hours"], **request.working_hours}
-                assistant.working_hours = request.working_hours
-            if request.max_concurrent_customers is not None:
-                # update_fields["max_concurrent_customers"] = request.max_concurrent_customers
-                assistant.max_concurrent_customers = request.max_concurrent_customers
-            if request.permissions is not None:
-                # update_fields["permissions"] = request.permissions
-                assistant.permissions = request.permissions
-            if request.profile is not None:
-                # update_fields["profile"] = {**assistant["profile"], **request.profile}
-                assistant.profile = request.profile
-            if request.status is not None:
-                # update_fields["status"] = request.status
-                # assistant.status = request.status
-                pass
+                # 更新字段
+                # update_fields = {}
+                if request.assistant_name is not None:
+                    # update_fields["assistant_name"] = request.assistant_name
+                    assistant_orm.assistant_name = request.assistant_name
+                if request.personality_type is not None:
+                    # update_fields["personality_type"] = request.personality_type
+                    assistant_orm.personality_type = request.personality_type
+                if request.expertise_level is not None:
+                    # update_fields["expertise_level"] = request.expertise_level
+                    assistant_orm.expertise_level = request.expertise_level
+                if request.sales_style is not None:
+                    # update_fields["sales_style"] = {**assistant["sales_style"], **request.sales_style}
+                    assistant_orm.sales_style = request.sales_style
+                if request.voice_tone is not None:
+                    # update_fields["voice_tone"] = {**assistant["voice_tone"], **request.voice_tone}
+                    assistant_orm.voice_tone = request.voice_tone
+                if request.specializations is not None:
+                    # update_fields["specializations"] = request.specializations
+                    assistant_orm.specializations = request.specializations
+                if request.working_hours is not None:
+                    # update_fields["working_hours"] = {**assistant["working_hours"], **request.working_hours}
+                    assistant_orm.working_hours = request.working_hours
+                if request.max_concurrent_customers is not None:
+                    # update_fields["max_concurrent_customers"] = request.max_concurrent_customers
+                    assistant_orm.max_concurrent_customers = request.max_concurrent_customers
+                if request.permissions is not None:
+                    # update_fields["permissions"] = request.permissions
+                    assistant_orm.permissions = request.permissions
+                if request.profile is not None:
+                    # update_fields["profile"] = {**assistant["profile"], **request.profile}
+                    assistant_orm.profile = request.profile
+                # if request.status is not None:
+                    # update_fields["status"] = request.status
+                    # assistant_orm.status = request.status
 
-            # 更新时间戳
-            # update_fields["updated_at"] = datetime.utcnow()
-            assistant.updated_at = request.status
 
-            # todo 暂时先不考虑提示词
-            if 1 == 2:
-                # 处理提示词配置更新（如果提供）
-                if request.prompt_config:
-                    try:
-                        from ..schemas.prompts import PromptUpdateRequest
-                        prompt_update = PromptUpdateRequest(
-                            personality_prompt=request.prompt_config.personality_prompt,
-                            greeting_prompt=request.prompt_config.greeting_prompt,
-                            product_recommendation_prompt=request.prompt_config.product_recommendation_prompt,
-                            objection_handling_prompt=request.prompt_config.objection_handling_prompt,
-                            closing_prompt=request.prompt_config.closing_prompt,
-                            context_instructions=request.prompt_config.context_instructions,
-                            llm_parameters=request.prompt_config.llm_parameters,
-                            brand_voice=request.prompt_config.brand_voice,
-                            product_knowledge=request.prompt_config.product_knowledge,
-                            safety_guidelines=request.prompt_config.safety_guidelines,
-                            forbidden_topics=request.prompt_config.forbidden_topics,
-                            is_active=request.prompt_config.is_active
-                        )
-                        await self.prompt_handler.update_assistant_prompts(
-                            assistant_id, tenant_id, prompt_update
-                        )
-                        self.logger.info(f"助理 {assistant_id} 提示词配置更新成功")
-                    except Exception as e:
-                        self.logger.warning(f"助理 {assistant_id} 提示词配置更新失败: {e}")
-                        # 不阻止助理更新，只记录警告
+                # 更新时间戳
+                # update_fields["updated_at"] = datetime.utcnow()
+                assistant_orm.updated_at = get_current_datetime()
+
+                # todo 暂时先不考虑提示词
+                if 1 == 2:
+                    # 处理提示词配置更新（如果提供）
+                    if request.prompt_config:
+                        try:
+                            from ..schemas.prompts import PromptUpdateRequest
+                            prompt_update = PromptUpdateRequest(
+                                personality_prompt=request.prompt_config.personality_prompt,
+                                greeting_prompt=request.prompt_config.greeting_prompt,
+                                product_recommendation_prompt=request.prompt_config.product_recommendation_prompt,
+                                objection_handling_prompt=request.prompt_config.objection_handling_prompt,
+                                closing_prompt=request.prompt_config.closing_prompt,
+                                context_instructions=request.prompt_config.context_instructions,
+                                llm_parameters=request.prompt_config.llm_parameters,
+                                brand_voice=request.prompt_config.brand_voice,
+                                product_knowledge=request.prompt_config.product_knowledge,
+                                safety_guidelines=request.prompt_config.safety_guidelines,
+                                forbidden_topics=request.prompt_config.forbidden_topics,
+                                is_active=request.prompt_config.is_active
+                            )
+                            await self.prompt_handler.update_assistant_prompts(
+                                assistant_id, tenant_id, prompt_update
+                            )
+                            self.logger.info(f"助理 {assistant_id} 提示词配置更新成功")
+                        except Exception as e:
+                            self.logger.warning(f"助理 {assistant_id} 提示词配置更新失败: {e}")
+                            # 不阻止助理更新，只记录警告
 
             # 应用更新
             # assistant.update(update_fields)
             # self._assistants_store[assistant_key] = assistant
             # logger.debug(f"更新租户: {config.tenant_id}")
 
-            r = await AssistantService.save(assistant)
-            if r is True:
-                # raise Exception("更新助理失败")
-                self.logger.info(f"助理更新成功: {assistant_id}")
-
-                return SimpleResponse(
-                    success=True,
-                    message="助理更新成功",
-                    data=assistant,
-                    # data={},
-                    # **assistant,
-                    # current_customers=assistant.get("current_customers", 0),
-                    # total_conversations=assistant.get("total_conversations", 0),
-                    # average_rating=assistant.get("average_rating", 0.0)
-                )
+            async with database_session() as session:
+                r = await AssistantRepository.update_assistant(assistant_orm, session)
+                if r is True:
+                    # raise Exception("更新助理失败")
+                    self.logger.info(f"助理更新成功: {assistant_id}")
+                assistant_model = assistant_orm.to_business_model()
+            await AssistantRepository.update_assistant_cache_4_task(assistant_model)
+            return assistant_model
 
         except Exception as e:
             self.logger.error(f"助理更新失败: {e}")

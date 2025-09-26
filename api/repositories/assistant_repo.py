@@ -93,6 +93,20 @@ class AssistantRepository:
             logger.error(f"保存租户配置失败: {assistantData.assistant_id}, 错误: {e}")
             raise
 
+
+    @staticmethod
+    async def update_assistant(assistant: AssistantOrmModel, session: AsyncSession) -> Optional[AssistantOrmModel]:
+        """更新租户数据库模型"""
+        try:
+            assistant.updated_at = get_current_datetime()
+            await session.merge(assistant)
+            return assistant
+        except Exception as e:
+            logger.error(f"更新数字员工失败: {assistant.assistant_name}, 错误: {e}")
+            raise
+
+
+
     @staticmethod
     async def delete(tenant_id: str) -> bool:
         """
