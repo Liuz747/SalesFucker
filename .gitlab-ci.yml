@@ -3,6 +3,8 @@ stages:
 
 build-web:
   stage: build
+  tags:
+    - docker
   image: docker:cli
   services:
     - docker:dind
