@@ -1,0 +1,21 @@
+services:
+  langfuse-web:
+    build:
+      dockerfile: ./web/Dockerfile
+      context: ./web
+      platforms:
+        - linux/amd64
+      args:
+        - NEXT_PUBLIC_LANGFUSE_CLOUD_REGION=${NEXT_PUBLIC_LANGFUSE_CLOUD_REGION:-}
+    image: registry.consumerclone.online/huanmu/mas-v0.2/web:latest
+
+  langfuse-worker:
+    build:
+      dockerfile: ./worker/Dockerfile
+      context: ./web
+      platforms:
+        - linux/arm64
+        - linux/amd64
+      args:
+        - NEXT_PUBLIC_LANGFUSE_CLOUD_REGION=${NEXT_PUBLIC_LANGFUSE_CLOUD_REGION:-}
+    image: registry.consumerclone.online/huanmu/mas-v0.2/worker:latest
