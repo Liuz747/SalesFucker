@@ -2,11 +2,7 @@ name: mas-observe
 
 services:
   langfuse-web:
-    build:
-      dockerfile: ./frontend/Dockerfile
-      context: ./web
-      args:
-        - NEXT_PUBLIC_LANGFUSE_CLOUD_REGION=${NEXT_PUBLIC_LANGFUSE_CLOUD_REGION}
+    image: registry.consumerclone.online/huanmu/mas-v0.2/frontend
     depends_on: &langfuse-depends-on
       postgres:
       minio:
@@ -58,11 +54,7 @@ services:
       retries: 3
 
   langfuse-worker:
-    build:
-      dockerfile: ./worker/Dockerfile
-      context: ./web
-      args:
-        - NEXT_PUBLIC_LANGFUSE_CLOUD_REGION=${NEXT_PUBLIC_LANGFUSE_CLOUD_REGION}
+    image: registry.consumerclone.online/huanmu/mas-v0.2/worker
     depends_on: *langfuse-depends-on
     ports:
       - "3030:3030"
