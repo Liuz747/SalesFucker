@@ -4,10 +4,10 @@ services:
   langfuse-web:
     image: registry.consumerclone.online/huanmu/mas-v0.2/frontend
     depends_on: &langfuse-depends-on
-      postgres:
-      minio:
-      redis:
-      clickhouse:
+      - postgres
+      - minio
+      - redis
+      - clickhouse
     ports:
       - "3000:3000"
     environment: &langfuse-web-env
