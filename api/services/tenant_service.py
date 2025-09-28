@@ -17,6 +17,7 @@ from typing import Optional
 import models
 from infra.db import database_session
 from infra.cache import get_redis_client
+from models import TenantStatus
 from repositories.tenant_repo import TenantRepository, TenantModel
 from schemas.conversation_error_code import TenantNotFoundException
 from utils import get_component_logger
@@ -74,7 +75,6 @@ class TenantService:
             logger.error(f"创建租户失败: {tenant.tenant_id}, 错误: {e}")
             raise
 
-
     @staticmethod
     async def query_tenant(tenant_id: str, use_cache=False) -> Optional[TenantModel]:
         """
@@ -95,11 +95,11 @@ class TenantService:
                 tenant_model = await TenantRepository.get_tenant_cache(tenant_id, redis_client)
                 if tenant_model:
                     return tenant_model
-            
+
             # Level 2: 数据库查询
             async with database_session() as session:
                 tenant_orm = await TenantRepository.get_tenant_by_tenant_id(tenant_id, session)
-            
+
             if tenant_orm:
                 tenant_model = TenantModel.to_model(tenant_orm)
                 redis_client = await get_redis_client()
@@ -108,7 +108,7 @@ class TenantService:
                     redis_client
                 ))
                 return tenant_model
-            
+
             logger.debug(f"租户不存在: {tenant_id}")
             return None
 
@@ -116,23 +116,31 @@ class TenantService:
             logger.error(f"获取租户配置失败: {tenant_id}, 错误: {e}")
             raise
 
-
     @staticmethod
     # async def update_tenant(tenant: TenantModel) -> bool:
-    async def update_tenant(tenant_id: str, features: dict[str, bool]) -> Optional[TenantModel]:
+    async def update_tenant(tenant_id: str, features: dict[str, bool], tenant_status: TenantStatus) -> Optional[
+        TenantModel]:
         """更新租户"""
-        tenant_orm = models.TenantOrm()
+        # tenant_orm = models.TenantOrm()
         try:
             async with database_session() as session:
                 tenant_orm = await TenantRepository.get_tenant_by_tenant_id(tenant_id, session)
                 if not tenant_orm:
                     raise TenantNotFoundException(tenant_id=tenant_id)
-                tenant_orm.features = features
-                await TenantRepository.update_tenant(tenant_orm, session)
+
+                # if len(features) != 0:
+                #     tenant_orm.features = features
+                # if tenant_status is not None:
+                #     tenant_orm.status = tenant_status
+                m = {}
+                for k, v in features.items():
+                    m[k] = v
+                m['status'] = tenant_status
+                await TenantRepository.update_tenant_field(tenant_id, m, session)
 
             # 修改数据成功后，刷新缓存
             redis_client = await get_redis_client()
-            await TenantRepository.update_tenant_cache(
+            TenantRepository.update_tenant_cache(
                 TenantModel.to_model(tenant_orm),
                 redis_client
             )

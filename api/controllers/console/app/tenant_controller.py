@@ -16,7 +16,8 @@ from schemas.tenant_schema import (
     TenantStatusResponse,
     TenantUpdateRequest,
     TenantDeleteResponse,
-    TenantStatus
+    TenantStatus,
+    FeatureFlags
 )
 
 from ..error import (
@@ -51,9 +52,9 @@ async def sync_tenant(request: TenantSyncRequest):
             company_size=request.company_size,
             features=request.features.model_dump()
         )
-        flag = await TenantService.create_tenant(tenant)
+        tenant_model = await TenantService.create_tenant(tenant)
 
-        if not flag:
+        if not tenant_model:
             logger.error(f"保存租户配置失败: {request.tenant_id}")
             raise TenantSyncException(request.tenant_id, "Failed to save tenant configuration")
 
@@ -63,12 +64,11 @@ async def sync_tenant(request: TenantSyncRequest):
             tenant_id=tenant.tenant_id,
             tenant_name=tenant.tenant_name,
             message="租户同步成功",
-            features=request.features
+            features=FeatureFlags.NewFeaturesFromMap(tenant_model.features)
         )
 
-    except ValueError as e:
-        logger.warning(f"无效的租户同步数据: {e}")
-        raise TenantSyncException(request.tenant_id, f"验证错误: {str(e)}")
+
+
     except TenantAlreadyExistsException:
         raise
     except Exception as e:
@@ -119,9 +119,10 @@ async def update_tenant(
         #     company_size=request.company_size,
         #     features=request.features.model_dump() if request.features else None
         # )
-        tenantModel = await TenantService.update_tenant(tenant_id, request.features)
 
-        if tenantModel:
+        tenant_model = await TenantService.update_tenant(tenant_id, request.features.ToMap(), request.status)
+
+        if tenant_model:
             logger.info(f"租户配置已更新: {tenant_id}")
         else:
             logger.error(f"保存租户配置失败: {tenant_id}")
@@ -129,10 +130,10 @@ async def update_tenant(
 
         return TenantSyncResponse(
             tenant_id=tenant_id,
-            tenant_name=tenantModel.tenant_name,
-            status=tenantModel.status,
+            tenant_name=tenant_model.tenant_name,
+            status=tenant_model.status,
             message="租户更新成功",
-            features=tenantModel.features,
+            features=FeatureFlags.NewFeaturesFromMap(tenant_model.features),
             timestamp=get_current_datetime()
         )
 
