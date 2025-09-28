@@ -23,8 +23,7 @@ from .index_manager import IndexManager
 from utils import get_component_logger
 
 # 重新导出模型，保持向后兼容
-from .models import MessageType, MessageStatus, ConversationMessage
-from .message_builder import MessageBuilder, create_conversation_store
+from .models import MessageType, ConversationMessage
 
 
 class ConversationStore:

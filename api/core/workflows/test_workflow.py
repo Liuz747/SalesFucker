@@ -1,8 +1,5 @@
 """
 数字员工测试工作流
-
-单节点测试：start -> node -> end。
-通过 state["target_node"] 指定要运行的节点。
 """
 
 from typing import Any

@@ -11,7 +11,6 @@
 - 性能报告生成
 """
 
-import time
 from typing import Dict, Any, List
 from datetime import datetime, timedelta
 from dataclasses import dataclass, field
