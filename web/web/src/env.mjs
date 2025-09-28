@@ -162,7 +162,7 @@ export const env = createEnv({
 
     // Otel
     OTEL_EXPORTER_OTLP_ENDPOINT: z.string().default("http://localhost:4318"),
-    OTEL_SERVICE_NAME: z.string().default("web"),
+    OTEL_SERVICE_NAME: z.string().default("frontend"),
     OTEL_TRACE_SAMPLING_RATIO: z.coerce.number().gt(0).lte(1).default(1),
 
     // clickhouse
@@ -283,7 +283,7 @@ export const env = createEnv({
    * WARNING: They do not work when used in Docker builds as NEXT_PUBLIC variables are not runtime but compile-time.
    */
   client: {
-    // WARNING: Also add these to web/Dockerfile
+    // WARNING: Also add these to frontend/Dockerfile
 
     // NEXT_PUBLIC_CLIENTVAR: z.string().min(1),
     NEXT_PUBLIC_LANGFUSE_CLOUD_REGION: z

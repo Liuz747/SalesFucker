@@ -50,19 +50,19 @@ const config = {
     {
       ...(await createJestConfig(serverTestConfig)()),
       transformIgnorePatterns: [
-        `/web/node_modules/(?!(${esModules.join("|")})/)`,
+        `/frontend/node_modules/(?!(${esModules.join("|")})/)`,
       ],
     },
     {
       ...(await createJestConfig(asyncServerTestConfig)()),
       transformIgnorePatterns: [
-        `/web/node_modules/(?!(${esModules.join("|")})/)`,
+        `/frontend/node_modules/(?!(${esModules.join("|")})/)`,
       ],
     },
     {
       ...(await createJestConfig(endToEndServerTestConfig)()),
       transformIgnorePatterns: [
-        `/web/node_modules/(?!(${esModules.join("|")})/)`,
+        `/frontend/node_modules/(?!(${esModules.join("|")})/)`,
       ],
     },
   ],

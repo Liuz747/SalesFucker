@@ -16,7 +16,7 @@ FROM base AS pruner
 WORKDIR /app
 
 COPY . .
-RUN turbo prune --scope=web --docker
+RUN turbo prune --scope=frontend --docker
 
 FROM base AS builder
 
@@ -75,7 +75,7 @@ ENV SENTRY_RELEASE=$NEXT_PUBLIC_BUILD_ID
 COPY --from=pruner /app/out/full/ .
 
 # remove middleware.ts if it exists - not needed in self-hosted environments
-RUN rm -f ./web/src/middleware.ts
+RUN rm -f ./frontend/src/middleware.ts
 
 # Next.js collects completely anonymous telemetry data about general usage.
 # Learn more here: https://nextjs.org/telemetry
@@ -85,7 +85,7 @@ ENV NEXT_MANUAL_SIG_HANDLE=true
 # set the CI flag to true to get CI specific logs
 ENV CI=true
 
-RUN NODE_OPTIONS='--max-old-space-size=8192' turbo run build --filter=web...
+RUN NODE_OPTIONS='--max-old-space-size=8192' turbo run build --filter=frontend...
 
 # Production image, copy all the files and run next
 FROM base AS runner
@@ -126,21 +126,21 @@ RUN MIGRATE_TARGET_ARCH=$(echo ${TARGETPLATFORM:-linux/amd64} | sed 's/\//-/g') 
     wget -q -O- https://github.com/golang-migrate/migrate/releases/download/v4.18.3/migrate.$MIGRATE_TARGET_ARCH.tar.gz | tar xvz && \
     mv migrate /usr/bin/migrate
 
-COPY --from=builder --chown=nextjs:nodejs /app/web/next.config.mjs .
-COPY --from=builder --chown=nextjs:nodejs /app/web/package.json .
+COPY --from=builder --chown=nextjs:nodejs /app/frontend/next.config.mjs .
+COPY --from=builder --chown=nextjs:nodejs /app/frontend/package.json .
 
 # Automatically leverage output traces to reduce image size
 # https://nextjs.org/docs/advanced-features/output-file-tracing
-COPY --from=builder --chown=nextjs:nodejs /app/web/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/web/.next/static ./web/.next/static
-COPY --from=builder --chown=nextjs:nodejs /app/web/public ./web/public
+COPY --from=builder --chown=nextjs:nodejs /app/frontend/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/frontend/.next/static ./frontend/.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/frontend/public ./frontend/public
 
 COPY --from=builder --chown=nextjs:nodejs /app/packages/shared/prisma ./packages/shared/prisma
 COPY --from=builder --chown=nextjs:nodejs /app/packages/shared/clickhouse ./packages/shared/clickhouse
 
-COPY --chown=nextjs:nodejs ./web/entrypoint.sh ./web/entrypoint.sh
+COPY --chown=nextjs:nodejs ./frontend/entrypoint.sh ./frontend/entrypoint.sh
 COPY --chown=nextjs:nodejs ./packages/shared/scripts/cleanup.sql ./packages/shared/scripts/cleanup.sql
-RUN chmod +x ./web/entrypoint.sh
+RUN chmod +x ./frontend/entrypoint.sh
 
 USER nextjs
 
@@ -149,7 +149,7 @@ ENV PORT=3000
 
 # Docker ENTRYPOINT (dumb-init) is covered by semantic versioning, not the entrypoint.sh itself
 # Reasoning: ENTRYPOINT is overridden by some self-hosted deployments, thus changing this is breaking
-ENTRYPOINT ["dumb-init", "--", "./web/entrypoint.sh"]
+ENTRYPOINT ["dumb-init", "--", "./frontend/entrypoint.sh"]
 
 # startup command - use dd-trace if NEXT_PUBLIC_LANGFUSE_CLOUD_REGION is configured
-CMD ["sh", "-c", "if [ -n \"$NEXT_PUBLIC_LANGFUSE_CLOUD_REGION\" ]; then node --import dd-trace/initialize.mjs ./web/server.js --keepAliveTimeout 110000; else node ./web/server.js --keepAliveTimeout 110000; fi"]
+CMD ["sh", "-c", "if [ -n \"$NEXT_PUBLIC_LANGFUSE_CLOUD_REGION\" ]; then node --import dd-trace/initialize.mjs ./frontend/server.js --keepAliveTimeout 110000; else node ./frontend/server.js --keepAliveTimeout 110000; fi"]

@@ -65,7 +65,7 @@ node_modules
 .yarn
 .turbo
 
-web/test-results/*
+frontend/test-results/*
 
 # local config files
 *.local.*

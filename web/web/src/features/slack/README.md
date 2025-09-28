@@ -21,7 +21,7 @@ This guide walks you through setting up and testing the Langfuse Slack integrati
 ### 2. (Optional) Add App Icon
 
 1. In your Slack app settings, go to "Basic Information"
-2. Upload the Langfuse icon from `web/public/icon1024.png` as your app's avatar
+2. Upload the Langfuse icon from `frontend/public/icon1024.png` as your app's avatar
 3. This will make your app more recognizable in Slack
 
 ### 3. Configure Environment Variables
@@ -49,7 +49,7 @@ mkcert -install
 mkcert localhost 127.0.0.1
 
 # Move certificates to web directory
-mv localhost+1*.pem web/
+mv localhost+1*.pem frontend/
 ```
 
 ### 5. Start Development Server
@@ -75,7 +75,7 @@ This starts the Next.js development server with HTTPS enabled on `https://localh
 ### Common Issues
 
 - **"Invalid redirect URI"**: Ensure your Slack app's OAuth redirect URLs include `https://localhost:3000/api/public/slack/oauth`
-- **Certificate errors**: Make sure you've installed the mkcert CA and moved the certificates to the `web/` directory
+- **Certificate errors**: Make sure you've installed the mkcert CA and moved the certificates to the `frontend/` directory
 - **Environment variables not found**: Verify your `.env` file is in the correct location and contains the Slack credentials
 
 ### SSL Certificate Issues

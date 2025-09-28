@@ -22,7 +22,7 @@ pnpm run dx  # 完整设置：安装依赖、重置数据库、种子数据、�
 
 ```bash
 cd web/
-pnpm run dev:web  # 仅启动 Web 应用 (localhost:3000)
+pnpm run dev:frontend  # 仅启动 Web 应用 (localhost:3000)
 ```
 
 ### 2. 设置 Langfuse 项目

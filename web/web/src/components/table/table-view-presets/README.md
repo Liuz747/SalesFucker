@@ -81,7 +81,7 @@ When a user visits a permalink:
 ## File Structure
 
 ```
-web/src/components/table/table-view-presets/
+frontend/src/components/table/table-view-presets/
 ├── components/
 │   ├── data-table-table-view-presets-drawer.tsx # Main UI component for table view presets
 ├── hooks/
