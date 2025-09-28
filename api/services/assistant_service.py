@@ -18,12 +18,12 @@ from datetime import datetime
 
 from infra.cache import get_redis_client
 from infra.db import database_session
-from models.prompts import PromptsOrmModel, PromptsModel
+from models.prompts import PromptsModel
 from repositories.prompts_repo import PromptsRepository
 from repositories.tenant_repo import TenantRepository
-from schemas.conversation_error_code import TenantNotFoundException, AssistantConflictException, \
+from controllers.conversation_error_code import TenantNotFoundException, AssistantConflictException, \
     AssistantNotFoundException
-from ..schemas.assistants import (
+from legacy_api.schemas.assistants import (
     AssistantCreateRequest, AssistantUpdateRequest, AssistantConfigRequest,
     AssistantListRequest, AssistantListResponse,
     AssistantStatsResponse, AssistantOperationResponse,
@@ -32,10 +32,9 @@ from ..schemas.assistants import (
 from models.assistant import AssistantModel
 
 from repositories.assistant_repo import AssistantRepository
-from ..schemas.prompts import PromptCreateRequest
-from .prompts_services import PromptHandler
+from services.prompts_services import PromptService
 from utils import get_component_logger, get_current_datetime
-from ..schemas.responses import SimpleResponse
+from legacy_api.schemas.responses import SimpleResponse
 
 logger = get_component_logger(__name__, "AssistantHandler")
 
@@ -56,7 +55,7 @@ class AssistantService:
         self._assistant_stats: Dict[str, Dict[str, Any]] = {}
 
         # 初始化提示词处理器
-        self.prompt_handler = PromptHandler()
+        self.prompt_handler = PromptService()
 
         self.logger.info("AI员工处理器初始化完成")
 

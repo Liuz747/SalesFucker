@@ -13,29 +13,27 @@
 - GET /v1/prompts/library - 获取提示词库
 - GET /v1/prompts/templates - 获取提示词模板
 """
-from typing import List, TypeVar, Generic
-from pydantic import BaseModel
 
 from fastapi import APIRouter, HTTPException, Query, Path, status
 from typing import List, Optional
 
 from models.prompts import PromptsModel
-from ..schemas.prompts import (
+from legacy_api.schemas.prompts import (
     PromptCreateRequest, PromptUpdateRequest, PromptTestRequest,
     PromptLibrarySearchRequest, PromptConfigResponse, PromptTestResponse,
     PromptLibraryResponse, PromptValidationResponse,
     AssistantPromptConfig, PromptCategory, PromptType, PromptLanguage
 )
-from ..services.prompts_services import PromptHandler
+from services.prompts_services import PromptService
 from utils import get_component_logger
-from ..schemas.responses import SimpleResponse
+from legacy_api.schemas.responses import SimpleResponse
 
 # 创建路由器
 router = APIRouter()
 logger = get_component_logger(__name__, "prompts_endpoints")
 
 # 初始化处理器
-prompt_handler = PromptHandler()
+prompt_handler = PromptService()
 
 
 @router.post("/{assistant_id}", response_model=SimpleResponse[PromptConfigResponse])

@@ -9,8 +9,8 @@ API端点模块
 """
 
 from .multimodal import router as multimodal_router
-from .assistants_controller import router as assistants_router
-from .prompts_controller import router as prompts_router
+from controllers.workspace.assistants.assistants_controller import router as assistants_router
+from controllers.workspace.prompts.prompts_controller import router as prompts_router
 
 __all__ = [
     "multimodal_router",

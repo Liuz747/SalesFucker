@@ -18,7 +18,7 @@ from datetime import datetime
 
 from models.prompts import PromptsModel, PromptsOrmModel
 from repositories.prompts_repo import PromptsRepository
-from ..schemas.prompts import (
+from legacy_api.schemas.prompts import (
     PromptCreateRequest, PromptUpdateRequest, PromptTestRequest,
     PromptLibrarySearchRequest, PromptConfigResponse, PromptTestResponse,
     PromptLibraryResponse, PromptValidationResponse,
@@ -28,7 +28,7 @@ from ..schemas.prompts import (
 from utils import get_component_logger
 
 
-class PromptHandler:
+class PromptService:
     """
     提示词处理器
     

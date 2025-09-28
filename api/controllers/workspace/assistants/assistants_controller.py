@@ -16,16 +16,14 @@ AI员工管理API端点
 from fastapi import APIRouter, HTTPException, Query, Path, status
 from typing import Optional
 
-from schemas.conversation_error_code import AssistantNotFoundException
-from ..schemas.assistants import (
-    AssistantCreateRequest, AssistantUpdateRequest, AssistantConfigRequest,
-    AssistantListRequest, AssistantListResponse,
-    AssistantStatsResponse, AssistantOperationResponse, AssistantStatus
+from controllers.conversation_error_code import AssistantNotFoundException
+from legacy_api.schemas.assistants import (
+    AssistantCreateRequest, AssistantUpdateRequest, AssistantOperationResponse
 )
-from ..services.assistant_service import AssistantService
+from services.assistant_service import AssistantService
 from utils import get_component_logger
 from models.assistant import AssistantModel
-from ..schemas.responses import SimpleResponse
+from legacy_api.schemas.responses import SimpleResponse
 
 # 创建路由器
 router = APIRouter()

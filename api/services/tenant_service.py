@@ -14,12 +14,11 @@
 import asyncio
 from typing import Optional
 
-import models
 from infra.db import database_session
 from infra.cache import get_redis_client
 from models import TenantStatus
 from repositories.tenant_repo import TenantRepository, TenantModel
-from schemas.conversation_error_code import TenantNotFoundException
+from controllers.conversation_error_code import TenantNotFoundException
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "TenantService")

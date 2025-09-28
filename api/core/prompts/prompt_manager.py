@@ -12,12 +12,10 @@
 """
 
 from typing import Dict, Any, Optional
-import asyncio
 from datetime import datetime, timedelta
 
 from .templates import (
-    get_default_prompt, get_agent_default_prompts, 
-    AgentType, PromptType, DEFAULT_PROMPTS
+    get_default_prompt, AgentType, PromptType
 )
 from utils import get_component_logger
 
@@ -48,8 +46,8 @@ class PromptManager:
         self._prompt_handler = None
         if self.enable_api_integration:
             try:
-                from legacy_api.services.prompts_services import PromptHandler
-                self._prompt_handler = PromptHandler()
+                from services.prompts_services import PromptService
+                self._prompt_handler = PromptService()
                 self.logger.info("提示词处理器集成已启用")
             except Exception as e:
                 self.logger.warning(f"提示词处理器集成失败，使用默认提示词: {e}")
