@@ -15,9 +15,9 @@ from schemas.tenant_schema import (
     TenantSyncResponse,
     TenantStatusResponse,
     TenantUpdateRequest,
-    TenantDeleteResponse,
-    TenantStatus
+    TenantDeleteResponse
 )
+
 from ..error import (
     TenantManagementException,
     TenantNotFoundException,
@@ -31,6 +31,7 @@ from utils import get_component_logger
 logger = get_component_logger(__name__, "TenantEndpoints")
 
 router = APIRouter()
+
 
 @router.post("/sync", response_model=TenantSyncResponse)
 async def sync_tenant(request: TenantSyncRequest):
@@ -47,21 +48,21 @@ async def sync_tenant(request: TenantSyncRequest):
             area_id=request.area_id,
             creator=request.creator,
             company_size=request.company_size,
-            features=request.features.model_dump()
+            features=request.features.model_dump(exclude_none=True) or {}
         )
-        tenant = await TenantService.create_tenant(tenant)
-        
-        if not tenant:
+        tenant_model = await TenantService.create_tenant(tenant)
+
+        if not tenant_model:
             logger.error(f"保存租户配置失败: {request.tenant_id}")
             raise TenantSyncException(request.tenant_id, "Failed to save tenant configuration")
-        
+
         logger.info(f"租户配置已保存: {tenant.tenant_id}")
 
         return TenantSyncResponse(
             tenant_id=tenant.tenant_id,
             tenant_name=tenant.tenant_name,
             message="租户同步成功",
-            features=tenant.features
+            features=tenant_model.features
         )
 
     except TenantAlreadyExistsException:
@@ -103,37 +104,29 @@ async def update_tenant(
     """更新租户信息"""
     try:
         logger.info(f"租户更新请求: {tenant_id}")
-        
-        existing_tenant = await TenantService.query_tenant(tenant_id)
-        if not existing_tenant:
-            raise TenantNotFoundException(tenant_id)
-        
-        tenant = TenantModel(
-            tenant_id=tenant_id,
-            tenant_name=request.tenant_name,
-            status=request.status,
-            industry=request.industry,
-            area_id=request.area_id,
-            creator=request.creator,
-            company_size=request.company_size,
-            features=request.features.model_dump() if request.features else None
+
+        if not request.features and not request.status:
+            raise ValueError
+
+        tenant_model = await TenantService.update_tenant(
+            tenant_id,
+            request.features.model_dump(exclude_none=True) if request.features else None,
+            request.status
         )
-        flag = await TenantService.update_tenant(tenant)
-        
-        if flag:
-            logger.info(f"租户配置已更新: {tenant_id}")
-        else:
-            logger.error(f"保存租户配置失败: {tenant_id}")
-            raise TenantSyncException(tenant_id, "更新租户配置失败")
+
+        logger.info(f"租户配置已更新: {tenant_id}")
 
         return TenantSyncResponse(
             tenant_id=tenant_id,
-            tenant_name=request.tenant_name,
-            status=request.status,
+            tenant_name=tenant_model.tenant_name,
+            status=tenant_model.status,
             message="租户更新成功",
-            features=request.features
+            features=tenant_model.features
         )
 
+    except ValueError as e:
+        logger.warning(f"租户更新参数错误: {e}")
+        raise TenantSyncException(tenant_id, f"租户更新参数错误: {str(e)}")
     except Exception as e:
         logger.error(f"租户更新失败 {tenant_id}: {e}", exc_info=True)
         raise TenantSyncException(tenant_id, f"租户更新失败: {str(e)}")
@@ -144,17 +137,15 @@ async def delete_tenant(tenant_id: str):
     """删除租户"""
     try:
         logger.info(f"租户删除请求: {tenant_id}")
-        
+
         flag = await TenantService.delete_tenant(tenant_id)
-        
+
         if not flag:
             logger.error(f"删除租户失败: {tenant_id}")
             raise TenantSyncException(tenant_id, "删除租户失败")
-            
+
         return TenantDeleteResponse(
             tenant_id=tenant_id,
-            status=TenantStatus.CLOSED,
-            is_active=False,
             message="租户删除成功"
         )
 

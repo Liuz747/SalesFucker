@@ -13,26 +13,23 @@ AI员工管理API端点
 - GET /v1/assistants/{assistant_id}/stats - 获取助理统计
 """
 
-from fastapi import APIRouter, HTTPException, Query, Path, status
+from fastapi import APIRouter, HTTPException, Query, status
 from typing import Optional
 
-from ..schemas.assistants import (
-    AssistantCreateRequest, AssistantUpdateRequest, AssistantConfigRequest,
-    AssistantListRequest, AssistantListResponse,
-    AssistantStatsResponse, AssistantOperationResponse, AssistantStatus
+from controllers.exceptions import AssistantNotFoundException
+from legacy_api.schemas.assistants import (
+    AssistantCreateRequest, AssistantUpdateRequest, AssistantOperationResponse
 )
-from ..handlers.assistant_handler import AssistantHandler
+from services.assistant_service import AssistantService
 from utils import get_component_logger
 from models.assistant import AssistantModel
-from ..schemas.responses import SimpleResponse
+from legacy_api.schemas.responses import SimpleResponse
+
+logger = get_component_logger(__name__)
+
 
 # 创建路由器
 router = APIRouter()
-logger = get_component_logger(__name__)
-
-# 初始化处理器
-assistant_handler = AssistantHandler()
-
 
 @router.post("/", response_model=SimpleResponse[AssistantModel], status_code=status.HTTP_201_CREATED)
 async def create_assistant(
@@ -47,9 +44,7 @@ async def create_assistant(
     try:
         logger.info(f"创建助理请求: tenant={request.tenant_id}, assistant={request.assistant_id}")
 
-        # JWT认证中已验证租户身份，无需重复检查
-
-        result = await assistant_handler.create_assistant(
+        result = await AssistantService.create_assistant(
             request
         )
 
@@ -70,6 +65,7 @@ async def create_assistant(
         )
 
 
+"""
 @router.get("/", response_model=AssistantListResponse)
 async def list_assistants(
         tenant_id: str = Query(..., description="租户标识符"),
@@ -85,11 +81,11 @@ async def list_assistants(
         include_stats: bool = Query(False, description="是否包含统计信息"),
         include_config: bool = Query(False, description="是否包含详细配置")
 ) -> AssistantListResponse:
-    """
-    获取助理列表
     
-    支持多种筛选条件和排序选项的助理列表查询。
-    """
+    # 获取助理列表
+    # 
+    # 支持多种筛选条件和排序选项的助理列表查询。
+    
     try:
         logger.info(f"查询助理列表: tenant={tenant_id}")
 
@@ -109,7 +105,7 @@ async def list_assistants(
             include_config=include_config
         )
 
-        result = await assistant_handler.list_assistants(list_request)
+        result = await assistant_service.list_assistants(list_request)
 
         logger.info(f"助理列表查询成功: 返回{len(result.assistants)}条记录")
         return result
@@ -120,14 +116,12 @@ async def list_assistants(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="助理列表查询失败，请稍后重试"
         )
+"""
 
 
 @router.get("/{assistant_id}", response_model=Optional[SimpleResponse[AssistantModel]])
 async def get_assistant(
-        assistant_id: str = Path(..., description="助理ID"),
-        tenant_id: str = Query(..., description="租户标识符"),
-        include_stats: bool = Query(False, description="是否包含统计信息"),
-        include_config: bool = Query(True, description="是否包含配置信息")
+    assistant_id: str,
 ) -> Optional[SimpleResponse[AssistantModel]]:
     """
     获取助理详细信息
@@ -135,23 +129,24 @@ async def get_assistant(
     根据助理ID获取完整的助理信息，包括配置和可选的统计数据。
     """
     try:
-        logger.info(f"查询助理详情: tenant={tenant_id}, assistant={assistant_id}")
+        logger.info(f"查询助理详情: assistant={assistant_id}")
 
-        result = await assistant_handler.get_assistant(
-            assistant_id, tenant_id, include_stats, include_config
+        result = await AssistantService.get_assistant_by_id(
+            assistant_id
         )
 
         if not result:
             logger.warning(f"助理不存在: {assistant_id}")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="助理不存在"
-            )
+            raise AssistantNotFoundException(assistant_id)
 
         logger.info(f"助理详情查询成功: {assistant_id} {type(result)}")
-        return result
+        return SimpleResponse[AssistantModel](
+            code=0,
+            message="success",
+            data=result,
+        )
 
-    except HTTPException:
+    except AssistantNotFoundException:
         raise
     except Exception as e:
         logger.error(f"助理详情查询失败: {e}")
@@ -163,9 +158,8 @@ async def get_assistant(
 
 @router.put("/{assistant_id}", response_model=SimpleResponse[AssistantModel])
 async def update_assistant(
-        assistant_id: str = Path(..., description="助理ID"),
-        request: AssistantUpdateRequest = None,
-
+    assistant_id: str,
+    request: AssistantUpdateRequest = None
 ) -> Optional[SimpleResponse[AssistantModel]]:
     """
     更新助理信息
@@ -173,22 +167,22 @@ async def update_assistant(
     更新指定助理的配置信息，支持部分字段更新。
     """
     try:
-        logger.info(f"更新助理请求: tenant={request.tenant_id}, assistant={assistant_id}")
+        logger.info(f"更新助理请求: assistant={assistant_id}")
 
-        result = await assistant_handler.update_assistant(
-            assistant_id, request.tenant_id, request
+        result = await AssistantService.update_assistant(
+            assistant_id,  request
         )
 
         if not result:
-            logger.warning(f"助理不存在: {assistant_id}")
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="助理不存在"
-            )
-
+            raise AssistantNotFoundException(assistant_id)
         logger.info(f"助理更新成功: {assistant_id}")
-        return result
-
+        return SimpleResponse[AssistantModel](
+            content=0,
+            message="success",
+            data=result
+        )
+    except AssistantNotFoundException:
+        raise
     except HTTPException:
         raise
     except ValueError as e:
@@ -207,7 +201,7 @@ async def update_assistant(
 
 @router.delete("/{assistant_id}", response_model=SimpleResponse[AssistantOperationResponse])
 async def delete_assistant(
-        assistant_id: str = Path(..., description="助理ID"),
+        assistant_id: str,
         tenant_id: str = Query(..., description="租户标识符"),
         force: bool = Query(False, description="是否强制删除（即使有活跃对话）")
 ) -> SimpleResponse[AssistantOperationResponse]:
@@ -219,7 +213,7 @@ async def delete_assistant(
     try:
         logger.info(f"删除助理请求: tenant={tenant_id}, assistant={assistant_id}, force={force}")
 
-        result = await assistant_handler.delete_assistant(assistant_id, tenant_id, force)
+        result = await AssistantService.delete_assistant(assistant_id, tenant_id, force)
 
         if not result.success:
             logger.warning(f"助理删除失败: {assistant_id}")

@@ -14,8 +14,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional
 
-from .message import AgentMessage
-from ...app.entities import WorkflowExecutionModel
+from core.app.entities import WorkflowExecutionModel
 from utils import get_component_logger
 from infra.runtimes import LLMClient, LLMRequest
 

@@ -9,11 +9,7 @@ API端点模块
 """
 
 from .multimodal import router as multimodal_router
-from .assistants import router as assistants_router
-from .prompts import router as prompts_router
 
 __all__ = [
     "multimodal_router",
-    "assistants_router",
-    "prompts_router"
 ]

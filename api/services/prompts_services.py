@@ -17,8 +17,8 @@ from typing import Optional, Dict, Any, List
 from datetime import datetime
 
 from models.prompts import PromptsModel, PromptsOrmModel
-from services.prompts_dao import PromptsDao
-from ..schemas.prompts import (
+from repositories.prompts_repo import PromptsRepository
+from legacy_api.schemas.prompts import (
     PromptCreateRequest, PromptUpdateRequest, PromptTestRequest,
     PromptLibrarySearchRequest, PromptConfigResponse, PromptTestResponse,
     PromptLibraryResponse, PromptValidationResponse,
@@ -28,7 +28,7 @@ from ..schemas.prompts import (
 from utils import get_component_logger
 
 
-class PromptHandler:
+class PromptService:
     """
     提示词处理器
     
@@ -96,7 +96,7 @@ class PromptHandler:
                 updated_at=now
             )
 
-            id = await PromptsDao.insertPrompts(prompts_model.to_orm())
+            id = await PromptsRepository.insertPrompts(prompts_model.to_orm())
             prompts_model.id = id
             # todo 记录历史版本 功能存疑，需要确认
             # if config_key not in self._prompt_history:
@@ -152,7 +152,7 @@ class PromptHandler:
                     return None
 
             # 获取当前版本
-            prompts_orm = await PromptsDao.get_prompts(assistant_id, tenant_id, version)
+            prompts_orm = await PromptsRepository.get_prompts(assistant_id, tenant_id, version)
             if not prompts_orm:
                 return None
 
@@ -500,7 +500,7 @@ class PromptHandler:
 
             # 获取当前版本
             # todo 需要指定 version
-            source_config = await PromptsDao.get_prompts(source_assistant_id, tenant_id, "")
+            source_config = await PromptsRepository.get_prompts(source_assistant_id, tenant_id, "")
             if not source_config:
                 return None
 
@@ -542,7 +542,7 @@ class PromptHandler:
             # )
             #
             # return await self.create_assistant_prompts(create_request)
-            r = await PromptsDao.insertPrompts(cloned_config_dict)
+            r = await PromptsRepository.insertPrompts(cloned_config_dict)
             cloned_config_dict.id = r
             return cloned_config_dict.to_model()
 
@@ -581,7 +581,7 @@ class PromptHandler:
             #         updated_at=config_data["updated_at"]
             #     ))
 
-            r = await PromptsDao.get_prompts_list_order(tenant_id, assistant_id, limit)
+            r = await PromptsRepository.get_prompts_list_order(tenant_id, assistant_id, limit)
             l: list[PromptsModel] = []
             for prompt in r:
                 l.append(prompt.to_model())
@@ -603,7 +603,7 @@ class PromptHandler:
             config_key = f"{tenant_id}:{assistant_id}"
             # history = self._prompt_history.get(config_key, [])
 
-            target_config = await PromptsDao.get_prompts(tenant_id, assistant_id, version)
+            target_config = await PromptsRepository.get_prompts(tenant_id, assistant_id, version)
             if not target_config:
                 return None
 
@@ -635,7 +635,7 @@ class PromptHandler:
             rollback_config.version = '.'.join(current_version)
             rollback_config.updated_at = datetime.utcnow()
 
-            id = await PromptsDao.insertPrompts(rollback_config)
+            id = await PromptsRepository.insertPrompts(rollback_config)
             rollback_config.id=id
             self.logger.info(f"提示词配置回退成功: {assistant_id}, 回退到版本: {version}")
             return rollback_config.to_model()

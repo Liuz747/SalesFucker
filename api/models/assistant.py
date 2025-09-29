@@ -27,6 +27,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.sql import func
 
 from models.base import Base
+from models.prompts import PromptsModel
 
 
 #
@@ -70,6 +71,8 @@ class AssistantModel(BaseModel):
     last_active_at: Optional[datetime] = Field(description="")
     registered_devices: List[str] = Field(default=[], description="")
 
+    prompts_model_list: Optional[List[PromptsModel]] = Field(default=None, description="所属提示词")
+
 
 class AssistantOrmModel(Base):
     """
@@ -87,7 +90,7 @@ class AssistantOrmModel(Base):
     assistant_id = Column(String(255), unique=True, nullable=False, index=True)
     assistant_name = Column(String(500), nullable=False)
 
-    # assistant_status = Column(String(500), nullable=False)
+    assistant_status = Column(String(500), nullable=False)
     assistant_sex = Column(String(500), nullable=True)
     assistant_phone = Column(String(500), nullable=True)
     assistant_personality_type = Column(String(500), nullable=False)
