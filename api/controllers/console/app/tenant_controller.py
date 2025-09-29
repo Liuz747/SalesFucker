@@ -107,7 +107,7 @@ async def update_tenant(
         logger.info(f"租户更新请求: {tenant_id}")
 
         if not request.features and not request.status:
-            raise TenantSyncException(tenant_id, "更新租户配置失败")
+            raise ValueError("更新租户配置失败")
 
         tenant_model = await TenantService.update_tenant(
             tenant_id,
@@ -124,7 +124,9 @@ async def update_tenant(
             message="租户更新成功",
             features=tenant_model.features
         )
-
+    except ValueError as e:
+        logger.warning(f"租户更新参数错误: {e}")
+        raise TenantSyncException(tenant_id, f"租户更新参数错误: {str(e)}")
     except Exception as e:
         logger.error(f"租户更新失败 {tenant_id}: {e}", exc_info=True)
         raise TenantSyncException(tenant_id, f"租户更新失败: {str(e)}")
