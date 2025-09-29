@@ -11,14 +11,13 @@ from typing import Optional
 
 import msgpack
 from redis import Redis, RedisError
-from redis import Redis
 from redis.exceptions import RedisError
 from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
+
 from config import mas_config
 from models import TenantOrm, TenantModel
 from utils import get_component_logger
-from utils.time_utils import SHANGHAI_TZ, get_current_datetime
 
 logger = get_component_logger(__name__, "TenantRepository")
 
@@ -48,13 +47,12 @@ class TenantRepository:
             raise
 
     @staticmethod
-    async def update_tenant(tenant: TenantOrm, session: AsyncSession) -> Optional[TenantOrm]:
+    async def update_tenant(tenant: TenantOrm, session: AsyncSession) -> TenantOrm:
         """更新租户数据库模型"""
         try:
-            tenant.updated_at = get_current_datetime()
-            await session.merge(tenant)
+            tenant.updated_at = func.now()
+            tenant = await session.merge(tenant)
             logger.debug(f"更新租户: {tenant.tenant_id}")
-            # todo 需要判断修改行数
             return tenant
         except Exception as e:
             logger.error(f"更新租户数据库模型失败: {tenant.tenant_id}, 错误: {e}")
@@ -64,6 +62,7 @@ class TenantRepository:
     async def update_tenant_field(tenant_id: str, value: dict, session: AsyncSession) -> bool:
         """更新租户数据库模型字段"""
         try:
+            value['updated_at'] = func.now()
             stmt = (
                 update(TenantOrm)
                 .where(TenantOrm.tenant_id == tenant_id)

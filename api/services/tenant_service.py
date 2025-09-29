@@ -116,40 +116,31 @@ class TenantService:
             raise
 
     @staticmethod
-    # async def update_tenant(tenant: TenantModel) -> bool:
-    async def update_tenant(tenant_id: str, features: dict[str, bool], tenant_status: TenantStatus) -> Optional[
-        TenantModel]:
+    async def update_tenant(
+        tenant_id: str,
+        features: Optional[dict[str, bool]] = None,
+        tenant_status: Optional[TenantStatus] = None
+    ) -> TenantModel:
         """更新租户"""
-        # tenant_orm = models.TenantOrm()
         try:
             async with database_session() as session:
                 tenant_orm = await TenantRepository.get_tenant_by_tenant_id(tenant_id, session)
                 if not tenant_orm:
-                    raise TenantNotFoundException(tenant_id=tenant_id)
+                    raise TenantNotFoundException(tenant_id)
 
-                # if len(features) != 0:
-                #     tenant_orm.features = features
-                # if tenant_status is not None:
-                #     tenant_orm.status = tenant_status
-                m = {}
-                for k, v in features.items():
-                    m[k] = v
-                m['status'] = tenant_status
-                await TenantRepository.update_tenant_field(tenant_id, m, session)
+                tenant_orm.features = features or tenant_orm.features
+                tenant_orm.status = tenant_status or tenant_orm.status
+                updated_tenant_orm = await TenantRepository.update_tenant(tenant_orm, session)
 
             # 修改数据成功后，刷新缓存
             redis_client = await get_redis_client()
-            TenantRepository.update_tenant_cache(
-                TenantModel.to_model(tenant_orm),
+            tenant_model = TenantModel.to_model(updated_tenant_orm)
+            asyncio.create_task(TenantRepository.update_tenant_cache(
+                tenant_model,
                 redis_client
-            )
-            async with database_session() as session:
-                # 重新获取数据
-                tenant_orm = await TenantRepository.get_tenant_by_tenant_id(tenant_id, session)
-                if not tenant_orm:
-                    raise TenantNotFoundException(tenant_id=tenant_id)
+            ))
 
-                return TenantModel.to_model(tenant_orm)
+            return tenant_model
         except Exception as e:
             logger.error(f"更新租户失败: {tenant_id}, 错误: {e}")
             raise

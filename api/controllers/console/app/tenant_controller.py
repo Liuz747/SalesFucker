@@ -16,8 +16,7 @@ from schemas.tenant_schema import (
     TenantStatusResponse,
     TenantUpdateRequest,
     TenantDeleteResponse,
-    TenantStatus,
-    FeatureFlags
+    TenantStatus
 )
 
 from ..error import (
@@ -28,7 +27,7 @@ from ..error import (
 )
 from models import TenantModel
 from services import TenantService
-from utils import get_component_logger, get_current_datetime
+from utils import get_component_logger
 
 logger = get_component_logger(__name__, "TenantEndpoints")
 
@@ -50,7 +49,7 @@ async def sync_tenant(request: TenantSyncRequest):
             area_id=request.area_id,
             creator=request.creator,
             company_size=request.company_size,
-            features=request.features.model_dump()
+            features=request.features.model_dump(exclude_none=True) or {}
         )
         tenant_model = await TenantService.create_tenant(tenant)
 
@@ -64,10 +63,8 @@ async def sync_tenant(request: TenantSyncRequest):
             tenant_id=tenant.tenant_id,
             tenant_name=tenant.tenant_name,
             message="租户同步成功",
-            features=FeatureFlags.NewFeaturesFromMap(tenant_model.features)
+            features=tenant_model.features
         )
-
-
 
     except TenantAlreadyExistsException:
         raise
@@ -102,44 +99,32 @@ async def get_tenant_status(tenant_id: str):
 
 @router.put("/{tenant_id}", response_model=TenantSyncResponse)
 async def update_tenant(
-        tenant_id: str,
-        request: TenantUpdateRequest,
+    tenant_id: str,
+    request: TenantUpdateRequest,
 ):
     """更新租户信息"""
     try:
         logger.info(f"租户更新请求: {tenant_id}")
 
-        # tenant = TenantModel(
-        #     tenant_id=tenant_id,
-        #     tenant_name=request.tenant_name,
-        #     status=request.status,
-        #     industry=request.industry,
-        #     area_id=request.area_id,
-        #     creator=request.creator,
-        #     company_size=request.company_size,
-        #     features=request.features.model_dump() if request.features else None
-        # )
-
-        tenant_model = await TenantService.update_tenant(tenant_id, request.features.ToMap(), request.status)
-
-        if tenant_model:
-            logger.info(f"租户配置已更新: {tenant_id}")
-        else:
-            logger.error(f"保存租户配置失败: {tenant_id}")
+        if not request.features and not request.status:
             raise TenantSyncException(tenant_id, "更新租户配置失败")
+
+        tenant_model = await TenantService.update_tenant(
+            tenant_id,
+            request.features.model_dump(exclude_none=True) if request.features else None,
+            request.status
+        )
+
+        logger.info(f"租户配置已更新: {tenant_id}")
 
         return TenantSyncResponse(
             tenant_id=tenant_id,
             tenant_name=tenant_model.tenant_name,
             status=tenant_model.status,
             message="租户更新成功",
-            features=FeatureFlags.NewFeaturesFromMap(tenant_model.features),
-            timestamp=get_current_datetime()
+            features=tenant_model.features
         )
 
-    except ValueError as e:
-        logger.warning(f"无效的租户更新数据: {e}")
-        raise TenantSyncException(tenant_id, f"验证错误: {str(e)}")
     except Exception as e:
         logger.error(f"租户更新失败 {tenant_id}: {e}", exc_info=True)
         raise TenantSyncException(tenant_id, f"租户更新失败: {str(e)}")

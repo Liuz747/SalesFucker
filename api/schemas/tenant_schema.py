@@ -53,7 +53,7 @@ class TenantSyncRequest(BaseTenant):
 
 class TenantUpdateRequest(BaseModel):
     features: Optional[FeatureFlags] = Field(None, description="功能列表")
-    status: TenantStatus = Field(None, description="租户状态")
+    status: Optional[TenantStatus] = Field(None, description="租户状态")
 
 
 class TenantSyncResponse(BaseResponse, BaseTenant):
