@@ -24,8 +24,8 @@
     "start": "turbo run start",
     "dev": "turbo run dev",
     "dev:worker": "turbo run dev --filter=worker",
-    "dev:web": "turbo run dev --filter=web",
-    "dev:web-turbo": "turbo run dev --filter=web -- --turbo",
+    "dev:frontend": "turbo run dev --filter=frontend",
+    "dev:frontend-turbo": "turbo run dev --filter=frontend -- --turbo",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{js,jsx,ts,tsx,css}\" --experimental-cli",
     "format:check": "prettier --check \"**/*.{js,jsx,ts,tsx,css}\" --experimental-cli",
@@ -57,7 +57,7 @@
       "@release-it/bumper": {
         "out": [
           {
-            "file": "./web/src/constants/VERSION.ts",
+            "file": "./frontend/src/constants/VERSION.ts",
             "type": "application/typescript"
           },
           {
@@ -65,7 +65,7 @@
             "type": "application/typescript"
           },
           {
-            "file": "./web/package.json"
+            "file": "./frontend/package.json"
           },
           {
             "file": "./worker/package.json"

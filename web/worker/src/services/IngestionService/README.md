@@ -502,14 +502,14 @@ This checklist documents all references and invocations to the `traces` table gr
 
 ### 4. Aggregation and Analytics Queries
 
-- [x] **getTracesCountForPublicApi()** - `web/src/features/public-api/server/traces.ts:299`
-- [x] **generateDailyMetrics()** - `web/src/features/public-api/server/dailyMetrics.ts:93`
-- [x] **getDailyMetricsCount()** - `web/src/features/public-api/server/dailyMetrics.ts:153`
-- [x] **generateObservationsForPublicApi()** - `web/src/features/public-api/server/observations.ts:80`
-- [x] **getObservationsCountForPublicApi()** - `web/src/features/public-api/server/observations.ts:108`
+- [x] **getTracesCountForPublicApi()** - `frontend/src/features/public-api/server/traces.ts:299`
+- [x] **generateDailyMetrics()** - `frontend/src/features/public-api/server/dailyMetrics.ts:93`
+- [x] **getDailyMetricsCount()** - `frontend/src/features/public-api/server/dailyMetrics.ts:153`
+- [x] **generateObservationsForPublicApi()** - `frontend/src/features/public-api/server/observations.ts:80`
+- [x] **getObservationsCountForPublicApi()** - `frontend/src/features/public-api/server/observations.ts:108`
 - [x] **getObservationsTableInternal()** - `packages/shared/src/server/repositories/observations.ts:565`
-- [x] **\_handleGenerateScoresForPublicApi()** - `web/src/features/public-api/server/scores.ts:101`
-- [x] **\_handleGetScoresCountForPublicApi()** - `web/src/features/public-api/server/scores.ts:181`
+- [x] **\_handleGenerateScoresForPublicApi()** - `frontend/src/features/public-api/server/scores.ts:101`
+- [x] **\_handleGetScoresCountForPublicApi()** - `frontend/src/features/public-api/server/scores.ts:181`
 - [x] **getScoresUiGeneric()** - `packages/shared/src/server/repositories/scores.ts:825`
 - [x] **getNumericScoreHistogram()** - `packages/shared/src/server/repositories/scores.ts:1074`
 - [x] **getTracesGroupedByName()** - `packages/shared/src/server/repositories/traces.ts:489-535`
@@ -519,7 +519,7 @@ This checklist documents all references and invocations to the `traces` table gr
 - [x] **getUserMetrics()** - `packages/shared/src/server/repositories/traces.ts:829-978`
 - [x] **getTracesTableGeneric()** - `packages/shared/src/server/services/traces-ui-table-service.ts:207++`
 - [x] **getSessionsTableGeneric()** - `packages/shared/src/server/services/sessions-ui-table-service.ts:121++`)
-- [x] **generateTracesForPublicApi()** - `web/src/features/public-api/server/traces.ts:36++`
+- [x] **generateTracesForPublicApi()** - `frontend/src/features/public-api/server/traces.ts:36++`
 
 ### 5. Data Export and Migration
 

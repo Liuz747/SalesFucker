@@ -25,14 +25,6 @@ from .base import (
     AgentMessage
 )
 
-# 导入常量
-from libs.types import (
-    MessageType,
-    ComplianceStatus,
-    MarketStrategy,
-    PriorityLevel as MessagePriority
-)
-
 # 导入专业智能体
 from .compliance import ComplianceAgent, ComplianceRule, ComplianceRuleManager
 from .sales import SalesAgent
@@ -49,10 +41,6 @@ __all__ = [
     # 核心基础组件
     "BaseAgent",
     "AgentMessage",
-    "MessagePriority",
-    "MessageType",
-    "ComplianceStatus",
-    "MarketStrategy",
     
     # 专业智能体实现
     "ComplianceAgent",

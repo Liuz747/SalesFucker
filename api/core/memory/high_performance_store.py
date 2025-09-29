@@ -13,11 +13,10 @@
 
 import asyncio
 import json
-from typing import Dict, Any, List, Optional, Tuple
-from datetime import datetime, timedelta
+from typing import Dict, Any, List, Optional
+from datetime import datetime
 from dataclasses import dataclass
-from contextlib import asynccontextmanager
-import aioredis
+
 from elasticsearch import AsyncElasticsearch
 from utils import get_component_logger
 
@@ -49,7 +48,6 @@ class HighPerformanceStore:
         
         # 连接池和客户端
         self._es_client: Optional[AsyncElasticsearch] = None
-        self._redis_client: Optional[aioredis.Redis] = None
         
         # 多级缓存
         self._local_cache: Dict[str, Any] = {}
@@ -75,10 +73,7 @@ class HighPerformanceStore:
             # Elasticsearch连接
             self._es_client = AsyncElasticsearch([elasticsearch_url])
             await self._ensure_indices()
-            
-            # Redis连接
-            self._redis_client = aioredis.from_url(redis_url, decode_responses=True)
-            
+
             # 启动批量写入任务
             self._batch_task = asyncio.create_task(self._batch_write_worker())
             

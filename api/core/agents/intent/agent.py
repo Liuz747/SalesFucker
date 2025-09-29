@@ -6,9 +6,9 @@ Identifies purchase intent, conversation stage, and specific customer needs.
 """
 
 from typing import Dict, Any
+import json
+import re
 from ..base import BaseAgent
-
-from utils import parse_intent_response
 
 from utils import get_current_datetime, get_processing_time_ms
 
@@ -108,7 +108,7 @@ class IntentAnalysisAgent(BaseAgent):
             response = await self.llm_call(messages, temperature=0.3)
             
             # 解析结构化响应
-            intent_result = parse_intent_response(response)
+            intent_result = self._parse_json_response(response)
             
             # 添加额外的分析信息
             intent_result["agent_id"] = self.agent_id
@@ -169,7 +169,53 @@ class IntentAnalysisAgent(BaseAgent):
         
         # 将策略提示存储在状态中
         state.setdefault("strategy_hints", {}).update(strategy_hints)
-    
+
+    def _parse_json_response(self, response: str) -> Dict[str, Any]:
+        """
+        从LLM响应中提取并解析JSON
+
+        参数:
+            response: LLM响应文本
+
+        返回:
+            Dict[str, Any]: 解析后的JSON数据，或默认值
+        """
+        try:
+            # 尝试提取JSON内容
+            json_match = re.search(r'\{.*\}', response, re.DOTALL)
+            if json_match:
+                json_str = json_match.group()
+                result = json.loads(json_str)
+
+                # 确保必需字段存在
+                default_result = {
+                    "intent": "browsing",
+                    "confidence": 0.5,
+                    "needs": [],
+                    "priority": "medium",
+                    "next_action": "continue"
+                }
+
+                # 合并结果，缺失字段使用默认值
+                for key, default_value in default_result.items():
+                    if key not in result:
+                        result[key] = default_value
+
+                return result
+
+        except (json.JSONDecodeError, Exception) as e:
+            self.logger.warning(f"JSON解析失败: {e}")
+
+        # 返回默认响应
+        return {
+            "intent": "browsing",
+            "confidence": 0.5,
+            "needs": [],
+            "priority": "medium",
+            "next_action": "continue",
+            "fallback": True
+        }
+
     def get_intent_metrics(self) -> Dict[str, Any]:
         """
         获取意图分析性能指标

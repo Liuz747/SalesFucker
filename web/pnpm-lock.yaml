@@ -267,7 +267,7 @@ importers:
         specifier: ^5.7.2
         version: 5.9.2
 
-  web:
+  frontend:
     dependencies:
       '@anthropic-ai/tokenizer':
         specifier: ^0.0.4

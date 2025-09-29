@@ -28,7 +28,7 @@
       "persistent": true,
       "dependsOn": ["db:generate"]
     },
-    "dev:web": {
+    "dev:frontend": {
       "cache": false,
       "persistent": true,
       "dependsOn": ["db:generate"]

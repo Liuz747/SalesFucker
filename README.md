@@ -130,7 +130,8 @@ mas-v0.2/
 │   └── scripts/             # 开发和部署脚本
 ├── web/                     # 前端应用（Next.js）
 │   ├── packages/            # 前端包管理
-│   ├── web/                 # 主要 Web 应用
+│   ├── frontend/            # 主要 Web 应用
+│   ├── worker/              # 主要 Worker 应用
 │   └── docker-compose.*.yml # 前端容器配置
 └── docs/                    # 项目文档
 ```

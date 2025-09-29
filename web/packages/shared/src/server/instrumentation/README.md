@@ -9,6 +9,6 @@ Throughout our applications we want to use as much Otel as possible. This helps 
 
 ## Configuration options
 
-- `web` and `worker` have an instrumentation.ts file, which configures otel for the application.
+- `frontend` and `worker` have an instrumentation.ts file, which configures otel for the application.
 - For trpc, we use `@baselime/trpc-opentelemetry-middleware` to enrich spans with trpc inputs and outputs.
 - When building adding new infrastructure, we should search for auto instumentations for our code base.

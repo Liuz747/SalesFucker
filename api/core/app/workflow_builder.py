@@ -15,9 +15,9 @@ from typing import Type
 
 from langgraph.graph import StateGraph
 
-from core.app.entities import WorkflowExecutionModel
 from utils import get_component_logger
-from core.workflows import BaseWorkflow
+from .entities import WorkflowExecutionModel
+from ..workflows import BaseWorkflow
 from ..factories import create_agents_set
 
 
@@ -32,7 +32,6 @@ class WorkflowBuilder:
     智能体节点间的连接关系和条件路由逻辑。
     
     属性:
-        logger: 日志记录器
         workflow: 具体工作流实现
     """
     

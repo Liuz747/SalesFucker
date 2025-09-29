@@ -13,7 +13,7 @@
 
 import asyncio
 from typing import Dict, Optional
-import aioredis
+
 from elasticsearch import AsyncElasticsearch
 from utils import get_component_logger
 
@@ -32,7 +32,6 @@ class DatabaseConnectionManager:
         
         # 数据库客户端
         self._es_client: Optional[AsyncElasticsearch] = None
-        self._redis_client: Optional[aioredis.Redis] = None
     
     async def initialize_elasticsearch(self, elasticsearch_url: str) -> AsyncElasticsearch:
         """初始化Elasticsearch连接"""
@@ -45,18 +44,6 @@ class DatabaseConnectionManager:
             
         except Exception as e:
             self.logger.error(f"Elasticsearch初始化失败: {e}")
-            raise
-    
-    async def initialize_redis(self, redis_url: str) -> aioredis.Redis:
-        """初始化Redis连接"""
-        try:
-            self._redis_client = aioredis.from_url(redis_url, decode_responses=True)
-            
-            self.logger.info(f"Redis连接初始化完成: {self.tenant_id}")
-            return self._redis_client
-            
-        except Exception as e:
-            self.logger.error(f"Redis初始化失败: {e}")
             raise
     
     async def _ensure_indices(self):
@@ -90,17 +77,10 @@ class DatabaseConnectionManager:
         """获取Elasticsearch客户端"""
         return self._es_client
     
-    @property
-    def redis_client(self) -> Optional[aioredis.Redis]:
-        """获取Redis客户端"""
-        return self._redis_client
-    
     async def cleanup(self):
         """清理数据库连接"""
         if self._es_client:
             await self._es_client.close()
-        if self._redis_client:
-            await self._redis_client.close()
         
         self.logger.info(f"数据库连接已清理: {self.tenant_id}")
 
@@ -121,7 +101,6 @@ class ConnectionPoolManager:
         cls, 
         tenant_id: str, 
         elasticsearch_url: str, 
-        redis_url: str
     ) -> DatabaseConnectionManager:
         """获取或创建数据库连接管理器"""
         if tenant_id not in cls._locks:
@@ -131,7 +110,6 @@ class ConnectionPoolManager:
             if tenant_id not in cls._instances:
                 manager = DatabaseConnectionManager(tenant_id)
                 await manager.initialize_elasticsearch(elasticsearch_url)
-                await manager.initialize_redis(redis_url)
                 cls._instances[tenant_id] = manager
             
             return cls._instances[tenant_id]

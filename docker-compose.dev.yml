@@ -1,21 +1,13 @@
-name: mas-dev-observe
+name: mas-observe
 
 services:
   langfuse-web:
-    build:
-      dockerfile: ./web/Dockerfile
-      context: ./web
-      args:
-        - NEXT_PUBLIC_LANGFUSE_CLOUD_REGION=${NEXT_PUBLIC_LANGFUSE_CLOUD_REGION}
+    image: registry.consumerclone.online/huanmu/mas-v0.2/frontend
     depends_on: &langfuse-depends-on
-      postgres:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      clickhouse:
-        condition: service_healthy
+      - postgres
+      - minio
+      - redis
+      - clickhouse
     ports:
       - "3000:3000"
     environment: &langfuse-web-env
@@ -56,17 +48,13 @@ services:
       REDIS_TLS_KEY: ${REDIS_TLS_KEY:-/certs/redis.key}
     restart: always
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/api/public/health"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://$(hostname):3000/api/public/health"]
       interval: 30s
       timeout: 10s
       retries: 3
 
   langfuse-worker:
-    build:
-      dockerfile: ./worker/Dockerfile
-      context: ./web
-      args:
-        - NEXT_PUBLIC_LANGFUSE_CLOUD_REGION=${NEXT_PUBLIC_LANGFUSE_CLOUD_REGION}
+    image: registry.consumerclone.online/huanmu/mas-v0.2/worker
     depends_on: *langfuse-depends-on
     ports:
       - "3030:3030"
@@ -74,7 +62,7 @@ services:
       <<: *langfuse-web-env
     restart: always
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3030/api/health"]
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://$(hostname):3030/api/health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -88,7 +76,7 @@ services:
     ports:
       - "${DB_PORT:-5432}:5432"
     volumes:
-      - mas-dev_postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
     restart: unless-stopped
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${DB_NAME:-mas}"]
@@ -103,7 +91,7 @@ services:
     ports:
       - "${REDIS_PORT:-6379}:6379"
     volumes:
-      - mas-dev_redis_data:/data
+      - redis_data:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 30s
@@ -141,7 +129,7 @@ services:
       - "${MINIO_API_PORT:-9050}:9000"
       - "${MINIO_CONSOLE_PORT:-9051}:9001"
     volumes:
-      - mas-dev_minio_data:/data
+      - minio_data:/data
     healthcheck:
       test: ["CMD", "mc", "ready", "local"]
       interval: 30s
@@ -150,9 +138,6 @@ services:
 
 volumes:
   clickhouse_data:
-  mas-dev_redis_data:
-    external: true
-  mas-dev_postgres_data:
-    external: true
-  mas-dev_minio_data:
-    external: true
+  redis_data:
+  postgres_data:
+  minio_data:

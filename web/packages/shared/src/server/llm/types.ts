@@ -9,7 +9,7 @@ import { AuthHeaderValidVerificationResult } from "../auth/types";
 import { JSONObjectSchema } from "../../utils/zod";
 
 /* eslint-disable no-unused-vars */
-// disable lint as this is exported and used in web/worker
+// disable lint as this is exported and used in frontend/worker
 
 export const LLMJSONSchema = z.record(z.string(), z.unknown());
 export type LLMJSONSchema = z.infer<typeof LLMJSONSchema>;

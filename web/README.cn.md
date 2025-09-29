@@ -348,7 +348,7 @@ _[Langfuse 中的公共示例追踪](https://cloud.langfuse.com/project/cloramnk
 1. 了解 Langfuse 的使用情况，并改进最关键的功能。
 2. 跟踪整体使用数据，以便内部及外部（例如筹款）报告。
 
-所有数据均不会与第三方共享，也不包含任何敏感信息。我们对这一过程保持高度透明，你可以在 [此处](/web/src/features/telemetry/index.ts) 查看我们收集的具体数据。
+所有数据均不会与第三方共享，也不包含任何敏感信息。我们对这一过程保持高度透明，你可以在 [此处](/frontend/src/features/telemetry/index.ts) 查看我们收集的具体数据。
 
 你可以通过设置 `TELEMETRY_ENABLED=false` 来选择退出。
 

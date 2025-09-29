@@ -1,7 +1,7 @@
 services:
   langfuse-web:
     build:
-      dockerfile: ./web/Dockerfile
+      dockerfile: ./frontend/Dockerfile
       context: .
       args:
         - NEXT_PUBLIC_LANGFUSE_CLOUD_REGION=${NEXT_PUBLIC_LANGFUSE_CLOUD_REGION}

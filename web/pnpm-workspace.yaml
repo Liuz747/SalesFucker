@@ -1,5 +1,5 @@
 packages:
   # include packages in subfolders (e.g. apps/ and packages/)
-  - "web"
+  - "frontend"
   - "worker"
   - "packages/**"
