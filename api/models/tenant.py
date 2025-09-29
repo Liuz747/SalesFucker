@@ -9,6 +9,7 @@
 - TenantModel: 租户配置业务模型
 - TenantOrm: 租户数据库模型
 """
+
 from datetime import datetime
 from typing import Optional, Self
 
@@ -31,7 +32,7 @@ class TenantOrm(Base):
     # 基本信息
     tenant_id = Column(String(64), primary_key=True)
     tenant_name = Column(String(255), nullable=False)
-    status = Column(Enum(TenantStatus, name='status'), nullable=False, default=TenantStatus.ACTIVE)
+    status = Column(Enum(TenantStatus, name='tenant_status'), nullable=False, default=TenantStatus.ACTIVE)
 
     # 业务信息
     industry = Column(String(64))

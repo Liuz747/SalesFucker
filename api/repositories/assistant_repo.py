@@ -264,7 +264,7 @@ class AssistantRepository:
             )
             logger.debug(f"更新租户缓存: {assistant_model.assistant_id}")
         except RedisError as e:
-            print(f"redis 命令执行失败: {e}")
+            logger.error(f"redis 命令执行失败: {e}")
             raise
         except Exception as e:
             logger.error(f"更新租户缓存失败: {assistant_model.assistant_id}, 错误: {e}")
@@ -299,7 +299,7 @@ class AssistantRepository:
                 return AssistantModel(**assistant_data)
             return None
         except RedisError as e:
-            print(f"redis 命令执行失败: {e}")
+            logger.error(f"redis 命令执行失败: {e}")
             raise
         except Exception as e:
             logger.error(f"获取数字员工缓存失败: {assistant_id}, 错误: {e}")

@@ -119,10 +119,6 @@ class AssistantUpdateRequest(BaseRequest):
     """
     更新AI员工请求模型
     """
-
-    # 不支持修改 tenant_id
-    # tenant_id: str = Field(description="租户标识符", min_length=1, max_length=100)
-
     assistant_name: Optional[str] = Field(
         None, description="助理姓名", min_length=1, max_length=100
     )

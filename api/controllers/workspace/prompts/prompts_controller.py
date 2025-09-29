@@ -14,7 +14,7 @@
 - GET /v1/prompts/templates - 获取提示词模板
 """
 
-from fastapi import APIRouter, HTTPException, Query, Path, status
+from fastapi import APIRouter, HTTPException, Query, status
 from typing import List, Optional
 
 from models.prompts import PromptsModel
@@ -28,18 +28,16 @@ from services.prompts_services import PromptService
 from utils import get_component_logger
 from legacy_api.schemas.responses import SimpleResponse
 
-# 创建路由器
-router = APIRouter()
 logger = get_component_logger(__name__, "prompts_endpoints")
 
-# 初始化处理器
-prompt_handler = PromptService()
 
+# 创建路由器
+router = APIRouter()
 
 @router.post("/{assistant_id}", response_model=SimpleResponse[PromptConfigResponse])
 async def create_assistant_prompts(
         request: PromptCreateRequest,
-        assistant_id: str = Path(..., description="助理ID")
+        assistant_id: str
 ) -> SimpleResponse[PromptConfigResponse]:
     """
     为助理配置提示词
@@ -62,7 +60,7 @@ async def create_assistant_prompts(
             #     detail="请求中的助理ID与路径参数不匹配"
             # )
 
-        result = await prompt_handler.create_assistant_prompts(request)
+        result = await PromptService.create_assistant_prompts(request)
 
         logger.info(f"助理提示词配置成功: {assistant_id}")
         return NewPromptResponse(result)
@@ -83,9 +81,9 @@ async def create_assistant_prompts(
 
 @router.get("/{assistant_id}/{tenant_id}/{version}", response_model=SimpleResponse[PromptConfigResponse])
 async def get_assistant_prompts(
-        assistant_id: str = Path(..., description="助理ID"),
-        tenant_id: str = Path(..., description="租户标识符"),
-        version: Optional[str] = Path(..., description="配置版本")
+        assistant_id: str,
+        tenant_id: str,
+        version: Optional[str]
 ) -> SimpleResponse[PromptConfigResponse]:
     """
     获取助理提示词配置
@@ -95,7 +93,7 @@ async def get_assistant_prompts(
     try:
         logger.info(f"查询助理提示词: tenant={tenant_id}, assistant={assistant_id}")
 
-        result = await prompt_handler.get_assistant_prompts(
+        result = await PromptService.get_assistant_prompts(
             assistant_id, tenant_id, version
         )
 
@@ -135,8 +133,8 @@ async def get_assistant_prompts(
 @router.put("/{tenant_id}/{assistant_id}", response_model=SimpleResponse[PromptConfigResponse])
 async def update_assistant_prompts(
         request: PromptUpdateRequest,
-        tenant_id: str = Path(..., description="租户ID"),
-        assistant_id: str = Path(..., description="助理ID")
+        tenant_id: str,
+        assistant_id: str
 ) -> SimpleResponse[PromptConfigResponse]:
     """
     更新助理提示词配置
@@ -146,7 +144,7 @@ async def update_assistant_prompts(
     try:
         logger.info(f"更新助理提示词: tenant={tenant_id}, assistant={assistant_id}")
 
-        result = await prompt_handler.update_assistant_prompts(
+        result = await PromptService.update_assistant_prompts(
             assistant_id, tenant_id, request
         )
 
@@ -179,8 +177,8 @@ async def update_assistant_prompts(
 @router.post("/{tenant_id}/{assistant_id}/test", response_model=PromptTestResponse)
 async def test_assistant_prompts(
         request: PromptTestRequest,
-        tenant_id: str = Path(..., description="助理D"),
-        assistant_id: str = Path(..., description="助理ID")
+        tenant_id: str,
+        assistant_id: str
 ) -> PromptTestResponse:
     """
     测试助理提示词效果
@@ -190,7 +188,7 @@ async def test_assistant_prompts(
     try:
         logger.info(f"测试助理提示词: tenant={tenant_id}, assistant={assistant_id}")
 
-        result = await prompt_handler.test_assistant_prompts(
+        result = await PromptService.test_assistant_prompts(
             assistant_id, tenant_id, request
         )
 
@@ -214,7 +212,7 @@ async def test_assistant_prompts(
 @router.post("/{assistant_id}/validate", response_model=SimpleResponse[PromptValidationResponse])
 async def validate_assistant_prompts(
         request: AssistantPromptConfig,
-        assistant_id: str = Path(..., description="助理ID")
+        assistant_id: str
 ) -> SimpleResponse[PromptValidationResponse]:
     """
     验证助理提示词配置
@@ -224,7 +222,7 @@ async def validate_assistant_prompts(
     try:
         logger.info(f"验证助理提示词: tenant={request.tenant_id}, assistant={assistant_id}")
 
-        result = await prompt_handler.validate_assistant_prompts(
+        result = await PromptService.validate_assistant_prompts(
             assistant_id, request.tenant_id, request
         )
 
@@ -280,7 +278,7 @@ async def get_prompt_library(
             page_size=page_size
         )
 
-        result = await prompt_handler.get_prompt_library(search_request)
+        result = await PromptService.get_prompt_library(search_request)
 
         logger.info(f"提示词库查询成功: 返回{len(result.items)}条记录")
         return result
@@ -295,7 +293,7 @@ async def get_prompt_library(
 
 @router.get("/templates/{category}", response_model=PromptLibraryResponse)
 async def get_prompt_templates_by_category(
-        category: PromptCategory = Path(..., description="提示词分类"),
+        category: PromptCategory,
         language: PromptLanguage = Query(PromptLanguage.CHINESE, description="语言"),
         tenant_id: str = Query(..., description="租户标识符")
 ) -> PromptLibraryResponse:
@@ -316,7 +314,7 @@ async def get_prompt_templates_by_category(
             page_size=50
         )
 
-        result = await prompt_handler.get_prompt_library(search_request)
+        result = await PromptService.get_prompt_library(search_request)
 
         logger.info(f"分类提示词模板查询成功: {category}, 返回{len(result.items)}条记录")
         return result
@@ -331,7 +329,7 @@ async def get_prompt_templates_by_category(
 
 @router.post("/{target_assistant_id}/clone", response_model=SimpleResponse[PromptConfigResponse])
 async def clone_assistant_prompts(
-        target_assistant_id: str = Path(..., description="目标助理ID"),
+        target_assistant_id: str,
         source_assistant_id: str = Query(..., description="源助理ID"),
         tenant_id: str = Query(..., description="租户标识符"),
         modify_personality: bool = Query(False, description="是否修改个性化部分")
@@ -345,7 +343,7 @@ async def clone_assistant_prompts(
         logger.info(
             f"克隆助理提示词: tenant={tenant_id}, source={source_assistant_id} -> target={target_assistant_id}")
 
-        result = await prompt_handler.clone_assistant_prompts(
+        result = await PromptService.clone_assistant_prompts(
             source_assistant_id, target_assistant_id, tenant_id, modify_personality
         )
 
@@ -370,7 +368,7 @@ async def clone_assistant_prompts(
 
 @router.get("/{assistant_id}/history", response_model=SimpleResponse[List[PromptsModel]])
 async def get_prompt_history(
-        assistant_id: str = Path(..., description="助理ID"),
+        assistant_id: str,
         tenant_id: str = Query(..., description="租户标识符"),
         limit: int = Query(10, ge=1, le=50, description="历史版本数量限制")
 ) -> SimpleResponse[List[PromptsModel]]:
@@ -382,7 +380,7 @@ async def get_prompt_history(
     try:
         logger.info(f"查询助理提示词历史: tenant={tenant_id}, assistant={assistant_id}")
 
-        result = await prompt_handler.get_prompt_history(
+        result = await PromptService.get_prompt_history(
             assistant_id, tenant_id, limit
         )
 
@@ -405,7 +403,7 @@ async def get_prompt_history(
 
 @router.post("/{assistant_id}/rollback", response_model=SimpleResponse[PromptsModel])
 async def rollback_assistant_prompts(
-        assistant_id: str = Path(..., description="助理ID"),
+        assistant_id: str,
         version: str = Query(..., description="回退到的版本"),
         tenant_id: str = Query(..., description="租户标识符")
 ) -> SimpleResponse[PromptsModel]:
@@ -417,7 +415,7 @@ async def rollback_assistant_prompts(
     try:
         logger.info(f"回退助理提示词: tenant={tenant_id}, assistant={assistant_id}, version={version}")
 
-        result = await prompt_handler.rollback_assistant_prompts(
+        result = await PromptService.rollback_assistant_prompts(
             assistant_id, tenant_id, version
         )
 

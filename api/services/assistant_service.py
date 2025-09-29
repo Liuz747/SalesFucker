@@ -21,8 +21,7 @@ from infra.db import database_session
 from models.prompts import PromptsModel
 from repositories.prompts_repo import PromptsRepository
 from repositories.tenant_repo import TenantRepository
-from controllers.conversation_error_code import TenantNotFoundException, AssistantConflictException, \
-    AssistantNotFoundException
+from controllers.exceptions import TenantNotFoundException, AssistantConflictException, AssistantNotFoundException
 from legacy_api.schemas.assistants import (
     AssistantCreateRequest, AssistantUpdateRequest, AssistantConfigRequest,
     AssistantListRequest, AssistantListResponse,
@@ -36,7 +35,7 @@ from services.prompts_services import PromptService
 from utils import get_component_logger, get_current_datetime
 from legacy_api.schemas.responses import SimpleResponse
 
-logger = get_component_logger(__name__, "AssistantHandler")
+logger = get_component_logger(__name__, "AssistantService")
 
 
 class AssistantService:
@@ -74,7 +73,7 @@ class AssistantService:
         try:
             async with database_session() as session:
                 # 1. 先查询 tenant 是否存在
-                tenant_orm = await TenantRepository.get_tenant_by_tenant_id(request.tenant_id, session)
+                tenant_orm = await TenantRepository.get_tenant_by_id(request.tenant_id, session)
                 if not tenant_orm:
                     # 需要 raise 个错误
                     raise TenantNotFoundException(tenant_id=request.tenant_id)

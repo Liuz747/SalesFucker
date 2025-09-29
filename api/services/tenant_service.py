@@ -16,9 +16,8 @@ from typing import Optional
 
 from infra.db import database_session
 from infra.cache import get_redis_client
-from models import TenantStatus
-from repositories.tenant_repo import TenantRepository, TenantModel
-from controllers.conversation_error_code import TenantNotFoundException
+from repositories.tenant_repo import TenantRepository, TenantModel, TenantStatus
+from controllers.exceptions import TenantNotFoundException
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "TenantService")
@@ -42,9 +41,9 @@ class TenantService:
             tenant_orm = tenant.to_orm()
 
             async with database_session() as session:
-                tenant_id = await TenantRepository.insert_tenant(tenant_orm, session)
+                flag = await TenantRepository.insert_tenant(tenant_orm, session)
 
-            if tenant_id:
+            if flag:
                 # 直接获取Redis客户端，使用连接池
                 redis_client = await get_redis_client()
                 tenant_model = TenantModel.to_model(tenant_orm)
@@ -52,24 +51,14 @@ class TenantService:
                     tenant_model,
                     redis_client
                 ))
-                # return True
-            else:
-                logger.error(f"创建租户失败: {tenant_id}")
-                return None
+                return tenant_model
+
+            logger.error(f"创建租户失败: {tenant.tenant_id}")
+            return None
+
         except IntegrityError as e:
-            logger.error(f"创建租户失败，租户ID已存在: {tenant_orm.tenant_id}")
-            raise TenantAlreadyExistsException(tenant_orm.tenant_id)
-
-        except Exception as e:
-            logger.error(f"创建租户失败: {tenant.tenant_id}, 错误: {e}")
-            raise
-
-        try:
-            async with database_session() as session:
-                tenant_orm = await TenantRepository.get_tenant_by_tenant_id(tenant_id, session)
-            if not tenant_orm:
-                raise TenantNotFoundException(tenant_id)
-            return TenantModel.to_model(tenant_orm)
+            logger.error(f"创建租户失败，租户ID已存在: {tenant.tenant_id}")
+            raise TenantAlreadyExistsException(tenant.tenant_id)
         except Exception as e:
             logger.error(f"创建租户失败: {tenant.tenant_id}, 错误: {e}")
             raise
@@ -97,7 +86,7 @@ class TenantService:
 
             # Level 2: 数据库查询
             async with database_session() as session:
-                tenant_orm = await TenantRepository.get_tenant_by_tenant_id(tenant_id, session)
+                tenant_orm = await TenantRepository.get_tenant_by_id(tenant_id, session)
 
             if tenant_orm:
                 tenant_model = TenantModel.to_model(tenant_orm)
@@ -124,7 +113,7 @@ class TenantService:
         """更新租户"""
         try:
             async with database_session() as session:
-                tenant_orm = await TenantRepository.get_tenant_by_tenant_id(tenant_id, session)
+                tenant_orm = await TenantRepository.get_tenant_by_id(tenant_id, session)
                 if not tenant_orm:
                     raise TenantNotFoundException(tenant_id)
 

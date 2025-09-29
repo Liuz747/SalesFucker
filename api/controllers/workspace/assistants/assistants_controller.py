@@ -13,10 +13,10 @@ AI员工管理API端点
 - GET /v1/assistants/{assistant_id}/stats - 获取助理统计
 """
 
-from fastapi import APIRouter, HTTPException, Query, Path, status
+from fastapi import APIRouter, HTTPException, Query, status
 from typing import Optional
 
-from controllers.conversation_error_code import AssistantNotFoundException
+from controllers.exceptions import AssistantNotFoundException
 from legacy_api.schemas.assistants import (
     AssistantCreateRequest, AssistantUpdateRequest, AssistantOperationResponse
 )
@@ -25,13 +25,11 @@ from utils import get_component_logger
 from models.assistant import AssistantModel
 from legacy_api.schemas.responses import SimpleResponse
 
-# 创建路由器
-router = APIRouter()
 logger = get_component_logger(__name__)
 
-# 初始化处理器
-assistant_service = AssistantService()
 
+# 创建路由器
+router = APIRouter()
 
 @router.post("/", response_model=SimpleResponse[AssistantModel], status_code=status.HTTP_201_CREATED)
 async def create_assistant(
@@ -46,9 +44,7 @@ async def create_assistant(
     try:
         logger.info(f"创建助理请求: tenant={request.tenant_id}, assistant={request.assistant_id}")
 
-        # JWT认证中已验证租户身份，无需重复检查
-
-        result = await assistant_service.create_assistant(
+        result = await AssistantService.create_assistant(
             request
         )
 
@@ -125,10 +121,7 @@ async def list_assistants(
 
 @router.get("/{assistant_id}", response_model=Optional[SimpleResponse[AssistantModel]])
 async def get_assistant(
-        assistant_id: str = Path(..., description="助理ID"),
-        # tenant_id: str = Query(..., description="租户标识符"),
-        # include_stats: bool = Query(False, description="是否包含统计信息"),
-        # include_config: bool = Query(True, description="是否包含配置信息")
+    assistant_id: str,
 ) -> Optional[SimpleResponse[AssistantModel]]:
     """
     获取助理详细信息
@@ -138,7 +131,7 @@ async def get_assistant(
     try:
         logger.info(f"查询助理详情: assistant={assistant_id}")
 
-        result = await assistant_service.get_assistant_by_id(
+        result = await AssistantService.get_assistant_by_id(
             assistant_id
         )
 
@@ -165,9 +158,8 @@ async def get_assistant(
 
 @router.put("/{assistant_id}", response_model=SimpleResponse[AssistantModel])
 async def update_assistant(
-        assistant_id: str = Path(..., description="助理ID"),
-        request: AssistantUpdateRequest = None,
-
+    assistant_id: str,
+    request: AssistantUpdateRequest = None
 ) -> Optional[SimpleResponse[AssistantModel]]:
     """
     更新助理信息
@@ -177,7 +169,7 @@ async def update_assistant(
     try:
         logger.info(f"更新助理请求: assistant={assistant_id}")
 
-        result = await assistant_service.update_assistant(
+        result = await AssistantService.update_assistant(
             assistant_id,  request
         )
 
@@ -209,7 +201,7 @@ async def update_assistant(
 
 @router.delete("/{assistant_id}", response_model=SimpleResponse[AssistantOperationResponse])
 async def delete_assistant(
-        assistant_id: str = Path(..., description="助理ID"),
+        assistant_id: str,
         tenant_id: str = Query(..., description="租户标识符"),
         force: bool = Query(False, description="是否强制删除（即使有活跃对话）")
 ) -> SimpleResponse[AssistantOperationResponse]:
@@ -221,7 +213,7 @@ async def delete_assistant(
     try:
         logger.info(f"删除助理请求: tenant={tenant_id}, assistant={assistant_id}, force={force}")
 
-        result = await assistant_service.delete_assistant(assistant_id, tenant_id, force)
+        result = await AssistantService.delete_assistant(assistant_id, tenant_id, force)
 
         if not result.success:
             logger.warning(f"助理删除失败: {assistant_id}")

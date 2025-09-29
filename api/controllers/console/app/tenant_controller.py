@@ -15,8 +15,7 @@ from schemas.tenant_schema import (
     TenantSyncResponse,
     TenantStatusResponse,
     TenantUpdateRequest,
-    TenantDeleteResponse,
-    TenantStatus
+    TenantDeleteResponse
 )
 
 from ..error import (
@@ -107,7 +106,7 @@ async def update_tenant(
         logger.info(f"租户更新请求: {tenant_id}")
 
         if not request.features and not request.status:
-            raise ValueError("更新租户配置失败")
+            raise ValueError
 
         tenant_model = await TenantService.update_tenant(
             tenant_id,
@@ -124,6 +123,7 @@ async def update_tenant(
             message="租户更新成功",
             features=tenant_model.features
         )
+
     except ValueError as e:
         logger.warning(f"租户更新参数错误: {e}")
         raise TenantSyncException(tenant_id, f"租户更新参数错误: {str(e)}")
@@ -149,9 +149,6 @@ async def delete_tenant(tenant_id: str):
             message="租户删除成功"
         )
 
-    except ValueError as e:
-        logger.warning(f"租户删除验证错误: {e}")
-        raise TenantSyncException(tenant_id, f"删除验证错误: {str(e)}")
     except Exception as e:
         logger.error(f"租户删除失败 {tenant_id}: {e}", exc_info=True)
         raise TenantSyncException(tenant_id, f"租户删除失败: {str(e)}")

@@ -20,27 +20,8 @@ class FeatureFlags(BaseModel):
     
     处理功能列表到字典的转换，封装业务逻辑。
     """
-    # enabled_features: Optional[bool] = Field(default_factory=bool, description="启用的功能列表")
     multimodal: Optional[bool] = Field(default_factory=bool, description="启用的功能列表")
     prompts: Optional[bool] = Field(default_factory=bool, description="启用的功能列表")
-
-    @staticmethod
-    def NewFeaturesFromMap(d: dict[str, bool]) -> 'FeatureFlags':
-        if len(d) == 0:
-            return FeatureFlags()
-        r = FeatureFlags()
-        if d['multimodal'] is not None:
-            r.multimodal = d['multimodal']
-        if d['prompts'] is not None:
-            r.multimodal = d['prompts']
-
-    def ToMap(self) -> dict[str, bool]:
-        m: dict[str, bool] = {}
-        if self.multimodal is not None:
-            m["multimodal"] = self.multimodal
-        if self.prompts is not None:
-            m["prompts"] = self.prompts
-        return m
 
 
 class TenantSyncRequest(BaseTenant):

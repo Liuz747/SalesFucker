@@ -17,7 +17,7 @@ from uuid import UUID
 
 import msgpack
 from redis import RedisError
-from sqlalchemy import select, update, and_, desc
+from sqlalchemy import select, update, and_
 
 from config import mas_config
 from models.prompts import PromptsOrmModel, PromptsModel
@@ -87,7 +87,7 @@ class PromptsRepository:
             )
             logger.debug(f"更新租户缓存: {prompts_model.id}")
         except RedisError as e:
-            print(f"redis 命令执行失败: {e}")
+            logger.error(f"redis 命令执行失败: {e}")
             raise
         except Exception as e:
             logger.error(f"更新租户缓存失败: {prompts_model.id}, 错误: {e}")
