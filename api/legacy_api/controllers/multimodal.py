@@ -26,7 +26,7 @@ from ..schemas.multimodal import (
     ProcessingType,
     AnalysisType
 )
-from ..handlers.multimodal_handler import MultimodalHandler
+from ..services.multimodal_handler import MultimodalHandler
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "MultimodalEndpoints")
