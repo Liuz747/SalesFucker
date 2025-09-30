@@ -26,7 +26,6 @@ from legacy_api.schemas.prompts import (
 )
 from services.prompts_services import PromptService
 from utils import get_component_logger
-from legacy_api.schemas.responses import SimpleResponse
 
 logger = get_component_logger(__name__, "prompts_endpoints")
 
@@ -34,11 +33,11 @@ logger = get_component_logger(__name__, "prompts_endpoints")
 # 创建路由器
 router = APIRouter()
 
-@router.post("/{assistant_id}", response_model=SimpleResponse[PromptConfigResponse])
+@router.post("/{assistant_id}", response_model=PromptConfigResponse)
 async def create_assistant_prompts(
         request: PromptCreateRequest,
         assistant_id: str
-) -> SimpleResponse[PromptConfigResponse]:
+) -> PromptConfigResponse:
     """
     为助理配置提示词
     
@@ -51,7 +50,7 @@ async def create_assistant_prompts(
 
         # 验证助理ID匹配
         if request.assistant_id != assistant_id:
-            return SimpleResponse(
+            return PromptConfigResponse(
                 code=1001,
                 message="参数不正确，请检查 body 和 query 中的 assistant_id",
             )
@@ -79,12 +78,12 @@ async def create_assistant_prompts(
         )
 
 
-@router.get("/{assistant_id}/{tenant_id}/{version}", response_model=SimpleResponse[PromptConfigResponse])
+@router.get("/{assistant_id}/{tenant_id}/{version}", response_model=PromptConfigResponse)
 async def get_assistant_prompts(
         assistant_id: str,
         tenant_id: str,
         version: Optional[str]
-) -> SimpleResponse[PromptConfigResponse]:
+) -> PromptConfigResponse:
     """
     获取助理提示词配置
     
@@ -99,7 +98,7 @@ async def get_assistant_prompts(
 
         if not result:
             logger.warning(f"助理提示词配置不存在: {assistant_id}")
-            return SimpleResponse(
+            return PromptConfigResponse(
                 code=1001,
                 message="数据不存在",
                 success=False,
@@ -130,12 +129,12 @@ async def get_assistant_prompts(
         )
 
 
-@router.put("/{tenant_id}/{assistant_id}", response_model=SimpleResponse[PromptConfigResponse])
+@router.put("/{tenant_id}/{assistant_id}", response_model=PromptConfigResponse)
 async def update_assistant_prompts(
         request: PromptUpdateRequest,
         tenant_id: str,
         assistant_id: str
-) -> SimpleResponse[PromptConfigResponse]:
+) -> PromptConfigResponse:
     """
     更新助理提示词配置
     
@@ -209,11 +208,11 @@ async def test_assistant_prompts(
         )
 
 
-@router.post("/{assistant_id}/validate", response_model=SimpleResponse[PromptValidationResponse])
+@router.post("/{assistant_id}/validate", response_model=PromptValidationResponse)
 async def validate_assistant_prompts(
         request: AssistantPromptConfig,
         assistant_id: str
-) -> SimpleResponse[PromptValidationResponse]:
+) -> PromptValidationResponse:
     """
     验证助理提示词配置
 
@@ -227,7 +226,7 @@ async def validate_assistant_prompts(
         )
 
         logger.info(f"助理提示词验证完成: {assistant_id}, 有效性: {result.is_valid}")
-        return SimpleResponse(
+        return PromptConfigResponse(
             code=0,
             message="请求成功",
             data=result
@@ -247,7 +246,7 @@ async def validate_assistant_prompts(
         )
 
 
-@router.get("/library", response_model=SimpleResponse[PromptLibraryResponse])
+@router.get("/library", response_model=PromptLibraryResponse)
 async def get_prompt_library(
         category: Optional[PromptCategory] = Query(None, description="分类筛选"),
         prompt_type: Optional[PromptType] = Query(None, description="类型筛选"),
@@ -327,13 +326,13 @@ async def get_prompt_templates_by_category(
         )
 
 
-@router.post("/{target_assistant_id}/clone", response_model=SimpleResponse[PromptConfigResponse])
+@router.post("/{target_assistant_id}/clone", response_model=PromptConfigResponse)
 async def clone_assistant_prompts(
         target_assistant_id: str,
         source_assistant_id: str = Query(..., description="源助理ID"),
         tenant_id: str = Query(..., description="租户标识符"),
         modify_personality: bool = Query(False, description="是否修改个性化部分")
-) -> SimpleResponse[PromptConfigResponse]:
+) -> PromptConfigResponse:
     """
     克隆助理提示词配置
     
@@ -366,12 +365,12 @@ async def clone_assistant_prompts(
         )
 
 
-@router.get("/{assistant_id}/history", response_model=SimpleResponse[List[PromptsModel]])
+@router.get("/{assistant_id}/history", response_model=List[PromptsModel])
 async def get_prompt_history(
         assistant_id: str,
         tenant_id: str = Query(..., description="租户标识符"),
         limit: int = Query(10, ge=1, le=50, description="历史版本数量限制")
-) -> SimpleResponse[List[PromptsModel]]:
+) -> List[PromptsModel]:
     """
     获取助理提示词历史版本
     
@@ -385,7 +384,7 @@ async def get_prompt_history(
         )
 
         logger.info(f"助理提示词历史查询成功: {assistant_id}, 返回{len(result)}个版本")
-        return SimpleResponse[List[PromptsModel]](
+        return List[PromptsModel](
             code=0,
             message="查询成功",
             # data=[PromptsModel(),PromptsModel()]
@@ -401,12 +400,12 @@ async def get_prompt_history(
         )
 
 
-@router.post("/{assistant_id}/rollback", response_model=SimpleResponse[PromptsModel])
+@router.post("/{assistant_id}/rollback", response_model=PromptsModel)
 async def rollback_assistant_prompts(
         assistant_id: str,
         version: str = Query(..., description="回退到的版本"),
         tenant_id: str = Query(..., description="租户标识符")
-) -> SimpleResponse[PromptsModel]:
+) -> PromptsModel:
     """
     回退助理提示词配置
     
@@ -439,8 +438,8 @@ async def rollback_assistant_prompts(
         )
 
 
-def NewPromptResponse(result: PromptsModel) -> SimpleResponse:
-    return SimpleResponse(
+def NewPromptResponse(result: PromptsModel) -> PromptConfigResponse:
+    return PromptConfigResponse(
         code=0,
         message="查询成功",
         success=True,

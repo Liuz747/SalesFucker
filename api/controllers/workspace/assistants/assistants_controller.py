@@ -16,14 +16,13 @@ AI员工管理API端点
 from fastapi import APIRouter, HTTPException, Query, status
 from typing import Optional
 
-from controllers.exceptions import AssistantNotFoundException
+from schemas.exceptions import AssistantNotFoundException
 from legacy_api.schemas.assistants import (
     AssistantCreateRequest, AssistantUpdateRequest, AssistantOperationResponse
 )
 from services.assistant_service import AssistantService
 from utils import get_component_logger
 from models.assistant import AssistantModel
-from legacy_api.schemas.responses import SimpleResponse
 
 logger = get_component_logger(__name__)
 
@@ -31,11 +30,8 @@ logger = get_component_logger(__name__)
 # 创建路由器
 router = APIRouter()
 
-@router.post("/", response_model=SimpleResponse[AssistantModel], status_code=status.HTTP_201_CREATED)
-async def create_assistant(
-        request: AssistantCreateRequest,
-
-) -> SimpleResponse[AssistantModel]:
+@router.post("/", response_model=AssistantModel, status_code=status.HTTP_201_CREATED)
+async def create_assistant(request: AssistantCreateRequest) -> AssistantModel:
     """
     创建新的AI员工
     
@@ -119,10 +115,10 @@ async def list_assistants(
 """
 
 
-@router.get("/{assistant_id}", response_model=Optional[SimpleResponse[AssistantModel]])
+@router.get("/{assistant_id}", response_model=Optional[AssistantModel])
 async def get_assistant(
     assistant_id: str,
-) -> Optional[SimpleResponse[AssistantModel]]:
+) -> Optional[AssistantModel]:
     """
     获取助理详细信息
     
@@ -140,7 +136,7 @@ async def get_assistant(
             raise AssistantNotFoundException(assistant_id)
 
         logger.info(f"助理详情查询成功: {assistant_id} {type(result)}")
-        return SimpleResponse[AssistantModel](
+        return AssistantModel(
             code=0,
             message="success",
             data=result,
@@ -156,11 +152,11 @@ async def get_assistant(
         )
 
 
-@router.put("/{assistant_id}", response_model=SimpleResponse[AssistantModel])
+@router.put("/{assistant_id}", response_model=AssistantModel)
 async def update_assistant(
     assistant_id: str,
     request: AssistantUpdateRequest = None
-) -> Optional[SimpleResponse[AssistantModel]]:
+) -> Optional[AssistantModel]:
     """
     更新助理信息
     
@@ -176,7 +172,7 @@ async def update_assistant(
         if not result:
             raise AssistantNotFoundException(assistant_id)
         logger.info(f"助理更新成功: {assistant_id}")
-        return SimpleResponse[AssistantModel](
+        return AssistantModel(
             content=0,
             message="success",
             data=result
@@ -199,12 +195,12 @@ async def update_assistant(
         )
 
 
-@router.delete("/{assistant_id}", response_model=SimpleResponse[AssistantOperationResponse])
+@router.delete("/{assistant_id}", response_model=AssistantOperationResponse)
 async def delete_assistant(
         assistant_id: str,
         tenant_id: str = Query(..., description="租户标识符"),
         force: bool = Query(False, description="是否强制删除（即使有活跃对话）")
-) -> SimpleResponse[AssistantOperationResponse]:
+) -> AssistantOperationResponse:
     """
     删除助理
     

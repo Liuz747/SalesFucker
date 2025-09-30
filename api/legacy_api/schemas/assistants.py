@@ -19,8 +19,6 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field, field_validator
 
 from .prompts import AssistantPromptConfig
-from .requests import BaseRequest, PaginationRequest
-from .responses import PaginatedResponse, SimpleResponse
 
 
 class AssistantStatus(str, Enum):
@@ -51,7 +49,7 @@ class ExpertiseLevel(str, Enum):
     EXPERT = "expert"  # 专家
 
 
-class AssistantCreateRequest(BaseRequest):
+class AssistantCreateRequest(BaseModel):
     """
     创建AI员工请求模型
     """
@@ -115,7 +113,7 @@ class AssistantCreateRequest(BaseRequest):
         return v.strip()
 
 
-class AssistantUpdateRequest(BaseRequest):
+class AssistantUpdateRequest(BaseModel):
     """
     更新AI员工请求模型
     """
@@ -153,7 +151,7 @@ class AssistantUpdateRequest(BaseRequest):
     status: Optional[AssistantStatus] = Field(None, description="助理状态")
 
 
-class AssistantConfigRequest(BaseRequest):
+class AssistantConfigRequest(BaseModel):
     """
     助理配置请求模型
     """
@@ -172,7 +170,7 @@ class AssistantConfigRequest(BaseRequest):
     )
 
 
-class AssistantListRequest(PaginationRequest):
+class AssistantListRequest(BaseModel):
     """
     助理列表查询请求模型
     """
@@ -209,7 +207,7 @@ class AssistantListRequest(PaginationRequest):
 # 响应模型
 
 
-class AssistantResponse(SimpleResponse[Dict[str, Any]]):
+class AssistantResponse(BaseModel):
     """
     AI员工响应模型
     """
@@ -256,7 +254,7 @@ class AssistantResponse(SimpleResponse[Dict[str, Any]]):
     )
 
 
-class AssistantListResponse(PaginatedResponse[List[Dict[str, Any]]]):
+class AssistantListResponse(BaseModel):
     """
     助理列表响应模型
     """
@@ -275,7 +273,7 @@ class AssistantListResponse(PaginatedResponse[List[Dict[str, Any]]]):
     filter_summary: Dict[str, int] = Field(description="过滤条件统计")
 
 
-class AssistantStatsResponse(SimpleResponse[Dict[str, Any]]):
+class AssistantStatsResponse(BaseModel):
     """
     助理统计响应模型
     """
@@ -303,7 +301,7 @@ class AssistantStatsResponse(SimpleResponse[Dict[str, Any]]):
     trends: Dict[str, List[float]] = Field(description="趋势数据")
 
 
-class AssistantOperationResponse(SimpleResponse):
+class AssistantOperationResponse(BaseModel):
     """
     助理操作响应模型
     """
