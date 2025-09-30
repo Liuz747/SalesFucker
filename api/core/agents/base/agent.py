@@ -73,6 +73,7 @@ class BaseAgent(ABC):
     async def invoke_llm(
         self,
         messages: list,
+        id: str = None,
         model: str = "gpt-4o-mini",
         provider: str = "openai",
         temperature: float = 0.7,
@@ -92,7 +93,7 @@ class BaseAgent(ABC):
             str: LLM响应内容
         """
         request = LLMRequest(
-            id=None,
+            id=id,
             messages=messages,
             model=model,
             provider=provider,

@@ -54,7 +54,7 @@ class LLMClient:
         """
         try:
             # 直接使用ProviderID
-            provider_id = request.provider.lower()
+            provider_id = request.id.lower()
             if provider_id not in self.active_providers:
                 raise Exception(f"指定的供应商不可用: {request.provider}")
             
