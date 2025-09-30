@@ -16,7 +16,7 @@ from fastapi import APIRouter, HTTPException, File, UploadFile, Form, Background
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 
-from ..schemas.multimodal import (
+from .schemas.multimodal import (
     VoiceProcessingRequest,
     ImageAnalysisRequest,
     BatchMultimodalRequest,
@@ -26,7 +26,7 @@ from ..schemas.multimodal import (
     ProcessingType,
     AnalysisType
 )
-from ..services.multimodal_handler import MultimodalHandler
+from .multimodal_handler import MultimodalHandler
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "MultimodalEndpoints")
