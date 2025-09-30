@@ -13,10 +13,8 @@
 
 from typing import Dict, Any, Optional
 from datetime import datetime
-import json
-import re
 
-from ..base import BaseAgent
+from ..base import BaseAgent, parse_json_response
 from .rule_manager import ComplianceRuleManager
 from .checker import ComplianceChecker
 from .audit import ComplianceAuditor
@@ -290,10 +288,17 @@ class ComplianceAgent(BaseAgent):
             # 调用LLM分析
             messages = [{"role": "user", "content": prompt}]
             response = await self.llm_call(messages, temperature=0.3)
-            
+
             # 解析结构化响应
-            return self._parse_json_response(response)
-            
+            default_result = {
+                "status": "approved",
+                "violations": [],
+                "severity": "low",
+                "user_message": "",
+                "recommended_action": "proceed"
+            }
+            return parse_json_response(response, default_result=default_result)
+
         except Exception as e:
             self.logger.warning(f"LLM合规分析失败: {e}")
             return {
@@ -347,48 +352,4 @@ class ComplianceAgent(BaseAgent):
             "agent_id": self.agent_id
         }
 
-    def _parse_json_response(self, response: str) -> Dict[str, Any]:
-        """
-        从LLM响应中提取并解析JSON
-
-        参数:
-            response: LLM响应文本
-
-        返回:
-            Dict[str, Any]: 解析后的JSON数据，或默认值
-        """
-        try:
-            # 尝试提取JSON内容
-            json_match = re.search(r'\{.*\}', response, re.DOTALL)
-            if json_match:
-                json_str = json_match.group()
-                result = json.loads(json_str)
-
-                # 确保必需字段存在
-                default_result = {
-                    "status": "approved",
-                    "violations": [],
-                    "severity": "low",
-                    "user_message": "",
-                    "recommended_action": "proceed"
-                }
-
-                # 合并结果，缺失字段使用默认值
-                for key, default_value in default_result.items():
-                    if key not in result:
-                        result[key] = default_value
-
-                return result
-
-        except (json.JSONDecodeError, Exception) as e:
-            self.logger.warning(f"JSON解析失败: {e}")
-
-        # 返回默认响应
-        return {
-            "status": "approved",
-            "violations": [],
-            "severity": "low",
-            "user_message": "",
-            "recommended_action": "proceed",
-            "fallback": True
-        } 
+ 

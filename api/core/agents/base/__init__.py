@@ -14,9 +14,11 @@
 # 核心智能体组件导入
 from .agent import BaseAgent
 from .message import AgentMessage
+from .response_parser import parse_json_response
 
 __all__ = [
     # 核心智能体组件
     "BaseAgent",
-    "AgentMessage"
+    "AgentMessage",
+    "parse_json_response"
 ] 

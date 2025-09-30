@@ -63,10 +63,11 @@ class ChatAgent(BaseAgent):
 
             # 调用LLM生成回复
             chat_response = await self.invoke_llm(
+                id="openrouter",
                 messages=messages,
-                model="gpt-4o-mini",
+                model="openai/gpt-5-mini",
                 provider="openai",
-                temperature=0.7,
+                temperature=1,
                 max_tokens=500
             )
 
