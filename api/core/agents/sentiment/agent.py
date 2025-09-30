@@ -11,6 +11,7 @@ from typing import Dict, Any
 from langfuse import observe
 
 from ..base import BaseAgent, parse_json_response
+from core.prompts.templates import get_default_prompt, AgentType, PromptType
 from utils import get_current_datetime, get_processing_time_ms
 
 
@@ -120,43 +121,17 @@ class SentimentAnalysisAgent(BaseAgent):
                 recent_history = conversation_history[-5:]  # 最近5轮对话
                 history_text = f"\n对话历史：\n{self._format_history(recent_history)}\n"
 
-            # 综合分析提示词
-            prompt = f"""分析以下客户的情感状态和购买意图：
+            # 从templates.py获取情感分析提示词模板
+            prompt_template = get_default_prompt(
+                AgentType.SENTIMENT,
+                PromptType.SENTIMENT_ANALYSIS
+            )
 
-{history_text}
-当前客户输入：{customer_input}
-
-请返回JSON格式，包含情感分析和意图分析两部分：
-{{
-    "sentiment": {{
-        "sentiment": "positive",
-        "score": 0.8,
-        "confidence": 0.9,
-        "emotions": ["愉快", "期待"],
-        "satisfaction": "satisfied",
-        "urgency": "medium"
-    }},
-    "intent": {{
-        "intent": "interested",
-        "category": "skincare",
-        "confidence": 0.85,
-        "urgency": "medium",
-        "decision_stage": "consideration",
-        "needs": ["保湿", "抗老"],
-        "customer_profile": {{
-            "skin_concerns": ["干燥", "细纹"],
-            "product_interests": ["精华液", "面霜"],
-            "experience_level": "intermediate",
-            "budget_signals": ["性价比", "效果好"]
-        }}
-    }}
-}}
-
-说明：
-- sentiment: positive/neutral/negative
-- urgency: low/medium/high
-- decision_stage: awareness/consideration/decision/purchase
-- intent: browsing/interested/comparing/ready_to_buy"""
+            # 填充模板参数
+            prompt = prompt_template.format(
+                history_text=history_text,
+                customer_input=customer_input
+            )
 
             # 调用LLM分析
             messages = [{"role": "user", "content": prompt}]
