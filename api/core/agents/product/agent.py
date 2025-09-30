@@ -82,15 +82,22 @@ class ProductExpertAgent(BaseAgent):
             customer_profile = state.get("customer_profile", {})
             customer_history = state.get('customer_history', [])
             
+            # 基于情感与意图综合分析结果生成需求画像
+            # 注意：intent_analysis 现在由 SentimentAnalysisAgent 统一提供
+            intent_analysis = state.get("intent_analysis", {}) or {}
+            needs_analysis = await self.needs_analyzer.analyze_customer_needs(
+                customer_input, customer_profile, intent_analysis
+            )
             
             # 生成产品推荐
             product_recommendations = await self._generate_product_recommendations(
-                customer_input, customer_profile, customer_history
+                customer_input, customer_profile, customer_history, needs_analysis
             )
             
             # 更新对话状态
             state.setdefault("agent_responses", {})[self.agent_id] = {
                 "product_recommendations": product_recommendations,
+                "needs_analysis": needs_analysis,
                 "processing_complete": True
             }
             state.setdefault("active_agents", []).append(self.agent_id)
