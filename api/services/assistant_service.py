@@ -33,7 +33,6 @@ from models.assistant import AssistantModel
 from repositories.assistant_repo import AssistantRepository
 from services.prompts_services import PromptService
 from utils import get_component_logger, get_current_datetime
-from legacy_api.schemas.responses import SimpleResponse
 
 logger = get_component_logger(__name__, "AssistantService")
 
@@ -58,7 +57,7 @@ class AssistantService:
 
         self.logger.info("AI员工处理器初始化完成")
 
-    async def create_assistant(self, request: AssistantCreateRequest) -> SimpleResponse[AssistantModel]:
+    async def create_assistant(self, request: AssistantCreateRequest) -> AssistantModel:
         """
         创建新的AI员工
         
@@ -170,7 +169,7 @@ class AssistantService:
 
         # return assistant_orm.to_business_model()
 
-        return SimpleResponse[AssistantModel](
+        return AssistantModel(
             code=0,
             message="助理创建成功",
             data=new_assistant,
@@ -403,7 +402,7 @@ class AssistantService:
                     # 处理提示词配置更新（如果提供）
                     if request.prompt_config:
                         try:
-                            from ..schemas.prompts import PromptUpdateRequest
+                            from legacy_api.schemas.prompts import PromptUpdateRequest
                             prompt_update = PromptUpdateRequest(
                                 personality_prompt=request.prompt_config.personality_prompt,
                                 greeting_prompt=request.prompt_config.greeting_prompt,
@@ -449,7 +448,7 @@ class AssistantService:
             assistant_id: str,
             tenant_id: str,
             request: AssistantConfigRequest
-    ) -> SimpleResponse[AssistantOperationResponse]:
+    ) -> AssistantOperationResponse:
         """
         配置助理设置
         
@@ -466,7 +465,7 @@ class AssistantService:
             assistant = self._assistants_store.get(assistant_key)
 
             if not assistant:
-                return SimpleResponse[AssistantOperationResponse](
+                return AssistantOperationResponse(
                     # success=False,
                     # message="助理不存在",
                     # data={},
@@ -500,7 +499,7 @@ class AssistantService:
 
             self.logger.info(f"助理配置成功: {assistant_id}, 配置类型: {config_type}")
 
-            return SimpleResponse[AssistantOperationResponse](
+            return AssistantOperationResponse(
                 # success=True,
                 # message="助理配置成功",
                 # data={},
@@ -520,7 +519,7 @@ class AssistantService:
             days: int = 30,
             include_trends: bool = True,
             include_devices: bool = True
-    ) -> Optional[SimpleResponse[AssistantStatsResponse]]:
+    ) -> Optional[AssistantStatsResponse]:
         """
         获取助理统计信息
         
@@ -558,7 +557,7 @@ class AssistantService:
 
             self.logger.info(f"助理统计查询成功: {assistant_id}")
 
-            return SimpleResponse[AssistantStatsResponse](
+            return AssistantStatsResponse(
                 success=True,
                 message="助理统计查询成功",
                 data={},
@@ -579,18 +578,15 @@ class AssistantService:
             self.logger.error(f"助理统计查询失败: {e}")
             raise
 
-    async def activate_assistant(self, assistant_id: str, tenant_id: str) -> SimpleResponse[
-        AssistantOperationResponse]:
+    async def activate_assistant(self, assistant_id: str, tenant_id: str) -> AssistantOperationResponse:
         """激活助理"""
         return await self._change_assistant_status(assistant_id, tenant_id, AssistantStatus.ACTIVE, "activate")
 
-    async def deactivate_assistant(self, assistant_id: str, tenant_id: str) -> SimpleResponse[
-        AssistantOperationResponse]:
+    async def deactivate_assistant(self, assistant_id: str, tenant_id: str) -> AssistantOperationResponse:
         """停用助理"""
         return await self._change_assistant_status(assistant_id, tenant_id, AssistantStatus.INACTIVE, "deactivate")
 
-    async def delete_assistant(self, assistant_id: str, tenant_id: str,
-                               force: bool = False) -> SimpleResponse[AssistantOperationResponse]:
+    async def delete_assistant(self, assistant_id: str, tenant_id: str, force: bool = False) -> AssistantOperationResponse:
         """
         删除助理
         
@@ -607,7 +603,7 @@ class AssistantService:
             assistant = await AssistantService.get_assistant_by_id(assistant_id)
 
             if not assistant:
-                return SimpleResponse(
+                return AssistantOperationResponse(
                     code=4001,
                     message="助理不存在",
                     # success=False,
@@ -624,7 +620,7 @@ class AssistantService:
             current_customers = 0
 
             if current_customers > 0 and not force:
-                return SimpleResponse(
+                return AssistantOperationResponse(
                     code=10001,
                     message="助理有活跃对话，需要强制删除标志",
                     # success=False,
@@ -645,7 +641,7 @@ class AssistantService:
 
             self.logger.info(f"助理删除成功: {assistant_id}")
 
-            return SimpleResponse(
+            return AssistantOperationResponse(
                 code=0,
                 message="助理删除成功",
                 # data=assistant,
@@ -669,7 +665,7 @@ class AssistantService:
             tenant_id: str,
             new_status: AssistantStatus,
             operation: str
-    ) -> SimpleResponse[AssistantOperationResponse]:
+    ) -> AssistantOperationResponse:
         """改变助理状态的通用方法"""
         try:
             # assistant_key = f"{tenant_id}:{assistant_id}"
@@ -683,7 +679,7 @@ class AssistantService:
                 r.operation = operation,
                 r.success = True,
                 r.result_data = {"error": "助理不存在"}
-                return SimpleResponse(
+                return AssistantOperationResponse(
                     success=False,
                     message="助理不存在",
                     data=r,
@@ -713,7 +709,7 @@ class AssistantService:
                 r.previous_status = new_status
                 r.new_status = new_status
                 r.result_data = {"status_changed": True}
-                return SimpleResponse(
+                return AssistantOperationResponse(
                     success=True,
                     message=f"助理{operation}成功",
                     data=r,

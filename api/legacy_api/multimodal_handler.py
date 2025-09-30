@@ -22,7 +22,7 @@ from fastapi import HTTPException
 from fastapi import UploadFile, BackgroundTasks
 
 from utils import get_component_logger
-from .schemas.multimodal import (
+from .multimodal_schema import (
     VoiceProcessingRequest,
     ImageAnalysisRequest,
     BatchMultimodalRequest,

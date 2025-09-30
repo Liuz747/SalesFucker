@@ -16,7 +16,7 @@ from fastapi import APIRouter, HTTPException, File, UploadFile, Form, Background
 from typing import Dict, Any, Optional, List
 from datetime import datetime
 
-from .schemas.multimodal import (
+from .multimodal_schema import (
     VoiceProcessingRequest,
     ImageAnalysisRequest,
     BatchMultimodalRequest,
