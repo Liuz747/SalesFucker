@@ -42,7 +42,6 @@ class BaseHTTPException(HTTPException):
         }
 
 
-
 class WorkspaceException(BaseHTTPException):
     error_code = "WORKSPACE_ERROR"
     http_status_code = 400
@@ -50,21 +49,13 @@ class WorkspaceException(BaseHTTPException):
 
 class TenantManagementException(BaseHTTPException):
     error_code = 100000
-    detail = "TENANT_MANAGEMENT_ERROR"
+    error_message = "TENANT_MANAGEMENT_ERROR"
     http_status_code = 500
-
-
-class TenantIdMismatchException(TenantManagementException):
-    error_code = 1000001
-    detail = "TENANT_ID_MISMATCH"
-
-    def __init__(self, url_tenant_id: str, body_tenant_id: str):
-        super().__init__(detail=f"租户ID不匹配: URL中为 {url_tenant_id}, 请求体中为 {body_tenant_id}")
 
 
 class TenantNotFoundException(TenantManagementException):
     error_code = 1000002
-    detail = "TENANT_NOT_FOUND"
+    error_message = "TENANT_NOT_FOUND"
     http_status_code = 404
 
     def __init__(self, tenant_id: str):
@@ -73,8 +64,8 @@ class TenantNotFoundException(TenantManagementException):
 
 class TenantSyncException(TenantManagementException):
     error_code = 1000003
-    detail = "TENANT_SYNC_FAILED"
-    http_status_code = 500
+    error_message = "TENANT_SYNC_FAILED"
+    http_status_code = 400
 
     def __init__(self, tenant_id: str, reason: str = ""):
         detail = f"租户 {tenant_id} 同步失败"
@@ -85,8 +76,11 @@ class TenantSyncException(TenantManagementException):
 
 class TenantValidationException(BaseHTTPException):
     error_code = 1000005
-    detail = "TENANT_VALIDATION_ERROR"
+    error_message = "TENANT_VALIDATION_ERROR"
     http_status_code = 403
+
+    def __init__(self, tenant_id: str, reason: str):
+        super().__init__(detail=f"租户 {tenant_id} 验证失败: {reason}")
 
 
 class TenantIdRequiredException(TenantValidationException):
@@ -120,6 +114,15 @@ class TenantAccessDeniedException(TenantValidationException):
 
     def __init__(self, tenant_id: str, resource: str):
         super().__init__(detail=f"租户 {tenant_id} 无权访问 {resource}")
+
+
+class TenantAlreadyExistsException(TenantManagementException):
+    error_code = 1000001
+    error_message = "TENANT_ALREADY_EXISTS"
+    http_status_code = 409
+
+    def __init__(self, tenant_id: str):
+        super().__init__(detail=f"租户 {tenant_id} 已存在")
 
 
 class AssistantException(WorkspaceException):
@@ -253,13 +256,13 @@ class AssistantUnavailableException(AssistantException):
 
 class AuthenticationException(BaseHTTPException):
     error_code = 40000
-    detail = "AUTHENTICATION_ERROR"
+    error_message = "AUTHENTICATION_ERROR"
     http_status_code = 401
 
 
 class AppKeyNotConfiguredException(AuthenticationException):
     error_code = 40001
-    detail = "APP_AUTH_NOT_CONFIGURED"
+    error_message = "APP_AUTH_NOT_CONFIGURED"
     http_status_code = 500
 
     def __init__(self):
@@ -268,7 +271,7 @@ class AppKeyNotConfiguredException(AuthenticationException):
 
 class InvalidAppKeyException(AuthenticationException):
     error_code = 40002
-    detail = "INVALID_APP_KEY"
+    error_message = "INVALID_APP_KEY"
 
     def __init__(self):
         super().__init__(detail="无效或缺失 App-Key")
@@ -276,7 +279,7 @@ class InvalidAppKeyException(AuthenticationException):
 
 class TokenGenerationException(AuthenticationException):
     error_code = 40003
-    detail = "TOKEN_GENERATION_FAILED"
+    error_message = "TOKEN_GENERATION_FAILED"
     http_status_code = 500
 
     def __init__(self, reason: str):
@@ -285,13 +288,13 @@ class TokenGenerationException(AuthenticationException):
 
 class AuthorizationException(BaseHTTPException):
     error_code = 40004
-    detail = "AUTHORIZATION_ERROR"
+    error_message = "AUTHORIZATION_ERROR"
     http_status_code = 403
 
 
 class InsufficientScopeException(AuthorizationException):
     error_code = 40005
-    detail = "INSUFFICIENT_SCOPE"
+    error_message = "INSUFFICIENT_SCOPE"
     http_status_code = 403
 
     def __init__(self, required_scope: str):

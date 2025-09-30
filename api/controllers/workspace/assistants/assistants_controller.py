@@ -16,7 +16,7 @@ AI员工管理API端点
 from fastapi import APIRouter, HTTPException, Query, status
 from typing import Optional
 
-from controllers.exceptions import AssistantNotFoundException
+from schemas.exceptions import AssistantNotFoundException
 from legacy_api.schemas.assistants import (
     AssistantCreateRequest, AssistantUpdateRequest, AssistantOperationResponse
 )

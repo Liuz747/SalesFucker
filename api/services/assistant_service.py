@@ -21,7 +21,7 @@ from infra.db import database_session
 from models.prompts import PromptsModel
 from repositories.prompts_repo import PromptsRepository
 from repositories.tenant_repo import TenantRepository
-from controllers.exceptions import TenantNotFoundException, AssistantConflictException, AssistantNotFoundException
+from schemas.exceptions import TenantNotFoundException, AssistantConflictException, AssistantNotFoundException
 from legacy_api.schemas.assistants import (
     AssistantCreateRequest, AssistantUpdateRequest, AssistantConfigRequest,
     AssistantListRequest, AssistantListResponse,

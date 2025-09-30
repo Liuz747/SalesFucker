@@ -18,7 +18,7 @@ from schemas.tenant_schema import (
     TenantDeleteResponse
 )
 
-from ..error import (
+from schemas.exceptions import (
     TenantManagementException,
     TenantNotFoundException,
     TenantSyncException,

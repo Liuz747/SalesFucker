@@ -17,7 +17,7 @@ from typing import Optional
 from infra.db import database_session
 from infra.cache import get_redis_client
 from repositories.tenant_repo import TenantRepository, TenantModel, TenantStatus
-from controllers.exceptions import TenantNotFoundException
+from schemas.exceptions import TenantNotFoundException
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "TenantService")
