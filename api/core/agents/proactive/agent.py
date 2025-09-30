@@ -276,7 +276,6 @@ class ProactiveAgent(BaseAgent):
                 "thread_id": state.get("thread_id"),
                 "customer_input": state.get("customer_input"),
                 "sentiment": (state.get("sentiment_analysis", {}) or {}).get("sentiment", "neutral"),
-                "intent": (state.get("intent_analysis", {}) or {}).get("intent", "browsing"),
                 "agent_responses": list(state.get("agent_responses", {}).keys())
             }
             
@@ -305,23 +304,6 @@ class ProactiveAgent(BaseAgent):
         """
         opportunities = []
         
-        # 基于意图分析的机会
-        if state.get("intent_analysis"):
-            intent = state["intent_analysis"].get("intent", "browsing")
-            if intent == "interested":
-                opportunities.append({
-                    "type": "follow_up",
-                    "priority": "medium",
-                    "message": "Customer showing interest - schedule follow-up in 24 hours",
-                    "action": "send_follow_up"
-                })
-            elif intent == "comparing":
-                opportunities.append({
-                    "type": "competitive_advantage",
-                    "priority": "high", 
-                    "message": "Customer comparing options - highlight unique value propositions",
-                    "action": "send_comparison_guide"
-                })
         
         # 基于情感分析的机会
         if state.get("sentiment_analysis"):

@@ -69,7 +69,6 @@ class ThreadState(BaseModel):
         input_metadata: 输入元数据
         compliance_result: 合规审查结果
         sentiment_analysis: 情感分析结果
-        intent_analysis: 意图分析结果
         active_agents: 活跃智能体列表
         agent_responses: 智能体响应集合
         customer_profile: 客户档案信息
@@ -115,10 +114,7 @@ class ThreadState(BaseModel):
         default_factory=dict,
         description="情感分析结果，包含情感倾向和强度"
     )
-    intent_analysis: dict[str, Any] = Field(
-        default_factory=dict,
-        description="意图分析结果，包含客户意图分类和置信度"
-    )
+
     
     # 智能体处理
     active_agents: list[str] = Field(

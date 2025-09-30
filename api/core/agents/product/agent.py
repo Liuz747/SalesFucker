@@ -82,20 +82,15 @@ class ProductExpertAgent(BaseAgent):
             customer_profile = state.get("customer_profile", {})
             customer_history = state.get('customer_history', [])
             
-            # 分析客户需求和偏好
-            needs_analysis = await self.needs_analyzer.analyze_customer_needs(
-                customer_input, customer_profile, state.get("intent_analysis")
-            )
             
             # 生成产品推荐
             product_recommendations = await self._generate_product_recommendations(
-                customer_input, customer_profile, customer_history, needs_analysis
+                customer_input, customer_profile, customer_history
             )
             
             # 更新对话状态
             state.setdefault("agent_responses", {})[self.agent_id] = {
                 "product_recommendations": product_recommendations,
-                "needs_analysis": needs_analysis,
                 "processing_complete": True
             }
             state.setdefault("active_agents", []).append(self.agent_id)
