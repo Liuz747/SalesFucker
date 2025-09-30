@@ -14,11 +14,6 @@ Architecture:
 - ConnectionPoolManager: Multi-tenant connection management
 """
 
-from .high_performance_store import (
-    HighPerformanceStore,
-    ConnectionPoolManager,
-    CacheConfig
-)
 from .conversation_store import (
     ConversationStore,
     ConversationMessage,
@@ -26,9 +21,6 @@ from .conversation_store import (
 )
 
 __all__ = [
-    'HighPerformanceStore',
-    'ConnectionPoolManager', 
-    'CacheConfig',
     'ConversationStore',
     'ConversationMessage',
     'MessageType'
