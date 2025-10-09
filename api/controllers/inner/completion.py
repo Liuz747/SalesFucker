@@ -7,7 +7,7 @@ from typing import Optional
 from pydantic import BaseModel
 from fastapi import APIRouter, HTTPException
 
-from infra.runtimes import LLMClient, LLMRequest
+from infra.runtimes import LLMClient, LLMRequest, Message
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "LLM")
@@ -42,10 +42,8 @@ async def send_message(request: ChatRequest):
         
         # 构建LLM请求
         llm_request = LLMRequest(
-            messages=[
-                {"role": "user", "content": request.message}
-            ],
-            id=chat_id,
+            messages=[Message(role='user', content=request.message)],
+            thread_id=chat_id,
             model=request.model,
             provider=request.provider,
             temperature=request.temperature,

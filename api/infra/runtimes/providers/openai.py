@@ -23,7 +23,10 @@ class OpenAIProvider(BaseProvider):
             provider: OpenAI配置
         """
         super().__init__(provider)
-        self.client = openai.AsyncOpenAI(api_key=provider.api_key)
+        self.client = openai.AsyncOpenAI(
+            api_key=provider.api_key,
+            base_url=provider.base_url
+        )
 
     async def completions(self, request: LLMRequest) -> LLMResponse:
         """
@@ -36,8 +39,7 @@ class OpenAIProvider(BaseProvider):
             LLMResponse: OpenAI响应
         """
         # 构建包含历史记录的对话上下文
-        full_context = self._build_conversation_context(request)
-        messages: list[ChatCompletionMessageParam] = full_context
+        messages: list[ChatCompletionMessageParam] = [message.model_dump() for message in request.messages]
         
         response = await self.client.chat.completions.create(
             model=request.model or "gpt-4o-mini",
@@ -48,6 +50,7 @@ class OpenAIProvider(BaseProvider):
         )
 
         llm_response = LLMResponse(
+            id=response.id,
             content=response.choices[0].message.content,
             provider="openai",
             model=response.model,
@@ -55,13 +58,9 @@ class OpenAIProvider(BaseProvider):
                 "input_tokens": response.usage.prompt_tokens,
                 "output_tokens": response.usage.completion_tokens,
             },
-            cost=self._calculate_cost(response.usage, response.model),
-            id=request.id
+            cost=self._calculate_cost(response.usage, response.model)
         )
-        
-        # 保存对话历史
-        self._save_conversation_turn(request, llm_response)
-        
+
         return llm_response
 
     def _calculate_cost(self, usage, model: str) -> float:

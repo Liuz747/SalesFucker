@@ -14,14 +14,8 @@ Architecture:
 - ConnectionPoolManager: Multi-tenant connection management
 """
 
-from .conversation_store import (
-    ConversationStore,
-    ConversationMessage,
-    MessageType
-)
+from .conversation_store import ConversationStore
 
 __all__ = [
-    'ConversationStore',
-    'ConversationMessage',
-    'MessageType'
+    'ConversationStore'
 ] 

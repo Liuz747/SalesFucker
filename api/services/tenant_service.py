@@ -14,10 +14,12 @@
 import asyncio
 from typing import Optional
 
+from sqlalchemy.exc import IntegrityError
+
 from infra.db import database_session
 from infra.cache import get_redis_client
 from repositories.tenant_repo import TenantRepository, TenantModel, TenantStatus
-from schemas.exceptions import TenantNotFoundException
+from schemas.exceptions import TenantNotFoundException, TenantAlreadyExistsException
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "TenantService")
@@ -34,9 +36,6 @@ class TenantService:
     @staticmethod
     async def create_tenant(tenant: TenantModel) -> Optional[TenantModel]:
         """创建租户"""
-        from controllers.console.error import TenantAlreadyExistsException
-        from sqlalchemy.exc import IntegrityError
-
         try:
             tenant_orm = tenant.to_orm()
 

@@ -23,7 +23,10 @@ class AnthropicProvider(BaseProvider):
             config: Anthropic配置
         """
         super().__init__(provider)
-        self.client = anthropic.AsyncAnthropic(api_key=provider.api_key)
+        self.client = anthropic.AsyncAnthropic(
+            api_key=provider.api_key,
+            base_url=provider.base_url
+        )
 
     async def completions(self, request: LLMRequest) -> LLMResponse:
         """
@@ -36,8 +39,7 @@ class AnthropicProvider(BaseProvider):
             LLMResponse: Anthropic响应
         """
         # 构建包含历史记录的对话上下文
-        full_context = self._build_conversation_context(request)
-        messages: list[MessageParam] = full_context
+        messages: list[MessageParam] = [message.model_dump() for message in request.messages]
 
         response = await self.client.messages.create(
             model=request.model or "claude-3-5-sonnet-20241022",
@@ -55,12 +57,9 @@ class AnthropicProvider(BaseProvider):
                 "output_tokens": response.usage.output_tokens,
             },
             cost=self._calculate_cost(response.usage, response.model),
-            id=request.id
+            id=request.thread_id
         )
-        
-        # 保存对话历史
-        self._save_conversation_turn(request, llm_response)
-        
+
         return llm_response
 
     def _calculate_cost(self, usage, model: str) -> float:

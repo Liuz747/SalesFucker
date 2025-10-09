@@ -1,5 +1,7 @@
 from langfuse import observe
 
+from infra.runtimes import Message
+from core.memory import ConversationStore
 from utils import get_current_datetime, get_processing_time_ms
 from ..base import BaseAgent
 from ...app.entities import WorkflowExecutionModel
@@ -31,7 +33,7 @@ class ChatAgent(BaseAgent):
 
                             请提供合适的回复：
                             """
-
+        self.memory_store = ConversationStore()
         self.logger.info(f"ChatAgent初始化完成: {self.agent_id}")
 
     @observe(name="chat-agent-conversation", as_type="span")
@@ -56,19 +58,25 @@ class ChatAgent(BaseAgent):
             # 准备聊天提示词
             formatted_prompt = self.chat_prompt.format(user_input=user_input)
 
-            messages = [{
-                "role": "user",
-                "content": formatted_prompt
-            }]
+            messages = [Message(role="user", content=formatted_prompt)]
 
-            # 调用LLM生成回复
-            chat_response = await self.invoke_llm(
-                id="openrouter",
-                messages=messages,
+            request = await self.memory_store.prepare_request(
+                provider_id="openrouter",
                 model="openai/gpt-5-mini",
-                provider="openai",
+                message=messages,
+                tenant_id=state.tenant_id,
+                thread_id=state.thread_id,
                 temperature=1,
                 max_tokens=500
+            )
+
+            # 调用LLM生成回复
+            chat_response = await self.invoke_llm(request)
+
+            await self.memory_store.save_assistant_reply(
+                state.tenant_id,
+                state.thread_id,
+                content=chat_response.content
             )
 
             # 计算处理时间
@@ -76,7 +84,7 @@ class ChatAgent(BaseAgent):
 
             updated_value = {
                 "agent_id": self.agent_id,
-                "chat_response": chat_response,
+                "chat_response": chat_response.content,
                 "processing_time_ms": processing_time,
                 "timestamp": get_current_datetime().isoformat(),
                 "status": "completed"
@@ -87,7 +95,7 @@ class ChatAgent(BaseAgent):
             
             # 返回状态更新字典
             return {
-                "output": chat_response,
+                "output": chat_response.content,
                 "finished_at": get_current_datetime(),
                 "values": updated_value
             }

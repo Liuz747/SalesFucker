@@ -1,17 +1,26 @@
-from typing import Dict, Optional, List
+from collections.abc import Iterable
 from dataclasses import dataclass
+from uuid import UUID
+
+from pydantic import BaseModel
+
+
+class Message(BaseModel):
+    role: str
+    content: str
 
 
 @dataclass
 class LLMRequest:
-    id: Optional[str]
-    messages: List[Dict[str, str]]
     model: str
+    messages: Iterable[Message]
     provider: str = "openai"
     temperature: float = 0.7
-    max_tokens: Optional[int] = None
+    max_tokens: int | None = None
     stream: bool = False
-    tenant_id: Optional[str] = None
+    tenant_id: str | None = None
+    thread_id: UUID | None = None
+
 
 @dataclass 
 class LLMResponse:
@@ -19,5 +28,5 @@ class LLMResponse:
     content: str
     provider: str
     model: str
-    usage: Dict[str, int]
+    usage: dict[str, int]
     cost: float = 0.0

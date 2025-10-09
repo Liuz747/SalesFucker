@@ -53,15 +53,12 @@ class LLMClient:
             LLMResponse: LLM响应对象
         """
         try:
-            # 直接使用ProviderID
-            provider_id = request.id.lower()
+            provider_id = request.provider.lower()
             if provider_id not in self.active_providers:
                 raise Exception(f"指定的供应商不可用: {request.provider}")
-            
-            provider = self.active_providers[provider_id]
-            
+
             # 发送请求
-            response = await provider.completions(request)
+            response = await self.active_providers.get(provider_id).completions(request)
             return response
 
         except ValueError:
