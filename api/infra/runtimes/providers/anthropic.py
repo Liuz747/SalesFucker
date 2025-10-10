@@ -49,15 +49,15 @@ class AnthropicProvider(BaseProvider):
         )
 
         llm_response = LLMResponse(
+            id=request.id,
             content=response.content[0].text,
-            provider="anthropic",
+            provider=request.provider,
             model=response.model,
             usage={
                 "input_tokens": response.usage.input_tokens,
                 "output_tokens": response.usage.output_tokens,
             },
-            cost=self._calculate_cost(response.usage, response.model),
-            id=request.thread_id
+            cost=self._calculate_cost(response.usage, response.model)
         )
 
         return llm_response

@@ -1,7 +1,7 @@
 """
 短期会话记忆工具。
 
-该模块提供轻量级的进程内环形缓冲，用于按 (tenant, thread) 维度维护最近
+该模块提供轻量级的进程内环形缓冲，用于按 thread 维度维护最近
 若干条消息，满足多轮对话的短期记忆需求。
 """
 
@@ -31,8 +31,8 @@ class ConversationStore:
 
     # ------------- key helpers -------------
     @staticmethod
-    def _key(tenant_id: str, thread_id: UUID) -> str:
-        return f"conversation:{tenant_id}:{str(thread_id)}"
+    def _key(thread_id: UUID) -> str:
+        return f"conversation:{str(thread_id)}"
 
     # ------------- serialization -------------
     @staticmethod
@@ -47,12 +47,11 @@ class ConversationStore:
     # ------------- write path -------------
     async def append_messages(
         self,
-        tenant_id: str,
         thread_id: UUID,
         messages: Iterable[Message]
     ):
         redis_client = self.redis_client or await get_redis_client()
-        key = f"conversation:{tenant_id}:{str(thread_id)}"
+        key = self._key(thread_id)
 
         packed = [self._pack_message(m) for m in messages]
 
@@ -68,10 +67,10 @@ class ConversationStore:
         return new_len
 
     # ------------- read path -------------
-    async def get_recent(self, tenant_id: str, thread_id: UUID, limit: int | None = None) -> Iterable[Message]:
+    async def get_recent(self,  thread_id: UUID, limit: int | None = None) -> Iterable[Message]:
         """获取最近 limit 条消息（默认使用 store 的 max_messages）。"""
         redis = self.redis_client or await get_redis_client()
-        key = self._key(tenant_id, thread_id)
+        key = self._key(thread_id)
         n = limit or self.max_messages
         # last n: [-n, -1]
         raw_items = await redis.lrange(key, -n, -1)
@@ -81,10 +80,10 @@ class ConversationStore:
     async def prepare_request(
         self,
         *,
-        provider_id: str,
+        run_id: UUID,
+        provider: str,
         model: str,
         message: Iterable[Message],
-        tenant_id: str,
         thread_id: UUID,
         temperature: float = 0.7,
         max_tokens: int | None = None,
@@ -95,20 +94,20 @@ class ConversationStore:
         2) 读取最近 N 条构建 LLMRequest
         """
         # append user message then read the window
-        await self.append_messages(tenant_id, thread_id, message)
-        window = await self.get_recent(tenant_id, thread_id, self.max_messages)
+        await self.append_messages(thread_id, message)
+        window = await self.get_recent(thread_id, self.max_messages)
 
         return LLMRequest(
+            id=run_id,
             model=model,
-            provider=provider_id,  # your client expects request.id to match an active provider; provider is informational
+            provider=provider,
             messages=window,
             temperature=temperature,
             max_tokens=max_tokens,
             stream=stream,
-            tenant_id=tenant_id,
             thread_id=thread_id,
         )
 
-    async def save_assistant_reply(self, tenant_id: str, thread_id: UUID | str, content: str) -> None:
+    async def save_assistant_reply(self, thread_id: UUID | str, content: str) -> None:
         """生成后将助手消息写回上下文。"""
-        await self.append_messages(tenant_id, thread_id, [Message(role="assistant", content=content)])
+        await self.append_messages(thread_id, [Message(role="assistant", content=content)])

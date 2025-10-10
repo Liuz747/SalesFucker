@@ -50,21 +50,18 @@ class ChatAgent(BaseAgent):
         start_time = get_current_datetime()
 
         try:
-            self.logger.info(f"ChatAgent开始处理对话 - 租户: {state.tenant_id}")
-
-            # 获取用户输入
-            user_input = state.input
+            self.logger.info(f"ChatAgent开始处理对话 - 线程: {state.thread_id}")
 
             # 准备聊天提示词
-            formatted_prompt = self.chat_prompt.format(user_input=user_input)
+            formatted_prompt = self.chat_prompt.format(user_input=state.input)
 
             messages = [Message(role="user", content=formatted_prompt)]
 
             request = await self.memory_store.prepare_request(
-                provider_id="openrouter",
+                run_id=state.workflow_id,
+                provider="openrouter",
                 model="openai/gpt-5-mini",
                 message=messages,
-                tenant_id=state.tenant_id,
                 thread_id=state.thread_id,
                 temperature=1,
                 max_tokens=500
@@ -74,7 +71,6 @@ class ChatAgent(BaseAgent):
             chat_response = await self.invoke_llm(request)
 
             await self.memory_store.save_assistant_reply(
-                state.tenant_id,
                 state.thread_id,
                 content=chat_response.content
             )

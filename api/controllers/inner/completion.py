@@ -42,8 +42,8 @@ async def send_message(request: ChatRequest):
         
         # 构建LLM请求
         llm_request = LLMRequest(
+            id=chat_id,
             messages=[Message(role='user', content=request.message)],
-            thread_id=chat_id,
             model=request.model,
             provider=request.provider,
             temperature=request.temperature,

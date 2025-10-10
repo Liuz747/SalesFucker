@@ -50,9 +50,9 @@ class OpenAIProvider(BaseProvider):
         )
 
         llm_response = LLMResponse(
-            id=response.id,
+            id=request.id,
             content=response.choices[0].message.content,
-            provider="openai",
+            provider=request.provider,
             model=response.model,
             usage={
                 "input_tokens": response.usage.prompt_tokens,
