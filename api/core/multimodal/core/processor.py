@@ -27,6 +27,7 @@ from utils import (
 )
 from core.multimodal.core.message import MultiModalMessage, ProcessingResult
 from core.multimodal.core.attachment import AudioAttachment, ImageAttachment
+from core.multimodal.core.url_downloader import URLDownloader
 from core.multimodal.voice.whisper_service import WhisperService
 from core.multimodal.image.gpt4v_service import GPT4VService
 from core.agents.base import AgentMessage
@@ -211,52 +212,77 @@ class MultiModalProcessor(LoggerMixin):
     async def _process_audio_attachment(
         self,
         attachment: AudioAttachment,
-        context: Dict[str, Any]
+        context: dict[str, Any]
     ) -> ProcessingResult:
         """
         处理音频附件
-        
+
+        音频文件需要下载到本地才能进行Whisper转录。
+        如果是URL，会先下载再处理。
+
         Args:
             attachment: 音频附件
             context: 处理上下文
-            
+
         Returns:
             处理结果
         """
         async with self._semaphore:
             start_time = datetime.now()
-            
+
             try:
                 attachment.update_status(ProcessingStatus.PROCESSING)
-                
+
+                # 判断是URL还是本地文件
+                audio_source = attachment.upload_path
+                is_url = audio_source.startswith(('http://', 'https://'))
+
+                # 如果是URL，需要先下载
+                if is_url:
+                    self.logger.info(f"音频URL需要下载: {audio_source}")
+                    downloader = URLDownloader()
+                    download_results = await downloader.download_attachments(
+                        [{"url": audio_source, "type": "audio"}],
+                        tenant_id=attachment.tenant_id
+                    )
+
+                    if not download_results or download_results[0].get('status') == 'failed':
+                        raise Exception(f"音频下载失败: {audio_source}")
+
+                    audio_file_path = download_results[0]['local_path']
+                    self.logger.info(f"音频下载完成: {audio_file_path}")
+                else:
+                    audio_file_path = audio_source
+
                 # 确定语言
                 language = context.get('language', 'zh')
                 if language not in MultiModalConstants.SUPPORTED_LANGUAGES:
                     language = MultiModalConstants.DEFAULT_VOICE_LANGUAGE
-                
+
                 # 调用Whisper转录
                 transcription_result = await self.whisper_service.transcribe_audio(
-                    attachment.upload_path,
+                    audio_file_path,
                     language=language,
                     prompt=context.get('prompt')
                 )
-                
+
                 # 更新附件信息
                 attachment.transcription = transcription_result['text']
                 attachment.confidence_score = transcription_result['confidence']
                 attachment.language = transcription_result['language']
                 attachment.duration = transcription_result.get('duration')
-                
+
                 # 更新状态
                 attachment.update_status(
                     ProcessingStatus.COMPLETED,
                     {
                         'transcription_result': transcription_result,
                         'language_detected': transcription_result['language'],
-                        'is_high_quality': transcription_result['is_high_quality']
+                        'is_high_quality': transcription_result['is_high_quality'],
+                        'source_type': 'url' if is_url else 'file'
                     }
                 )
-                
+
                 # 创建处理结果
                 processing_time = get_processing_time_ms(start_time)
                 return ProcessingResult(
@@ -273,12 +299,12 @@ class MultiModalProcessor(LoggerMixin):
                     processing_time_ms=processing_time,
                     metadata=transcription_result
                 )
-                
+
             except Exception as e:
                 self.logger.error(f"音频附件处理失败: {attachment.attachment_id}, 错误: {e}")
-                
+
                 attachment.update_status(ProcessingStatus.ERROR, {'error': str(e)})
-                
+
                 return ProcessingResult(
                     attachment_id=attachment.attachment_id,
                     processing_type=ProcessingType.VOICE_TRANSCRIPTION,
@@ -290,59 +316,85 @@ class MultiModalProcessor(LoggerMixin):
     async def _process_image_attachment(
         self,
         attachment: ImageAttachment,
-        context: Dict[str, Any]
+        context: dict[str, Any]
     ) -> ProcessingResult:
         """
         处理图像附件
-        
+
+        支持URL和本地文件路径两种方式。
+        如果是URL，直接传递给视觉模型（无需下载）。
+
         Args:
             attachment: 图像附件
             context: 处理上下文
-            
+
         Returns:
             处理结果
         """
         async with self._semaphore:
             start_time = datetime.now()
-            
+
             try:
                 attachment.update_status(ProcessingStatus.PROCESSING)
-                
+
+                # 判断是URL还是本地文件
+                image_source = attachment.upload_path
+                is_url = image_source.startswith(('http://', 'https://'))
+
                 # 确定分析类型
                 analysis_type = attachment.analysis_type or context.get('analysis_type', ProcessingType.IMAGE_ANALYSIS)
                 language = context.get('language', 'zh')
-                
+
                 # 根据分析类型调用不同的分析方法
                 if analysis_type == ProcessingType.SKIN_ANALYSIS:
-                    analysis_result = await self.gpt4v_service.analyze_skin(
-                        attachment.upload_path, 
-                        language
-                    )
+                    if is_url:
+                        analysis_result = await self.gpt4v_service.analyze_skin_from_url(
+                            image_source,
+                            language
+                        )
+                    else:
+                        analysis_result = await self.gpt4v_service.analyze_skin(
+                            image_source,
+                            language
+                        )
                 elif analysis_type == ProcessingType.PRODUCT_RECOGNITION:
-                    analysis_result = await self.gpt4v_service.recognize_product(
-                        attachment.upload_path, 
-                        language
-                    )
+                    if is_url:
+                        analysis_result = await self.gpt4v_service.recognize_product_from_url(
+                            image_source,
+                            language
+                        )
+                    else:
+                        analysis_result = await self.gpt4v_service.recognize_product(
+                            image_source,
+                            language
+                        )
                 else:
-                    analysis_result = await self.gpt4v_service.analyze_general(
-                        attachment.upload_path, 
-                        language
-                    )
-                
+                    if is_url:
+                        analysis_result = await self.gpt4v_service.analyze_general_from_url(
+                            image_source,
+                            language
+                        )
+                    else:
+                        analysis_result = await self.gpt4v_service.analyze_general(
+                            image_source,
+                            language
+                        )
+
                 # 更新附件信息
                 attachment.analysis_results = analysis_result['results']
                 attachment.confidence_scores = analysis_result['confidence_scores']
-                
+
                 # 更新状态
                 attachment.update_status(
                     ProcessingStatus.COMPLETED,
                     {
                         'analysis_result': analysis_result,
                         'analysis_type': analysis_type,
-                        'overall_confidence': analysis_result['overall_confidence']
+                        'overall_confidence': analysis_result['overall_confidence'],
+                        'source_type': 'url' if is_url else 'file'
                     }
                 )
-                
+
                 # 创建处理结果
                 processing_time = get_processing_time_ms(start_time)
                 return ProcessingResult(
@@ -354,12 +406,12 @@ class MultiModalProcessor(LoggerMixin):
                     processing_time_ms=processing_time,
                     metadata=analysis_result
                 )
-                
+
             except Exception as e:
                 self.logger.error(f"图像附件处理失败: {attachment.attachment_id}, 错误: {e}")
-                
+
                 attachment.update_status(ProcessingStatus.ERROR, {'error': str(e)})
-                
+
                 return ProcessingResult(
                     attachment_id=attachment.attachment_id,
                     processing_type=attachment.processing_type,

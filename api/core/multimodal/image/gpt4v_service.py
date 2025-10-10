@@ -223,6 +223,175 @@ class GPT4VService(LoggerMixin):
             raise Exception(f"图像分析超时（{self.timeout}秒）")
         except Exception as e:
             raise Exception(f"GPT-4V API调用失败: {e}")
+
+    async def _analyze_image_url_with_prompt(self, image_url: str, prompt: str) -> str:
+        """
+        使用提示词分析图像URL（无需下载）
+
+        Args:
+            image_url: 图像URL
+            prompt: 分析提示词
+
+        Returns:
+            GPT-4V响应文本
+        """
+        try:
+            # 构建消息（直接使用URL）
+            messages = [
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "text", "text": prompt},
+                        {
+                            "type": "image_url",
+                            "image_url": {
+                                "url": image_url,
+                                "detail": "high"
+                            }
+                        }
+                    ]
+                }
+            ]
+
+            # 调用GPT-4V API
+            response = await asyncio.wait_for(
+                self.client.chat.completions.create(
+                    model="gpt-4-vision-preview",
+                    messages=messages,
+                    max_tokens=1000,
+                    temperature=0.1
+                ),
+                timeout=self.timeout
+            )
+
+            return response.choices[0].message.content
+
+        except asyncio.TimeoutError:
+            raise Exception(f"图像URL分析超时（{self.timeout}秒）")
+        except Exception as e:
+            raise Exception(f"GPT-4V API调用失败: {e}")
+
+    async def analyze_skin_from_url(self, image_url: str, language: str = 'zh') -> dict[str, Any]:
+        """
+        从URL分析皮肤状态（无需下载）
+
+        Args:
+            image_url: 图像URL
+            language: 输出语言（zh/en）
+
+        Returns:
+            皮肤分析结果
+        """
+        start_time = datetime.now()
+        self.logger.info(f"开始皮肤分析（URL）: {image_url}")
+
+        try:
+            # 构建皮肤分析提示词
+            prompt = self._build_skin_analysis_prompt(language)
+
+            # 调用GPT-4V分析（使用URL）
+            analysis_result = await self._analyze_image_url_with_prompt(image_url, prompt)
+
+            # 处理皮肤分析结果
+            processed_result = self._process_skin_analysis_result(analysis_result, language)
+
+            processing_time = get_processing_time_ms(start_time)
+            processed_result['processing_time_ms'] = processing_time
+            processed_result['analysis_type'] = ProcessingType.SKIN_ANALYSIS
+            processed_result['source'] = 'url'
+
+            self.logger.info(
+                f"皮肤分析完成（URL）: {image_url}, "
+                f"耗时: {processing_time}ms, "
+                f"识别问题数: {len(processed_result.get('skin_concerns', []))}"
+            )
+
+            return processed_result
+
+        except Exception as e:
+            self.logger.error(f"皮肤分析失败（URL）: {image_url}, 错误: {e}")
+            raise
+
+    async def recognize_product_from_url(self, image_url: str, language: str = 'zh') -> dict[str, Any]:
+        """
+        从URL识别化妆品产品（无需下载）
+
+        Args:
+            image_url: 图像URL
+            language: 输出语言（zh/en）
+
+        Returns:
+            产品识别结果
+        """
+        start_time = datetime.now()
+        self.logger.info(f"开始产品识别（URL）: {image_url}")
+
+        try:
+            # 构建产品识别提示词
+            prompt = self._build_product_recognition_prompt(language)
+
+            # 调用GPT-4V分析（使用URL）
+            analysis_result = await self._analyze_image_url_with_prompt(image_url, prompt)
+
+            # 处理产品识别结果
+            processed_result = self._process_product_recognition_result(analysis_result, language)
+
+            processing_time = get_processing_time_ms(start_time)
+            processed_result['processing_time_ms'] = processing_time
+            processed_result['analysis_type'] = ProcessingType.PRODUCT_RECOGNITION
+            processed_result['source'] = 'url'
+
+            self.logger.info(
+                f"产品识别完成（URL）: {image_url}, "
+                f"耗时: {processing_time}ms, "
+                f"识别产品数: {len(processed_result.get('products', []))}"
+            )
+
+            return processed_result
+
+        except Exception as e:
+            self.logger.error(f"产品识别失败（URL）: {image_url}, 错误: {e}")
+            raise
+
+    async def analyze_general_from_url(self, image_url: str, language: str = 'zh') -> dict[str, Any]:
+        """
+        从URL进行通用图像分析（无需下载）
+
+        Args:
+            image_url: 图像URL
+            language: 输出语言（zh/en）
+
+        Returns:
+            通用分析结果
+        """
+        start_time = datetime.now()
+        self.logger.info(f"开始通用图像分析（URL）: {image_url}")
+
+        try:
+            # 构建通用分析提示词
+            prompt = self._build_general_analysis_prompt(language)
+
+            # 调用GPT-4V分析（使用URL）
+            analysis_result = await self._analyze_image_url_with_prompt(image_url, prompt)
+
+            # 处理通用分析结果
+            processed_result = self._process_general_analysis_result(analysis_result, language)
+
+            processing_time = get_processing_time_ms(start_time)
+            processed_result['processing_time_ms'] = processing_time
+            processed_result['analysis_type'] = ProcessingType.IMAGE_ANALYSIS
+            processed_result['source'] = 'url'
+
+            self.logger.info(
+                f"通用图像分析完成（URL）: {image_url}, "
+                f"耗时: {processing_time}ms"
+            )
+
+            return processed_result
+
+        except Exception as e:
+            self.logger.error(f"通用图像分析失败（URL）: {image_url}, 错误: {e}")
+            raise
     
     async def _encode_image(self, image_path: str) -> str:
         """

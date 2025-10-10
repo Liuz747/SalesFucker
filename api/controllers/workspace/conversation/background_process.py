@@ -73,10 +73,10 @@ class BackgroundWorkflowProcessor:
         orchestrator: Orchestrator,
         run_id: UUID,
         thread_id: UUID,
-        input: InputContent,
+        input_content: str,
+        attachments: list[dict] | None,
         assistant_id: UUID,
         tenant_id: str,
-        customer_id: Optional[str] = None,
         input_type: str = "text"
     ):
         """在后台处理工作流"""
@@ -95,11 +95,12 @@ class BackgroundWorkflowProcessor:
 
             # 创建工作流执行模型
             workflow = WorkflowRun(
-                run_id=run_id,
+                workflow_id=run_id,
                 thread_id=thread_id,
                 assistant_id=assistant_id,
                 tenant_id=tenant_id,
-                input=input.content,
+                input=input_content,
+                attachments=attachments,
                 type=input_type
             )
 
@@ -134,7 +135,8 @@ class BackgroundWorkflowProcessor:
                 metadata={
                     "tenant_id": tenant_id,
                     "assistant_id": assistant_id,
-                    "execution_id": str(run_id)
+                    "input_type": input_type,
+                    "has_attachments": attachments is not None
                 }
             )
 
