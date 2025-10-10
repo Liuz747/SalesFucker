@@ -31,4 +31,5 @@ class InputType(StrEnum):
     TEXT = "text"
     VOICE = "voice"
     IMAGE = "image"
+    VIDEO = "video"
     MULTIMODAL = "multimodal"

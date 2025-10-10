@@ -10,12 +10,11 @@
 """
 
 from .constants import StatusConstants, MessageConstants, WorkflowConstants
-from .types import MessageType, InputType
+from .types import MessageType
 
 __all__ = [
     "StatusConstants",
     "MessageConstants",
     "WorkflowConstants",
-    "MessageType",
-    "InputType"
+    "MessageType"
 ]

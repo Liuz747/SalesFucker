@@ -23,11 +23,3 @@ class MessageType(str, Enum):
     NOTIFICATION = MessageConstants.NOTIFICATION
     TRIGGER = MessageConstants.TRIGGER
     SUGGESTION = MessageConstants.SUGGESTION
-
-
-class InputType(str, Enum):
-    """输入类型枚举"""
-    TEXT = MessageConstants.TEXT_INPUT
-    VOICE = MessageConstants.VOICE_INPUT
-    IMAGE = MessageConstants.IMAGE_INPUT
-    MULTIMODAL = MessageConstants.MULTIMODAL_INPUT
