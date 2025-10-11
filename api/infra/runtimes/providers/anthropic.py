@@ -5,6 +5,8 @@ Anthropic供应商实现
 支持Claude-3.5-Sonnet、Claude-3.5-Haiku等模型。
 """
 
+from typing import Any
+
 import anthropic
 from anthropic.types import MessageParam
 
@@ -28,6 +30,31 @@ class AnthropicProvider(BaseProvider):
             base_url=provider.base_url
         )
 
+    def _format_message_content(self, content) -> Any:
+        """
+        将通用content格式转换为Anthropic特定格式
+
+        参数:
+            content: str（纯文本）或 Sequence[InputContent]（多模态）
+
+        返回:
+            str 或 list[dict]: Anthropic API所需格式
+        """
+        if isinstance(content, str):
+            return content
+
+        # 将InputContent序列转换为Anthropic要求的字段
+        formatted: list[dict[str, Any]] = []
+        for item in content:
+            if item.type == "text":
+                formatted.append({"type": "text", "text": item.content})
+            elif item.type == "input_image":
+                formatted.append({
+                    "type": "image",
+                    "source": {"type": "url", "url": item.content}
+                })
+        return formatted
+
     async def completions(self, request: LLMRequest) -> LLMResponse:
         """
         发送聊天请求到Anthropic
@@ -38,8 +65,13 @@ class AnthropicProvider(BaseProvider):
         返回:
             LLMResponse: Anthropic响应
         """
-        # 构建包含历史记录的对话上下文
-        messages: list[MessageParam] = [message.model_dump() for message in request.messages]
+        # 构建包含历史记录的对话上下文并处理多模态内容
+        messages: list[MessageParam] = []
+        for message in request.messages:
+            messages.append({
+                "role": message.role,
+                "content": self._format_message_content(message.content)
+            })
 
         response = await self.client.messages.create(
             model=request.model or "claude-3-5-sonnet-20241022",

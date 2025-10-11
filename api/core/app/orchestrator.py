@@ -13,11 +13,7 @@
 
 from langfuse import observe, get_client
 
-from config import mas_config
-from models import WorkflowRun, InputType
-from core.multimodal.core.processor import MultiModalProcessor
-from core.multimodal.core.message import MultiModalMessage
-from core.multimodal.core.attachment import AudioAttachment, ImageAttachment
+from models import WorkflowRun
 from ..workflows import ChatWorkflow, TestWorkflow
 from .entities import WorkflowExecutionModel
 from .workflow_builder import WorkflowBuilder
@@ -41,13 +37,11 @@ class Orchestrator:
     采用模块化设计：
     - WorkflowBuilder: 工作流构建和节点处理
     - StateManager: 状态管理和监控
-    - MultiModalProcessor: 多模态内容处理
 
     属性:
         graph: LangGraph工作流图实例
         workflow_builder: 工作流构建器
         state_manager: 状态管理器
-        multimodal_processor: 多模态处理器（可选）
     """
 
     def __init__(self):
@@ -57,14 +51,6 @@ class Orchestrator:
         # 构建工作流图
         self.workflow_builder = WorkflowBuilder(TestWorkflow)
         self.graph = self.workflow_builder.build_graph()
-
-        # 初始化多模态处理器（如果配置了OpenAI密钥）
-        self.multimodal_processor = None
-        if mas_config.OPENAI_API_KEY:
-            self.multimodal_processor = MultiModalProcessor(
-                openai_api_key=mas_config.OPENAI_API_KEY
-            )
-            logger.info("多模态处理器已初始化")
 
         logger.info("多智能体编排器初始化完成")
 
@@ -84,15 +70,11 @@ class Orchestrator:
         """
         logger.info(
             f"开始处理对话 - 租户: {workflow.tenant_id}, "
-            f"助手: {workflow.assistant_id}, 输入类型: {workflow.type}"
+            f"助手: {workflow.assistant_id}"
         )
         start_time = get_current_datetime()
 
         try:
-            # 处理多模态附件（如果有）
-            if workflow.attachments and workflow.type != InputType.TEXT:
-                workflow = await self._process_multimodal_workflow(workflow)
-
             # 构建初始工作流状态
             initial_state = self.state_manager.create_initial_state(workflow)
 
@@ -107,14 +89,17 @@ class Orchestrator:
 
             # 更新Langfuse追踪信息
             langfuse_trace = get_client()
+            # 检测是否为多模态输入
+            is_multimodal = not isinstance(workflow.input, str)
+            multimodal_count = len(workflow.input) if is_multimodal else 0
+
             langfuse_trace.update_current_trace(
                 name=f"conversation-{workflow.workflow_id}",
                 user_id=workflow.tenant_id,
                 input={
-                    "customer_input": workflow.input,
-                    "input_type": workflow.type,
+                    "customer_input": workflow.input if isinstance(workflow.input, str) else f"[多模态内容: {multimodal_count}项]",
                     "tenant_id": workflow.tenant_id,
-                    "has_attachments": workflow.attachments is not None
+                    "is_multimodal": is_multimodal
                 },
                 output={
                     "final_response": result.get("final_response"),
@@ -125,10 +110,9 @@ class Orchestrator:
                     "tenant_id": workflow.tenant_id,
                     "workflow_type": "multi_agent_conversation",
                     "processing_time": elapsed_time,
-                    "input_type": workflow.type,
-                    "attachment_count": len(workflow.attachments) if workflow.attachments else 0
+                    "multimodal_count": multimodal_count
                 },
-                tags=["multi-agent", "conversation", workflow.type]
+                tags=["multi-agent", "conversation"]
             )
 
             # 强制发送追踪数据到Langfuse
@@ -141,89 +125,3 @@ class Orchestrator:
             logger.error(f"对话处理失败: {e}", exc_info=True)
             # 返回统一错误状态
             raise
-
-    async def _process_multimodal_workflow(self, workflow: WorkflowRun) -> WorkflowRun:
-        """
-        处理多模态工作流
-
-        处理附件（图像/音频URL），将处理结果整合到工作流输入中。
-        图像URL直接传递给视觉模型，音频URL会在处理器中按需下载。
-
-        参数:
-            workflow: 包含附件的工作流
-
-        返回:
-            WorkflowRun: 更新后的工作流（输入已整合多模态处理结果）
-        """
-        if not self.multimodal_processor:
-            logger.warning("多模态处理器未初始化，跳过多模态处理")
-            return workflow
-
-        logger.info(
-            f"开始多模态处理 - 附件数量: {len(workflow.attachments)}, "
-            f"类型: {workflow.type}"
-        )
-
-        try:
-            # 创建多模态消息对象
-            multimodal_message = MultiModalMessage(
-                sender="workflow",
-                recipient="multimodal_processor",
-                message_type="query",
-                tenant_id=workflow.tenant_id,
-                customer_id=None,
-                conversation_id=str(workflow.thread_id),
-                session_id=str(workflow.workflow_id)
-            )
-
-            # 添加附件到消息（URL或本地路径）
-            for attachment_data in workflow.attachments:
-                # 根据类型创建附件对象
-                if attachment_data['type'] == 'audio':
-                    attachment = AudioAttachment(
-                        file_name=attachment_data.get('url', 'audio_file'),
-                        content_type=attachment_data.get('content_type', 'audio/mpeg'),
-                        file_size=attachment_data.get('file_size', 0),
-                        upload_path=attachment_data.get('url'),  # URL或本地路径
-                        tenant_id=workflow.tenant_id
-                    )
-                elif attachment_data['type'] == 'image':
-                    attachment = ImageAttachment(
-                        file_name=attachment_data.get('url', 'image_file'),
-                        content_type=attachment_data.get('content_type', 'image/jpeg'),
-                        file_size=attachment_data.get('file_size', 0),
-                        upload_path=attachment_data.get('url'),  # URL或本地路径
-                        tenant_id=workflow.tenant_id
-                    )
-                    # 存储source信息用于处理器判断
-                    attachment.metadata['source'] = attachment_data.get('source', 'url')
-                else:
-                    logger.warning(f"不支持的附件类型: {attachment_data['type']}")
-                    continue
-
-                multimodal_message.add_attachment(attachment)
-
-            # 处理多模态消息
-            processed_message = await self.multimodal_processor.process_multimodal_message(
-                multimodal_message
-            )
-
-            # 获取整合后的内容
-            combined_content = processed_message.combined_content
-
-            if combined_content:
-                # 更新工作流输入为整合后的内容
-                # 格式: [原始文本提示] + [转录文本] + [图像分析摘要]
-                workflow.input = combined_content
-                logger.info(f"多模态处理完成，整合内容长度: {len(combined_content)}")
-            else:
-                logger.warning("多模态处理未产生有效内容，使用原始输入")
-
-            return workflow
-
-        except Exception as e:
-            logger.error(f"多模态处理失败: {e}", exc_info=True)
-            # 失败时返回原始workflow，使用原始文本输入
-            logger.warning("多模态处理失败，回退到原始文本输入")
-            return workflow
-    

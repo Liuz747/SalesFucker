@@ -5,9 +5,9 @@ from .models import Model, ModelType
 __all__ = [
     "LLMRequest", 
     "LLMResponse", 
+    "Message",
     "Provider",
     "ProviderType",
     "Model",
     "ModelType",
-    "Message"
 ]

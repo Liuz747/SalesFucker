@@ -11,8 +11,8 @@
 - 错误处理和审计日志
 """
 
+from collections.abc import Sequence
 from uuid import UUID
-from typing import Optional
 
 from config import mas_config
 from core.app import Orchestrator
@@ -73,11 +73,9 @@ class BackgroundWorkflowProcessor:
         orchestrator: Orchestrator,
         run_id: UUID,
         thread_id: UUID,
-        input_content: str,
-        attachments: list[dict] | None,
+        input: str | Sequence[InputContent],
         assistant_id: UUID,
-        tenant_id: str,
-        input_type: str = "text"
+        tenant_id: str
     ):
         """在后台处理工作流"""
         start_time = get_current_datetime()
@@ -99,9 +97,7 @@ class BackgroundWorkflowProcessor:
                 thread_id=thread_id,
                 assistant_id=assistant_id,
                 tenant_id=tenant_id,
-                input=input_content,
-                attachments=attachments,
-                type=input_type
+                input=input
             )
 
             # 使用编排器处理消息 - 核心工作流调用
@@ -134,9 +130,7 @@ class BackgroundWorkflowProcessor:
                 finished_at=completed_at.isoformat(),
                 metadata={
                     "tenant_id": tenant_id,
-                    "assistant_id": assistant_id,
-                    "input_type": input_type,
-                    "has_attachments": attachments is not None
+                    "assistant_id": assistant_id
                 }
             )
 

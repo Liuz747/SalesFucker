@@ -1,5 +1,6 @@
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -7,7 +8,7 @@ from pydantic import BaseModel
 
 class Message(BaseModel):
     role: str
-    content: str
+    content: str | Sequence[Mapping[str, Any]]
 
 
 @dataclass

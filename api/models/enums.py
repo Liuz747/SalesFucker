@@ -29,7 +29,7 @@ class ThreadStatus(StrEnum):
 class InputType(StrEnum):
     """输入类型枚举"""
     TEXT = "text"
-    VOICE = "voice"
-    IMAGE = "image"
-    VIDEO = "video"
-    MULTIMODAL = "multimodal"
+    AUDIO = "input_audio"
+    IMAGE = "input_image"
+    VIDEO = "input_video"
+    FILES = "input_files"

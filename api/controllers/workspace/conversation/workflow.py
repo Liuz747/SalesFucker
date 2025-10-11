@@ -10,14 +10,13 @@
 - 运行状态查询和监控
 """
 
-from typing import Annotated, Sequence
+from typing import Annotated
 from uuid import UUID, uuid4
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 
-from models import ThreadStatus, WorkflowRun, InputType
+from models import ThreadStatus, WorkflowRun
 from services import ThreadService
-from schemas.conversation_schema import MessageCreateRequest, InputContent
-from core.prompts.prompts import DefaultPrompts
+from schemas.conversation_schema import MessageCreateRequest
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms
 from ..wraps import (
     validate_and_get_tenant_id,
@@ -34,72 +33,6 @@ logger = get_component_logger(__name__, "WorkflowRouter")
 router = APIRouter()
 
 
-def _map_input_type_to_attachment_type(input_type: InputType) -> str:
-    """将InputType映射到附件类型字符串"""
-    mapping = {
-        InputType.IMAGE: "image",
-        InputType.VOICE: "audio",
-        InputType.VIDEO: "video",
-    }
-    return mapping.get(input_type, "unknown")
-
-
-def _detect_overall_input_type(content_types: set[InputType]) -> InputType:
-    """从内容类型集合检测整体输入类型"""
-    if not content_types:
-        return InputType.TEXT
-
-    if len(content_types) > 1:
-        return InputType.MULTIMODAL
-
-    return list(content_types)[0]
-
-
-def _process_input(input_data: str | Sequence[InputContent]) -> tuple[str, list[dict] | None, InputType]:
-    """
-    处理输入数据，返回(text_content, attachments_data, input_type)
-
-    Args:
-        input_data: 纯文本字符串或InputContent列表
-
-    Returns:
-        元组 (文本内容, 附件数据列表, 输入类型)
-    """
-    if isinstance(input_data, str):
-        # 纯文本输入
-        return input_data, None, InputType.TEXT
-
-    # 多模态输入 - 处理Sequence[InputContent]
-    text_parts = []
-    attachments_data = []
-    content_types = set()
-
-    for content in input_data:
-        if content.type == InputType.TEXT:
-            text_parts.append(content.content)
-        else:
-            # 非文本类型作为附件
-            content_types.add(content.type)
-            attachment_type = _map_input_type_to_attachment_type(content.type)
-            attachments_data.append({
-                "url": content.content,  # URL在field_validator中已验证
-                "type": attachment_type,
-                "source": "url"
-            })
-
-    # 确定文本内容
-    if text_parts:
-        text_content = " ".join(text_parts)
-    else:
-        # 没有文本，使用默认提示
-        detected_type = _detect_overall_input_type(content_types)
-        text_content = DefaultPrompts.get_prompt(detected_type)
-
-    # 检测整体输入类型
-    input_type = _detect_overall_input_type(content_types) if attachments_data else InputType.TEXT
-
-    return text_content, attachments_data if attachments_data else None, input_type
-
 
 @router.post("/wait")
 async def create_run(
@@ -111,13 +44,11 @@ async def create_run(
     """
     创建运行实例 - 核心工作流端点
 
-    启动多智能体工作流处理用户输入消息。这是整个系统的核心端点，
-    连接前端请求与后端多智能体编排系统。
+    启动多智能体工作流处理用户输入消息。
 
-    支持的请求格式：
-    1. {"input": "你好"}  # 纯文本
-    2. {"input": [{"type": "text", "content": "分析这个"}, {"type": "image_url", "content": "https://..."}]}  # 多模态
-    3. {"input": [{"type": "image_url", "content": "https://..."}]}  # 纯附件（使用默认提示）
+    支持的输入格式：
+    - 纯文本: {"input": "你好"}
+    - 多模态: {"input": [{"type": "text", "content": "分析这个"}, {"type": "image_url", "content": "https://..."}]}
     """
     try:
         logger.info(f"开始运行处理 - 线程: {thread_id}, 租户: {tenant.tenant_id}")
@@ -143,11 +74,6 @@ async def create_run(
                 detail="租户ID不匹配，无法访问此线程"
             )
 
-        # 处理输入（纯文本或多模态）
-        text_content, attachments_data, input_type = _process_input(request.input)
-        logger.info(f"输入处理完成 - 类型: {input_type}, 附件数: {len(attachments_data) if attachments_data else 0}")
-        logger.debug(f"文本内容: {text_content[:100]}..." if len(text_content) > 100 else f"文本内容: {text_content}")
-
         # 创建工作流执行模型
         start_time = get_current_datetime()
         workflow_id = uuid4()
@@ -157,9 +83,7 @@ async def create_run(
             thread_id=thread_id,
             assistant_id=request.assistant_id,
             tenant_id=tenant.tenant_id,
-            input=text_content,  # 使用确定的文本内容
-            attachments=attachments_data,  # 包含下载后的本地路径
-            type=input_type  # 自动检测的类型
+            input=request.input
         )
 
         # 使用编排器处理消息
@@ -171,31 +95,24 @@ async def create_run(
 
         # 返回标准化响应
         return {
-            "id": result.workflow_id,
-            "thread_id": result.thread_id,
-            "data": {
-                "input": result.input,
-                "output": result.output,
-                "total_tokens": result.total_tokens
-            },
+            "run_id": workflow_id,
+            "thread_id": thread_id,
+            "status": "completed",
+            "response": result.output,
+            "total_tokens": result.total_tokens,
             "created_at": start_time,
             "processing_time": processing_time,
-            # 元数据
             "metadata": {
                 "tenant_id": result.tenant_id,
-                "assistant_id": result.assistant_id,
-                "workflow_id": str(result.workflow_id),
-                "input_type": input_type,
-                "has_attachments": attachments_data is not None,
-                "attachment_count": len(attachments_data) if attachments_data else 0
+                "assistant_id": result.assistant_id
             }
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"运行创建失败 - 线程: {thread_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"运行创建失败: {str(e)}")
+        logger.error(f"运行处理失败 - 线程: {thread_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"运行处理失败: {str(e)}")
 
 
 @router.post("/async")
@@ -209,13 +126,11 @@ async def create_background_run(
     """
     创建后台运行实例 - 异步工作流端点
 
-    启动多智能体工作流在后台处理用户输入消息。该端点立即返回运行ID，
-    工作流在后台异步执行，完成后通过回调API发送结果。
+    启动多智能体工作流在后台处理用户输入消息。
 
-    支持的请求格式：
-    1. {"input": "你好"}  # 纯文本
-    2. {"input": [{"type": "text", "content": "分析这个"}, {"type": "image_url", "content": "https://..."}]}  # 多模态
-    3. {"input": [{"type": "image_url", "content": "https://..."}]}  # 纯附件（使用默认提示）
+    支持的输入格式：
+    - 纯文本: {"input": "你好"}
+    - 多模态: {"input": [{"type": "text", "content": "分析这个"}, {"type": "image_url", "content": "https://..."}]}
     """
     try:
         logger.info(f"开始后台运行处理 - 线程: {thread_id}, 租户: {tenant.tenant_id}")
@@ -241,10 +156,6 @@ async def create_background_run(
                 detail="租户ID不匹配，无法访问此线程"
             )
 
-        # 处理输入（纯文本或多模态）
-        text_content, attachments_data, input_type = _process_input(request.input)
-        logger.info(f"输入处理完成 - 类型: {input_type}, 附件数: {len(attachments_data) if attachments_data else 0}")
-
         # 生成运行ID
         run_id = uuid4()
         created_at = get_current_datetime()
@@ -258,11 +169,9 @@ async def create_background_run(
             orchestrator=orchestrator,
             run_id=run_id,
             thread_id=thread_id,
-            input_content=text_content,
-            attachments=attachments_data,
+            input=request.input,
             assistant_id=request.assistant_id,
-            tenant_id=tenant.tenant_id,
-            input_type=input_type
+            tenant_id=tenant.tenant_id
         )
 
         logger.info(f"后台运行已创建 - 线程: {thread_id}, 运行: {run_id}")
@@ -274,11 +183,7 @@ async def create_background_run(
             "assistant_id": request.assistant_id,
             "status": "started",
             "created_at": created_at,
-            "metadata": {
-                **(request.metadata.model_dump() if request.metadata else {}),
-                "input_type": input_type,
-                "has_attachments": attachments_data is not None
-            }
+            "metadata": request.metadata.model_dump() if request.metadata else {}
         }
 
     except HTTPException:
