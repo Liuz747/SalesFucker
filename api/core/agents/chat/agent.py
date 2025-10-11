@@ -55,7 +55,10 @@ class ChatAgent(BaseAgent):
             # 准备聊天提示词
             formatted_prompt = self.chat_prompt.format(user_input=state.input)
 
-            messages = [Message(role="user", content=formatted_prompt)]
+            messages = [
+                Message(role="system", content=formatted_prompt),
+                Message(role="user", content=state.input),
+            ]
 
             request = await self.memory_store.prepare_request(
                 run_id=state.workflow_id,

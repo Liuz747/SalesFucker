@@ -1,14 +1,15 @@
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
-from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel
 
+from schemas.conversation_schema import InputContent
+
 
 class Message(BaseModel):
     role: str
-    content: str | Sequence[Mapping[str, Any]]
+    content: str | Sequence[InputContent]
 
 
 @dataclass
