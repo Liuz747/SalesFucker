@@ -3,15 +3,12 @@ from uuid import UUID
 from typing import Any, Optional
 from collections.abc import Mapping
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field
 from utils import get_current_datetime
 
 
 class WorkflowExecutionModel(BaseModel):
     """工作流执行模型"""
-
-    # 允许动态添加字段（用于workflow节点间传递数据）
-    model_config = ConfigDict(extra='allow')
 
     workflow_id: UUID = Field(description="工作流标识符")
     thread_id: UUID = Field(description="线程标识符")
