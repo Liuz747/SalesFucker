@@ -64,7 +64,7 @@ class ChatAgent(BaseAgent):
                 run_id=state.workflow_id,
                 provider="openrouter",
                 model="openai/gpt-5-mini",
-                message=messages,
+                messages=messages,
                 thread_id=state.thread_id,
                 temperature=1,
                 max_tokens=500
