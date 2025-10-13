@@ -12,12 +12,13 @@ logger = get_component_logger(__name__)
 
 _redis_pool: Optional[ConnectionPool] = None
 
+
 async def get_redis_client() -> Redis:
     """
     异步获取Redis客户端
     """
     global _redis_pool
-    
+
     if _redis_pool is None:
         logger.info(f"初始化Redis连接: {mas_config.REDIS_HOST}")
         _redis_pool = ConnectionPool.from_url(
@@ -36,7 +37,7 @@ async def close_redis_client():
     关闭Redis客户端连接
     """
     global _redis_pool
-    
+
     if _redis_pool:
         await _redis_pool.disconnect()
         _redis_pool = None

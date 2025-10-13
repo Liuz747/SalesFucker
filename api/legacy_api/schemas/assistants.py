@@ -19,8 +19,6 @@ from typing import Any, Dict, List, Optional
 from pydantic import BaseModel, Field, field_validator
 
 from .prompts import AssistantPromptConfig
-from .requests import BaseRequest, PaginationRequest
-from .responses import PaginatedResponse, SimpleResponse
 
 
 class AssistantStatus(str, Enum):
@@ -51,53 +49,43 @@ class ExpertiseLevel(str, Enum):
     EXPERT = "expert"  # 专家
 
 
-class AssistantCreateRequest(BaseRequest):
+class AssistantCreateRequest(BaseModel):
     """
     创建AI员工请求模型
     """
 
     tenant_id: str = Field(description="租户标识符", min_length=1, max_length=100)
-
     assistant_name: str = Field(description="助理姓名", min_length=1, max_length=100)
-
     assistant_id: str = Field(
         description="助理唯一标识符", min_length=1, max_length=100
     )
-
     # 助理配置
     personality_type: PersonalityType = Field(
         default=PersonalityType.PROFESSIONAL,
         description="助理个性类型（可选，优先使用 prompt_config）",
     )
-
     expertise_level: ExpertiseLevel = Field(
         default=ExpertiseLevel.INTERMEDIATE, description="专业等级"
     )
-
     # 提示词配置（新的核心配置）
     prompt_config: Optional[AssistantPromptConfig] = Field(
         None, description="智能体提示词配置 - 定义个性、行为和交互方式"
     )
-
     # 销售配置（保持向后兼容）
     sales_style: Dict[str, Any] = Field(
         default_factory=dict, description="销售风格配置（可选，建议使用prompt_config）"
     )
-
     voice_tone: Dict[str, Any] = Field(
         default_factory=dict, description="语音语调配置（可选，建议使用prompt_config）"
     )
-
     # 专业领域
     specializations: List[str] = Field(
         default_factory=list, description="专业领域列表（如：护肤、彩妆、香水等）"
     )
-
     # 工作配置
     working_hours: Dict[str, Any] = Field(
         default_factory=dict, description="工作时间配置"
     )
-
     max_concurrent_customers: int = Field(
         default=10, description="最大并发客户数", ge=1, le=100
     )
@@ -125,13 +113,10 @@ class AssistantCreateRequest(BaseRequest):
         return v.strip()
 
 
-class AssistantUpdateRequest(BaseRequest):
+class AssistantUpdateRequest(BaseModel):
     """
     更新AI员工请求模型
     """
-
-    tenant_id: str = Field(description="租户标识符", min_length=1, max_length=100)
-
     assistant_name: Optional[str] = Field(
         None, description="助理姓名", min_length=1, max_length=100
     )
@@ -166,7 +151,7 @@ class AssistantUpdateRequest(BaseRequest):
     status: Optional[AssistantStatus] = Field(None, description="助理状态")
 
 
-class AssistantConfigRequest(BaseRequest):
+class AssistantConfigRequest(BaseModel):
     """
     助理配置请求模型
     """
@@ -185,7 +170,7 @@ class AssistantConfigRequest(BaseRequest):
     )
 
 
-class AssistantListRequest(PaginationRequest):
+class AssistantListRequest(BaseModel):
     """
     助理列表查询请求模型
     """
@@ -222,7 +207,7 @@ class AssistantListRequest(PaginationRequest):
 # 响应模型
 
 
-class AssistantResponse(SimpleResponse[Dict[str, Any]]):
+class AssistantResponse(BaseModel):
     """
     AI员工响应模型
     """
@@ -269,7 +254,7 @@ class AssistantResponse(SimpleResponse[Dict[str, Any]]):
     )
 
 
-class AssistantListResponse(PaginatedResponse[List[Dict[str, Any]]]):
+class AssistantListResponse(BaseModel):
     """
     助理列表响应模型
     """
@@ -288,7 +273,7 @@ class AssistantListResponse(PaginatedResponse[List[Dict[str, Any]]]):
     filter_summary: Dict[str, int] = Field(description="过滤条件统计")
 
 
-class AssistantStatsResponse(SimpleResponse[Dict[str, Any]]):
+class AssistantStatsResponse(BaseModel):
     """
     助理统计响应模型
     """
@@ -316,7 +301,7 @@ class AssistantStatsResponse(SimpleResponse[Dict[str, Any]]):
     trends: Dict[str, List[float]] = Field(description="趋势数据")
 
 
-class AssistantOperationResponse(SimpleResponse):
+class AssistantOperationResponse(BaseModel):
     """
     助理操作响应模型
     """

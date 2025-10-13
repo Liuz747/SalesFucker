@@ -6,9 +6,11 @@
 from .base_workflow import BaseWorkflow
 from .chat_workflow import ChatWorkflow
 from .test_workflow import TestWorkflow
+from .sentiment_chat_workflow import SentimentChatWorkflow
 
 __all__ = [
     "BaseWorkflow",
     "ChatWorkflow",
-    "TestWorkflow"
+    "TestWorkflow",
+    "SentimentChatWorkflow"
 ]

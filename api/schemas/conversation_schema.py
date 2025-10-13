@@ -5,16 +5,11 @@
 """
 
 from uuid import UUID
-from typing import Optional, Any, List
+from typing import Optional, Any
 
 from pydantic import BaseModel, Field
 
-
-class InputContent(BaseModel):
-    """消息内容模型"""
-    
-    role: str = Field(description="消息角色（user/assistant/system）")
-    content: str = Field(description="消息内容", min_length=1)
+from libs.types import InputContentParams
 
 
 class ThreadMetadata(BaseModel):
@@ -39,9 +34,9 @@ class ThreadCreateRequest(BaseModel):
 
 class MessageCreateRequest(BaseModel):
     """消息创建请求模型"""
-    
+
     assistant_id: UUID = Field(description="助手标识符")
-    input: InputContent = Field(description="消息内容列表，包含role和content字段")
+    input: InputContentParams = Field(description="纯文本输入或多模态内容列表")
     metadata: Optional[ThreadMetadata] = Field(None, description="线程元数据")
 
 

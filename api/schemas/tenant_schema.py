@@ -12,13 +12,16 @@ class BaseTenant(BaseModel):
     status: TenantStatus = Field(default=TenantStatus.ACTIVE, description="租户状态")
 
 
+
+
 class FeatureFlags(BaseModel):
     """
     功能开关配置模型
     
     处理功能列表到字典的转换，封装业务逻辑。
     """
-    enabled_features: Optional[bool] = Field(default_factory=bool, description="启用的功能列表")
+    multimodal: Optional[bool] = Field(default_factory=bool, description="启用的功能列表")
+    prompts: Optional[bool] = Field(default_factory=bool, description="启用的功能列表")
 
 
 class TenantSyncRequest(BaseTenant):
@@ -29,8 +32,9 @@ class TenantSyncRequest(BaseTenant):
     features: Optional[FeatureFlags] = Field(default=None, description="启用的功能")
 
 
-class TenantUpdateRequest(BaseTenant):
-    features: Optional[dict[str, bool]] = Field(None, description="功能列表")
+class TenantUpdateRequest(BaseModel):
+    features: Optional[FeatureFlags] = Field(None, description="功能列表")
+    status: Optional[TenantStatus] = Field(None, description="租户状态")
 
 
 class TenantSyncResponse(BaseResponse, BaseTenant):
@@ -42,4 +46,5 @@ class TenantStatusResponse(BaseResponse, BaseTenant):
 
 
 class TenantDeleteResponse(BaseResponse, BaseTenant):
-    is_active: bool = Field(description="是否删除成功")
+    pass
+    # is_active: bool = Field(description="是否删除成功")

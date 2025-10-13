@@ -16,7 +16,6 @@ from utils import get_current_datetime, get_processing_time_ms
 # 导入重构后的模块
 from .recommendation_engine import RAGRecommendationEngine
 from core.rag import RecommendationType, RecommendationRequest, SearchQuery
-from .needs_analyzer import CustomerNeedsAnalyzer
 from .recommendation_formatter import RecommendationFormatter
 from .fallback_system import FallbackRecommendationSystem
 from .product_indexer import ProductIndexManager
@@ -44,7 +43,6 @@ class RAGEnhancedProductExpertAgent(BaseAgent):
         
         # 初始化各个专门模块
         self.recommendation_engine = RAGRecommendationEngine(tenant_id)
-        self.needs_analyzer = CustomerNeedsAnalyzer(tenant_id)
         self.formatter = RecommendationFormatter(tenant_id, self.agent_id)
         self.fallback_system = FallbackRecommendationSystem(tenant_id, self.agent_id)
         self.product_indexer = ProductIndexManager(tenant_id)
@@ -59,7 +57,6 @@ class RAGEnhancedProductExpertAgent(BaseAgent):
         try:
             # 初始化各个模块
             await self.recommendation_engine.initialize()
-            await self.needs_analyzer.initialize()
             await self.product_indexer.initialize()
             
             self.rag_initialized = True
@@ -90,10 +87,21 @@ class RAGEnhancedProductExpertAgent(BaseAgent):
             customer_profile = state.get("customer_profile", {})
             customer_history = state.get('customer_history', [])
 
-            # 分析客户需求
-            needs_analysis = await self.needs_analyzer.analyze_customer_needs(
-                customer_input, customer_profile, state.get("intent_analysis")
-            )
+            # 从情感与意图综合分析中适配需求分析（缺失时回退基础分析）
+            # 注意：intent_analysis 由 SentimentAnalysisAgent 统一提供
+            intent_analysis = state.get("intent_analysis") or {}
+            if intent_analysis:
+                needs_analysis = {
+                    "concerns": intent_analysis.get("needs", []) or intent_analysis.get("customer_profile", {}).get("skin_concerns", []),
+                    "product_category": intent_analysis.get("category", "general"),
+                    "urgency": intent_analysis.get("urgency", "medium"),
+                    "budget_sensitivity": customer_profile.get("budget_preference", "medium"),
+                    "analysis_type": "intent_based"
+                }
+            else:
+                needs_analysis = self._analyze_customer_needs_basic(
+                    customer_input, customer_profile, None
+                )
             
             # 生成推荐
             recommendations = await self._orchestrate_recommendation_process(
@@ -397,8 +405,11 @@ class RAGEnhancedProductExpertAgent(BaseAgent):
     ) -> Dict[str, Any]:
         """
         增强版客户需求分析
-        
-        在原有分析基础上增加语义理解
+
+        在原有分析基础上增加语义理解。
+
+        Args:
+            intent_analysis: 情感与意图综合分析结果（由 SentimentAnalysisAgent 提供）
         """
         # 保留原有基础分析逻辑
         basic_needs = self._analyze_customer_needs_basic(
@@ -435,7 +446,12 @@ class RAGEnhancedProductExpertAgent(BaseAgent):
         customer_profile: Dict[str, Any],
         intent_analysis: Dict[str, Any] = None
     ) -> Dict[str, Any]:
-        """基础客户需求分析（原有逻辑）"""
+        """
+        基础客户需求分析（原有逻辑）
+
+        Args:
+            intent_analysis: 情感与意图综合分析结果（由 SentimentAnalysisAgent 提供）
+        """
         needs = {
             "concerns": [],
             "product_category": "general",
@@ -471,7 +487,8 @@ class RAGEnhancedProductExpertAgent(BaseAgent):
                 needs["product_category"] = category
                 break
         
-        # 从意图分析获取信息
+        # 从情感与意图综合分析获取信息
+        # 注意：intent_analysis 由 SentimentAnalysisAgent 统一提供
         if intent_analysis:
             needs["urgency"] = intent_analysis.get("urgency", "medium")
             if intent_analysis.get("category") != "general":

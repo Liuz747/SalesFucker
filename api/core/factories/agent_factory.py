@@ -14,7 +14,6 @@ from core.agents.base import BaseAgent
 from core.agents.compliance import ComplianceAgent
 from core.agents.sales import SalesAgent
 from core.agents.sentiment import SentimentAnalysisAgent
-from core.agents.intent import IntentAnalysisAgent
 from core.agents.product import ProductExpertAgent
 from core.agents.memory import MemoryAgent
 from core.agents.strategy import MarketStrategyCoordinator
@@ -29,10 +28,7 @@ logger = get_component_logger(__name__)
 AGENT_NODE_MAPPING = {
     WorkflowConstants.COMPLIANCE_NODE: ComplianceAgent,
     WorkflowConstants.SENTIMENT_NODE: SentimentAnalysisAgent,
-    WorkflowConstants.INTENT_NODE: IntentAnalysisAgent,
-    WorkflowConstants.STRATEGY_NODE: MarketStrategyCoordinator,
     WorkflowConstants.SALES_NODE: SalesAgent,
-    WorkflowConstants.PRODUCT_NODE: ProductExpertAgent,
     WorkflowConstants.MEMORY_NODE: MemoryAgent,
     "chat_agent": ChatAgent,
 }

@@ -12,14 +12,13 @@
 """
 
 from uuid import UUID
-from typing import Optional
 
 from config import mas_config
 from core.app import Orchestrator
-from models import ThreadStatus
-from models.workflow import WorkflowRun
+from libs.types import InputContentParams
+from models import ThreadStatus, WorkflowRun
 from services import ThreadService
-from schemas.conversation_schema import CallbackPayload, InputContent
+from schemas.conversation_schema import CallbackPayload
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms, ExternalClient
 
 
@@ -73,11 +72,9 @@ class BackgroundWorkflowProcessor:
         orchestrator: Orchestrator,
         run_id: UUID,
         thread_id: UUID,
-        input: InputContent,
+        input: InputContentParams,
         assistant_id: UUID,
-        tenant_id: str,
-        customer_id: Optional[str] = None,
-        input_type: str = "text"
+        tenant_id: str
     ):
         """在后台处理工作流"""
         start_time = get_current_datetime()
@@ -95,12 +92,11 @@ class BackgroundWorkflowProcessor:
 
             # 创建工作流执行模型
             workflow = WorkflowRun(
-                run_id=run_id,
+                workflow_id=run_id,
                 thread_id=thread_id,
                 assistant_id=assistant_id,
                 tenant_id=tenant_id,
-                input=input.content,
-                type=input_type
+                input=input
             )
 
             # 使用编排器处理消息 - 核心工作流调用
@@ -133,8 +129,7 @@ class BackgroundWorkflowProcessor:
                 finished_at=completed_at.isoformat(),
                 metadata={
                     "tenant_id": tenant_id,
-                    "assistant_id": assistant_id,
-                    "execution_id": str(run_id)
+                    "assistant_id": assistant_id
                 }
             )
 

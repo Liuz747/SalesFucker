@@ -15,6 +15,7 @@ from typing import Dict, Any, Optional
 
 from ..base import BaseAgent
 from .sales_strategies import get_sales_strategies, analyze_customer_segment, get_strategy_for_segment, adapt_strategy_to_context
+from core.prompts.templates import get_default_prompt, AgentType, PromptType
 from utils import to_isoformat
 
 
@@ -114,27 +115,139 @@ class SalesAgent(BaseAgent):
             return state
     
     async def _generate_llm_response(
-            self, 
-            customer_input: str, 
+            self,
+            customer_input: str,
             needs: dict,
-            stage: str, 
-            strategy: dict, 
+            stage: str,
+            strategy: dict,
             state: dict
     ) -> str:
         """
         使用MAS多LLM生成个性化销售响应
-        
+
         利用BaseAgent的MAS多LLM功能，智能选择最优供应商生成销售响应。
-        
+        支持基于情感分析结果的个性化回复生成。
+
         参数:
             customer_input: 客户输入
             needs: 客户需求分析
             stage: 对话阶段
             strategy: 销售策略
             state: 对话状态
-            
+
         返回:
             str: LLM生成的个性化销售响应
+        """
+        try:
+            # 检查是否有sentiment分析结果，使用对应的提示词模板
+            sentiment_analysis = state.get("sentiment_analysis", {})
+            intent_analysis = state.get("intent_analysis", {})
+
+            if sentiment_analysis and sentiment_analysis.get("sentiment"):
+                # 使用情感驱动的提示词模板
+                return await self._generate_sentiment_based_response(
+                    customer_input, sentiment_analysis, intent_analysis, state
+                )
+            else:
+                # 使用标准提示词模板
+                return await self._generate_standard_response(
+                    customer_input, needs, stage, strategy, state
+                )
+
+        except Exception as e:
+            self.logger.error(f"多LLM响应生成失败: {e}")
+            # 降级到简单模板响应
+            return self._generate_fallback_response(stage, strategy)
+
+    async def _generate_sentiment_based_response(
+            self,
+            customer_input: str,
+            sentiment_analysis: dict,
+            intent_analysis: dict,
+            state: dict
+    ) -> str:
+        """
+        基于情感分析结果生成个性化响应
+
+        使用templates.py中的CHAT_WITH_SENTIMENT模板。
+
+        参数:
+            customer_input: 客户输入
+            sentiment_analysis: 情感分析结果
+            intent_analysis: 意图分析结果
+            state: 对话状态
+
+        返回:
+            str: 基于情感的个性化响应
+        """
+        try:
+            # 从templates.py获取情感驱动的聊天提示词
+            prompt_template = get_default_prompt(
+                AgentType.SALES,
+                PromptType.CHAT_WITH_SENTIMENT
+            )
+
+            # 提取情感和意图信息
+            customer_profile = state.get("customer_profile", {})
+            intent_customer_profile = intent_analysis.get("customer_profile", {})
+
+            # 填充模板参数
+            prompt = prompt_template.format(
+                customer_input=customer_input,
+                sentiment=sentiment_analysis.get("sentiment", "neutral"),
+                sentiment_score=sentiment_analysis.get("score", 0.0),
+                satisfaction=sentiment_analysis.get("satisfaction", "unknown"),
+                urgency=sentiment_analysis.get("urgency", "medium"),
+                emotions=", ".join(sentiment_analysis.get("emotions", ["无明显情绪"])),
+                skin_type=customer_profile.get("skin_type", "未知"),
+                skin_concerns=", ".join(intent_customer_profile.get("skin_concerns", ["一般咨询"])),
+                budget_range=customer_profile.get("budget_range", "中等"),
+                experience_level=intent_customer_profile.get("experience_level", "中级"),
+                intent=intent_analysis.get("intent", "browsing"),
+                decision_stage=intent_analysis.get("decision_stage", "awareness")
+            )
+
+            # 使用简化的LLM调用
+            messages = [
+                {"role": "system", "content": "你是专业的美妆销售顾问，善于根据客户情绪状态调整沟通方式"},
+                {"role": "user", "content": prompt}
+            ]
+            response = await self.llm_call(
+                messages=messages,
+                temperature=0.8,
+                max_tokens=512
+            )
+
+            if response:
+                return response
+            else:
+                self.logger.warning("情感驱动响应生成失败，使用降级响应")
+                return self._generate_fallback_response("consultation", {"tone": "friendly"})
+
+        except Exception as e:
+            self.logger.error(f"情感驱动响应生成失败: {e}")
+            return self._generate_fallback_response("consultation", {"tone": "friendly"})
+
+    async def _generate_standard_response(
+            self,
+            customer_input: str,
+            needs: dict,
+            stage: str,
+            strategy: dict,
+            state: dict
+    ) -> str:
+        """
+        生成标准销售响应（不基于情感分析）
+
+        参数:
+            customer_input: 客户输入
+            needs: 客户需求分析
+            stage: 对话阶段
+            strategy: 销售策略
+            state: 对话状态
+
+        返回:
+            str: 标准销售响应
         """
         try:
             # 构建上下文信息
@@ -147,7 +260,7 @@ class SalesAgent(BaseAgent):
                     "skin_type": state.get("customer_profile", {}).get("skin_type", "not specified")
                 }
             }
-            
+
             # 构建销售咨询提示词
             prompt = f"""
             作为专业的美妆销售顾问，请为以下客户咨询提供个性化建议：
@@ -173,7 +286,7 @@ class SalesAgent(BaseAgent):
 
             请用中文回复，语言自然流畅，体现专业性和亲和力。
             """
-            
+
             # 使用简化的LLM调用
             messages = [
                 {"role": "system", "content": "你是专业的美妆销售顾问"},
@@ -184,16 +297,16 @@ class SalesAgent(BaseAgent):
                 temperature=0.8,
                 max_tokens=512
             )
-            
+
             if response:
                 return response
             else:
                 # 如果多LLM未启用或失败，降级到简单响应
                 self.logger.warning("多LLM响应失败，使用降级响应")
                 return self._generate_fallback_response(stage, strategy)
-            
+
         except Exception as e:
-            self.logger.error(f"多LLM响应生成失败: {e}")
+            self.logger.error(f"标准响应生成失败: {e}")
             # 降级到简单模板响应
             return self._generate_fallback_response(stage, strategy)
     

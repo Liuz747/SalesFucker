@@ -81,8 +81,6 @@ class MarketStrategyCoordinator(BaseAgent):
             customer_profile = state.get("customer_profile", {})
             conversation_context = {
                 "sentiment": (state.get("sentiment_analysis", {}) or {}).get("sentiment", "neutral"),
-                "intent": (state.get("intent_analysis", {}) or {}).get("intent", "browsing"),
-                "urgency": (state.get("intent_analysis", {}) or {}).get("urgency", "medium"),
                 "customer_input": state.get("customer_input", "")
             }
             

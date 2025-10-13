@@ -17,9 +17,6 @@ from typing import Any, Dict, List, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator
 
-from .requests import BaseRequest
-from .responses import SimpleResponse
-
 
 class ProcessingType(str, Enum):
     """处理类型枚举"""
@@ -55,7 +52,7 @@ class AnalysisType(str, Enum):
     GENERAL_ANALYSIS = "general_analysis"
 
 
-class MultimodalRequest(BaseRequest):
+class MultimodalRequest(BaseModel):
     """
     多模态处理请求模型
     """
@@ -127,7 +124,7 @@ class ImageAnalysisRequest(MultimodalRequest):
     analyze_skin_condition: bool = Field(False, description="是否分析肌肤状况")
 
 
-class BatchMultimodalRequest(BaseRequest):
+class BatchMultimodalRequest(BaseModel):
     """
     批量多模态处理请求模型
     """
@@ -214,7 +211,7 @@ class ProcessingMetadata(BaseModel):
     provider_info: Optional[Dict[str, Any]] = Field(None, description="提供商信息")
 
 
-class MultimodalResponse(SimpleResponse[Dict[str, Any]]):
+class MultimodalResponse(BaseModel):
     """
     多模态处理响应模型
     """
@@ -238,7 +235,7 @@ class MultimodalResponse(SimpleResponse[Dict[str, Any]]):
     next_steps: Optional[List[str]] = Field(None, description="后续处理建议")
 
 
-class ProcessingStatusResponse(SimpleResponse[Dict[str, Any]]):
+class ProcessingStatusResponse(BaseModel):
     """
     处理状态响应模型
     """
@@ -260,7 +257,7 @@ class ProcessingStatusResponse(SimpleResponse[Dict[str, Any]]):
     result_url: Optional[str] = Field(None, description="结果获取URL（如果完成）")
 
 
-class BatchProcessingResponse(SimpleResponse[List[Dict[str, Any]]]):
+class BatchProcessingResponse(BaseModel):
     """
     批量处理响应模型
     """
@@ -282,7 +279,7 @@ class BatchProcessingResponse(SimpleResponse[List[Dict[str, Any]]]):
     error_summary: Optional[Dict[str, Any]] = Field(None, description="错误汇总")
 
 
-class MultimodalCapabilitiesResponse(SimpleResponse[Dict[str, Any]]):
+class MultimodalCapabilitiesResponse(BaseModel):
     """
     多模态能力响应模型
     """

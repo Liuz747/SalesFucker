@@ -21,10 +21,10 @@ logger = get_component_logger(__name__)
 class ChatWorkflow(BaseWorkflow):
     """
     聊天工作流
-    
+
     实现具体的聊天对话流程，包括合规检查、情感分析、
-    意图识别、策略制定、销售处理、产品推荐和记忆更新。
-    
+    意图识别、销售处理和记忆更新。
+
     包含增强的节点处理能力：
     - 智能体节点处理与错误恢复
     - 降级处理策略
@@ -51,10 +51,7 @@ class ChatWorkflow(BaseWorkflow):
         node_mappings = [
             WorkflowConstants.COMPLIANCE_NODE,
             WorkflowConstants.SENTIMENT_NODE,
-            WorkflowConstants.INTENT_NODE,
-            WorkflowConstants.STRATEGY_NODE,
             WorkflowConstants.SALES_NODE,
-            WorkflowConstants.PRODUCT_NODE,
             WorkflowConstants.MEMORY_NODE,
         ]
         
@@ -67,17 +64,15 @@ class ChatWorkflow(BaseWorkflow):
     def _define_edges(self, graph: StateGraph):
         """
         定义优化的节点间连接边
-        
-        实现并行处理以提高性能：
-        - 情感分析和意图分析可并行
-        - 产品推荐和记忆更新可并行
-        
+
+        实现并行处理以提高性能。
+
         参数:
             graph: 要定义边的状态图
         """
         # 添加阻止完成节点
         graph.add_node("blocked_completion", self._blocked_completion_node)
-        
+
         # 合规检查路由
         graph.add_conditional_edges(
             WorkflowConstants.COMPLIANCE_NODE,
@@ -87,14 +82,11 @@ class ChatWorkflow(BaseWorkflow):
                 "block": "blocked_completion"  # 合规阻止时的完成节点
             }
         )
-        
+
         # 串行处理流程
-        graph.add_edge(WorkflowConstants.SENTIMENT_NODE, WorkflowConstants.INTENT_NODE)
-        graph.add_edge(WorkflowConstants.INTENT_NODE, WorkflowConstants.STRATEGY_NODE)
-        graph.add_edge(WorkflowConstants.STRATEGY_NODE, WorkflowConstants.SALES_NODE)
-        graph.add_edge(WorkflowConstants.SALES_NODE, WorkflowConstants.PRODUCT_NODE)
-        graph.add_edge(WorkflowConstants.PRODUCT_NODE, WorkflowConstants.MEMORY_NODE)
-        
+        graph.add_edge(WorkflowConstants.SENTIMENT_NODE, WorkflowConstants.SALES_NODE)
+        graph.add_edge(WorkflowConstants.SALES_NODE, WorkflowConstants.MEMORY_NODE)
+
         logger.debug("优化工作流边定义完成 - 启用并行处理")
     
     def _set_entry_exit_points(self, graph: StateGraph):
@@ -147,10 +139,7 @@ class ChatWorkflow(BaseWorkflow):
         return {
             WorkflowConstants.COMPLIANCE_NODE: self._compliance_fallback,
             WorkflowConstants.SENTIMENT_NODE: self._sentiment_fallback,
-            WorkflowConstants.INTENT_NODE: self._intent_fallback,
-            WorkflowConstants.STRATEGY_NODE: self._strategy_fallback,
             WorkflowConstants.SALES_NODE: self._sales_fallback,
-            WorkflowConstants.PRODUCT_NODE: self._product_fallback,
             WorkflowConstants.MEMORY_NODE: self._memory_fallback,
         }
     
@@ -175,6 +164,8 @@ class ChatWorkflow(BaseWorkflow):
         try:
             # 将 Pydantic 模型转换为 dict 供 agent 处理
             state_dict = state.model_dump()
+            # 将 input 兼容映射为各 Agent 期望的 customer_input
+            state_dict.setdefault("customer_input", state.input)
             result_state = await agent.process_conversation(state_dict)
 
             logger.debug(f"节点处理完成: {node_name}")
@@ -234,19 +225,14 @@ class ChatWorkflow(BaseWorkflow):
         }
     
     def _sentiment_fallback(self, state: WorkflowExecutionModel, error: Optional[Exception]) -> dict:
-        """情感分析降级处理"""
+        """情感与意图综合分析降级处理"""
         return {
             "sentiment_analysis": {
                 "sentiment": "neutral",
                 "score": 0.0,
                 "confidence": 0.5,
                 "fallback": True
-            }
-        }
-    
-    def _intent_fallback(self, state: WorkflowExecutionModel, error: Optional[Exception]) -> dict:
-        """意图分析降级处理"""
-        return {
+            },
             "intent_analysis": {
                 "intent": "general_inquiry",
                 "confidence": 0.5,
@@ -254,28 +240,7 @@ class ChatWorkflow(BaseWorkflow):
                 "fallback": True
             }
         }
-    
-    def _strategy_fallback(self, state: WorkflowExecutionModel, error: Optional[Exception]) -> dict:
-        """市场策略降级处理"""
-        customer_input = state.customer_input.lower()
-        
-        if any(word in customer_input for word in ["luxury", "premium", "expensive"]):
-            strategy = "premium_strategy"
-        elif any(word in customer_input for word in ["budget", "cheap", "affordable"]):
-            strategy = "budget_strategy"
-        elif any(word in customer_input for word in ["young", "trendy", "cool"]):
-            strategy = "youth_strategy"
-        else:
-            strategy = "premium_strategy"  # 默认策略
-        
-        return {
-            "market_strategy": {
-                "strategy": strategy,
-                "confidence": 0.6,
-                "fallback": True
-            }
-        }
-    
+
     def _sales_fallback(self, state: WorkflowExecutionModel, error: Optional[Exception]) -> dict:
         """销售智能体降级处理"""
         agent_responses = state.agent_responses.copy()
@@ -285,17 +250,7 @@ class ChatWorkflow(BaseWorkflow):
             "timestamp": state.timestamp
         }
         return {"agent_responses": agent_responses}
-    
-    def _product_fallback(self, state: WorkflowExecutionModel, error: Optional[Exception]) -> dict:
-        """产品专家降级处理"""
-        return {
-            "product_recommendations": {
-                "status": "unavailable",
-                "message": "产品推荐系统暂时不可用",
-                "fallback": True
-            }
-        }
-    
+
     def _memory_fallback(self, state: WorkflowExecutionModel, error: Optional[Exception]) -> dict:
         """记忆管理降级处理"""
         return {

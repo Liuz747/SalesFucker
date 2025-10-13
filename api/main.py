@@ -20,7 +20,7 @@ from fastapi.responses import JSONResponse
 
 from controllers.middleware import SafetyInterceptor, JWTMiddleware
 from controllers import app_router, __version__
-from controllers.exceptions import BaseHTTPException
+from schemas.exceptions import BaseHTTPException
 from config import mas_config
 from infra.db import test_db_connection, close_db_connections
 from infra.cache import test_redis_connection, close_redis_client

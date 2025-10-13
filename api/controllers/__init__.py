@@ -23,13 +23,9 @@ from fastapi import APIRouter
 
 from .console import tenant_router, auth_router
 from .inner import completion_router
-from .workspace import conversations_router
+from .workspace import conversations_router, assistants_router, prompts_router
 # Legacy API 路由器导入
-from legacy_api.endpoints import (
-    multimodal_router,
-    assistants_router,
-    prompts_router,
-)
+from legacy_api.multimodal import router as multimodal_router
 
 
 app_router = APIRouter()

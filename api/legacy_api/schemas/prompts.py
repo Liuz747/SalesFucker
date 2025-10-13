@@ -10,7 +10,7 @@
 - PromptTestRequest: 提示词测试请求
 - PromptLibraryItem: 提示词库项目
 """
-from typing import Any, Dict, Generic, List, Optional, TypeVar
+from typing import Any, Dict, List, Optional
 
 from datetime import datetime
 from enum import Enum
@@ -18,9 +18,6 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
-from models.prompts import PromptsModel
-from .requests import BaseRequest
-from .responses import PaginatedResponse, SimpleResponse
 
 
 class PromptType(str, Enum):
@@ -194,7 +191,7 @@ class AssistantPromptConfig(BaseModel):
         return v
 
 
-class PromptTestRequest(BaseRequest):
+class PromptTestRequest(BaseModel):
     """
     提示词测试请求模型
     """
@@ -267,7 +264,7 @@ class PromptLibraryItem(BaseModel):
 # 请求模型
 
 
-class PromptCreateRequest(BaseRequest):
+class PromptCreateRequest(BaseModel):
     """创建提示词配置请求"""
 
     assistant_id: str = Field(description="智能体ID")
@@ -275,7 +272,7 @@ class PromptCreateRequest(BaseRequest):
     prompt_config: AssistantPromptConfig = Field(description="提示词配置")
 
 
-class PromptUpdateRequest(BaseRequest):
+class PromptUpdateRequest(BaseModel):
     """更新提示词配置请求"""
 
     # 可选更新字段
@@ -295,7 +292,7 @@ class PromptUpdateRequest(BaseRequest):
     is_active: Optional[bool] = Field(None, description="是否启用")
 
 
-class PromptLibrarySearchRequest(BaseRequest):
+class PromptLibrarySearchRequest(BaseModel):
     """提示词库搜索请求"""
 
     category: Optional[PromptCategory] = Field(None, description="分类筛选")
@@ -310,7 +307,7 @@ class PromptLibrarySearchRequest(BaseRequest):
 
 # 响应模型
 
-class PromptConfigResponse(SimpleResponse):
+class PromptConfigResponse(BaseModel):
     """提示词配置响应"""
 
     assistant_id: str = Field(description="智能体ID")
@@ -321,7 +318,7 @@ class PromptConfigResponse(SimpleResponse):
 
 
 
-class PromptTestResponse(SimpleResponse[Dict[str, Any]]):
+class PromptTestResponse(BaseModel):
     """提示词测试响应"""
 
     test_id: str = Field(description="测试ID")
@@ -331,7 +328,7 @@ class PromptTestResponse(SimpleResponse[Dict[str, Any]]):
     performance_metrics: Dict[str, Any] = Field(description="性能指标")
 
 
-class PromptLibraryResponse(PaginatedResponse[List[PromptLibraryItem]]):
+class PromptLibraryResponse(BaseModel):
     """提示词库响应"""
 
     # page: int = Field(description="分页信息")
@@ -342,7 +339,7 @@ class PromptLibraryResponse(PaginatedResponse[List[PromptLibraryItem]]):
     languages: Dict[str, int] = Field(description="语言统计")
 
 
-class PromptValidationResponse(SimpleResponse):
+class PromptValidationResponse(BaseModel):
     """提示词验证响应"""
 
     is_valid: bool = Field(description="是否有效")
