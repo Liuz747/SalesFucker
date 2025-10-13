@@ -24,8 +24,6 @@ from fastapi import APIRouter
 from .console import tenant_router, auth_router
 from .inner import completion_router
 from .workspace import conversations_router, assistants_router, prompts_router
-# Legacy API 路由器导入
-from legacy_api.multimodal import router as multimodal_router
 
 
 app_router = APIRouter()
@@ -33,7 +31,6 @@ app_router = APIRouter()
 # 注册所有路由器，包含统一的prefix和tags配置
 app_router.include_router(auth_router, prefix="/auth", tags=["auth"])
 app_router.include_router(conversations_router, prefix="/threads", tags=["conversation-threads"])
-app_router.include_router(multimodal_router, prefix="/multimodal", tags=["multimodal"])
 app_router.include_router(assistants_router, prefix="/assistants", tags=["assistants"])
 app_router.include_router(prompts_router, prefix="/prompts", tags=["prompts"])
 app_router.include_router(tenant_router, prefix="/tenants", tags=["tenant"])
