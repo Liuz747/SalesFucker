@@ -14,7 +14,7 @@
 from langfuse import observe, get_client
 
 from models import WorkflowRun
-from ..workflows import ChatWorkflow, TestWorkflow
+from ..workflows import ChatWorkflow, TestWorkflow, SentimentChatWorkflow
 from .entities import WorkflowExecutionModel
 from .workflow_builder import WorkflowBuilder
 from .state_manager import StateManager
@@ -49,7 +49,7 @@ class Orchestrator:
         self.state_manager = StateManager()
 
         # 构建工作流图
-        self.workflow_builder = WorkflowBuilder(TestWorkflow)
+        self.workflow_builder = WorkflowBuilder(SentimentChatWorkflow)
         self.graph = self.workflow_builder.build_graph()
 
         logger.info("多智能体编排器初始化完成")

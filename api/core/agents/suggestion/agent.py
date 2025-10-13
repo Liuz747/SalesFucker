@@ -139,7 +139,6 @@ class AISuggestionAgent(BaseAgent):
         """准备对话分析上下文"""
         return {
             "sentiment": state.get('sentiment_analysis', {}),
-            "intent": state.get('intent_analysis', {}),
             "compliance": state.get('compliance_result', {}),
             "agent_responses": state.get('agent_responses', {}),
             "conversation_complexity": len(state.get('conversation_history', [])),
