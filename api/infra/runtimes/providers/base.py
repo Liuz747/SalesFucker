@@ -6,11 +6,9 @@ LLM供应商基类
 """
 
 from abc import ABC, abstractmethod
-from typing import Any
-from collections.abc import Sequence
 
 from infra.runtimes.entities import LLMRequest, LLMResponse, Provider
-from schemas.conversation_schema import InputContent
+from libs.types import InputContentParams
 
 class BaseProvider(ABC):
     """LLM供应商抽象基类"""
@@ -38,10 +36,7 @@ class BaseProvider(ABC):
         pass
 
     @abstractmethod
-    def _format_message_content(
-        self,
-        content: str | Sequence[InputContent]
-    ) -> Any:
+    def _format_message_content(self, content: InputContentParams):
         """
         将通用content格式转换为供应商特定格式 (抽象方法)
 

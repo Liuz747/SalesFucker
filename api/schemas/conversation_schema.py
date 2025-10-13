@@ -5,28 +5,11 @@
 """
 
 from uuid import UUID
-from typing import Optional, Any, Sequence
+from typing import Optional, Any
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 
-from models.enums import InputType
-
-
-class InputContent(BaseModel):
-    """通用输入内容模型（支持文本和多模态URL）"""
-
-    type: InputType = Field(description="内容类型")
-    content: str = Field(description="文本内容或URL（根据type字段）")
-
-    @field_validator('content')
-    @classmethod
-    def validate_url_if_not_text(cls, v: str, info) -> str:
-        """验证非文本类型必须是有效URL"""
-        content_type = info.data.get('type')
-        if content_type and content_type != InputType.TEXT:
-            if not v.startswith(('http://', 'https://')):
-                raise ValueError(f"无效的URL格式: {v}")
-        return v
+from libs.types import InputContentParams
 
 
 class ThreadMetadata(BaseModel):
@@ -53,7 +36,7 @@ class MessageCreateRequest(BaseModel):
     """消息创建请求模型"""
 
     assistant_id: UUID = Field(description="助手标识符")
-    input: str | Sequence[InputContent] = Field(description="纯文本输入或多模态内容列表")
+    input: InputContentParams = Field(description="纯文本输入或多模态内容列表")
     metadata: Optional[ThreadMetadata] = Field(None, description="线程元数据")
 
 

@@ -11,15 +11,14 @@
 - 错误处理和审计日志
 """
 
-from collections.abc import Sequence
 from uuid import UUID
 
 from config import mas_config
 from core.app import Orchestrator
-from models import ThreadStatus
-from models.workflow import WorkflowRun
+from libs.types import InputContentParams
+from models import ThreadStatus, WorkflowRun
 from services import ThreadService
-from schemas.conversation_schema import CallbackPayload, InputContent
+from schemas.conversation_schema import CallbackPayload
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms, ExternalClient
 
 
@@ -73,7 +72,7 @@ class BackgroundWorkflowProcessor:
         orchestrator: Orchestrator,
         run_id: UUID,
         thread_id: UUID,
-        input: str | Sequence[InputContent],
+        input: InputContentParams,
         assistant_id: UUID,
         tenant_id: str
     ):

@@ -16,7 +16,7 @@ from .client import LLMClient
 from .config import LLMConfig
 from .routing import SimpleRouter
 from .providers import OpenAIProvider, AnthropicProvider, BaseProvider
-from .entities import LLMRequest, LLMResponse, ProviderType, Message
+from .entities import LLMRequest, LLMResponse, ProviderType
 
 __all__ = [
     "LLMClient",
@@ -27,6 +27,5 @@ __all__ = [
     "BaseProvider",
     "LLMRequest",
     "LLMResponse",
-    "ProviderType",
-    "Message"
+    "ProviderType"
 ]

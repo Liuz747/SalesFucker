@@ -1,11 +1,11 @@
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from datetime import datetime
 from typing import Any, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from schemas.conversation_schema import InputContent
+from libs.types import InputContentParams
 from utils import get_current_datetime
 
 
@@ -18,7 +18,7 @@ class WorkflowExecutionModel(BaseModel):
     tenant_id: str = Field(description="租户标识符")
 
     next_node: Optional[str] = Field(default=None, description="下一个节点")
-    input: str | Sequence[InputContent] = Field(description="输入内容")
+    input: InputContentParams = Field(description="输入内容")
     output: Optional[str] = Field(default=None, description="输入类型")
     values: Optional[Mapping[str, Any]] = Field(default=None, description="工作流节点交互的状态")
     
