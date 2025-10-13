@@ -28,7 +28,6 @@ class EscalationAnalyzer:
             "confidence_threshold": 0.6,
             "sentiment_escalation": ["negative"],
             "compliance_escalation": ["blocked", "flagged"],
-            "intent_escalation": ["complaint", "refund", "technical_issue"]
         }
 
         self.logger.info(f"升级分析器初始化完成: agent_id={self.agent_id}")
@@ -55,11 +54,6 @@ class EscalationAnalyzer:
             # 检查合规因素
             escalation_score += self._analyze_compliance_factors(
                 context_data.get("compliance", {}), escalation_factors
-            )
-            
-            # 检查意图因素
-            escalation_score += self._analyze_intent_factors(
-                context_data.get("intent", {}), escalation_factors
             )
             
             # 检查对话复杂度
@@ -111,18 +105,6 @@ class EscalationAnalyzer:
             severity_multiplier = {"low": 0.2, "medium": 0.4, "high": 0.6}.get(severity, 0.4)
             
             return severity_multiplier
-        
-        return 0.0
-    
-    def _analyze_intent_factors(self, intent_data: Dict[str, Any], 
-                              escalation_factors: List[str]) -> float:
-        """分析意图因素对升级的影响"""
-        if intent_data.get("intent") in self.escalation_rules["intent_escalation"]:
-            escalation_factors.append("Complex customer intent requiring human attention")
-            
-            # 考虑意图识别置信度
-            confidence = intent_data.get("confidence", 0.5)
-            return 0.3 * confidence
         
         return 0.0
     

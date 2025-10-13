@@ -1,17 +1,20 @@
-from typing import Dict, Optional, List
 from dataclasses import dataclass
+from uuid import UUID
+
+from libs.types import MessageParams
 
 
 @dataclass
 class LLMRequest:
-    id: Optional[str]
-    messages: List[Dict[str, str]]
+    id: UUID | None
     model: str
+    messages: MessageParams
     provider: str = "openai"
     temperature: float = 0.7
-    max_tokens: Optional[int] = None
+    max_tokens: int | None = None
     stream: bool = False
-    tenant_id: Optional[str] = None
+    thread_id: UUID | None = None
+
 
 @dataclass 
 class LLMResponse:
@@ -19,5 +22,5 @@ class LLMResponse:
     content: str
     provider: str
     model: str
-    usage: Dict[str, int]
+    usage: dict[str, int]
     cost: float = 0.0

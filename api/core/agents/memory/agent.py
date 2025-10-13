@@ -279,7 +279,6 @@ class MemoryAgent(BaseAgent):
                 "customer_input": state.get("customer_input"),
                 "final_response": state.get("final_response"),
                 "sentiment": (state.get("sentiment_analysis", {}) or {}).get("sentiment", "neutral"),
-                "intent": (state.get("intent_analysis", {}) or {}).get("intent", "unknown"),
                 "active_agents": list(state.get("active_agents", [])),
                 "tenant_id": self.tenant_id
             }
@@ -312,14 +311,6 @@ class MemoryAgent(BaseAgent):
         """
         updates = {}
         
-        # 从意图分析中提取信息
-        if state.get("intent_analysis"):
-            intent_data = state["intent_analysis"]
-            if intent_data.get("category") and intent_data["category"] != "general":
-                updates["preferred_category"] = intent_data["category"]
-            
-            if intent_data.get("urgency"):
-                updates["last_urgency_level"] = intent_data["urgency"]
         
         # 从情感分析中提取信息
         if state.get("sentiment_analysis"):

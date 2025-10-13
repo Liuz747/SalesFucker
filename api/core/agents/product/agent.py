@@ -82,9 +82,11 @@ class ProductExpertAgent(BaseAgent):
             customer_profile = state.get("customer_profile", {})
             customer_history = state.get('customer_history', [])
             
-            # 分析客户需求和偏好
+            # 基于情感与意图综合分析结果生成需求画像
+            # 注意：intent_analysis 现在由 SentimentAnalysisAgent 统一提供
+            intent_analysis = state.get("intent_analysis", {}) or {}
             needs_analysis = await self.needs_analyzer.analyze_customer_needs(
-                customer_input, customer_profile, state.get("intent_analysis")
+                customer_input, customer_profile, intent_analysis
             )
             
             # 生成产品推荐

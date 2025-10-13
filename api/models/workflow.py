@@ -4,6 +4,7 @@ from datetime import datetime
 from pydantic import BaseModel, Field
 from sqlalchemy import Column, DateTime, String, Uuid, func
 
+from libs.types import InputContentParams
 from utils import get_current_datetime
 from .base import Base
 
@@ -28,7 +29,6 @@ class WorkflowRun(BaseModel):
     thread_id: UUID = Field(description="线程标识符")
     assistant_id: UUID = Field(description="助手标识符")
     tenant_id: str = Field(description="租户标识符")
-    input: str = Field(description="工作流内容")
-    type: str = Field(description="工作流类型")
+    input: InputContentParams = Field(description="用户输入：纯文本或多模态内容序列")
     created_at: datetime = Field(default_factory=get_current_datetime, description="创建时间")
     finished_at: datetime = Field(default_factory=get_current_datetime, description="完成时间")

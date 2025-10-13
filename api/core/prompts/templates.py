@@ -36,6 +36,8 @@ class PromptType(StrEnum):
     OBJECTION_HANDLING = "objection_handling"
     CLOSING = "closing"
     CONTENT_ANALYSIS = "content_analysis"
+    SENTIMENT_ANALYSIS = "sentiment_analysis"
+    CHAT_WITH_SENTIMENT = "chat_with_sentiment"
 
 
 # 默认提示词模板配置
@@ -113,6 +115,38 @@ DEFAULT_PROMPTS = {
                             如果您需要时间考虑，完全没有问题。我的联系方式是{contact_info}，随时欢迎您咨询。
 
                             期待下次为您提供更好的服务！
+                            """,
+
+        PromptType.CHAT_WITH_SENTIMENT: """
+作为专业的美妆销售顾问，请为以下客户咨询提供个性化建议：
+
+客户咨询：{customer_input}
+
+情感分析结果：
+- 情绪状态：{sentiment}（{sentiment_score}）
+- 满意度：{satisfaction}
+- 紧迫程度：{urgency}
+- 主要情绪：{emotions}
+
+客户档案：
+- 肌肤类型：{skin_type}
+- 关注问题：{skin_concerns}
+- 预算范围：{budget_range}
+- 经验水平：{experience_level}
+- 购买意图：{intent}
+- 决策阶段：{decision_stage}
+
+请提供：
+1. 根据客户的情绪状态调整沟通语气和方式
+2. 针对客户关注问题的专业分析
+3. 结合客户购买意图给出合适的产品建议或解决方案
+4. 根据决策阶段提供适当的引导和后续问题
+
+回复要求：
+- 用中文回复，语言自然流畅
+- 体现专业性和亲和力
+- 根据情绪状态调整语气（积极时热情回应，消极时耐心共情，中性时专业引导）
+- 根据紧迫程度控制回复详细度（高紧迫度简明扼要，低紧迫度详细周到）
                             """
     },
 
@@ -169,6 +203,46 @@ DEFAULT_PROMPTS = {
                                 - 困惑度：客户对产品信息的理解程度
 
                                 请准确分析客户情绪，为其他智能体提供有价值的情感洞察。
+                                """,
+
+        PromptType.SENTIMENT_ANALYSIS: """
+                                分析以下客户的情感状态和购买意图：
+
+{history_text}
+当前客户输入：{customer_input}
+
+请返回JSON格式，包含情感分析和意图分析两部分：
+{{
+    "sentiment": {{
+        "sentiment": "positive/neutral/negative",
+        "score": 0.0-1.0,
+        "confidence": 0.0-1.0,
+        "emotions": ["情绪1", "情绪2"],
+        "satisfaction": "satisfied/neutral/dissatisfied",
+        "urgency": "low/medium/high"
+    }},
+    "intent": {{
+        "intent": "browsing/interested/comparing/ready_to_buy",
+        "category": "skincare/makeup/consultation/general",
+        "confidence": 0.0-1.0,
+        "urgency": "low/medium/high",
+        "decision_stage": "awareness/consideration/decision/purchase",
+        "needs": ["需求1", "需求2"],
+        "customer_profile": {{
+            "skin_concerns": ["问题1", "问题2"],
+            "product_interests": ["产品类型1", "产品类型2"],
+            "experience_level": "beginner/intermediate/advanced",
+            "budget_signals": ["预算线索1", "预算线索2"]
+        }}
+    }}
+}}
+
+分析重点：
+1. 客户当前的情绪状态（正面、中性、负面）
+2. 客户的满意度和信任度水平
+3. 购买决策的紧迫程度
+4. 客户所处的购买阶段
+5. 客户的产品兴趣和需求
                                 """
     },
 

@@ -12,11 +12,10 @@
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional
 
 from core.app.entities import WorkflowExecutionModel
+from infra.runtimes import LLMClient, LLMRequest, LLMResponse
 from utils import get_component_logger
-from infra.runtimes import LLMClient, LLMRequest
 
 class BaseAgent(ABC):
     """
@@ -70,35 +69,15 @@ class BaseAgent(ABC):
         """
         pass
     
-    async def invoke_llm(
-        self,
-        messages: list,
-        model: str = "gpt-4o-mini",
-        provider: str = "openai",
-        temperature: float = 0.7,
-        max_tokens: Optional[int] = None
-    ) -> str:
+    async def invoke_llm(self, request: LLMRequest) -> LLMResponse:
         """
         简单的LLM调用方法
         
         参数:
-            messages: 消息列表，格式 [{"role": "user", "content": "text"}]
-            model: 模型名称
-            provider: 供应商名称
-            temperature: 温度参数
-            max_tokens: 最大令牌数
+            request: LLM请求
             
         返回:
             str: LLM响应内容
         """
-        request = LLMRequest(
-            id=None,
-            messages=messages,
-            model=model,
-            provider=provider,
-            temperature=temperature,
-            max_tokens=max_tokens
-        )
         
-        response = await self.llm_client.completions(request)
-        return response.content
+        return await self.llm_client.completions(request)

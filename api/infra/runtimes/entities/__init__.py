@@ -8,5 +8,5 @@ __all__ = [
     "Provider",
     "ProviderType",
     "Model",
-    "ModelType"
+    "ModelType",
 ]

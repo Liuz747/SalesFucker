@@ -2,33 +2,38 @@
 客户需求分析器
 Customer Needs Analyzer
 
-提供基础和语义增强的客户需求分析功能
+提供基础和语义增强的客户需求分析功能。
+整合了 SentimentAnalysisAgent 提供的情感与意图综合分析结果。
 """
 
 import logging
 from typing import Dict, Any, List
 
-from core.rag import ProductSearch, SearchQuery
-
 logger = logging.getLogger(__name__)
 
 class CustomerNeedsAnalyzer:
-    """客户需求分析器"""
+    """
+    客户需求分析器（适配 SentimentAnalysisAgent 的综合分析结果）
+
+    功能：
+    - 从 intent_analysis 提取结构化需求信息
+    - 基于关键词的兜底分析
+    - 整合客户档案和历史偏好
+
+    注意：
+    intent_analysis 由 SentimentAnalysisAgent 统一提供，
+    包含情感和意图的综合分析结果。
+    """
     
     def __init__(self):
-        self.product_search = ProductSearch()
         self.logger = logging.getLogger(__name__)
+        # 语义分析已由情感与意图分析合并提供，这里仅做适配与兜底
         self.semantic_analysis_enabled = False
     
     async def initialize(self) -> None:
-        """初始化需求分析器"""
-        try:
-            await self.product_search.initialize()
-            self.semantic_analysis_enabled = True
-            self.logger.info("需求分析器初始化完成")
-        except Exception as e:
-            self.logger.warning(f"语义分析初始化失败，使用基础分析: {e}")
-            self.semantic_analysis_enabled = False
+        """保持兼容的空初始化"""
+        self.semantic_analysis_enabled = False
+        self.logger.info("需求分析器已就绪（使用 SentimentAnalysisAgent 的综合分析结果）")
     
     async def analyze_customer_needs(
         self,
@@ -38,33 +43,21 @@ class CustomerNeedsAnalyzer:
     ) -> dict:
         """
         分析客户需求（增强版）
-        
+
+        从 SentimentAnalysisAgent 提供的 intent_analysis 中提取需求信息。
+
         Args:
             customer_input: 客户输入
             customer_profile: 客户档案
-            intent_analysis: 意图分析结果
-            
+            intent_analysis: 情感与意图综合分析结果（由 SentimentAnalysisAgent 提供）
+
         Returns:
             Dict[str, Any]: 需求分析结果
         """
-        # 基础需求分析
-        basic_needs = self._analyze_basic_needs(
+        # 基于意图分析构建需求，并结合关键词兜底
+        return self._analyze_basic_needs(
             customer_input, customer_profile, intent_analysis
         )
-        
-        # 语义增强分析
-        # if self.semantic_analysis_enabled:
-        #     try:
-        #         semantic_insights = await self._analyze_semantic_needs(customer_input)
-        #         basic_needs.update(semantic_insights)
-        #         basic_needs["semantic_analysis_available"] = True
-        #     except Exception as e:
-        #         self.logger.warning(f"语义需求分析失败: {e}")
-        #         basic_needs["semantic_analysis_available"] = False
-        # else:
-        #     basic_needs["semantic_analysis_available"] = False
-        
-        return basic_needs
     
     def _analyze_basic_needs(
         self,
@@ -74,12 +67,12 @@ class CustomerNeedsAnalyzer:
     ) -> Dict[str, Any]:
         """
         基础客户需求分析
-        
+
         Args:
             customer_input: 客户输入
             customer_profile: 客户档案
-            intent_analysis: 意图分析结果
-            
+            intent_analysis: 情感与意图综合分析结果（由 SentimentAnalysisAgent 提供）
+
         Returns:
             Dict[str, Any]: 基础需求分析结果
         """
@@ -130,11 +123,39 @@ class CustomerNeedsAnalyzer:
                 needs["urgency"] = urgency_level
                 break
         
-        # 从意图分析获取信息
+        # 从情感与意图综合分析获取结构化信息
+        # 注意：intent_analysis 由 SentimentAnalysisAgent 统一提供
         if intent_analysis:
+            # 顶层字段（与 SentimentAnalysisAgent 输出对齐）
             needs["urgency"] = intent_analysis.get("urgency", needs["urgency"])
-            if intent_analysis.get("category") != "general":
-                needs["product_category"] = intent_analysis.get("category", needs["product_category"])
+            category = intent_analysis.get("category")
+            if category and category != "general":
+                needs["product_category"] = category
+
+            # 直接的客户需求关键词
+            if isinstance(intent_analysis.get("needs"), list):
+                # 将 LLM 抽取的需要映射到 concerns（与推荐过滤保持兼容）
+                normalized = [str(x).strip().lower() for x in intent_analysis["needs"] if x]
+                if normalized:
+                    needs["concerns"].extend(list({n for n in normalized}))
+
+            # 嵌套的客户档案信息
+            profile_from_intent = intent_analysis.get("customer_profile", {}) or {}
+            if isinstance(profile_from_intent, dict):
+                # 皮肤问题
+                skin_concerns = profile_from_intent.get("skin_concerns", [])
+                if isinstance(skin_concerns, list):
+                    needs["concerns"].extend([str(x).strip().lower() for x in skin_concerns if x])
+
+                # 预算信号 -> 预算敏感度（取首个强信号作为偏好）
+                budget_signals = profile_from_intent.get("budget_signals", [])
+                if isinstance(budget_signals, list) and budget_signals:
+                    needs["budget_sensitivity"] = str(budget_signals[0]).strip().lower()
+
+                # 可能的肤质推断
+                inferred_skin_type = profile_from_intent.get("skin_type") or profile_from_intent.get("skin_type_indicators", [None])[0]
+                if inferred_skin_type:
+                    needs["skin_type"] = str(inferred_skin_type).strip().lower()
         
         # 从客户档案获取偏好
         if customer_profile:
@@ -146,108 +167,6 @@ class CustomerNeedsAnalyzer:
                 needs["preferred_brands"] = customer_profile["preferred_brands"]
         
         return needs
-    
-    async def _analyze_semantic_needs(self, customer_input: str) -> Dict[str, Any]:
-        """
-        语义需求分析
-        
-        Args:
-            customer_input: 客户输入
-            
-        Returns:
-            Dict[str, Any]: 语义分析洞察
-        """
-        try:
-            # 使用语义检索理解客户需求
-            search_query = SearchQuery(
-                text=customer_input,
-                tenant_id=self.tenant_id,
-                top_k=3
-            )
-            
-            search_result = await self.product_search.search(search_query)
-            
-            # 从检索结果中提取需求洞察
-            semantic_insights = {"analysis_type": "semantic"}
-            
-            if search_result.results:
-                insights = self._extract_semantic_insights(search_result.results)
-                semantic_insights.update(insights)
-            
-            return semantic_insights
-            
-        except Exception as e:
-            self.logger.error(f"语义需求分析失败: {e}")
-            return {"analysis_type": "semantic_failed", "error": str(e)}
-    
-    def _extract_semantic_insights(self, products) -> Dict[str, Any]:
-        """
-        从语义检索结果中提取需求洞察
-        
-        Args:
-            products: 检索到的产品列表
-            
-        Returns:
-            Dict[str, Any]: 语义洞察结果
-        """
-        insights = {}
-        
-        # 分析产品类别分布
-        categories = [p.product_data.get("category", "") for p in products]
-        if categories:
-            most_common_category = max(set(categories), key=categories.count)
-            insights["semantic_category"] = most_common_category
-        
-        # 分析肌肤类型偏好
-        skin_types = [p.product_data.get("skin_type_suitability", "") for p in products]
-        if skin_types:
-            valid_skin_types = list(filter(None, skin_types))
-            if valid_skin_types:
-                most_common_skin_type = max(set(valid_skin_types), key=skin_types.count, default="")
-                if most_common_skin_type:
-                    insights["semantic_skin_type"] = most_common_skin_type
-        
-        # 分析价格范围偏好
-        prices = [p.product_data.get("price", 0) for p in products if p.product_data.get("price")]
-        if prices:
-            avg_price = sum(prices) / len(prices)
-            if avg_price < 100:
-                insights["semantic_budget"] = "budget"
-            elif avg_price < 500:
-                insights["semantic_budget"] = "medium"
-            else:
-                insights["semantic_budget"] = "premium"
-        
-        # 分析品牌偏好
-        brands = [p.product_data.get("brand", "") for p in products if p.product_data.get("brand")]
-        if brands:
-            brand_counts = {}
-            for brand in brands:
-                brand_counts[brand] = brand_counts.get(brand, 0) + 1
-            
-            if brand_counts:
-                most_common_brand = max(brand_counts, key=brand_counts.get)
-                insights["semantic_preferred_brand"] = most_common_brand
-        
-        # 分析功效偏好
-        benefits = []
-        for p in products:
-            product_benefits = p.product_data.get("benefits", "")
-            if product_benefits:
-                benefits.extend(product_benefits.split("，"))
-        
-        if benefits:
-            benefit_counts = {}
-            for benefit in benefits:
-                clean_benefit = benefit.strip()
-                if clean_benefit:
-                    benefit_counts[clean_benefit] = benefit_counts.get(clean_benefit, 0) + 1
-            
-            if benefit_counts:
-                top_benefits = sorted(benefit_counts.items(), key=lambda x: x[1], reverse=True)[:3]
-                insights["semantic_desired_benefits"] = [benefit for benefit, _ in top_benefits]
-        
-        return insights
     
     def get_analysis_summary(self, needs_analysis: Dict[str, Any]) -> str:
         """
