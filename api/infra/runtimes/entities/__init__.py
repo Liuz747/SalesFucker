@@ -1,4 +1,4 @@
-from .llm import LLMRequest, LLMResponse, Message
+from .llm import LLMRequest, LLMResponse
 from .providers import Provider, ProviderType
 from .models import Model, ModelType
 
@@ -9,5 +9,4 @@ __all__ = [
     "ProviderType",
     "Model",
     "ModelType",
-    "Message"
 ]

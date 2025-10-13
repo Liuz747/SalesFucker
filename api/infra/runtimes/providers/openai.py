@@ -5,11 +5,13 @@ OpenAI供应商实现
 支持GPT-4o、GPT-4o-mini等模型。
 """
 
-import openai
-from openai.types.chat import ChatCompletionMessageParam
+from typing import Any
 
-from infra.runtimes.providers import BaseProvider
-from infra.runtimes.entities import LLMRequest, LLMResponse, Provider
+import openai
+from openai.types.chat import ChatCompletionMessageParam, ChatCompletionContentPartParam
+
+from ..entities import LLMRequest, LLMResponse, Provider
+from .base import BaseProvider
 
 
 class OpenAIProvider(BaseProvider):
@@ -28,6 +30,31 @@ class OpenAIProvider(BaseProvider):
             base_url=provider.base_url
         )
 
+    def _format_message_content(self, content) -> Any:
+        """
+        将通用content格式转换为OpenAI特定格式
+
+        参数:
+            content: str（纯文本）或 Sequence[InputContent]（多模态）
+
+        返回:
+            str 或 list[dict]: OpenAI API所需格式
+        """
+        if isinstance(content, str):
+            return content
+
+        # 将InputContent序列转换为OpenAI要求的字段
+        formatted: list[ChatCompletionContentPartParam] = []
+        for item in content:
+            if item.type == "text":
+                formatted.append({"type": "text", "text": item.content})
+            elif item.type == "input_image":
+                formatted.append({
+                    "type": "image_url",
+                    "image_url": {"url": item.content}
+                })
+        return formatted
+
     async def completions(self, request: LLMRequest) -> LLMResponse:
         """
         发送聊天请求到OpenAI
@@ -38,8 +65,13 @@ class OpenAIProvider(BaseProvider):
         返回:
             LLMResponse: OpenAI响应
         """
-        # 构建包含历史记录的对话上下文
-        messages: list[ChatCompletionMessageParam] = [message.model_dump() for message in request.messages]
+        # 构建包含历史记录的对话上下文并处理多模态内容
+        messages: list[ChatCompletionMessageParam] = []
+        for message in request.messages:
+            messages.append({
+                "role": message.role,
+                "content": self._format_message_content(message.content)
+            })
         
         response = await self.client.chat.completions.create(
             model=request.model or "gpt-4o-mini",
@@ -82,4 +114,3 @@ class OpenAIProvider(BaseProvider):
         model_cost = costs.get(model, costs["gpt-4o-mini"])
         return (usage.prompt_tokens * model_cost["input"] / 1000 +
                 usage.completion_tokens * model_cost["output"] / 1000)
-

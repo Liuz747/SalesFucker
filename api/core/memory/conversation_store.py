@@ -6,13 +6,13 @@
 """
 
 from uuid import UUID
-from collections.abc import Iterable
 
 import msgpack
 from redis.asyncio import Redis
 
 from infra.cache import get_redis_client
-from infra.runtimes import LLMRequest, Message
+from infra.runtimes import LLMRequest
+from libs.types import Message, MessageParams
 from utils import get_component_logger
 
 
@@ -48,12 +48,10 @@ class ConversationStore:
     async def append_messages(
         self,
         thread_id: UUID,
-        messages: Iterable[Message]
+        packed: list[bytes],
     ):
         redis_client = self.redis_client or await get_redis_client()
         key = self._key(thread_id)
-
-        packed = [self._pack_message(m) for m in messages]
 
         async with redis_client.pipeline(transaction=True) as pipe:
             await pipe.rpush(key, *packed)
@@ -67,7 +65,7 @@ class ConversationStore:
         return new_len
 
     # ------------- read path -------------
-    async def get_recent(self,  thread_id: UUID, limit: int | None = None) -> Iterable[Message]:
+    async def get_recent(self,  thread_id: UUID, limit: int | None = None) -> MessageParams:
         """获取最近 limit 条消息（默认使用 store 的 max_messages）。"""
         redis = self.redis_client or await get_redis_client()
         key = self._key(thread_id)
@@ -83,7 +81,7 @@ class ConversationStore:
         run_id: UUID,
         provider: str,
         model: str,
-        message: Iterable[Message],
+        messages: MessageParams,
         thread_id: UUID,
         temperature: float = 0.7,
         max_tokens: int | None = None,
@@ -93,9 +91,20 @@ class ConversationStore:
         1) 将本次输入写入会话短期记忆
         2) 读取最近 N 条构建 LLMRequest
         """
+        filtered = []
+        system = []
+
+        for message in messages:
+            if message.role == "system":
+                system.append(message)
+            else:
+                filtered.append(self._pack_message(message))
+        
         # append user message then read the window
-        await self.append_messages(thread_id, message)
-        window = await self.get_recent(thread_id, self.max_messages)
+        await self.append_messages(thread_id, filtered)
+
+        recent = await self.get_recent(thread_id, self.max_messages)
+        window = system + recent if system else recent
 
         return LLMRequest(
             id=run_id,
@@ -110,4 +119,5 @@ class ConversationStore:
 
     async def save_assistant_reply(self, thread_id: UUID | str, content: str) -> None:
         """生成后将助手消息写回上下文。"""
-        await self.append_messages(thread_id, [Message(role="assistant", content=content)])
+        packed = [self._pack_message(Message(role="assistant", content=content))]
+        await self.append_messages(thread_id, packed)

@@ -7,7 +7,8 @@ from typing import Optional
 from pydantic import BaseModel
 from fastapi import APIRouter, HTTPException
 
-from infra.runtimes import LLMClient, LLMRequest, Message
+from infra.runtimes import LLMClient, LLMRequest
+from libs.types import Message
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "LLM")

@@ -1,7 +1,7 @@
 from langfuse import observe
 
-from infra.runtimes import Message
 from core.memory import ConversationStore
+from libs.types import Message
 from utils import get_current_datetime, get_processing_time_ms
 from ..base import BaseAgent
 from ...app.entities import WorkflowExecutionModel
@@ -55,13 +55,16 @@ class ChatAgent(BaseAgent):
             # 准备聊天提示词
             formatted_prompt = self.chat_prompt.format(user_input=state.input)
 
-            messages = [Message(role="user", content=formatted_prompt)]
+            messages = [
+                Message(role="system", content=formatted_prompt),
+                Message(role="user", content=state.input),
+            ]
 
             request = await self.memory_store.prepare_request(
                 run_id=state.workflow_id,
                 provider="openrouter",
                 model="openai/gpt-5-mini",
-                message=messages,
+                messages=messages,
                 thread_id=state.thread_id,
                 temperature=1,
                 max_tokens=500

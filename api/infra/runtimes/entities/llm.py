@@ -1,20 +1,14 @@
-from collections.abc import Iterable
 from dataclasses import dataclass
 from uuid import UUID
 
-from pydantic import BaseModel
-
-
-class Message(BaseModel):
-    role: str
-    content: str
+from libs.types import MessageParams
 
 
 @dataclass
 class LLMRequest:
     id: UUID | None
     model: str
-    messages: Iterable[Message]
+    messages: MessageParams
     provider: str = "openai"
     temperature: float = 0.7
     max_tokens: int | None = None
