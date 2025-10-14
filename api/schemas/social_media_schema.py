@@ -4,20 +4,12 @@
 定义请求与响应Schema，供FastAPI控制器及服务层复用。
 """
 
-from __future__ import annotations
-
 from collections.abc import Sequence
-from enum import StrEnum
 from typing import Optional
 
 from pydantic import BaseModel, Field
 
-
-class SocialPlatform(StrEnum):
-    """支持的社交媒体平台枚举"""
-
-    REDNOTE = "rednote"
-    DOUYING = "douyin"
+from libs.types import SocialMediaActionType, SocialPlatform
 
 
 class CommentData(BaseModel):
@@ -34,9 +26,16 @@ class ReplyData(BaseModel):
     """回复模型"""
 
     id: str = Field(description="回复ID")
-    file_type: str = Field(description="文件类型")
-    file_url: str = Field(description="文件URL")
+    file_url: Optional[str] = Field(description="文件URL")
     reply_content: str = Field(description="回复内容")
+
+
+class ReplyMessageData(BaseModel):
+    """回复数据模型"""
+
+    id: str = Field(description="回复ID")
+    actions: Sequence[SocialMediaActionType] = Field(default_factory=list, description="任务类型ID")
+    message: Optional[str] = Field(None, description="生成的评论文案")
 
 
 class BaseGenerationRequest(BaseModel):
@@ -57,8 +56,8 @@ class CommentGenerationRequest(BaseGenerationRequest):
 class CommentGenerationResponse(BaseModel):
     """评论生成响应"""
 
-    message: str = Field(description="生成的评论文案")
-    rationale: str = Field(description="文案设计思路")
+    actions: Sequence[SocialMediaActionType] = Field(default_factory=list, description="任务类型ID")
+    message: Optional[str] = Field(None, description="生成的评论文案")
 
 
 class ReplyGenerationRequest(BaseGenerationRequest):
@@ -70,11 +69,7 @@ class ReplyGenerationRequest(BaseGenerationRequest):
 class ReplyGenerationResponse(BaseModel):
     """评论回复响应"""
 
-    message: str = Field(description="生成的回复文案")
-    rationale: str = Field(description="回复策略说明")
-    follow_up_prompt: Optional[str] = Field(
-        None, description="建议引导用户进一步互动的问题或行动"
-    )
+    tasks: Sequence[ReplyMessageData] = Field(default_factory=list, description="任务列表")
 
 
 class KeywordSummaryRequest(BaseGenerationRequest):
