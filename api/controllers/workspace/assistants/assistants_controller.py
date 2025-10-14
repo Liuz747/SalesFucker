@@ -127,7 +127,8 @@ async def get_assistant(
     try:
         logger.info(f"查询助理详情: assistant={assistant_id}")
 
-        result = await AssistantService.get_assistant_by_id(
+        assistant_service = AssistantService()
+        result = await assistant_service.get_assistant_by_id(
             assistant_id
         )
 
