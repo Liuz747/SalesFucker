@@ -16,6 +16,8 @@ import uuid
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 
+from fastapi import HTTPException
+
 from infra.cache import get_redis_client
 from infra.db import database_session
 from models.prompts import PromptsModel
@@ -141,7 +143,7 @@ class AssistantService:
                             created_at=now,
                             updated_at=now,
                         )
-                        prompts_id = await PromptsRepository.insertPrompts(promptsModel.to_orm(), session)
+                        prompts_id = await PromptsRepository.insert_prompts(promptsModel.to_orm(), session)
                         prompts_orm = await PromptsRepository.get_prompts_by_id(prompts_id, session)
 
                         promptsModel.id = prompts_id
@@ -391,44 +393,92 @@ class AssistantService:
                 # if request.status is not None:
                     # update_fields["status"] = request.status
                     # assistant_orm.status = request.status
-
-
-                # 更新时间戳
-                # update_fields["updated_at"] = datetime.utcnow()
                 assistant_orm.updated_at = get_current_datetime()
 
                 # todo 暂时先不考虑提示词
-                if 1 == 2:
-                    # 处理提示词配置更新（如果提供）
-                    if request.prompt_config:
-                        try:
-                            from schemas.prompts_schema import PromptUpdateRequest
-                            prompt_update = PromptUpdateRequest(
-                                personality_prompt=request.prompt_config.personality_prompt,
+                # if 1 == 2:
+                # 处理提示词配置更新（如果提供）
+                if request.prompt_config:
+                    try:
+                        from schemas.prompts_schema import PromptUpdateRequest
+                        prompt_update = PromptUpdateRequest(
+                            personality_prompt=request.prompt_config.personality_prompt,
+                            greeting_prompt=request.prompt_config.greeting_prompt,
+                            product_recommendation_prompt=request.prompt_config.product_recommendation_prompt,
+                            objection_handling_prompt=request.prompt_config.objection_handling_prompt,
+                            closing_prompt=request.prompt_config.closing_prompt,
+                            context_instructions=request.prompt_config.context_instructions,
+                            llm_parameters=request.prompt_config.llm_parameters,
+                            brand_voice=request.prompt_config.brand_voice,
+                            product_knowledge=request.prompt_config.product_knowledge,
+                            safety_guidelines=request.prompt_config.safety_guidelines,
+                            forbidden_topics=request.prompt_config.forbidden_topics,
+                            is_active=request.prompt_config.is_active
+                        )
+
+                        prompts = await PromptsRepository.get_prompts_by_assistant_id(assistant_id)
+                        now = get_current_datetime()
+
+                        if prompts is None:
+                            # 没有提示词，需要创建
+                            promptsModel = PromptsModel(
+                                tenant_id=request.prompt_config.tenant_id,
+                                assistant_id=request.prompt_config.assistant_id,
+                                personality_prompt=request.personality_type,
                                 greeting_prompt=request.prompt_config.greeting_prompt,
                                 product_recommendation_prompt=request.prompt_config.product_recommendation_prompt,
                                 objection_handling_prompt=request.prompt_config.objection_handling_prompt,
                                 closing_prompt=request.prompt_config.closing_prompt,
                                 context_instructions=request.prompt_config.context_instructions,
                                 llm_parameters=request.prompt_config.llm_parameters,
-                                brand_voice=request.prompt_config.brand_voice,
-                                product_knowledge=request.prompt_config.product_knowledge,
                                 safety_guidelines=request.prompt_config.safety_guidelines,
                                 forbidden_topics=request.prompt_config.forbidden_topics,
-                                is_active=request.prompt_config.is_active
+                                brand_voice=request.prompt_config.brand_voice,
+                                product_knowledge=request.prompt_config.product_knowledge,
+                                version="1",
+                                is_active=request.prompt_config.is_active,
+                                created_at=now,
+                                updated_at=now,
                             )
-                            await self.prompt_handler.update_assistant_prompts(
-                                assistant_id, tenant_id, prompt_update
-                            )
-                            self.logger.info(f"助理 {assistant_id} 提示词配置更新成功")
-                        except Exception as e:
-                            self.logger.warning(f"助理 {assistant_id} 提示词配置更新失败: {e}")
-                            # 不阻止助理更新，只记录警告
+                            prompts_id = await PromptsRepository.insert_prompts(promptsModel.to_orm(), session)
+                            if prompts_id is None:
+                                raise HTTPException(status_code=500, detail="提示词不存在，创建失败")
 
-            # 应用更新
-            # assistant.update(update_fields)
-            # self._assistants_store[assistant_key] = assistant
-            # logger.debug(f"更新租户: {config.tenant_id}")
+                        else:
+                            # 存在提示词，需要更新
+                            if request.personality_type is not None:
+                                prompts.personality_prompt = request.personality_type,
+                            if request.prompt_config.greeting_prompt is not None:
+                                prompts.greeting_prompt = request.prompt_config.greeting_prompt,
+                            if request.prompt_config.product_recommendation_prompt is not None:
+                                prompts.product_recommendation_prompt = request.prompt_config.product_recommendation_prompt,
+                            if request.prompt_config.objection_handling_prompt is not None:
+                                prompts.objection_handling_prompt = request.prompt_config.objection_handling_prompt,
+                            if request.prompt_config.closing_prompt is not None:
+                                prompts.closing_prompt = request.prompt_config.closing_prompt,
+                            if request.prompt_config.context_instructions is not None:
+                                prompts.context_instructions = request.prompt_config.context_instructions,
+                            if request.prompt_config.llm_parameters is not None:
+                                prompts.llm_parameters = request.prompt_config.llm_parameters,
+                            if request.prompt_config.safety_guidelines is not None:
+                                prompts.safety_guidelines = request.prompt_config.safety_guidelines,
+                            if request.prompt_config.forbidden_topics is not None:
+                                prompts.forbidden_topics = request.prompt_config.forbidden_topics,
+                            if request.prompt_config.brand_voice is not None:
+                                prompts.brand_voice = request.prompt_config.brand_voice,
+                            if request.prompt_config.product_knowledge is not None:
+                                prompts.product_knowledge = request.prompt_config.product_knowledge,
+                            # prompts.updated_at = now,
+                            # todo version 应该是用纳秒级时间戳
+                            prompts.version += "1",
+                            is_success = await PromptsRepository.update_prompts_field(assistant_id, prompts.__dict__, session)
+                            if is_success:
+                                update_prompts = await PromptsRepository.get_prompts_by_assistant_id(assistant_id)
+                                PromptsRepository.update_prompts_cache(update_prompts.to_model(), await get_redis_client())
+                        self.logger.info(f"助理 {assistant_id} 提示词配置更新成功")
+                    except Exception as e:
+                        self.logger.warning(f"助理 {assistant_id} 提示词配置更新失败: {e}")
+                        # 不阻止助理更新，只记录警告
 
             async with database_session() as session:
                 r = await AssistantRepository.update_assistant(assistant_orm, session)

@@ -17,7 +17,7 @@ from uuid import UUID
 
 import msgpack
 from redis import RedisError
-from sqlalchemy import select, update, and_
+from sqlalchemy import select, update, and_, func
 
 from config import mas_config
 from models.prompts import PromptsOrmModel, PromptsModel
@@ -26,7 +26,6 @@ from infra.db.connection import database_session, test_db_connection
 from utils import get_component_logger
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis import Redis, RedisError
-
 
 logger = get_component_logger(__name__, "PromptsDao")
 
@@ -39,21 +38,19 @@ class PromptsRepository:
     所有方法都是静态的，不维护状态。
     """
 
-
     @staticmethod
-    async def get_prompts_by_id(prompts_id: UUID, session: AsyncSession) -> Optional[PromptsOrmModel]:
+    async def get_prompts_by_assistant_id(assistant_id: str, session: AsyncSession) -> Optional[PromptsOrmModel]:
         """根据ID获取提示词数据库模型"""
         try:
-            stmt = select(PromptsOrmModel).where(PromptsOrmModel.id == prompts_id)
+            stmt = select(PromptsOrmModel).where(PromptsOrmModel.assistant_id == assistant_id)
             result = await session.execute(stmt)
             return result.scalar_one_or_none()
         except Exception as e:
-            logger.error(f"获取租户数据库模型失败: {prompts_id}, 错误: {e}")
+            logger.error(f"获取租户数据库模型失败: {assistant_id}, 错误: {e}")
             raise
 
-
     @staticmethod
-    async def insertPrompts(orm: PromptsOrmModel, session: AsyncSession) -> UUID:
+    async def insert_prompts(orm: PromptsOrmModel, session: AsyncSession) -> UUID:
         """
         保存租户配置（创建或更新）
         
@@ -71,6 +68,22 @@ class PromptsRepository:
             return orm.id
         except Exception as e:
             logger.error(f"创建提示词: {orm.tenant_id} {orm.assistant_id} {orm.personality_prompt} 错误：{e}")
+            raise
+
+    @staticmethod
+    async def update_prompts_field(assistant_id: str, value: dict, session: AsyncSession) -> bool:
+        """更新数字员工数据库模型字段"""
+        try:
+            value['updated_at'] = func.now()
+            stmt = (
+                update(PromptsOrmModel)
+                .where(PromptsOrmModel.tenant_id == assistant_id)
+                .values(**value)
+            )
+            result = await session.execute(stmt)
+            return result.rowcount > 0
+        except Exception as e:
+            logger.error(f"更新租户数据库模型字段失败: {assistant_id}, 错误: {e}")
             raise
 
     @staticmethod

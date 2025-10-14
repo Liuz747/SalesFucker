@@ -20,6 +20,7 @@ from schemas.exceptions import AssistantNotFoundException
 from schemas.assistants_schema import (
     AssistantCreateRequest, AssistantUpdateRequest, AssistantOperationResponse
 )
+from schemas.tmp_schema import SimpleResponse
 from services.assistant_service import AssistantService
 from utils import get_component_logger
 from models.assistant import AssistantModel
@@ -115,10 +116,10 @@ async def list_assistants(
 """
 
 
-@router.get("/{assistant_id}", response_model=Optional[AssistantModel])
+@router.get("/{assistant_id}", response_model=Optional[SimpleResponse[AssistantModel]])
 async def get_assistant(
     assistant_id: str,
-) -> Optional[AssistantModel]:
+) -> Optional[SimpleResponse[AssistantModel]]:
     """
     获取助理详细信息
     
@@ -137,7 +138,7 @@ async def get_assistant(
             raise AssistantNotFoundException(assistant_id)
 
         logger.info(f"助理详情查询成功: {assistant_id} {type(result)}")
-        return AssistantModel(
+        return SimpleResponse[AssistantModel](
             code=0,
             message="success",
             data=result,
@@ -153,11 +154,11 @@ async def get_assistant(
         )
 
 
-@router.put("/{assistant_id}", response_model=AssistantModel)
+@router.put("/{assistant_id}", response_model=SimpleResponse[AssistantModel])
 async def update_assistant(
     assistant_id: str,
     request: AssistantUpdateRequest = None
-) -> Optional[AssistantModel]:
+) -> Optional[SimpleResponse[AssistantModel]]:
     """
     更新助理信息
     
@@ -166,14 +167,15 @@ async def update_assistant(
     try:
         logger.info(f"更新助理请求: assistant={assistant_id}")
 
-        result = await AssistantService.update_assistant(
+        assistant_service = AssistantService()
+        result = await assistant_service.update_assistant(
             assistant_id,  request
         )
 
         if not result:
             raise AssistantNotFoundException(assistant_id)
         logger.info(f"助理更新成功: {assistant_id}")
-        return AssistantModel(
+        return SimpleResponse[AssistantModel](
             content=0,
             message="success",
             data=result
