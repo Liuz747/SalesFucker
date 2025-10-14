@@ -63,10 +63,21 @@ class RedisConfig(BaseSettings):
         default=7200,
     )
 
+    # @property
+    # def redis_url(self) -> str:
+    #     """构建Redis连接URL"""
+    #     return (
+    #         f"redis://{self.REDIS_USERNAME}:{self.REDIS_PASSWORD}"
+    #         f"@{self.REDIS_HOST}:{self.REDIS_PORT}"
+    #     )
+
     @property
     def redis_url(self) -> str:
         """构建Redis连接URL"""
         return (
-            f"redis://{self.REDIS_USERNAME}:{self.REDIS_PASSWORD}"
+            # todo 上线前需要修改该链接
+            f"redis://"
+            # f"{self.REDIS_USERNAME}"
+            # f":{self.REDIS_PASSWORD}"
             f"@{self.REDIS_HOST}:{self.REDIS_PORT}"
         )
