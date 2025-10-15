@@ -365,31 +365,31 @@ class AssistantService:
                     assistant_orm.assistant_name = request.assistant_name
                 if request.personality_type is not None:
                     # update_fields["personality_type"] = request.personality_type
-                    assistant_orm.personality_type = request.personality_type
+                    assistant_orm.assistant_personality_type = request.personality_type
                 if request.expertise_level is not None:
                     # update_fields["expertise_level"] = request.expertise_level
-                    assistant_orm.expertise_level = request.expertise_level
+                    assistant_orm.assistant_expertise_level = request.expertise_level
                 if request.sales_style is not None:
                     # update_fields["sales_style"] = {**assistant["sales_style"], **request.sales_style}
-                    assistant_orm.sales_style = request.sales_style
+                    assistant_orm.assistant_sales_style = request.sales_style
                 if request.voice_tone is not None:
                     # update_fields["voice_tone"] = {**assistant["voice_tone"], **request.voice_tone}
-                    assistant_orm.voice_tone = request.voice_tone
+                    assistant_orm.assistant_voice_tone = request.voice_tone
                 if request.specializations is not None:
                     # update_fields["specializations"] = request.specializations
-                    assistant_orm.specializations = request.specializations
+                    assistant_orm.assistant_specializations = request.specializations
                 if request.working_hours is not None:
                     # update_fields["working_hours"] = {**assistant["working_hours"], **request.working_hours}
-                    assistant_orm.working_hours = request.working_hours
+                    assistant_orm.assistant_working_hours = request.working_hours
                 if request.max_concurrent_customers is not None:
                     # update_fields["max_concurrent_customers"] = request.max_concurrent_customers
-                    assistant_orm.max_concurrent_customers = request.max_concurrent_customers
+                    assistant_orm.assistant_max_concurrent_customers = request.max_concurrent_customers
                 if request.permissions is not None:
                     # update_fields["permissions"] = request.permissions
-                    assistant_orm.permissions = request.permissions
+                    assistant_orm.assistant_permissions = request.permissions
                 if request.profile is not None:
                     # update_fields["profile"] = {**assistant["profile"], **request.profile}
-                    assistant_orm.profile = request.profile
+                    assistant_orm.assistant_profile = request.profile
                 # if request.status is not None:
                     # update_fields["status"] = request.status
                     # assistant_orm.status = request.status
@@ -400,30 +400,14 @@ class AssistantService:
                 # 处理提示词配置更新（如果提供）
                 if request.prompt_config:
                     try:
-                        from schemas.prompts_schema import PromptUpdateRequest
-                        prompt_update = PromptUpdateRequest(
-                            personality_prompt=request.prompt_config.personality_prompt,
-                            greeting_prompt=request.prompt_config.greeting_prompt,
-                            product_recommendation_prompt=request.prompt_config.product_recommendation_prompt,
-                            objection_handling_prompt=request.prompt_config.objection_handling_prompt,
-                            closing_prompt=request.prompt_config.closing_prompt,
-                            context_instructions=request.prompt_config.context_instructions,
-                            llm_parameters=request.prompt_config.llm_parameters,
-                            brand_voice=request.prompt_config.brand_voice,
-                            product_knowledge=request.prompt_config.product_knowledge,
-                            safety_guidelines=request.prompt_config.safety_guidelines,
-                            forbidden_topics=request.prompt_config.forbidden_topics,
-                            is_active=request.prompt_config.is_active
-                        )
-
-                        prompts = await PromptsRepository.get_prompts_by_assistant_id(assistant_id)
+                        prompts = await PromptsRepository.get_prompts_by_assistant_id(assistant_id, session)
                         now = get_current_datetime()
 
                         if prompts is None:
                             # 没有提示词，需要创建
                             promptsModel = PromptsModel(
-                                tenant_id=request.prompt_config.tenant_id,
-                                assistant_id=request.prompt_config.assistant_id,
+                                tenant_id=assistant_orm.tenant_id,
+                                assistant_id=assistant_id,
                                 personality_prompt=request.personality_type,
                                 greeting_prompt=request.prompt_config.greeting_prompt,
                                 product_recommendation_prompt=request.prompt_config.product_recommendation_prompt,
@@ -446,41 +430,41 @@ class AssistantService:
 
                         else:
                             # 存在提示词，需要更新
-                            if request.personality_type is not None:
-                                prompts.personality_prompt = request.personality_type,
+                            if request.prompt_config.personality_prompt is not None:
+                                prompts.personality_prompt = request.prompt_config.personality_prompt
                             if request.prompt_config.greeting_prompt is not None:
-                                prompts.greeting_prompt = request.prompt_config.greeting_prompt,
+                                prompts.greeting_prompt = request.prompt_config.greeting_prompt
                             if request.prompt_config.product_recommendation_prompt is not None:
-                                prompts.product_recommendation_prompt = request.prompt_config.product_recommendation_prompt,
+                                prompts.product_recommendation_prompt = request.prompt_config.product_recommendation_prompt
                             if request.prompt_config.objection_handling_prompt is not None:
-                                prompts.objection_handling_prompt = request.prompt_config.objection_handling_prompt,
+                                prompts.objection_handling_prompt = request.prompt_config.objection_handling_prompt
                             if request.prompt_config.closing_prompt is not None:
-                                prompts.closing_prompt = request.prompt_config.closing_prompt,
+                                prompts.closing_prompt = request.prompt_config.closing_prompt
                             if request.prompt_config.context_instructions is not None:
-                                prompts.context_instructions = request.prompt_config.context_instructions,
+                                prompts.context_instructions = request.prompt_config.context_instructions
                             if request.prompt_config.llm_parameters is not None:
-                                prompts.llm_parameters = request.prompt_config.llm_parameters,
+                                prompts.llm_parameters = request.prompt_config.llm_parameters
                             if request.prompt_config.safety_guidelines is not None:
-                                prompts.safety_guidelines = request.prompt_config.safety_guidelines,
+                                prompts.safety_guidelines = request.prompt_config.safety_guidelines
                             if request.prompt_config.forbidden_topics is not None:
-                                prompts.forbidden_topics = request.prompt_config.forbidden_topics,
+                                prompts.forbidden_topics = request.prompt_config.forbidden_topics
                             if request.prompt_config.brand_voice is not None:
-                                prompts.brand_voice = request.prompt_config.brand_voice,
+                                prompts.brand_voice = request.prompt_config.brand_voice
                             if request.prompt_config.product_knowledge is not None:
-                                prompts.product_knowledge = request.prompt_config.product_knowledge,
+                                prompts.product_knowledge = request.prompt_config.product_knowledge
                             # prompts.updated_at = now,
                             # todo version 应该是用纳秒级时间戳
-                            prompts.version += "1",
-                            is_success = await PromptsRepository.update_prompts_field(assistant_id, prompts.__dict__, session)
+                            prompts.version = "1"
+                            from dataclasses import dataclass, asdict
+                            is_success = await PromptsRepository.update_prompts_field(assistant_id, asdict(prompts), session)
                             if is_success:
-                                update_prompts = await PromptsRepository.get_prompts_by_assistant_id(assistant_id)
+                                update_prompts = await PromptsRepository.get_prompts_by_assistant_id(assistant_id, session)
                                 PromptsRepository.update_prompts_cache(update_prompts.to_model(), await get_redis_client())
                         self.logger.info(f"助理 {assistant_id} 提示词配置更新成功")
                     except Exception as e:
                         self.logger.warning(f"助理 {assistant_id} 提示词配置更新失败: {e}")
                         # 不阻止助理更新，只记录警告
 
-            async with database_session() as session:
                 r = await AssistantRepository.update_assistant(assistant_orm, session)
                 if r is True:
                     # raise Exception("更新助理失败")

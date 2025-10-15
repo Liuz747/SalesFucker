@@ -77,7 +77,7 @@ class PromptsRepository:
             value['updated_at'] = func.now()
             stmt = (
                 update(PromptsOrmModel)
-                .where(PromptsOrmModel.tenant_id == assistant_id)
+                .where(PromptsOrmModel.assistant_id == assistant_id)
                 .values(**value)
             )
             result = await session.execute(stmt)
