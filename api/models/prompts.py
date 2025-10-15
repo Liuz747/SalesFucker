@@ -87,6 +87,8 @@ class PromptsModel(BaseModel):
         )
 
 
+from dataclasses import dataclass, asdict
+@dataclass
 class PromptsOrmModel(Base):
     """
     租户配置数据库模型
