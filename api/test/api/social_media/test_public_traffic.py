@@ -50,7 +50,7 @@ async def test_generate_comment_success(app):
     async with AsyncClient(app=app, base_url="http://test") as client:
         payload = {
             "platform": "douyin",
-            "goal_prompt": "引导用户添加企业微信获取新品优惠",
+            "product_prompt": "我们是客户隆体AI，一家专注于公域获客和私域经营的智能平台",
             "comment_prompt": "突出限时福利，鼓励加入私域社群",
             "task_list": [
                 {
@@ -59,7 +59,7 @@ async def test_generate_comment_success(app):
                     "replies_num": 142,
                     "favorite_num": 312,
                     "forward_num": 88,
-                }
+                }   
             ],
         }
         response = await client.post("/social-media/public/comment", json=payload)
@@ -75,7 +75,7 @@ async def test_summary_request_invalid_expect_count(app):
     async with AsyncClient(app=app, base_url="http://test") as client:
         payload = {
             "platform": "rednote",
-            "goal_prompt": "梳理用户对新品精华液的关注点",
+            "product_prompt": "我们是客户隆体AI，一家专注于公域获客和私域经营的智能平台",
             "expecting_count": 25,
         }
         response = await client.post("/social-media/public/keywords", json=payload)

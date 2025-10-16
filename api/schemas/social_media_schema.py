@@ -42,9 +42,9 @@ class BaseGenerationRequest(BaseModel):
     """通用生成请求基础字段"""
 
     platform: SocialPlatform = Field(description="社交媒体平台")
-    goal_prompt: str = Field(description="活动目标，例如拉新、转化等")
-    comment_type: Optional[int] = Field(None, description="评论类型，如1-5级")
-    comment_prompt: Optional[str] = Field(None, description="评论内容")
+    product_prompt: str = Field(description="您的产品或服务。如医美、口腔、车贷等")
+    comment_type: Optional[int] = Field(None, description="AI评论为0，固定值评论为1")
+    comment_prompt: Optional[str] = Field(None, description="评论风格")
 
 
 class CommentGenerationRequest(BaseGenerationRequest):
@@ -75,7 +75,7 @@ class ReplyGenerationResponse(BaseModel):
 class KeywordSummaryRequest(BaseGenerationRequest):
     """关键词摘要请求"""
 
-    goal_prompt: str = Field(description="活动目标，例如拉新、转化等")
+    product_prompt: str = Field(description="您的产品或服务。如医美、口腔、车贷等")
     existing_keywords: Optional[Sequence[str]] = Field(default_factory=list, description="已存在的关键词列表")
     expecting_count: int = Field(1, le=20, description="希望提炼的关键词数量上限")
 
