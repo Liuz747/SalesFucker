@@ -31,10 +31,10 @@ class SocialMediaPublicTrafficService:
 
     # ------------------------------ 配置常量 ------------------------------ #
     DEFAULT_PROVIDER = "openrouter"  # 使用 OpenRouter
-    DEFAULT_MODEL = "google/gemini-2.5-flash-preview-09-2025"  # 通过 OpenRouter 调用 GPT-4o-mini
-    DEFAULT_TEMPERATURE = 0.7  # 温度设置为 0.7,保持创意性但不过度发散
-    DEFAULT_MAX_TOKENS = 800  # 评论和回复生成的最大 token 数
-    SUMMARY_MAX_TOKENS = 500  # 关键词摘要的最大 token 数(更简洁)
+    DEFAULT_MODEL = "google/gemini-2.5-flash-preview-09-2025" #快速
+    DEFAULT_TEMPERATURE = 0.5  # 温度设置为 0.5,考虑风控
+    DEFAULT_MAX_TOKENS = 400  # 评论和回复生成的最大 token 数（降低以提升速度）
+    SUMMARY_MAX_TOKENS = 300  # 关键词摘要的最大 token 数(更简洁)
 
     # ------------------------------ 内部工具方法 ------------------------------ #
 
@@ -102,47 +102,50 @@ class SocialMediaPublicTrafficService:
         cls, request: CommentGenerationRequest
     ) -> tuple[str, str]:
         """构造评论生成提示词"""
-        system_prompt = """你是一名熟悉社交媒体运营的营销文案专家，需要依据指定任务生成优质评论。
+        system_prompt = """社交媒体运营专家，严格判断相关性。
 
-输出必须为JSON结构，包含以下字段：
-- `message`: 生成的评论文案
-- `rationale`: 文案创作理由
-- `actions`: 建议用户采取的动作数组，可选值为：
-  * 1: FOLLOW (关注)
-  * 2: LIKE (点赞)
-  * 3: COMMENT (评论)
-  * 4: SHARE (分享)
-  * 5: FAVORITE (收藏)
-  * 6: PROFILE (查看主页)
+任务流程：
+1. 相关性判断（严格！）：产品与帖子内容是否有业务相关性？
+   - 目标受众是否重叠？产品能否为帖子用户提供价值？
+   - 互动数据仅作次要参考，相关性是决定性因素
+   - 不相关示例：公域获客平台 vs 卖青菜 = 不相关
+2. 有相关性→继续；无相关性→仅返回{"actions":[]}，不要任何其他字段
 
-示例输出：
-{
-  "message": "限时7折优惠，评论区留言抽奖送好礼！",
-  "rationale": "突出限时优惠和抽奖活动，激发用户参与欲望",
-  "actions": [2, 3, 5]
-}"""
+评论类型处理（仅在有相关性时）：
+- type=0: AI生成，根据风格倾向创作
+- type=1: 固定文案，message字段必须完全等于提供的固定内容
+
+互动动作建议（有相关性时）：
+- 必须包含多个动作组合，不要只有单一动作
+- 推荐组合：[1,2,3] 或 [1,3,5] 或 [2,3,5,6] 等
+- 单独的[3]是不够的，需要组合使用
+
+输出JSON：
+有相关: {"message":"文案","rationale":"原因","actions":[1,2,3]}
+无相关: {"actions":[]}
+
+动作: 1=关注 2=点赞 3=评论 4=分享 5=收藏 6=主页"""
 
         tasks_block = "\n".join(
             [
-                (
-                    f"- 任务{idx}: {task.product_content}\n"
-                    f"  指标: 点赞 {task.likes_num} / 回复 {task.replies_num} / "
-                    f"收藏 {task.favorite_num} / 转发 {task.forward_num}"
-                )
+                f"{idx}. {task.product_content} (👍{task.likes_num} 💬{task.replies_num} ⭐{task.favorite_num} 🔄{task.forward_num})"
                 for idx, task in enumerate(request.task_list, start=1)
             ]
         )
 
         user_parts = [
             f"平台: {request.platform}",
-            f"产品或服务: {request.product_prompt}",
-            f"评论类型: {request.comment_type or '未指定'}",
+            f"产品: {request.product_prompt}",
+            f"类型: {request.comment_type}",
         ]
         if request.comment_prompt:
-            user_parts.append(f"评论提示: {request.comment_prompt}")
-        user_parts.append("\n候选内容列表:")
-        user_parts.append(tasks_block or "- 无候选内容")
-        user_parts.append("\n请严格按照上述JSON格式输出，必须包含 message、rationale 和 actions 三个字段。")
+            if request.comment_type == 0:
+                user_parts.append(f"风格: {request.comment_prompt}")
+            else:
+                user_parts.append(f"固定文案(原样输出): {request.comment_prompt}")
+
+        user_parts.append(f"\n帖子:\n{tasks_block}")
+
         return system_prompt, "\n".join(user_parts)
 
     @classmethod

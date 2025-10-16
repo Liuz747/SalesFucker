@@ -111,8 +111,23 @@ async def generate_comment(request: CommentGenerationRequest):
             max_tokens=SocialMediaPublicTrafficService.DEFAULT_MAX_TOKENS,
         )
         payload = SocialMediaPublicTrafficService._parse_structured_payload(raw_response)
-        message = payload.get("message") or raw_response
         actions = _parse_actions(payload.get("actions"))
+
+        # 处理message字段
+        message = None
+
+        # 如果actions为空，强制message=None（无相关性，不互动）
+        if not actions:
+            message = None
+        else:
+            # 有相关性，处理message
+            # comment_type=1时，强制使用固定文案
+            if request.comment_type == 1 and request.comment_prompt:
+                message = request.comment_prompt
+            else:
+                # comment_type=0，使用LLM生成的内容
+                message = payload.get("message") or raw_response
+
         return CommentGenerationResponse(actions=actions, message=message)
     except SocialMediaServiceError as e:
         raise HTTPException(

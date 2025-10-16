@@ -66,7 +66,10 @@ class RedisConfig(BaseSettings):
     @property
     def redis_url(self) -> str:
         """构建Redis连接URL"""
-        return (
-            f"redis://{self.REDIS_USERNAME}:{self.REDIS_PASSWORD}"
-            f"@{self.REDIS_HOST}:{self.REDIS_PORT}"
-        )
+        if self.REDIS_PASSWORD:
+            return (
+                f"redis://{self.REDIS_USERNAME or ''}:{self.REDIS_PASSWORD}"
+                f"@{self.REDIS_HOST}:{self.REDIS_PORT}"
+            )
+        else:
+            return f"redis://{self.REDIS_HOST}:{self.REDIS_PORT}"
