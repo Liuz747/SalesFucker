@@ -163,7 +163,7 @@ class AssistantService:
                 new_prompts_model = new_prompts_orm.to_model()
                 new_assistant_orm = await AssistantRepository.get_assistant_by_id(request.assistant_id, session)
                 new_assistant = new_assistant_orm.to_business_model()
-                new_assistant.prompts_model_list = [new_prompts_model]
+                new_assistant.prompts_model_list = new_prompts_model
 
         except Exception as e:
             self.logger.error(f"助理创建失败: {e}")
@@ -395,8 +395,12 @@ class AssistantService:
                     # assistant_orm.status = request.status
                 assistant_orm.updated_at = get_current_datetime()
 
-                # todo 暂时先不考虑提示词
-                # if 1 == 2:
+                r = await AssistantRepository.update_assistant(assistant_orm, session)
+                if r is True:
+                    # raise Exception("更新助理失败")
+                    self.logger.info(f"助理更新成功: {assistant_id}")
+
+                prompt_orm = None
                 # 处理提示词配置更新（如果提供）
                 if request.prompt_config:
                     try:
@@ -457,20 +461,21 @@ class AssistantService:
                             prompts.version = "1"
                             from dataclasses import dataclass, asdict
                             is_success = await PromptsRepository.update_prompts_field(assistant_id, asdict(prompts), session)
-                            if is_success:
-                                update_prompts = await PromptsRepository.get_prompts_by_assistant_id(assistant_id, session)
-                                PromptsRepository.update_prompts_cache(update_prompts.to_model(), await get_redis_client())
+                            if not is_success:
+                                raise HTTPException("更新错误")
                         self.logger.info(f"助理 {assistant_id} 提示词配置更新成功")
                     except Exception as e:
                         self.logger.warning(f"助理 {assistant_id} 提示词配置更新失败: {e}")
                         # 不阻止助理更新，只记录警告
 
-                r = await AssistantRepository.update_assistant(assistant_orm, session)
-                if r is True:
-                    # raise Exception("更新助理失败")
-                    self.logger.info(f"助理更新成功: {assistant_id}")
+            async with database_session() as session:
+                # 更新缓存数据
+                update_prompts = await PromptsRepository.get_prompts_by_assistant_id(assistant_id, session)
+                PromptsRepository.update_prompts_cache(update_prompts.to_model(), await get_redis_client())
+                assistant_orm = await AssistantRepository.get_assistant_by_id(assistant_id, session)
                 assistant_model = assistant_orm.to_business_model()
-            await AssistantRepository.update_assistant_cache_4_task(assistant_model)
+                AssistantRepository.update_assistant_cache_4_task(assistant_model)
+            assistant_model.prompts_model_list = update_prompts
             return assistant_model
 
         except Exception as e:
