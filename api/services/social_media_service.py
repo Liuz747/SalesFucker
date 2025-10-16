@@ -153,31 +153,53 @@ class SocialMediaPublicTrafficService:
         cls, request: ReplyGenerationRequest
     ) -> tuple[str, str]:
         """构造回复生成提示词"""
-        system_prompt = """
-            "你是一名社交媒体客服与运营专家，需要结合任务信息编写合规且具引导性的回复。"
-            "输出必须为JSON结构，包含`message`、`rationale`和可选的`follow_up_prompt`字段。"
-        """
+        system_prompt = """社交媒体客服运营专家，严格判断相关性并回复用户评论。
+
+任务流程：
+1. 逐条判断每个回复内容与产品/服务的相关性（严格！）
+   - 用户问题是否与产品/服务相关？能否提供有价值的回复？
+   - 相关性是决定性因素
+2. 有相关性→生成回复；无相关性→返回空actions
+
+回复类型处理（仅在有相关性时）：
+- type=0: AI生成，根据风格倾向创作专业回复
+- type=1: 固定文案，message字段必须完全等于提供的固定内容
+
+互动动作建议（有相关性时）：
+- 必须包含多个动作组合
+- 推荐组合：[1,2,3] 或 [2,3,5] 等
+- 不要只有单一动作
+
+输出JSON格式：
+{
+  "tasks": [
+    {"id":"1","actions":[1,2,3],"message":"回复内容"},
+    {"id":"2","actions":[],"message":null}
+  ]
+}
+
+动作: 1=关注 2=点赞 3=评论 4=分享 5=收藏 6=主页"""
 
         tasks_block = "\n".join(
             [
-                (
-                    f"- 回复任务{idx}: {task.reply_content}\n"
-                    f"  附件类型: {task.file_type} | 资源: {task.file_url} | ID: {task.id}"
-                )
+                f"{idx}. ID={task.id} 内容: {task.reply_content}"
                 for idx, task in enumerate(request.task_list, start=1)
             ]
         )
 
         user_parts = [
             f"平台: {request.platform}",
-            f"产品或服务: {request.product_prompt}",
-            f"评论类型: {request.comment_type or '未指定'}",
+            f"产品: {request.product_prompt}",
+            f"类型: {request.comment_type}",
         ]
         if request.comment_prompt:
-            user_parts.append(f"评论提示: {request.comment_prompt}")
-        user_parts.append("待处理评论/回复数据:")
-        user_parts.append(tasks_block or "- 无待处理数据")
-        user_parts.append("请返回 JSON，字段包括 message、rationale 以及可选 follow_up_prompt。")
+            if request.comment_type == 0:
+                user_parts.append(f"风格: {request.comment_prompt}")
+            else:
+                user_parts.append(f"固定文案(原样输出): {request.comment_prompt}")
+
+        user_parts.append(f"\n待回复:\n{tasks_block}")
+
         return system_prompt, "\n".join(user_parts)
 
     @classmethod

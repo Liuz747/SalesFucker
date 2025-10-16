@@ -26,7 +26,7 @@ class ReplyData(BaseModel):
     """回复模型"""
 
     id: str = Field(description="回复ID")
-    file_url: Optional[str] = Field(description="文件URL")
+    file_url: Optional[str] = Field(None, description="文件URL")
     reply_content: str = Field(description="回复内容")
 
 

@@ -63,22 +63,42 @@ def _parse_actions(raw: Any) -> list[SocialMediaActionType]:
 
 
 def _build_reply_tasks(
-    request: ReplyGenerationRequest, payload: dict[str, Any], fallback_message: str
+    request: ReplyGenerationRequest, payload: dict[str, Any]
 ) -> list[ReplyMessageData]:
-    """将模型返回转换为回复任务列表"""
+    """将模型返回转换为回复任务列表（仿制评论接口逻辑）"""
     raw_tasks = payload.get("tasks")
+
+    # 尝试从LLM返回的tasks数组中解析
     if isinstance(raw_tasks, Iterable) and not isinstance(raw_tasks, (str, bytes)):
         tasks: list[ReplyMessageData] = []
         for index, raw_task in enumerate(raw_tasks):
             if not isinstance(raw_task, dict):
                 continue
+
+            # 获取任务ID
             task_id = raw_task.get("id")
             if task_id is None and index < len(request.task_list):
                 task_id = request.task_list[index].id
             if task_id is None:
                 task_id = str(index)
+
+            # 解析actions
             actions = _parse_actions(raw_task.get("actions"))
-            message = raw_task.get("message") or fallback_message
+
+            # 处理message（仿制评论逻辑）
+            message = None
+            if not actions:
+                # 无相关性：message强制为None
+                message = None
+            else:
+                # 有相关性：根据comment_type处理
+                if request.comment_type == 1 and request.comment_prompt:
+                    # 固定文案：原封不动
+                    message = request.comment_prompt
+                else:
+                    # AI生成：使用LLM返回
+                    message = raw_task.get("message")
+
             tasks.append(
                 ReplyMessageData(
                     id=str(task_id),
@@ -89,12 +109,12 @@ def _build_reply_tasks(
         if tasks:
             return tasks
 
-    actions = _parse_actions(payload.get("actions"))
+    # 如果LLM没有返回tasks数组，为每个请求任务创建默认响应
     return [
         ReplyMessageData(
             id=task.id,
-            actions=actions,
-            message=fallback_message,
+            actions=[],
+            message=None,
         )
         for task in request.task_list
     ]
@@ -153,8 +173,7 @@ async def generate_reply(request: ReplyGenerationRequest):
             max_tokens=SocialMediaPublicTrafficService.DEFAULT_MAX_TOKENS,
         )
         payload = SocialMediaPublicTrafficService._parse_structured_payload(raw_response)
-        message = payload.get("message") or raw_response
-        tasks = _build_reply_tasks(request, payload, message)
+        tasks = _build_reply_tasks(request, payload)
         return ReplyGenerationResponse(tasks=tasks)
     except SocialMediaServiceError as e:
         raise HTTPException(
