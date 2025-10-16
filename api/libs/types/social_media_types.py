@@ -17,3 +17,10 @@ class SocialMediaActionType(IntEnum):
     SHARE = 4
     FAVORITE = 5
     PROFILE = 6
+
+
+class MethodType(StrEnum):
+    COMMENT = "comment"
+    REPLIES = "replies"
+    KEYWORDS = "keywords"
+    PRIVATE_MESSAGE = "private_message"
