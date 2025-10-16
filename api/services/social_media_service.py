@@ -101,7 +101,7 @@ class SocialMediaPublicTrafficService:
     def _build_comment_prompt(
         cls, request: CommentGenerationRequest
     ) -> tuple[str, str]:
-        """构造评论生成提示词"""
+        """帖子评论提示词"""
         system_prompt = """社交媒体运营专家，严格判断相关性。
 
 任务流程：
@@ -152,7 +152,7 @@ class SocialMediaPublicTrafficService:
     def _build_reply_prompt(
         cls, request: ReplyGenerationRequest
     ) -> tuple[str, str]:
-        """构造回复生成提示词"""
+        """评论区评论提示词"""
         system_prompt = """社交媒体客服运营专家，严格判断相关性并回复用户评论。
 
 任务流程：
@@ -206,25 +206,41 @@ class SocialMediaPublicTrafficService:
     def _build_summary_prompt(
         cls, request: KeywordSummaryRequest
     ) -> tuple[str, str]:
-        """构造关键词摘要提示词"""
-        system_prompt = """
-            "你是一名社交媒体舆情分析专家，需要根据活动目标提炼关键词并给出摘要。"
-            "请使用JSON输出，包含`keywords`数组、`count`数值和`summary`文本。"
-        """
+        """关键词生成提示词"""
+        system_prompt = """你是一名社交媒体关键词生成专家，根据产品/服务生成适合的营销关键词。
 
-        existing_keywords = ", ".join(request.existing_keywords or []) or "暂无"
+任务要求：
+1. 根据产品描述生成适合该平台的营销关键词
+2. 严格遵守去重规则：生成的关键词不能与"已有关键词"重复
+3. 严格遵守数量控制：
+   - expecting_count是期望的总关键词数（包含已有的）
+   - 实际生成数量 = expecting_count - 已有关键词数量
+   - 例如：expecting_count=6，已有4个，则只生成2个新关键词
+4. 关键词应该简洁、有针对性、适合目标平台特点
+
+输出JSON格式：
+{
+  "keywords": ["关键词1", "关键词2"],
+  "count": 2,
+  "summary": "关键词生成说明"
+}"""
+
+        existing_keywords = request.existing_keywords or []
+        existing_count = len(existing_keywords)
+        need_generate = max(0, request.expecting_count - existing_count)
+
+        existing_str = ", ".join(existing_keywords) if existing_keywords else "暂无"
 
         user_parts = [
             f"平台: {request.platform}",
             f"产品或服务: {request.product_prompt}",
-            f"期望关键词数量: {request.expecting_count}",
-            f"已有关键词: {existing_keywords}",
+            f"期望关键词总数: {request.expecting_count}",
+            f"已有关键词({existing_count}个): {existing_str}",
+            f"需要生成: {need_generate}个新关键词",
+            "",
+            "请严格按照要求生成JSON，keywords数组中只包含新生成的关键词，不要包含已有关键词。"
         ]
-        if request.comment_type is not None:
-            user_parts.append(f"评论类型: {request.comment_type}")
-        if request.comment_prompt:
-            user_parts.append(f"评论提示: {request.comment_prompt}")
-        user_parts.append("请输出 JSON，包含 keywords、count 和 summary 字段。")
+
         return system_prompt, "\n".join(user_parts)
 
 

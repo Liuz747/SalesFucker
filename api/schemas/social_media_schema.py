@@ -72,12 +72,13 @@ class ReplyGenerationResponse(BaseModel):
     tasks: Sequence[ReplyMessageData] = Field(default_factory=list, description="任务列表")
 
 
-class KeywordSummaryRequest(BaseGenerationRequest):
-    """关键词摘要请求"""
+class KeywordSummaryRequest(BaseModel):
+    """关键词生成请求"""
 
+    platform: SocialPlatform = Field(description="社交媒体平台")
     product_prompt: str = Field(description="您的产品或服务。如医美、口腔、车贷等")
-    existing_keywords: Optional[Sequence[str]] = Field(default_factory=list, description="已存在的关键词列表")
-    expecting_count: int = Field(1, le=20, description="希望提炼的关键词数量上限")
+    existing_keywords: Optional[Sequence[str]] = Field(default_factory=list, description="已存在的关键词列表，生成时需要去重")
+    expecting_count: int = Field(1, le=20, description="期望生成的关键词总数（包含existing_keywords）")
 
 
 class KeywordSummaryResponse(BaseModel):
