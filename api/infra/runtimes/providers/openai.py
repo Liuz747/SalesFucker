@@ -10,17 +10,17 @@ from typing import Any
 import openai
 from openai.types.chat import ChatCompletionMessageParam, ChatCompletionContentPartParam
 
-from ..entities import LLMRequest, LLMResponse, Provider
+from ..entities import LLMResponse, Provider, CompletionsRequest, ResponseMessageRequest
 from .base import BaseProvider
 
 
 class OpenAIProvider(BaseProvider):
     """OpenAI供应商实现类"""
-    
+
     def __init__(self, provider: Provider):
         """
         初始化OpenAI供应商
-        
+
         参数:
             provider: OpenAI配置
         """
@@ -55,13 +55,13 @@ class OpenAIProvider(BaseProvider):
                 })
         return formatted
 
-    async def completions(self, request: LLMRequest) -> LLMResponse:
+    async def completions(self, request: CompletionsRequest) -> LLMResponse:
         """
         发送聊天请求到OpenAI
-        
+
         参数:
             request: LLM请求
-            
+
         返回:
             LLMResponse: OpenAI响应
         """
@@ -72,7 +72,7 @@ class OpenAIProvider(BaseProvider):
                 "role": message.role,
                 "content": self._format_message_content(message.content)
             })
-        
+
         response = await self.client.chat.completions.create(
             model=request.model or "gpt-4o-mini",
             messages=messages,
@@ -95,14 +95,84 @@ class OpenAIProvider(BaseProvider):
 
         return llm_response
 
+    async def responses(self, request: ResponseMessageRequest) -> LLMResponse:
+        """
+        调用OpenAI Responses API获取回复内容。
+        """
+
+        response = await self.client.responses.create(
+            input=request.input,
+            instructions=request.system_prompt,
+            max_output_tokens=request.max_tokens,
+            model=request.model,
+            temperature=request.temperature
+        )
+
+        llm_response = LLMResponse(
+            id=request.id,
+            content=response.output_text,
+            provider=request.provider,
+            model=response.model,
+            usage={
+                "input_tokens": response.usage.input_tokens,
+                "output_tokens": response.usage.output_tokens,
+            },
+            # cost=self._calculate_cost(response.usage, response.model)
+        )
+
+        return llm_response
+
+    async def responses_structured(self, request: ResponseMessageRequest) -> LLMResponse:
+        """
+        使用OpenAI Responses API的Structured Outputs功能获取结构化输出
+
+        Structured Outputs确保模型输出严格遵循指定的JSON Schema,
+        通过Pydantic模型定义输出结构,实现类型安全和数据验证。
+        适用于需要可靠结构化数据的场景,如数据提取、表单填充等。
+
+        参数:
+            request: ResponseMessageRequest请求对象,必须包含output_model (Pydantic BaseModel类型)
+
+        返回:
+            LLMResponse: 统一的LLM响应对象,content字段包含解析后的Pydantic对象
+
+        异常:
+            ValueError: 当output_model为None时
+            OpenAIError: 当API调用失败时
+        """
+
+        response = await self.client.responses.parse(
+            text_format=request.output_model,
+            input=request.input,
+            instructions=request.system_prompt,
+            max_output_tokens=request.max_tokens,
+            model=request.model,
+            temperature=request.temperature
+        )
+
+        llm_response = LLMResponse(
+            id=request.id,
+            content=response.output_parsed,
+            provider=request.provider,
+            model=response.model,
+            usage={
+                "input_tokens": response.usage.input_tokens,
+                "output_tokens": response.usage.output_tokens,
+            },
+            # cost=self._calculate_cost(response.usage, response.model)
+        )
+
+        return llm_response
+
+
     def _calculate_cost(self, usage, model: str) -> float:
         """
         计算OpenAI请求成本
-        
+
         参数:
             usage: 令牌使用情况
             model: 模型名称
-            
+
         返回:
             float: 请求成本(美元)
         """

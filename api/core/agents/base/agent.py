@@ -14,7 +14,7 @@
 from abc import ABC, abstractmethod
 
 from core.app.entities import WorkflowExecutionModel
-from infra.runtimes import LLMClient, LLMRequest, LLMResponse
+from infra.runtimes import LLMClient, CompletionsRequest, LLMResponse
 from utils import get_component_logger
 
 class BaseAgent(ABC):
@@ -69,7 +69,7 @@ class BaseAgent(ABC):
         """
         pass
     
-    async def invoke_llm(self, request: LLMRequest) -> LLMResponse:
+    async def invoke_llm(self, request: CompletionsRequest) -> LLMResponse:
         """
         简单的LLM调用方法
         

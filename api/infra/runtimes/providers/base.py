@@ -7,7 +7,7 @@ LLM供应商基类
 
 from abc import ABC, abstractmethod
 
-from infra.runtimes.entities import LLMRequest, LLMResponse, Provider
+from infra.runtimes.entities import CompletionsRequest, LLMResponse, Provider
 from libs.types import InputContentParams
 
 class BaseProvider(ABC):
@@ -23,7 +23,7 @@ class BaseProvider(ABC):
         self.provider = provider
 
     @abstractmethod
-    async def completions(self, request: LLMRequest) -> LLMResponse:
+    async def completions(self, request: CompletionsRequest) -> LLMResponse:
         """
         发送聊天请求 (抽象方法)
         
