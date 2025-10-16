@@ -19,6 +19,8 @@ from schemas.social_media_schema import (
     ReplyGenerationRequest,
     ReplyGenerationResponse,
     ReplyMessageData,
+    ChatGenerationRequest,
+    ChatGenerationResponse,
 )
 from services.social_media_service import (
     SocialMediaPublicTrafficService,
@@ -213,4 +215,36 @@ async def summarize_keywords(request: KeywordSummaryRequest):
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="关键词摘要生成失败，请稍后重试",
+        )
+
+
+@router.post("/chat", response_model=ChatGenerationResponse)
+async def generate_chat_reply(request: ChatGenerationRequest):
+    """生成私聊回复"""
+    try:
+        # 固定回复模式：直接返回chat_prompt内容
+        if request.comment_type == 1 and request.chat_prompt:
+            return ChatGenerationResponse(message=request.chat_prompt)
+
+        # AI生成模式：调用LLM生成回复
+        system_prompt, user_prompt = SocialMediaPublicTrafficService._build_chat_prompt(request)
+        raw_response = await SocialMediaPublicTrafficService._invoke_llm(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            max_tokens=SocialMediaPublicTrafficService.DEFAULT_MAX_TOKENS,
+        )
+        payload = SocialMediaPublicTrafficService._parse_structured_payload(raw_response)
+        message = payload.get("message") or raw_response
+
+        return ChatGenerationResponse(message=message)
+    except SocialMediaServiceError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(e) or "私聊回复生成失败，请稍后重试",
+        )
+    except Exception as e:
+        logger.error("私聊回复生成失败: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="私聊回复生成失败，请稍后重试",
         )

@@ -15,6 +15,7 @@ from schemas.social_media_schema import (
     CommentGenerationRequest,
     ReplyGenerationRequest,
     KeywordSummaryRequest,
+    ChatGenerationRequest,
 )
 from utils import get_component_logger
 
@@ -240,6 +241,40 @@ class SocialMediaPublicTrafficService:
             "",
             "请严格按照要求生成JSON，keywords数组中只包含新生成的关键词，不要包含已有关键词。"
         ]
+
+        return system_prompt, "\n".join(user_parts)
+
+    @classmethod
+    def _build_chat_prompt(
+        cls, request: ChatGenerationRequest
+    ) -> tuple[str, str]:
+        """私聊回复提示词"""
+        system_prompt = """社交媒体客服运营专家，专注于私聊场景的专业回复。
+
+任务要求：
+1. 理解用户的消息内容和意图
+2. 结合产品/服务信息提供有价值的回复
+3. 注意平台限制和敏感词规避（如"微信"改为"v"或"vx"等）
+
+回复类型处理：
+- type=0: AI生成，根据chat_prompt中的风格要求和提示词创作专业回复
+- type=1: 固定文案，直接返回chat_prompt中的内容
+
+输出JSON格式：
+{"message":"回复内容"}"""
+
+        user_parts = [
+            f"平台: {request.platform}",
+            f"产品/服务: {request.product_prompt}",
+            f"类型: {request.comment_type}",
+            f"用户消息: {request.content}",
+        ]
+
+        if request.chat_prompt:
+            if request.comment_type == 0:
+                user_parts.append(f"回复要求: {request.chat_prompt}")
+            else:
+                user_parts.append(f"固定回复内容(原样输出): {request.chat_prompt}")
 
         return system_prompt, "\n".join(user_parts)
 

@@ -88,3 +88,16 @@ class KeywordSummaryResponse(BaseModel):
     count: int = Field(description="关键词数量")
     summary: str = Field(description="整体舆情摘要")
 
+
+class ChatGenerationRequest(BaseGenerationRequest):
+    """私聊回复请求"""
+
+    content: str = Field(description="用户发送的消息内容")
+    chat_prompt: Optional[str] = Field(None, description="私聊回复要求提示词或固定内容")
+
+
+class ChatGenerationResponse(BaseModel):
+    """私聊回复响应"""
+
+    message: str = Field(description="生成的私聊回复内容")
+
