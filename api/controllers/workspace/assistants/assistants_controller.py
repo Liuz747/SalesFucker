@@ -18,7 +18,7 @@ from typing import Optional
 
 from schemas.exceptions import AssistantNotFoundException
 from schemas.assistants_schema import (
-    AssistantCreateRequest, AssistantUpdateRequest, AssistantOperationResponse
+    AssistantCreateRequest, AssistantUpdateRequest, AssistantOperationResponse, AssistantDeleteResponse
 )
 from schemas.tmp_schema import SimpleResponse
 from services.assistant_service import AssistantService
@@ -198,31 +198,34 @@ async def update_assistant(
         )
 
 
-@router.delete("/{assistant_id}", response_model=AssistantOperationResponse)
+@router.delete("/{assistant_id}", response_model=AssistantDeleteResponse)
 async def delete_assistant(
         assistant_id: str,
-        tenant_id: str = Query(..., description="租户标识符"),
+        # tenant_id: str = Query(..., description="租户标识符"),
         force: bool = Query(False, description="是否强制删除（即使有活跃对话）")
-) -> AssistantOperationResponse:
+) -> AssistantDeleteResponse:
     """
     删除助理
     
     删除指定的助理及其相关配置。如有活跃对话需要强制删除标志。
     """
     try:
-        logger.info(f"删除助理请求: tenant={tenant_id}, assistant={assistant_id}, force={force}")
+        logger.info(f"删除助理请求: assistant={assistant_id}, force={force}")
 
-        result = await AssistantService.delete_assistant(assistant_id, tenant_id, force)
+        assistant_service = AssistantService()
+        is_delete = await assistant_service.delete_assistant(assistant_id, force)
 
-        if not result.success:
-            logger.warning(f"助理删除失败: {assistant_id}")
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail=result.result_data.get("error", "助理删除失败")
-            )
+        # if not result:
+        #     logger.warning(f"助理删除失败: {assistant_id}")
+        #     raise HTTPException(
+        #         status_code=status.HTTP_400_BAD_REQUEST,
+        #         detail=result.result_data.get("error", "助理删除失败")
+        #     )
 
         logger.info(f"助理删除成功: {assistant_id}")
-        return result
+        return AssistantDeleteResponse(
+            is_delete=is_delete
+        )
 
     except HTTPException:
         raise

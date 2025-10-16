@@ -321,3 +321,10 @@ class AssistantOperationResponse(BaseModel):
     affected_conversations: Optional[int] = Field(None, description="受影响的对话数")
 
     affected_devices: Optional[int] = Field(None, description="受影响的设备数")
+
+
+class AssistantDeleteResponse(BaseModel):
+    """
+    删除助理响应模型
+    """
+    is_delete: bool = Field(description="是否有删除操作")

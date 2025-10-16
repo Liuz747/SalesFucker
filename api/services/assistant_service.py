@@ -625,7 +625,7 @@ class AssistantService:
         """停用助理"""
         return await self._change_assistant_status(assistant_id, tenant_id, AssistantStatus.INACTIVE, "deactivate")
 
-    async def delete_assistant(self, assistant_id: str, tenant_id: str, force: bool = False) -> AssistantOperationResponse:
+    async def delete_assistant(self, assistant_id: str, force: bool = False) -> bool:
         """
         删除助理
         
@@ -638,62 +638,21 @@ class AssistantService:
             AssistantOperationResponse: 操作结果
         """
         try:
-            # assistant_key = f"{tenant_id}:{assistant_id}"
-            assistant = await AssistantService.get_assistant_by_id(assistant_id)
+            async with database_session() as session:
+                assistant_orm = await AssistantRepository.get_assistant_by_id(assistant_id, session)
+                if not assistant_orm:
+                    return False
 
-            if not assistant:
-                return AssistantOperationResponse(
-                    code=4001,
-                    message="助理不存在",
-                    # success=False,
-                    # message="助理不存在",
-                    # data={},
-                    # assistant_id=assistant_id,
-                    # operation="delete",
-                    # result_data={"error": "助理不存在"}
-                )
+                # todo 检查是否有活跃对话（模拟检查）
+                current_customers = 0
+                if current_customers > 0 and not force:
+                    raise HTTPException("助理有活跃对话，需要强制删除标志")
 
-            # todo 检查是否有活跃对话（模拟检查）
-            # stats = self._assistant_stats.get(assistant_key, {})
-            # current_customers = stats.get("current_customers", 0)
-            current_customers = 0
-
-            if current_customers > 0 and not force:
-                return AssistantOperationResponse(
-                    code=10001,
-                    message="助理有活跃对话，需要强制删除标志",
-                    # success=False,
-                    # message="助理有活跃对话，需要强制删除标志",
-                    # data={},
-                    # assistant_id=assistant_id,
-                    # operation="delete",
-                    # result_data={"error": "有活跃对话", "active_conversations": current_customers}
-                )
-
-            # 删除助理数据
-            # del self._assistants_store[assistant_key]
-            # if assistant_key in self._assistant_stats:
-            #     del self._assistant_stats[assistant_key]
-            assistant.is_active = None
-            # todo 不应该调用 save，应该调用 update，后面有了接口再调整
-            assistant = await AssistantService.save(assistant)
-
-            self.logger.info(f"助理删除成功: {assistant_id}")
-
-            return AssistantOperationResponse(
-                code=0,
-                message="助理删除成功",
-                # data=assistant,
-
-                # success=True,
-                # message="助理删除成功",
-                # data={},
-                # assistant_id=assistant_id,
-                # operation="delete",
-                # result_data={"deleted": True, "force": force},
-                # affected_conversations=current_customers
-            )
-
+                flag = await AssistantRepository.delete(assistant_id, session)
+                if not flag:
+                    raise HTTPException("删除失败，请咨询管理员")
+                self.logger.info(f"助理删除成功: {assistant_id}")
+                return True
         except Exception as e:
             self.logger.error(f"助理删除失败: {e}")
             raise
