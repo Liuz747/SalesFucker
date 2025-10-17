@@ -50,7 +50,7 @@ class BaseGenerationRequest(BaseModel):
 class CommentGenerationRequest(BaseGenerationRequest):
     """评论生成请求"""
 
-    task_list: Sequence[CommentData] = Field(description="任务列表")
+    task: CommentData = Field(description="任务列表")
 
 
 class CommentGenerationResponse(BaseModel):
