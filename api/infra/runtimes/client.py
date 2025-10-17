@@ -57,9 +57,13 @@ class LLMClient:
             if provider_id not in self.active_providers:
                 raise Exception(f"指定的供应商不可用: {request.provider}")
 
+            provider = self.active_providers[provider_id]
+
             # 发送请求
-            response = await self.active_providers.get(provider_id).completions(request)
-            return response
+            if request.output_model:
+                return await provider.completions_structured(request)
+            else:
+                return await provider.completions(request)
 
         except ValueError:
             raise Exception(f"无效的供应商: {request.provider}")

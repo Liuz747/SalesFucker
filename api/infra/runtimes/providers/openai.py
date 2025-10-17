@@ -5,6 +5,7 @@ OpenAI供应商实现
 支持GPT-4o、GPT-4o-mini等模型。
 """
 
+import re
 from typing import Any
 
 import openai
@@ -77,8 +78,7 @@ class OpenAIProvider(BaseProvider):
             model=request.model or "gpt-4o-mini",
             messages=messages,
             temperature=request.temperature,
-            max_tokens=request.max_tokens,
-            stream=request.stream
+            max_completion_tokens=request.max_tokens
         )
 
         llm_response = LLMResponse(
@@ -95,6 +95,45 @@ class OpenAIProvider(BaseProvider):
 
         return llm_response
 
+    async def completions_structured(self, request: CompletionsRequest) -> LLMResponse:
+        """
+        发送聊天请求到OpenAI
+
+        参数:
+            request: LLM请求
+
+        返回:
+            LLMResponse: OpenAI响应
+        """
+        # 构建包含历史记录的对话上下文并处理多模态内容
+        messages: list[ChatCompletionMessageParam] = []
+        for message in request.messages:
+            messages.append({
+                "role": message.role,
+                "content": self._format_message_content(message.content)
+            })
+
+        response = await self.client.chat.completions.parse(
+            response_format=request.output_model,
+            model=request.model or "gpt-4o-mini",
+            messages=messages,
+            temperature=request.temperature,
+            max_completion_tokens=request.max_tokens
+        )
+
+        llm_response = LLMResponse(
+            id=request.id,
+            content=response.choices[0].message.parsed,
+            provider=request.provider,
+            model=response.model,
+            usage={
+                "input_tokens": response.usage.prompt_tokens,
+                "output_tokens": response.usage.completion_tokens,
+            },
+            cost=self._calculate_cost(response.usage, response.model)
+        )
+
+        return llm_response
     async def responses(self, request: ResponseMessageRequest) -> LLMResponse:
         """
         调用OpenAI Responses API获取回复内容。
@@ -135,10 +174,6 @@ class OpenAIProvider(BaseProvider):
 
         返回:
             LLMResponse: 统一的LLM响应对象,content字段包含解析后的Pydantic对象
-
-        异常:
-            ValueError: 当output_model为None时
-            OpenAIError: 当API调用失败时
         """
 
         response = await self.client.responses.parse(

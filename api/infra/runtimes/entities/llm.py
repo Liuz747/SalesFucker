@@ -17,13 +17,13 @@ class LLMRequest:
     max_tokens: int | None = None
     stream: bool = False
     thread_id: UUID | None = None
+    output_model: Type[BaseModel] | None = None
 
 
 @dataclass(kw_only=True)
 class ResponseMessageRequest(LLMRequest):
     input: str
     system_prompt: str
-    output_model: Type[BaseModel] | None = None
 
 
 @dataclass(kw_only=True)
