@@ -56,8 +56,8 @@ class CommentGenerationRequest(BaseGenerationRequest):
 class CommentGenerationResponse(BaseModel):
     """评论生成响应"""
 
-    actions: Sequence[SocialMediaActionType] = Field(default_factory=list, description="任务类型ID")
-    message: Optional[str] = Field(None, description="生成的评论文案")
+    actions: list[SocialMediaActionType] = Field(description="任务类型ID列表。必须返回列表，如果没有动作则返回空列表 []")
+    message: str | None = Field(description="生成的评论文案。如果无法生成有效评论，返回 null")
 
 
 class ReplyGenerationRequest(BaseGenerationRequest):
