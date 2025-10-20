@@ -45,7 +45,7 @@ class SocialMediaPublicTrafficService:
         run_id = uuid4()
         request = ResponseMessageRequest(
             id=run_id,
-            model="google/gemini-2.5-flash-preview-09-2025",
+            model="openai/gpt-5-chat",
             provider="openrouter",
             temperature=0.5,
             max_tokens=4000,
@@ -62,11 +62,11 @@ class SocialMediaPublicTrafficService:
 
         try: 
             # Step 1: Check Redis cache
-            cached_prompt = await redis_client.get(cache_key)
-            if cached_prompt:
-                if isinstance(cached_prompt, bytes):
-                    cached_prompt = cached_prompt.decode()
-                return cached_prompt
+            # cached_prompt = await redis_client.get(cache_key)
+            # if cached_prompt:
+            #     if isinstance(cached_prompt, bytes):
+            #         cached_prompt = cached_prompt.decode()
+            #     return cached_prompt
 
             # Step 2: Load from YAML
             yaml_content = load_yaml_file(self.config_path)

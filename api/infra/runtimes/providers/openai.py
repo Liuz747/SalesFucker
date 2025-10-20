@@ -144,7 +144,8 @@ class OpenAIProvider(BaseProvider):
             instructions=request.system_prompt,
             max_output_tokens=request.max_tokens,
             model=request.model,
-            temperature=request.temperature
+            temperature=request.temperature,
+            store=False
         )
 
         llm_response = LLMResponse(
@@ -182,7 +183,8 @@ class OpenAIProvider(BaseProvider):
             instructions=request.system_prompt,
             max_output_tokens=request.max_tokens,
             model=request.model,
-            temperature=request.temperature
+            temperature=request.temperature,
+            store=False
         )
 
         llm_response = LLMResponse(

@@ -6,11 +6,9 @@
 
 from __future__ import annotations
 
-from typing import Any, Iterable
-
 from fastapi import APIRouter, HTTPException, status
 
-from libs.types import SocialMediaActionType, MethodType
+from libs.types import MethodType
 from schemas.social_media_schema import (
     CommentGenerationRequest,
     CommentGenerationResponse,
@@ -18,7 +16,6 @@ from schemas.social_media_schema import (
     KeywordSummaryResponse,
     ReplyGenerationRequest,
     ReplyGenerationResponse,
-    ReplyMessageData,
     ChatGenerationRequest,
     ChatGenerationResponse,
 )
@@ -40,12 +37,12 @@ async def generate_comment(request: CommentGenerationRequest):
     try:
         service = SocialMediaPublicTrafficService()
         user_prompt = f"""
-        生成一个针对以下内容进行回复的评论，请勿重复内容。
+        生成一个针对以下内容进行回复的评论。
         平台：{request.platform}，
         产品或服务：{request.product_prompt}，
         类型：{request.comment_type}，
         {"固定文案：" if request.comment_type else "风格："}{request.comment_prompt if request.comment_prompt else "无"}，
-        作品内容：{request.task.product_content}
+        目标作品内容：{request.task.product_content}
         """
         system_prompt = await service.load_prompt(method=MethodType.COMMENT)
         response = await service.invoke_llm(
@@ -72,15 +69,37 @@ async def generate_comment(request: CommentGenerationRequest):
 async def generate_reply(request: ReplyGenerationRequest):
     """生成评论回复文案"""
     try:
-        system_prompt, user_prompt = SocialMediaPublicTrafficService._build_reply_prompt(request)
-        raw_response = await SocialMediaPublicTrafficService._invoke_llm(
+        service = SocialMediaPublicTrafficService()
+
+        # 构建用户提示词 - 明确要求为每个评论生成对应回复
+        task_descriptions = []
+        for idx, task in enumerate(request.task_list, 1):
+            task_descriptions.append(
+                f"评论{idx} [ID: {task.id}]:\n  内容: {task.reply_content}"
+            )
+
+        user_prompt = f"""
+        请对以下{len(request.task_list)}条评论分别生成回复。
+
+        平台：{request.platform}
+        产品或服务：{request.product_prompt}
+        类型：{request.comment_type}
+        {"固定文案：" if request.comment_type else "风格："}{request.comment_prompt if request.comment_prompt else "无"}
+
+        评论列表：
+        {chr(10).join(task_descriptions)}
+
+        重要：请务必返回{len(request.task_list)}个任务，每个任务对应上面的一条评论，保持ID一致。
+                """
+
+        system_prompt = await service.load_prompt(method=MethodType.REPLIES)
+        response = await service.invoke_llm(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
-            max_tokens=SocialMediaPublicTrafficService.DEFAULT_MAX_TOKENS,
+            output_model=ReplyGenerationResponse,
         )
-        payload = SocialMediaPublicTrafficService._parse_structured_payload(raw_response)
-        tasks = _build_reply_tasks(request, payload)
-        return ReplyGenerationResponse(tasks=tasks)
+
+        return response
     except SocialMediaServiceError as e:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -98,17 +117,24 @@ async def generate_reply(request: ReplyGenerationRequest):
 async def summarize_keywords(request: KeywordSummaryRequest):
     """评论关键词与主题摘要"""
     try:
-        system_prompt, user_prompt = SocialMediaPublicTrafficService._build_summary_prompt(request)
-        raw_response = await SocialMediaPublicTrafficService._invoke_llm(
+        service = SocialMediaPublicTrafficService()
+
+        user_prompt = f"""
+        生成社交媒体关键词和主题摘要。
+        平台：{request.platform}，
+        产品或服务：{request.product_prompt}，
+        已存在关键词：{', '.join(request.existing_keywords) if request.existing_keywords else '无'}，
+        期望生成数量：{request.expecting_count}
+        """
+
+        system_prompt = await service.load_prompt(method=MethodType.KEYWORDS)
+        response = await service.invoke_llm(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
-            max_tokens=SocialMediaPublicTrafficService.SUMMARY_MAX_TOKENS,
+            output_model=KeywordSummaryResponse,
         )
-        payload = SocialMediaPublicTrafficService._parse_structured_payload(raw_response)
-        keywords = SocialMediaPublicTrafficService._normalize_keywords(payload.get("keywords"))
-        count = SocialMediaPublicTrafficService._normalize_count(payload.get("count"), len(keywords))
-        summary = payload.get("summary") or "生成模型未提供摘要。"
-        return KeywordSummaryResponse(keywords=keywords, count=count, summary=summary)
+
+        return response
     except SocialMediaServiceError as e:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -131,16 +157,25 @@ async def generate_chat_reply(request: ChatGenerationRequest):
             return ChatGenerationResponse(message=request.chat_prompt)
 
         # AI生成模式：调用LLM生成回复
-        system_prompt, user_prompt = SocialMediaPublicTrafficService._build_chat_prompt(request)
-        raw_response = await SocialMediaPublicTrafficService._invoke_llm(
+        service = SocialMediaPublicTrafficService()
+
+        user_prompt = f"""
+        生成私聊回复。
+        平台：{request.platform}，
+        产品或服务：{request.product_prompt}，
+        类型：{request.comment_type}，
+        {"固定文案：" if request.comment_type else "风格："}{request.chat_prompt if request.chat_prompt else "无"}，
+        用户消息：{request.content}
+        """
+
+        system_prompt = await service.load_prompt(method=MethodType.PRIVATE_MESSAGE)
+        response = await service.invoke_llm(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
-            max_tokens=SocialMediaPublicTrafficService.DEFAULT_MAX_TOKENS,
+            output_model=ChatGenerationResponse,
         )
-        payload = SocialMediaPublicTrafficService._parse_structured_payload(raw_response)
-        message = payload.get("message") or raw_response
 
-        return ChatGenerationResponse(message=message)
+        return response
     except SocialMediaServiceError as e:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,

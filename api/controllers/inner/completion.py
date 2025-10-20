@@ -48,6 +48,7 @@ async def send_message(request: ChatRequest):
             model=request.model,
             provider=request.provider,
             temperature=request.temperature,
+            output_model=CalendarEvent,
             max_tokens=request.max_tokens
         )
         

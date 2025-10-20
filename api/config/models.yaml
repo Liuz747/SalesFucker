@@ -95,3 +95,20 @@
       name: "GPT-5 Mini (via OpenRouter)"
       type: "text"
       enabled: true
+    - id: "openai/gpt-oss-120b"
+      provider: "openrouter"
+      name: "GPT-5 Mini (via OpenRouter)"
+      type: "text"
+      enabled: true
+    - id: "openai/gpt-4.1-nano"
+      provider: "openrouter"
+      name: "openai/gpt-4.1-nano (via OpenRouter)"
+      type: "text"
+      enabled: true
+
+    - id: "google/gemini-2.5-flash-preview-09-2025"
+      provider: "openrouter"
+      name: "google/gemini-2.5-flash-preview-09-2025 (via OpenRouter)"
+      type: "text"
+      enabled: true
+    
