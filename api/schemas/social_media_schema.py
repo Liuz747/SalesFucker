@@ -9,7 +9,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from libs.types import SocialMediaActionType, SocialPlatform
+from libs.types import SocialMediaActionType, SocialPlatform, MethodType
 
 
 class CommentData(BaseModel):
@@ -100,4 +100,17 @@ class ChatGenerationResponse(BaseModel):
     """私聊回复响应"""
 
     message: str = Field(description="生成的私聊回复内容")
+
+
+class ReloadPromptRequest(BaseModel):
+    """重载提示词请求"""
+
+    method: MethodType = Field(description="提示词类型：comment/replies/keywords/private_message")
+
+
+class ReloadPromptResponse(BaseModel):
+    """重载提示词响应"""
+
+    method: MethodType = Field(description="重载的提示词类型")
+    message: str = Field(description="操作结果消息")
 

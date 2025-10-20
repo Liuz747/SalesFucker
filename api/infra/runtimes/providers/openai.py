@@ -2,7 +2,6 @@
 OpenAI供应商实现
 
 提供OpenAI GPT系列模型的调用功能。
-支持GPT-4o、GPT-4o-mini等模型。
 """
 
 from collections.abc import Sequence

@@ -18,6 +18,8 @@ from schemas.social_media_schema import (
     ReplyGenerationResponse,
     ChatGenerationRequest,
     ChatGenerationResponse,
+    ReloadPromptRequest,
+    ReloadPromptResponse,
 )
 from services.social_media_service import (
     SocialMediaPublicTrafficService,
@@ -148,4 +150,30 @@ async def generate_chat_reply(
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="私聊回复生成失败，请稍后重试",
+        )
+
+
+@router.post("/reload-prompt", response_model=ReloadPromptResponse)
+async def reload_prompt(
+    request: ReloadPromptRequest,
+    service: Annotated[SocialMediaPublicTrafficService, Depends()],
+):
+    """重载指定类型的提示词缓存"""
+    try:
+        await service.reload_prompt(method=request.method)
+        logger.info(f"提示词重载成功: {request.method}")
+        return ReloadPromptResponse(
+            method=request.method,
+            message=f"提示词 {request.method} 重载成功"
+        )
+    except SocialMediaServiceError as e:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(e) or "提示词重载失败，请稍后重试",
+        )
+    except Exception as e:
+        logger.error("提示词重载失败: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="提示词重载失败，请稍后重试",
         )
