@@ -5,8 +5,7 @@ OpenAI供应商实现
 支持GPT-4o、GPT-4o-mini等模型。
 """
 
-import re
-from typing import Any
+from collections.abc import Sequence
 
 import openai
 from openai.types.chat import ChatCompletionMessageParam, ChatCompletionContentPartParam
@@ -31,7 +30,7 @@ class OpenAIProvider(BaseProvider):
             base_url=provider.base_url
         )
 
-    def _format_message_content(self, content) -> Any:
+    def _format_message_content(self, content) -> Sequence:
         """
         将通用content格式转换为OpenAI特定格式
 
