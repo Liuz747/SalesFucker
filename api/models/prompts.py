@@ -22,7 +22,7 @@ from typing import Dict, List, Optional, Any
 
 from pydantic import BaseModel, Field
 from sqlalchemy import (
-    Column, String, Boolean, DateTime, Integer, Index
+    Column, String, Boolean, DateTime, Integer, Index, BigInteger
 )
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.sql import func
@@ -60,7 +60,7 @@ class PromptsModel(BaseModel):
 
     brand_voice: Optional[str] = Field(default=None, description="品牌声音定义 - 品牌特色和价值观")
     product_knowledge: Optional[str] = Field(default=None, description="产品知识要点 - 重点产品信息和卖点")
-    version: str = Field(default="1758731200000", description="配置版本")
+    version: int = Field(default="1758731200000", description="配置版本")
     is_active: Optional[bool] = Field(default=None, description="租户是否激活")
     created_at: datetime = Field(description="创建时间")
     updated_at: datetime = Field(description="最后一次更新时间")
@@ -117,7 +117,7 @@ class PromptsOrmModel(Base):
 
     brand_voice: Optional[str] = Column(String(500), nullable=True)
     product_knowledge: Optional[str] = Column(String(2000), nullable=True)
-    version: str = Column(String(500), nullable=False)
+    version: int = Column(BigInteger, nullable=False)
 
     # 状态信息
     is_active = Column(Boolean, nullable=True, default=True)

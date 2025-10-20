@@ -10,12 +10,14 @@
 - 提示词库管理
 - 版本控制和历史记录
 """
-
+import asyncio
+import time
 import uuid
 import re
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 
+from infra.db import database_session
 from models.prompts import PromptsModel, PromptsOrmModel
 from repositories.prompts_repo import PromptsRepository
 from schemas.prompts_schema import (
@@ -26,7 +28,7 @@ from schemas.prompts_schema import (
     PromptCategory, PromptType, PromptLanguage
 )
 from utils import get_component_logger
-
+from fastapi import HTTPException
 
 class PromptService:
     """
@@ -60,22 +62,10 @@ class PromptService:
             PromptConfigResponse: 配置结果
         """
         try:
-            config_key = f"{request.tenant_id}:{request.assistant_id}"
-
             # 验证提示词配置
             await self._validate_prompt_config(request.prompt_config)
 
             now = datetime.utcnow()
-            config_data = {
-                "assistant_id": request.assistant_id,
-                "tenant_id": request.tenant_id,
-                "config": request.prompt_config.dict(),
-                "created_at": now,
-                "updated_at": now,
-                "version": request.prompt_config.version,
-                "is_active": request.prompt_config.is_active
-            }
-
             prompts_model = PromptsModel(
                 tenant_id=request.assistant_id,
                 assistant_id=request.assistant_id,
@@ -90,21 +80,24 @@ class PromptService:
                 forbidden_topics=request.prompt_config.forbidden_topics,
                 brand_voice=request.prompt_config.brand_voice,
                 product_knowledge=request.prompt_config.product_knowledge,
-                version=request.prompt_config.version,
+                version=time.perf_counter_ns(),
                 is_active=request.prompt_config.is_active,
                 created_at=now,
                 updated_at=now
             )
 
-            id = await PromptsRepository.insertPrompts(prompts_model.to_orm())
-            prompts_model.id = id
-            # todo 记录历史版本 功能存疑，需要确认
-            # if config_key not in self._prompt_history:
-            #     self._prompt_history[config_key] = []
-            # self._prompt_history[config_key].append(config_data.copy())
-
+            async with database_session() as session:
+                prompts_orm = await PromptsRepository.get_prompts_by_assistant_id(prompts_model.assistant_id, session)
+                if prompts_orm:
+                    raise HTTPException("数字员工的提示词已存在")
+                prompts_id = await PromptsRepository.insert_prompts(prompts_model.to_orm(), session)
+                prompts_model.id = prompts_id
+                # todo 记录历史版本 功能存疑，需要确认
+                # if config_key not in self._prompt_history:
+                #     self._prompt_history[config_key] = []
+                # self._prompt_history[config_key].append(config_data.copy())
             self.logger.error(f"助理提示词配置创建成功: {request.assistant_id} {prompts_model}")
-
+            asyncio.create_task(PromptsRepository.update_prompts_cache(prompts_model))
             return prompts_model
 
         except Exception as e:
