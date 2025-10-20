@@ -6,12 +6,17 @@ OpenAI供应商实现
 """
 
 from collections.abc import Sequence
+import json
 
 import openai
 from openai.types.chat import ChatCompletionMessageParam, ChatCompletionContentPartParam
+from pydantic import ValidationError
 
 from ..entities import LLMResponse, Provider, CompletionsRequest, ResponseMessageRequest
 from .base import BaseProvider
+from utils import get_component_logger
+
+logger = get_component_logger(__name__, "OpenAIProvider")
 
 
 class OpenAIProvider(BaseProvider):
@@ -96,7 +101,7 @@ class OpenAIProvider(BaseProvider):
 
     async def completions_structured(self, request: CompletionsRequest) -> LLMResponse:
         """
-        发送聊天请求到OpenAI
+        发送结构化聊天请求到OpenAI或OpenRouter
 
         参数:
             request: LLM请求
@@ -112,17 +117,64 @@ class OpenAIProvider(BaseProvider):
                 "content": self._format_message_content(message.content)
             })
 
-        response = await self.client.chat.completions.parse(
-            response_format=request.output_model,
-            model=request.model or "gpt-4o-mini",
-            messages=messages,
-            temperature=request.temperature,
-            max_completion_tokens=request.max_tokens
-        )
+        # 为OpenRouter使用JSON schema格式，为原生OpenAI使用.parse()
+        if request.provider == "openrouter" and not request.model.startswith("openai/"):
+            # OpenRouter方式：使用json_object模式（json_schema在OpenRouter上不可靠）
+            # 在系统消息中添加JSON格式要求
+            json_schema_str = json.dumps(request.output_model.model_json_schema(), indent=2, ensure_ascii=False)
+
+            # 在最后一条用户消息后添加JSON格式指令
+            if messages and messages[-1]["role"] == "user":
+                messages[-1]["content"] += f"\n\n请严格按照以下JSON schema格式返回结果，只返回JSON对象，不要包含任何其他文字、解释或markdown格式：\n\n{json_schema_str}\n\n只返回符合schema的纯JSON对象。"
+
+            response = await self.client.chat.completions.create(
+                extra_body={"provider": {'require_parameters': True}},
+                model=request.model,
+                messages=messages,
+                temperature=request.temperature,
+                max_completion_tokens=request.max_tokens,
+                response_format={
+                    "type": "json_object",
+                    "json_schema": request.output_model.model_json_schema()
+                }
+            )
+
+            # 解析JSON响应
+            content_str = response.choices[0].message.content
+
+            # 详细日志记录用于调试
+            logger.debug(f"OpenRouter响应原始内容类型: {type(content_str)}")
+            logger.debug(f"OpenRouter响应原始内容: {repr(content_str)}")
+
+            content_str = content_str.strip()
+
+            try:
+                # 解析JSON并验证
+                parsed_data = json.loads(content_str)
+                parsed_content = request.output_model.model_validate(parsed_data)
+                logger.info(f"成功解析OpenRouter响应为 {request.output_model.__name__}")
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON解析失败。内容长度: {len(content_str)}, 前200字符: {content_str[:200]}")
+                raise ValueError(f"LLM返回的不是有效的JSON: {e}. 内容: {content_str[:200]}")
+            except ValidationError as e:
+                logger.error(f"Pydantic验证失败。解析后的数据: {parsed_data}")
+                raise ValueError(f"LLM返回的JSON不符合预期格式: {e}")
+        else:
+            # 原生OpenAI方式：使用.parse()
+            response = await self.client.chat.completions.parse(
+                response_format=request.output_model,
+                model=request.model or "gpt-4o-mini",
+                messages=messages,
+                temperature=request.temperature,
+                max_completion_tokens=request.max_tokens
+            )
+            parsed_content = response.choices[0].message.parsed
+            if not parsed_content:
+                raise ValueError("LLM返回了空的parsed响应")
 
         llm_response = LLMResponse(
             id=request.id,
-            content=response.choices[0].message.parsed,
+            content=parsed_content,
             provider=request.provider,
             model=response.model,
             usage={

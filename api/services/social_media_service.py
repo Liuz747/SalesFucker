@@ -13,8 +13,8 @@ from pydantic import BaseModel
 
 from config import mas_config
 from infra.cache import get_redis_client
-from infra.runtimes import LLMClient, ResponseMessageRequest
-from libs.types import MethodType
+from infra.runtimes import LLMClient, ResponseMessageRequest, CompletionsRequest
+from libs.types import MethodType, Message
 from schemas.social_media_schema import (
     CommentGenerationRequest,
     ReplyGenerationRequest,
@@ -49,17 +49,20 @@ class SocialMediaPublicTrafficService:
     ) -> Mapping:
         """调用统一LLM客户端"""
         run_id = uuid4()
-        request = ResponseMessageRequest(
+        messages = [
+            Message(role="system", content=system_prompt),
+            Message(role="user", content=user_prompt)
+        ]
+        request = CompletionsRequest(
             id=run_id,
-            model="openai/gpt-5-chat",
+            model="google/gemini-2.5-flash-preview-09-2025",
             provider="openrouter",
             temperature=0.5,
             max_tokens=4000,
-            input=user_prompt,
-            system_prompt=system_prompt,
+            messages=messages,
             output_model=output_model
         )
-        response = await self.client.responses(request)
+        response = await self.client.completions(request)
         return response.content
 
     async def load_prompt(self, method: MethodType) -> str:
