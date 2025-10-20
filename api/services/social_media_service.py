@@ -15,6 +15,12 @@ from config import mas_config
 from infra.cache import get_redis_client
 from infra.runtimes import LLMClient, ResponseMessageRequest
 from libs.types import MethodType
+from schemas.social_media_schema import (
+    CommentGenerationRequest,
+    ReplyGenerationRequest,
+    KeywordSummaryRequest,
+    ChatGenerationRequest,
+)
 from utils import get_component_logger, load_yaml_file
 
 
@@ -105,3 +111,66 @@ class SocialMediaPublicTrafficService:
             raise
 
         await redis_client.set(cache_key, prompt, ex=mas_config.REDIS_TTL)
+
+    def build_comment_prompt(self, request: CommentGenerationRequest) -> str:
+        """构建评论生成提示词"""
+        prompt_type_label = "固定文案" if request.comment_type else "风格"
+        prompt_content = request.comment_prompt or "无"
+
+        return (
+            f"生成一个针对以下内容进行回复的评论。\n\n"
+            f"平台: {request.platform}\n"
+            f"产品或服务: {request.product_prompt}\n"
+            f"类型: {request.comment_type}\n"
+            f"{prompt_type_label}: {prompt_content}\n"
+            f"目标作品内容: {request.task.product_content}"
+        )
+
+    def build_reply_prompt(self, request: ReplyGenerationRequest) -> str:
+        """构建回复生成提示词"""
+        task_descriptions = []
+        for idx, task in enumerate(request.task_list, 1):
+            task_descriptions.append(
+                f"评论{idx} [ID: {task.id}]:\n  内容: {task.reply_content}"
+            )
+
+        prompt_type_label = "固定文案" if request.comment_type else "风格"
+        prompt_content = request.comment_prompt or "无"
+
+        return (
+            f"请对以下{len(request.task_list)}条评论分别生成回复。\n\n"
+            f"平台: {request.platform}\n"
+            f"产品或服务: {request.product_prompt}\n"
+            f"类型: {request.comment_type}\n"
+            f"{prompt_type_label}: {prompt_content}\n\n"
+            f"评论列表:\n"
+            f"{chr(10).join(task_descriptions)}\n\n"
+            f"重要：请务必返回{len(request.task_list)}个任务，每个任务对应上面的一条评论，保持ID一致。"
+        )
+
+    def build_keywords_prompt(self, request: KeywordSummaryRequest) -> str:
+        """构建关键词摘要提示词"""
+        existing_keywords = ', '.join(request.existing_keywords) if request.existing_keywords else '无'
+
+        return (
+            f"生成社交媒体关键词和主题摘要。\n\n"
+            f"平台: {request.platform}\n"
+            f"产品或服务: {request.product_prompt}\n"
+            f"已存在关键词: {existing_keywords}\n"
+            f"期望生成数量: {request.expecting_count}"
+        )
+
+    def build_chat_prompt(self, request: ChatGenerationRequest) -> str:
+        """构建私聊回复提示词"""
+        prompt_type_label = "固定文案" if request.comment_type else "风格"
+        prompt_content = request.chat_prompt or "无"
+
+        return (
+            f"生成私聊回复。\n\n"
+            f"平台: {request.platform}\n"
+            f"产品或服务: {request.product_prompt}\n"
+            f"类型: {request.comment_type}\n"
+            f"{prompt_type_label}: {prompt_content}\n"
+            f"用户消息: {request.content}"
+        )
+
