@@ -29,22 +29,22 @@ from utils import get_component_logger
 
 logger = get_component_logger(__name__, "prompts_endpoints")
 
-
 # 创建路由器
 router = APIRouter()
 
-@router.post("/{assistant_id}", response_model=PromptConfigResponse)
+
+@router.post("/{assistant_id}", response_model=PromptsModel)
 async def create_assistant_prompts(
         request: PromptCreateRequest,
         assistant_id: str
-) -> PromptConfigResponse:
+) -> Optional[PromptsModel]:
     """
     为助理配置提示词
     
     创建或更新助理的完整提示词配置，定义其个性、行为和交互方式。
     """
     try:
-        logger.info(f"配置助理提示词: tenant={request.tenant_id}, assistant={assistant_id}")
+        logger.info(f"配置助理提示词: request.tenant_id={request.tenant_id}, assistant={assistant_id}")
 
         # JWT认证中已验证租户身份，无需重复检查
 
@@ -58,11 +58,11 @@ async def create_assistant_prompts(
             #     status_code=status.HTTP_400_BAD_REQUEST,
             #     detail="请求中的助理ID与路径参数不匹配"
             # )
-
-        result = await PromptService.create_assistant_prompts(request)
-
+        prompts_service = PromptService()
+        result = await prompts_service.create_assistant_prompts(request)
         logger.info(f"助理提示词配置成功: {assistant_id}")
-        return NewPromptResponse(result)
+        # return NewPromptResponse(result)
+        return result
 
     except ValueError as e:
         logger.warning(f"提示词配置参数错误: {e}")

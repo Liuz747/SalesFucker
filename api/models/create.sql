@@ -89,10 +89,13 @@ create table prompts(
     forbidden_topics jsonb, -- 禁止讨论的话题列表
     brand_voice  varchar(500) NULL,-- 品牌声音定义 - 品牌特色和价值观
     product_knowledge varchar(2000) NULL, -- 产品知识要点 - 重点产品信息和卖点
-    version varchar(500) not NULL default '1.0.0',-- 配置版本
+    version bigint not NULL,-- 配置版本
     is_active BOOLEAN NULL DEFAULT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 使用当前时区的时间戳作为默认值
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP -- 使用当前时区的时间戳作为默认值
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 使用当前时区的时间戳作为默认值
+
+
+    constraint uk_prompts_assistant_id_is_active UNIQUE (assistant_id, is_active)
 );
 
 

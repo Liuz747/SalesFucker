@@ -26,6 +26,7 @@ from infra.db.connection import database_session, test_db_connection
 from utils import get_component_logger
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis import Redis, RedisError
+from infra.cache import get_redis_client
 
 logger = get_component_logger(__name__, "PromptsDao")
 
@@ -87,9 +88,11 @@ class PromptsRepository:
             raise
 
     @staticmethod
-    async def update_prompts_cache(prompts_model: PromptsModel, redis_client: Redis):
+    async def update_prompts_cache(prompts_model: PromptsModel, redis_client: Redis = None):
         """更新提示词缓存"""
         try:
+            if not redis_client:
+                redis_client = await get_redis_client()
             redis_key = f"prompts:{prompts_model.id}"
             tenant_data = prompts_model.model_dump(mode='json')
 
