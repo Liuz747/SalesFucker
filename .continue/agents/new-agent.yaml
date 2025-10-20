@@ -1,0 +1,28 @@
+name: Example Agent
+version: 1.0.0
+schema: v1
+
+models:
+  - name: Qwen3 Coder 480B A35B
+    provider: openrouter
+    model: qwen/qwen3-coder
+    apiKey: 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
+    defaultCompletionOptions:
+      contextLength: 262144
+    capabilities:
+      - tool_use
+    roles:
+      - apply
+      - chat
+      - edit
+  - name: my gpt-5
+    provider: openai
+    model: gpt-5
+    apiKey: YOUR_OPENAI_API_KEY_HERE
+  - uses: ollama/qwen2.5-coder-7b
+  - uses: anthropic/claude-4-sonnet
+    with:
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+mcpServers:
+  - uses: anthropic/memory-mcp
