@@ -8,6 +8,8 @@ from pydantic import Field, NonNegativeInt, PositiveInt
 from pydantic_settings import BaseSettings
 
 from .redis_config import RedisConfig
+from .elasticsearch_config import ElasticsearchConfig
+from .milvus_config import MilvusConfig
 
 class DatabaseConfig(BaseSettings):
     """
@@ -68,23 +70,6 @@ class DatabaseConfig(BaseSettings):
         default=False,
     )
 
-    # Elasticsearch 配置
-    ELASTICSEARCH_URL: str = Field(
-        description="Elasticsearch 服务器连接地址，用于存储对话历史和客户记忆",
-        default="http://localhost:9200",
-    )
-
-    # Milvus 配置
-    MILVUS_HOST: str = Field(
-        description="Milvus 向量数据库主机地址，用于产品搜索和推荐",
-        default="localhost",
-    )
-
-    MILVUS_PORT: int = Field(
-        description="Milvus 向量数据库端口号",
-        default=19530,
-    )
-
     @property
     def postgres_url(self) -> str:
         """构建PostgreSQL连接URL"""
@@ -95,6 +80,17 @@ class DatabaseConfig(BaseSettings):
     
 class StorageConfig(
     DatabaseConfig,
-    RedisConfig
+    RedisConfig,
+    ElasticsearchConfig,
+    MilvusConfig
 ):
+    """
+    统一存储配置
+
+    整合所有存储系统配置：
+    - DatabaseConfig: PostgreSQL配置
+    - RedisConfig: Redis缓存配置
+    - ElasticsearchConfig: ES记忆系统配置
+    - MilvusConfig: Milvus向量数据库配置
+    """
     pass

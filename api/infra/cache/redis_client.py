@@ -46,7 +46,7 @@ async def close_redis_client():
 
 
 async def test_redis_connection():
-    """测试Redis连接"""
+    """验证Redis连接"""
     try:
         redis_client = await get_redis_client()
         # 使用ping命令测试连接
