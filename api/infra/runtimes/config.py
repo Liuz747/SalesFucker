@@ -16,7 +16,7 @@ class LLMConfig:
     def __init__(self):
         """初始化配置加载器"""
         project_root = Path(__file__).parent.parent.parent
-        config_path = project_root / "config" / "models.yaml"
+        config_path = project_root / "data" / "models.yaml"
         
         self.config_path = str(config_path)
         self.providers = self.load_providers()

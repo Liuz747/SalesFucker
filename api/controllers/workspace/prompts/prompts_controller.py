@@ -18,7 +18,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from typing import List, Optional
 
 from models.prompts import PromptsModel
-from legacy_api.schemas.prompts import (
+from schemas.prompts_schema import (
     PromptCreateRequest, PromptUpdateRequest, PromptTestRequest,
     PromptLibrarySearchRequest, PromptConfigResponse, PromptTestResponse,
     PromptLibraryResponse, PromptValidationResponse,

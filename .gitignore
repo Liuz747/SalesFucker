@@ -37,6 +37,7 @@ CLAUDE.md
 .claude/
 *.swp
 *.swo
+.continue
 
 # MacOS
 .DS_Store

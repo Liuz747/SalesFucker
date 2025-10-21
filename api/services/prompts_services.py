@@ -18,7 +18,7 @@ from datetime import datetime
 
 from models.prompts import PromptsModel, PromptsOrmModel
 from repositories.prompts_repo import PromptsRepository
-from legacy_api.schemas.prompts import (
+from schemas.prompts_schema import (
     PromptCreateRequest, PromptUpdateRequest, PromptTestRequest,
     PromptLibrarySearchRequest, PromptConfigResponse, PromptTestResponse,
     PromptLibraryResponse, PromptValidationResponse,

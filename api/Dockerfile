@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.13-slim
 
 # Set working directory
 WORKDIR /app
@@ -10,20 +10,16 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install uv
-RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-ENV PATH="/root/.cargo/bin:$PATH"
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
-# Copy project files
+# Copy dependency files first for better layer caching
 COPY pyproject.toml uv.lock* ./
-COPY main.py ./
-COPY api/ ./api/
-COPY infra/ ./infra/
-COPY models/ ./models/
-COPY scripts/ ./scripts/
-COPY config/ ./config/
 
 # Install dependencies
 RUN uv sync --frozen
+
+# Copy application code
+COPY . .
 
 # Expose port
 EXPOSE 8000

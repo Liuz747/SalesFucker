@@ -11,7 +11,7 @@ import anthropic
 from anthropic.types import MessageParam
 
 from infra.runtimes.providers import BaseProvider
-from infra.runtimes.entities import LLMRequest, LLMResponse, Provider
+from infra.runtimes.entities import CompletionsRequest, LLMResponse, Provider
 
 
 class AnthropicProvider(BaseProvider):
@@ -55,7 +55,7 @@ class AnthropicProvider(BaseProvider):
                 })
         return formatted
 
-    async def completions(self, request: LLMRequest) -> LLMResponse:
+    async def completions(self, request: CompletionsRequest) -> LLMResponse:
         """
         发送聊天请求到Anthropic
         

@@ -11,7 +11,7 @@ import msgpack
 from redis.asyncio import Redis
 
 from infra.cache import get_redis_client
-from infra.runtimes import LLMRequest
+from infra.runtimes import CompletionsRequest
 from libs.types import Message, MessageParams
 from utils import get_component_logger
 
@@ -86,7 +86,7 @@ class ConversationStore:
         temperature: float = 0.7,
         max_tokens: int | None = None,
         stream: bool = False,
-    ) -> LLMRequest:
+    ) -> CompletionsRequest:
         """
         1) 将本次输入写入会话短期记忆
         2) 读取最近 N 条构建 LLMRequest
@@ -106,7 +106,7 @@ class ConversationStore:
         recent = await self.get_recent(thread_id, self.max_messages)
         window = system + recent if system else recent
 
-        return LLMRequest(
+        return CompletionsRequest(
             id=run_id,
             model=model,
             provider=provider,
