@@ -12,6 +12,7 @@ AI员工处理器
 """
 
 import asyncio
+import time
 import uuid
 from typing import Optional, Dict, Any, List
 from datetime import datetime
@@ -404,10 +405,10 @@ class AssistantService:
                 # 处理提示词配置更新（如果提供）
                 if request.prompt_config:
                     try:
-                        prompts = await PromptsRepository.get_prompts_by_assistant_id(assistant_id, session)
+                        prompts_orm = await PromptsRepository.get_prompts_by_assistant_id(assistant_id, session)
                         now = get_current_datetime()
 
-                        if prompts is None:
+                        if prompts_orm is None:
                             # 没有提示词，需要创建
                             promptsModel = PromptsModel(
                                 tenant_id=assistant_orm.tenant_id,
@@ -423,7 +424,7 @@ class AssistantService:
                                 forbidden_topics=request.prompt_config.forbidden_topics,
                                 brand_voice=request.prompt_config.brand_voice,
                                 product_knowledge=request.prompt_config.product_knowledge,
-                                version="1",
+                                version=time.perf_counter_ns(),
                                 is_active=request.prompt_config.is_active,
                                 created_at=now,
                                 updated_at=now,
@@ -433,34 +434,33 @@ class AssistantService:
                                 raise HTTPException(status_code=500, detail="提示词不存在，创建失败")
 
                         else:
-                            # 存在提示词，需要更新
+                            # 存在提示词，需要重新创建
                             if request.prompt_config.personality_prompt is not None:
-                                prompts.personality_prompt = request.prompt_config.personality_prompt
+                                prompts_orm.personality_prompt = request.prompt_config.personality_prompt
                             if request.prompt_config.greeting_prompt is not None:
-                                prompts.greeting_prompt = request.prompt_config.greeting_prompt
+                                prompts_orm.greeting_prompt = request.prompt_config.greeting_prompt
                             if request.prompt_config.product_recommendation_prompt is not None:
-                                prompts.product_recommendation_prompt = request.prompt_config.product_recommendation_prompt
+                                prompts_orm.product_recommendation_prompt = request.prompt_config.product_recommendation_prompt
                             if request.prompt_config.objection_handling_prompt is not None:
-                                prompts.objection_handling_prompt = request.prompt_config.objection_handling_prompt
+                                prompts_orm.objection_handling_prompt = request.prompt_config.objection_handling_prompt
                             if request.prompt_config.closing_prompt is not None:
-                                prompts.closing_prompt = request.prompt_config.closing_prompt
+                                prompts_orm.closing_prompt = request.prompt_config.closing_prompt
                             if request.prompt_config.context_instructions is not None:
-                                prompts.context_instructions = request.prompt_config.context_instructions
+                                prompts_orm.context_instructions = request.prompt_config.context_instructions
                             if request.prompt_config.llm_parameters is not None:
-                                prompts.llm_parameters = request.prompt_config.llm_parameters
+                                prompts_orm.llm_parameters = request.prompt_config.llm_parameters
                             if request.prompt_config.safety_guidelines is not None:
-                                prompts.safety_guidelines = request.prompt_config.safety_guidelines
+                                prompts_orm.safety_guidelines = request.prompt_config.safety_guidelines
                             if request.prompt_config.forbidden_topics is not None:
-                                prompts.forbidden_topics = request.prompt_config.forbidden_topics
+                                prompts_orm.forbidden_topics = request.prompt_config.forbidden_topics
                             if request.prompt_config.brand_voice is not None:
-                                prompts.brand_voice = request.prompt_config.brand_voice
+                                prompts_orm.brand_voice = request.prompt_config.brand_voice
                             if request.prompt_config.product_knowledge is not None:
-                                prompts.product_knowledge = request.prompt_config.product_knowledge
-                            # prompts.updated_at = now,
-                            # todo version 应该是用纳秒级时间戳
-                            prompts.version = "1"
+                                prompts_orm.product_knowledge = request.prompt_config.product_knowledge
+                            prompts_orm.updated_at = now,
+                            prompts_orm.version = time.perf_counter_ns(),
                             from dataclasses import dataclass, asdict
-                            is_success = await PromptsRepository.update_prompts_field(assistant_id, asdict(prompts), session)
+                            is_success = await PromptsRepository.insert_prompts(prompts_orm, session)
                             if not is_success:
                                 raise HTTPException("更新错误")
                         self.logger.info(f"助理 {assistant_id} 提示词配置更新成功")

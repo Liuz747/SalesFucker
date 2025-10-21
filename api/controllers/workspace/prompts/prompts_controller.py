@@ -78,46 +78,28 @@ async def create_assistant_prompts(
         )
 
 
-@router.get("/{assistant_id}/{tenant_id}/{version}", response_model=PromptConfigResponse)
+@router.get("/{assistant_id}", response_model=PromptsModel)
 async def get_assistant_prompts(
         assistant_id: str,
-        tenant_id: str,
-        version: Optional[str]
-) -> PromptConfigResponse:
+        version: Optional[str] = None
+) -> Optional[PromptsModel]:
     """
     获取助理提示词配置
     
     获取指定助理的提示词配置，包括所有个性化设置和交互规则。
     """
     try:
-        logger.info(f"查询助理提示词: tenant={tenant_id}, assistant={assistant_id}")
+        logger.info(f"查询助理提示词: assistant={assistant_id} version={version}")
 
-        result = await PromptService.get_assistant_prompts(
-            assistant_id, tenant_id, version
+        prompts_service = PromptService()
+        result = await prompts_service.get_assistant_prompts(
+            assistant_id, version
         )
-
         if not result:
             logger.warning(f"助理提示词配置不存在: {assistant_id}")
-            return PromptConfigResponse(
-                code=1001,
-                message="数据不存在",
-                success=False,
-                # data=PromptConfigResponse(
-                #     assistant_id=result.assistant_id,
-                #     tenant_id=result.tenant_id,
-                #     config=AssistantPromptConfig(
-                #         assistant_id=result.assistant_id,
-                #         tenant_id=result.tenant_id,
-                #         personality_prompt=result.personality_prompt
-                #     ),
-                #     created_at=result.created_at,
-                #     updated_at=result.updated_at
-                # ),
-            )
-
+            return None
         logger.info(f"助理提示词查询成功: {assistant_id}")
-
-        return NewPromptResponse(result)
+        return result
 
     except HTTPException:
         raise
