@@ -98,6 +98,8 @@ class PromptService:
                 # self._prompt_history[config_key].append(config_data.copy())
             self.logger.error(f"助理提示词配置创建成功: {request.assistant_id} {prompts_model}")
             asyncio.create_task(PromptsRepository.update_prompts_cache(prompts_model))
+            asyncio.create_task(PromptsRepository.update_prompts_latest_version_cache(prompts_model.assistant_id, prompts_model.version))
+
             return prompts_model
 
         except Exception as e:
@@ -107,8 +109,7 @@ class PromptService:
     async def get_assistant_prompts(
             self,
             assistant_id: str,
-            tenant_id: str,
-            version: Optional[str] = None
+            version: Optional[int] = None
     ) -> Optional[PromptsModel]:
         """
         获取助理提示词配置
@@ -122,37 +123,27 @@ class PromptService:
             Optional[PromptConfigResponse]: 配置信息
         """
         try:
-            # config_key = f"{tenant_id}:{assistant_id}"
 
             # 不确定版本的定义，先不考虑
-            if 1 == 2:
-                if version:
-                    # 获取指定版本
-                    history = self._prompt_history.get(config_key, [])
-                    for config in history:
-                        if config.get("version") == version:
-                            prompt_config = AssistantPromptConfig(**config["config"])
-                            return PromptConfigResponse(
-                                success=True,
-                                message="历史版本提示词配置查询成功",
-                                data={},
-                                assistant_id=assistant_id,
-                                tenant_id=tenant_id,
-                                config=prompt_config,
-                                created_at=config["created_at"],
-                                updated_at=config["updated_at"]
-                            )
+            if version is None:
+                # 默认返回最新版本
+                version = await PromptsRepository.get_prompts_latest_version_cache(assistant_id)
+                if version is None:
                     return None
 
-            # 获取当前版本
-            prompts_orm = await PromptsRepository.get_prompts(assistant_id, tenant_id, version)
-            if not prompts_orm:
-                return None
+            # 从缓存中获取获取指定版本
+            prompts_model = await PromptsRepository.get_prompts_cache(assistant_id, version)
+            if prompts_model is not None:
+                return prompts_model
 
+            # 从数据库中获取指定版本
+            prompts_orm = await PromptsRepository.get_prompts_by_version(assistant_id, version)
+            if prompts_orm is None:
+                raise Exception(f"version 存在， prompts 不存在。assistant_id={assistant_id}, version={version}")
             self.logger.info(f"助理提示词配置查询成功: {assistant_id}")
-
+            # 更新缓存
+            asyncio.create_task(PromptsRepository.update_prompts_latest_version_cache(assistant_id, version))
             return prompts_orm.to_model()
-
         except Exception as e:
             self.logger.error(f"助理提示词配置查询失败: {e}")
             raise

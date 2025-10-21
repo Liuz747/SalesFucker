@@ -95,7 +95,7 @@ create table prompts(
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 使用当前时区的时间戳作为默认值
 
 
-    constraint uk_prompts_assistant_id_is_active UNIQUE (assistant_id, is_active)
+    constraint uk_prompts_assistant_id_is_active UNIQUE (assistant_id, version, is_active)
 );
 
 
