@@ -22,8 +22,7 @@ from controllers.middleware import SafetyInterceptor, JWTMiddleware
 from controllers import app_router, __version__
 from schemas.exceptions import BaseHTTPException
 from config import mas_config
-from infra.db import test_db_connection, close_db_connections
-from infra.cache import test_redis_connection, close_redis_client
+from infra.lifecycle import initialize_infra_clients, shutdown_infra_clients
 from utils import get_component_logger, configure_logging, to_isoformat
 
 # 配置日志
@@ -35,15 +34,11 @@ async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     # 启动时执行
     configure_logging()
-    # 初始化数据库连接池
-    await test_db_connection()
-    # 测试Redis连接
-    await test_redis_connection()
+    await initialize_infra_clients()
     
     yield
     # 关闭时执行
-    await close_db_connections()
-    await close_redis_client()
+    await shutdown_infra_clients()
 
 
 # 创建FastAPI应用
