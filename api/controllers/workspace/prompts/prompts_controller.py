@@ -81,7 +81,7 @@ async def create_assistant_prompts(
 @router.get("/{assistant_id}", response_model=PromptsModel)
 async def get_assistant_prompts(
         assistant_id: str,
-        version: Optional[str] = None
+        version: Optional[int] = None
 ) -> Optional[PromptsModel]:
     """
     获取助理提示词配置
@@ -111,31 +111,28 @@ async def get_assistant_prompts(
         )
 
 
-@router.put("/{tenant_id}/{assistant_id}", response_model=PromptConfigResponse)
+@router.put("/{assistant_id}", response_model=PromptsModel)
 async def update_assistant_prompts(
         request: PromptUpdateRequest,
-        tenant_id: str,
         assistant_id: str
-) -> PromptConfigResponse:
+) -> Optional[PromptsModel]:
     """
     更新助理提示词配置
     
     部分或完整更新助理的提示词配置，支持渐进式优化和调整。
     """
     try:
-        logger.info(f"更新助理提示词: tenant={tenant_id}, assistant={assistant_id}")
-
-        result = await PromptService.update_assistant_prompts(
-            assistant_id, tenant_id, request
+        logger.info(f"更新助理提示词: assistant={assistant_id}")
+        prompts_service = PromptService()
+        result = await prompts_service.update_assistant_prompts(
+            assistant_id, request
         )
-
         if not result:
             logger.warning(f"助理提示词配置不存在: {assistant_id}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="助理提示词配置不存在"
             )
-
         logger.info(f"助理提示词更新成功: {assistant_id}")
         return result
 

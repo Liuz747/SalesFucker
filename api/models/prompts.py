@@ -173,3 +173,24 @@ class PromptsOrmModel(Base):
             created_at=self.created_at,
             updated_at=self.updated_at
         )
+
+    def copy(self) -> "PromptsOrmModel":
+        return PromptsOrmModel(
+            tenant_id=self.tenant_id,
+            assistant_id=self.assistant_id,
+            personality_prompt=self.personality_prompt,
+            greeting_prompt=self.greeting_prompt,
+            product_recommendation_prompt=self.product_recommendation_prompt,
+            objection_handling_prompt=self.tenant_id,
+            closing_prompt=self.closing_prompt,
+            context_instructions=self.context_instructions,
+            llm_parameters=self.llm_parameters,
+            safety_guidelines=self.safety_guidelines,
+            forbidden_topics=self.forbidden_topics,
+            brand_voice=self.brand_voice,
+            product_knowledge=self.product_knowledge,
+            version=self.version,
+            is_active=self.is_active,
+            created_at=self.created_at,
+            updated_at=self.updated_at
+        )

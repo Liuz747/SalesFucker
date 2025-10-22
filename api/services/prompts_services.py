@@ -27,8 +27,9 @@ from schemas.prompts_schema import (
     AssistantPromptConfig, PromptLibraryItem,
     PromptCategory, PromptType, PromptLanguage
 )
-from utils import get_component_logger
+from utils import get_component_logger, get_current_datetime
 from fastapi import HTTPException
+
 
 class PromptService:
     """
@@ -87,7 +88,8 @@ class PromptService:
             )
 
             async with database_session() as session:
-                prompts_orm = await PromptsRepository.get_prompts_by_assistant_id(prompts_model.assistant_id, session)
+                prompts_orm = await PromptsRepository.get_latest_prompts_by_assistant_id(prompts_model.assistant_id,
+                                                                                         session)
                 if prompts_orm:
                     raise HTTPException("数字员工的提示词已存在")
                 prompts_id = await PromptsRepository.insert_prompts(prompts_model.to_orm(), session)
@@ -98,7 +100,8 @@ class PromptService:
                 # self._prompt_history[config_key].append(config_data.copy())
             self.logger.error(f"助理提示词配置创建成功: {request.assistant_id} {prompts_model}")
             asyncio.create_task(PromptsRepository.update_prompts_cache(prompts_model))
-            asyncio.create_task(PromptsRepository.update_prompts_latest_version_cache(prompts_model.assistant_id, prompts_model.version))
+            asyncio.create_task(PromptsRepository.update_prompts_latest_version_cache(prompts_model.assistant_id,
+                                                                                      prompts_model.version))
 
             return prompts_model
 
@@ -123,13 +126,21 @@ class PromptService:
             Optional[PromptConfigResponse]: 配置信息
         """
         try:
-
-            # 不确定版本的定义，先不考虑
             if version is None:
                 # 默认返回最新版本
                 version = await PromptsRepository.get_prompts_latest_version_cache(assistant_id)
                 if version is None:
-                    return None
+                    # 直接从数据库中获取最新版本的数据
+                    async with database_session() as session:
+                        prompts_orm = await PromptsRepository.get_latest_prompts_by_assistant_id(assistant_id, session)
+                        if prompts_orm is None:
+                            raise Exception(
+                                f"prompts 不存在。assistant_id={assistant_id}, version={version}")
+                        else:
+                            asyncio.create_task(
+                                PromptsRepository.update_prompts_latest_version_cache(assistant_id, version))
+                            asyncio.create_task(PromptsRepository.update_prompts_cache(prompts_orm.to_model()))
+                            return prompts_orm.to_model()
 
             # 从缓存中获取获取指定版本
             prompts_model = await PromptsRepository.get_prompts_cache(assistant_id, version)
@@ -142,6 +153,7 @@ class PromptService:
                 raise Exception(f"version 存在， prompts 不存在。assistant_id={assistant_id}, version={version}")
             self.logger.info(f"助理提示词配置查询成功: {assistant_id}")
             # 更新缓存
+            asyncio.create_task(PromptsRepository.update_prompts_cache(prompts_orm.to_model()))
             asyncio.create_task(PromptsRepository.update_prompts_latest_version_cache(assistant_id, version))
             return prompts_orm.to_model()
         except Exception as e:
@@ -151,9 +163,8 @@ class PromptService:
     async def update_assistant_prompts(
             self,
             assistant_id: str,
-            tenant_id: str,
             request: PromptUpdateRequest
-    ) -> Optional[PromptConfigResponse]:
+    ) -> PromptsModel:
         """
         更新助理提示词配置
         
@@ -166,86 +177,54 @@ class PromptService:
             Optional[PromptConfigResponse]: 更新后的配置
         """
         try:
-            config_key = f"{tenant_id}:{assistant_id}"
-            config_data = self._prompt_configs.get(config_key)
+            async with database_session() as session:
+                prompts_orm_exists = await PromptsRepository.get_latest_prompts_by_assistant_id(assistant_id, session)
+                if not prompts_orm_exists:
+                    raise Exception(f"提示词不存在，assistant_id={assistant_id}")
+                prompts_orm = prompts_orm_exists.copy()
 
-            if not config_data:
-                return None
+                # 存在提示词，需要重新创建
+                if request.personality_prompt is not None:
+                    prompts_orm.personality_prompt = request.personality_prompt
+                if request.greeting_prompt is not None:
+                    prompts_orm.greeting_prompt = request.greeting_prompt
+                if request.product_recommendation_prompt is not None:
+                    prompts_orm.product_recommendation_prompt = request.product_recommendation_prompt
+                if request.objection_handling_prompt is not None:
+                    prompts_orm.objection_handling_prompt = request.objection_handling_prompt
+                if request.closing_prompt is not None:
+                    prompts_orm.closing_prompt = request.closing_prompt
+                if request.context_instructions is not None:
+                    prompts_orm.context_instructions = request.context_instructions
+                if request.llm_parameters is not None:
+                    prompts_orm.llm_parameters = request.llm_parameters
+                if request.safety_guidelines is not None:
+                    prompts_orm.safety_guidelines = request.safety_guidelines
+                if request.forbidden_topics is not None:
+                    prompts_orm.forbidden_topics = request.forbidden_topics
+                if request.brand_voice is not None:
+                    prompts_orm.brand_voice = request.brand_voice
+                if request.product_knowledge is not None:
+                    prompts_orm.product_knowledge = request.product_knowledge
+                prompts_orm.updated_at = get_current_datetime()
+                prompts_orm.version = time.perf_counter_ns()
+                prompts_id = await PromptsRepository.insert_prompts(prompts_orm, session)
+                if prompts_id is None:
+                    self.logger.error(f"助理提示词配置报错: assistant_id={assistant_id}, 版本: {prompts_orm.version}."
+                                      f" 提示词={prompts_orm}")
+                    raise Exception("保存提示词报错")
 
-            # 创建新版本
-            current_config = AssistantPromptConfig(**config_data["config"])
-
-            # 应用更新
-            update_fields = {}
-            if request.personality_prompt is not None:
-                update_fields["personality_prompt"] = request.personality_prompt
-            if request.greeting_prompt is not None:
-                update_fields["greeting_prompt"] = request.greeting_prompt
-            if request.product_recommendation_prompt is not None:
-                update_fields["product_recommendation_prompt"] = request.product_recommendation_prompt
-            if request.objection_handling_prompt is not None:
-                update_fields["objection_handling_prompt"] = request.objection_handling_prompt
-            if request.closing_prompt is not None:
-                update_fields["closing_prompt"] = request.closing_prompt
-            if request.context_instructions is not None:
-                update_fields["context_instructions"] = request.context_instructions
-            if request.llm_parameters is not None:
-                current_params = current_config.llm_parameters or {}
-                update_fields["llm_parameters"] = {**current_params, **request.llm_parameters}
-            if request.brand_voice is not None:
-                update_fields["brand_voice"] = request.brand_voice
-            if request.product_knowledge is not None:
-                update_fields["product_knowledge"] = request.product_knowledge
-            if request.safety_guidelines is not None:
-                update_fields["safety_guidelines"] = request.safety_guidelines
-            if request.forbidden_topics is not None:
-                update_fields["forbidden_topics"] = request.forbidden_topics
-            if request.is_active is not None:
-                update_fields["is_active"] = request.is_active
-
-            # 更新版本号
-            current_version = current_config.version.split('.')
-            current_version[-1] = str(int(current_version[-1]) + 1)
-            update_fields["version"] = '.'.join(current_version)
-
-            # 创建更新后的配置
-            updated_config_dict = current_config.dict()
-            updated_config_dict.update(update_fields)
-            updated_config = AssistantPromptConfig(**updated_config_dict)
-
-            # 验证更新后的配置
-            await self._validate_prompt_config(updated_config)
-
-            now = datetime.utcnow()
-            new_config_data = {
-                "assistant_id": assistant_id,
-                "tenant_id": tenant_id,
-                "config": updated_config.dict(),
-                "created_at": config_data["created_at"],
-                "updated_at": now,
-                "version": updated_config.version,
-                "is_active": updated_config.is_active
-            }
-
-            # 保存到历史记录
-            self._prompt_history[config_key].append(config_data.copy())
-
-            # 更新当前配置
-            self._prompt_configs[config_key] = new_config_data
-
-            self.logger.info(f"助理提示词配置更新成功: {assistant_id}, 版本: {updated_config.version}")
-
-            return PromptConfigResponse(
-                success=True,
-                message="提示词配置更新成功",
-                data={},
-                assistant_id=assistant_id,
-                tenant_id=tenant_id,
-                config=updated_config,
-                created_at=new_config_data["created_at"],
-                updated_at=new_config_data["updated_at"]
+                # todo 验证更新后的配置
+                # await self._validate_prompt_config(updated_config)
+                self.logger.error(f"助理提示词配置成功: assistant_id={assistant_id}, 版本: {prompts_orm.version}."
+                                  f" 提示词={prompts_orm}")
+            prompts_model = prompts_orm.to_model()
+            asyncio.create_task(
+                PromptsRepository.update_prompts_latest_version_cache(assistant_id, prompts_orm.version)
             )
+            asyncio.create_task(PromptsRepository.update_prompts_cache(prompts_model))
 
+            return prompts_model
         except Exception as e:
             self.logger.error(f"助理提示词配置更新失败: {e}")
             raise
@@ -620,7 +599,7 @@ class PromptService:
             rollback_config.updated_at = datetime.utcnow()
 
             id = await PromptsRepository.insertPrompts(rollback_config)
-            rollback_config.id=id
+            rollback_config.id = id
             self.logger.info(f"提示词配置回退成功: {assistant_id}, 回退到版本: {version}")
             return rollback_config.to_model()
         except Exception as e:
