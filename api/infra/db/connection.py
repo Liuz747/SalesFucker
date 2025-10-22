@@ -53,8 +53,6 @@ async def get_engine() -> AsyncEngine:
             },
             echo=mas_config.SQLALCHEMY_ECHO,
         )
-        
-        logger.info("PostgreSQL引擎初始化完成")
     
     return _engine
 
@@ -139,7 +137,6 @@ async def test_db_connection() -> bool:
         async with engine.begin() as conn:
             result = await conn.execute(text("SELECT 1"))
             row = result.fetchone()
-        logger.info("数据库连接测试成功")
         return row[0] == 1
     except Exception as e:
         logger.error(f"数据库连接测试失败: {e}")

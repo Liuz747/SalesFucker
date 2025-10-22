@@ -18,11 +18,11 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from config import mas_config
 from controllers.middleware import SafetyInterceptor, JWTMiddleware
 from controllers import app_router, __version__
+from infra.factory import infra_registry
 from schemas.exceptions import BaseHTTPException
-from config import mas_config
-from infra.lifecycle import initialize_infra_clients, shutdown_infra_clients
 from utils import get_component_logger, configure_logging, to_isoformat
 
 # 配置日志
@@ -34,11 +34,12 @@ async def lifespan(app: FastAPI):
     """应用生命周期管理"""
     # 启动时执行
     configure_logging()
-    await initialize_infra_clients()
+    await infra_registry.create_clients()
+    await infra_registry.test_clients()
     
     yield
     # 关闭时执行
-    await shutdown_infra_clients()
+    await infra_registry.shutdown_clients()
 
 
 # 创建FastAPI应用

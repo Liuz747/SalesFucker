@@ -21,19 +21,14 @@ class ElasticsearchConfig(BaseSettings):
         default="http://localhost:9200",
     )
 
-    ELASTICSEARCH_USER: str | None = Field(
+    ELASTIC_USER: str | None = Field(
         description="Elasticsearch 用户名（自托管部署需要认证）",
-        default=None,
+        default="elastic",
     )
 
-    ELASTICSEARCH_PASSWORD: str | None = Field(
+    ELASTIC_PASSWORD: str | None = Field(
         description="Elasticsearch 密码（自托管部署需要认证）",
-        default=None,
-    )
-
-    ELASTICSEARCH_VERIFY_CERTS: bool = Field(
-        description="是否验证SSL证书（生产环境建议启用）",
-        default=False,
+        default="changeme",
     )
 
     ES_MEMORY_INDEX: str = Field(
@@ -87,12 +82,6 @@ class ElasticsearchConfig(BaseSettings):
         default=0.7,
         ge=0.0,
         le=1.0,
-    )
-
-    # 批量操作配置
-    ES_BULK_SIZE: PositiveInt = Field(
-        description="批量写入大小",
-        default=500,
     )
 
     ES_MAX_RETRIES: PositiveInt = Field(

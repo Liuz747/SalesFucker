@@ -28,7 +28,8 @@ async def get_milvus_connection():
             connections.connect(
                 alias="default",
                 host=mas_config.MILVUS_HOST,
-                port=mas_config.MILVUS_PORT
+                port=mas_config.MILVUS_PORT,
+                timeout=2  # 2秒超时，快速失败
             )
             _connected = True
             logger.info("Milvus连接成功")

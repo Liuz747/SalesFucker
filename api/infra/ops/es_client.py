@@ -29,23 +29,21 @@ async def get_es_client() -> AsyncElasticsearch:
     if _es_client is None:
         logger.info(f"初始化Elasticsearch连接: {mas_config.ELASTICSEARCH_URL}")
         client_options = {
-            "hosts": mas_config.ELASTICSEARCH_URL,
-            "verify_certs": mas_config.ELASTICSEARCH_VERIFY_CERTS,
+            "hosts": [mas_config.ELASTICSEARCH_URL],
             "max_retries": mas_config.ES_MAX_RETRIES,
             "retry_on_timeout": True,
             "request_timeout": mas_config.ES_REQUEST_TIMEOUT,
         }
 
-        if mas_config.ELASTICSEARCH_USER and mas_config.ELASTICSEARCH_PASSWORD:
+        if mas_config.ELASTIC_PASSWORD:
             client_options["basic_auth"] = (
-                mas_config.ELASTICSEARCH_USER,
-                mas_config.ELASTICSEARCH_PASSWORD,
+                mas_config.ELASTIC_USER,
+                mas_config.ELASTIC_PASSWORD,
             )
-        elif mas_config.ELASTICSEARCH_USER or mas_config.ELASTICSEARCH_PASSWORD:
+        else:
             logger.warning("Elasticsearch认证配置不完整，已跳过basic_auth设置")
 
         _es_client = AsyncElasticsearch(**client_options)
-        logger.info("Elasticsearch客户端初始化完成")
 
     return _es_client
 
@@ -74,8 +72,7 @@ async def verify_es_connection() -> bool:
     try:
         es_client = await get_es_client()
         info = await es_client.info()
-        version = info.get('version', {}).get('number', 'unknown')
-        logger.info(f"Elasticsearch连接测试成功 - 版本: {version}")
+        logger.info(f"Elasticsearch连接测试成功\n{info}")
         return True
     except Exception as e:
         logger.error(f"Elasticsearch连接测试失败: {e}")

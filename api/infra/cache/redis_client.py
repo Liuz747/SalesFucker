@@ -28,7 +28,6 @@ async def get_redis_client() -> Redis:
             socket_timeout=mas_config.REDIS_SOCKET_TIMEOUT,
             socket_connect_timeout=mas_config.REDIS_CONNECT_TIMEOUT
         )
-    logger.info("Redis引擎初始化完成")
     return Redis(connection_pool=_redis_pool)
 
 
@@ -45,13 +44,11 @@ async def close_redis_client():
         logger.info("Redis连接池关闭成功")
 
 
-async def test_redis_connection():
+async def test_redis_connection() -> bool:
     """验证Redis连接"""
     try:
         redis_client = await get_redis_client()
         # 使用ping命令测试连接
-        pong = await redis_client.ping()
-        if pong:
-            logger.info("Redis连接测试成功")
+        return await redis_client.ping()
     except Exception as e:
         logger.error(f"Redis连接测试失败: {e}")

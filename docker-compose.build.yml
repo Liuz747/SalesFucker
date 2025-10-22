@@ -134,6 +134,25 @@ services:
       timeout: 10s
       retries: 3
 
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.1.5
+    environment:
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-changeme}
+      - discovery.type=single-node
+      - bootstrap.memory_lock=true
+      - xpack.security.enabled=true
+      - xpack.security.http.ssl.enabled=false
+      - xpack.license.self_generated.type=basic
+    mem_limit: 1g
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "9200:9200"
+    volumes:
+      - es_data:/usr/share/elasticsearch/data
+
   minio:
     image: minio/minio
     entrypoint: sh
@@ -157,3 +176,4 @@ volumes:
   redis_data:
   postgres_data:
   minio_data:
+  es_data:
