@@ -1,12 +1,12 @@
 """
 Clean recommendation engine with multiple strategies
 """
-import asyncio
-from typing import Dict, List, Any, Optional, Tuple
+
+from typing import Dict, List, Any
 from dataclasses import dataclass
 from enum import Enum
 
-from .search import ProductSearch, SearchQuery, SearchResult
+from .search import ProductSearch, SearchQuery
 from .vector_db import MilvusDB
 from infra.cache import get_redis_client
 

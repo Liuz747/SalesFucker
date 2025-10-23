@@ -21,7 +21,7 @@ from fastapi.responses import JSONResponse
 from config import mas_config
 from controllers.middleware import SafetyInterceptor, JWTMiddleware
 from controllers import app_router, __version__
-from infra.factory import infra_registry
+from libs.factory import infra_registry
 from schemas.exceptions import BaseHTTPException
 from utils import get_component_logger, configure_logging, to_isoformat
 

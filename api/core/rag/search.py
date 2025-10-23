@@ -1,12 +1,12 @@
 """
 Core search functionality with caching
 """
-import asyncio
+
 import hashlib
 from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 
-from .embedding import EmbeddingGenerator, EmbeddingResult
+from .embedding import EmbeddingGenerator
 from .vector_db import MilvusDB, SearchResult
 from infra.cache import get_redis_client
 

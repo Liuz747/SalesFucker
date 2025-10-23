@@ -3,13 +3,11 @@
 
 提供基于类的接口来构建和缓存基础设施客户端（数据库、Redis、Elasticsearch、Milvus），并复用既有的客户端构造逻辑。
 """
-from dataclasses import dataclass
+
 from typing import Optional
 
 from elasticsearch import AsyncElasticsearch
 from pymilvus import MilvusClient
-from redis.asyncio import Redis
-from sqlalchemy.ext.asyncio import AsyncEngine
 
 from infra.db import get_engine, close_db_connections, test_db_connection
 from infra.cache import get_redis_client, close_redis_client, test_redis_connection
@@ -22,18 +20,9 @@ from infra.ops import (
     verify_milvus_connection
 )
 from utils import get_component_logger
+from .types import InfraClients
 
 logger = get_component_logger(__name__)
-
-
-@dataclass
-class InfrastructureClients:
-    """已初始化基础设施客户端的容器。"""
-
-    db_engine: AsyncEngine
-    redis: Redis
-    elasticsearch: Optional[AsyncElasticsearch]
-    milvus: Optional[MilvusClient]
 
 
 class InfraFactory:
@@ -44,14 +33,14 @@ class InfraFactory:
     """
 
     def __init__(self):
-        self._clients: Optional[InfrastructureClients] = None
+        self._clients: Optional[InfraClients] = None
 
-    async def create_clients(self) -> InfrastructureClients:
+    async def create_clients(self) -> InfraClients:
         """
         如未创建则初始化基础设施客户端。
 
         Returns:
-            InfrastructureClients: 已缓存或新创建的客户端集合。
+            InfraClients: 已缓存或新创建的客户端集合。
         """
         if self._clients is not None:
             return self._clients
@@ -82,7 +71,7 @@ class InfraFactory:
         except Exception as exc:
             logger.warning("Milvus连接初始化失败: %s", exc, exc_info=True)
 
-        self._clients = InfrastructureClients(
+        self._clients = InfraClients(
             db_engine=db_engine,
             redis=redis,
             elasticsearch=elasticsearch,
@@ -92,12 +81,12 @@ class InfraFactory:
         logger.info("基础设施客户端初始化完成")
         return self._clients
 
-    def get_cached_clients(self) -> Optional[InfrastructureClients]:
+    def get_cached_clients(self) -> Optional[InfraClients]:
         """
         返回已缓存的客户端，不触发初始化。
 
         Returns:
-            Optional[InfrastructureClients]: 之前创建的客户端集合。
+            Optional[InfraClients]: 之前创建的客户端集合。
         """
         return self._clients
 

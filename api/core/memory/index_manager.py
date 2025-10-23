@@ -12,6 +12,7 @@ from typing import Any, Optional
 from elasticsearch import AsyncElasticsearch
 
 from config import mas_config
+from libs.factory import infra_registry
 from utils import get_component_logger, to_isoformat
 
 logger = get_component_logger(__name__)
@@ -25,16 +26,20 @@ class IndexManager:
     支持向量检索、全文搜索和混合查询。
     """
 
-    def __init__(self, es_client: AsyncElasticsearch):
-        """
-        初始化索引管理器
-
-        Args:
-            es_client: Elasticsearch异步客户端
-        """
-        self.es_client = es_client
+    def __init__(self):
+        self._es_client: Optional[AsyncElasticsearch] = None
         self.index_name = mas_config.ES_MEMORY_INDEX
         self.vector_dim = mas_config.ES_VECTOR_DIMENSION
+
+    @property
+    def client(self) -> AsyncElasticsearch:
+        """获取集中管理的 Elasticsearch 客户端。"""
+        if self._es_client is None:
+            clients = infra_registry.get_cached_clients()
+            if clients is None or clients.elasticsearch is None:
+                raise RuntimeError("Elasticsearch客户端未初始化，请先调用 infra_registry.create_clients()")
+            self._es_client = clients.elasticsearch
+        return self._es_client
 
     async def create_memory_index(self, force_recreate: bool = False) -> bool:
         """
@@ -54,12 +59,12 @@ class IndexManager:
         """
         try:
             # 检查索引是否已存在
-            exists = await self.es_client.indices.exists(index=self.index_name)
+            exists = await self.client.indices.exists(index=self.index_name)
 
             if exists:
                 if force_recreate:
                     logger.warning(f"删除现有索引: {self.index_name}")
-                    await self.es_client.indices.delete(index=self.index_name)
+                    await self.client.indices.delete(index=self.index_name)
                 else:
                     logger.info(f"索引已存在: {self.index_name}")
                     return True
@@ -159,7 +164,7 @@ class IndexManager:
             }
 
             # 创建索引
-            response = await self.es_client.indices.create(
+            response = await self.client.indices.create(
                 index=self.index_name, body=index_mapping
             )
 
@@ -179,16 +184,16 @@ class IndexManager:
         """
         try:
             # 检查索引是否存在
-            exists = await self.es_client.indices.exists(index=self.index_name)
+            exists = await self.client.indices.exists(index=self.index_name)
             if not exists:
                 logger.warning(f"索引不存在: {self.index_name}")
                 return None
 
             # 获取索引统计
-            stats = await self.es_client.indices.stats(index=self.index_name)
+            stats = await self.client.indices.stats(index=self.index_name)
 
             # 获取索引映射
-            mappings = await self.es_client.indices.get_mapping(
+            mappings = await self.client.indices.get_mapping(
                 index=self.index_name
             )
 
@@ -212,7 +217,7 @@ class IndexManager:
             bool: 刷新成功返回True
         """
         try:
-            await self.es_client.indices.refresh(index=self.index_name)
+            await self.client.indices.refresh(index=self.index_name)
             logger.info(f"索引刷新成功: {self.index_name}")
             return True
         except Exception as e:
@@ -244,7 +249,7 @@ class IndexManager:
                 }
             }
 
-            response = await self.es_client.delete_by_query(
+            response = await self.client.delete_by_query(
                 index=self.index_name,
                 body=query,
                 conflicts="proceed",
@@ -273,7 +278,7 @@ class IndexManager:
             bool: 更新成功返回True
         """
         try:
-            await self.es_client.indices.put_settings(
+            await self.client.indices.put_settings(
                 index=self.index_name, body=settings
             )
             logger.info(f"索引设置更新成功: {self.index_name}")

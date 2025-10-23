@@ -6,7 +6,7 @@ Hybrid Memory System - Milvus向量数据库适配器
 from typing import Any, Optional
 from dataclasses import dataclass
 
-from infra.factory import infra_registry
+from libs.factory import infra_registry
 from pymilvus import MilvusClient
 from utils import get_component_logger
 
