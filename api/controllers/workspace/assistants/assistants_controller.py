@@ -41,7 +41,8 @@ async def create_assistant(request: AssistantCreateRequest) -> AssistantModel:
     try:
         logger.info(f"创建助理请求: tenant={request.tenant_id}, assistant={request.assistant_id}")
 
-        result = await AssistantService.create_assistant(
+        assistant_service = AssistantService()
+        result = await assistant_service.create_assistant(
             request
         )
 
