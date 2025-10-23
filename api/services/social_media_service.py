@@ -157,7 +157,6 @@ class SocialMediaPublicTrafficService:
 
         return (
             f"生成社交媒体关键词和主题摘要。\n\n"
-            f"平台: {request.platform}\n"
             f"产品或服务: {request.product_prompt}\n"
             f"已存在关键词: {existing_keywords}\n"
             f"期望生成数量: {request.expecting_count}"
@@ -176,4 +175,3 @@ class SocialMediaPublicTrafficService:
             f"{prompt_type_label}: {prompt_content}\n"
             f"用户消息: {request.content}"
         )
-

@@ -74,7 +74,6 @@ async def test_summary_request_invalid_expect_count(app):
     """验证关键词摘要接口的数量限制"""
     async with AsyncClient(app=app, base_url="http://test") as client:
         payload = {
-            "platform": "rednote",
             "product_prompt": "我们是客户隆体AI，一家专注于公域获客和私域经营的智能平台",
             "expecting_count": 25,
         }

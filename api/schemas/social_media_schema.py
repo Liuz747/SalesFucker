@@ -75,7 +75,6 @@ class ReplyGenerationResponse(BaseModel):
 class KeywordSummaryRequest(BaseModel):
     """关键词生成请求"""
 
-    platform: SocialPlatform = Field(description="社交媒体平台")
     product_prompt: str = Field(description="您的产品或服务。如医美、口腔、车贷等")
     existing_keywords: Optional[Sequence[str]] = Field(default_factory=list, description="已存在的关键词列表，生成时需要去重")
     expecting_count: int = Field(1, le=20, description="期望生成的关键词总数（包含existing_keywords）")
@@ -113,4 +112,3 @@ class ReloadPromptResponse(BaseModel):
 
     method: MethodType = Field(description="重载的提示词类型")
     message: str = Field(description="操作结果消息")
-
