@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from elasticsearch import AsyncElasticsearch
+from pymilvus import MilvusClient
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine
 
@@ -32,7 +33,7 @@ class InfrastructureClients:
     db_engine: AsyncEngine
     redis: Redis
     elasticsearch: Optional[AsyncElasticsearch]
-    milvus_alias: Optional[str]
+    milvus: Optional[MilvusClient]
 
 
 class InfraFactory:
@@ -74,10 +75,9 @@ class InfraFactory:
             logger.warning("Elasticsearch连接初始化失败: %s", exc, exc_info=True)
 
         # Milvus is optional
-        milvus_alias: Optional[str] = None
+        milvus: Optional[MilvusClient] = None
         try:
-            await get_milvus_connection()
-            milvus_alias = "default"
+            milvus = await get_milvus_connection()
             logger.info("Milvus连接准备完成")
         except Exception as exc:
             logger.warning("Milvus连接初始化失败: %s", exc, exc_info=True)
@@ -86,7 +86,7 @@ class InfraFactory:
             db_engine=db_engine,
             redis=redis,
             elasticsearch=elasticsearch,
-            milvus_alias=milvus_alias,
+            milvus=milvus,
         )
 
         logger.info("基础设施客户端初始化完成")
@@ -120,57 +120,42 @@ class InfraFactory:
             logger.warning("✗ 数据库连接测试异常: %s", exc, exc_info=True)
 
         # Test Redis connection
-        try:
-            redis_ok = await test_redis_connection()
-            if redis_ok:
-                logger.info("✓ Redis连接成功")
-            else:
-                logger.warning("✗ Redis连接失败")
-        except Exception as exc:
-            logger.warning("✗ Redis连接测试异常: %s", exc, exc_info=True)
+        if await test_redis_connection(self._clients.redis):
+            logger.info("✓ Redis连接成功")
+        else:
+            logger.warning("✗ Redis连接失败")
 
         # Test Elasticsearch connection (optional)
         if self._clients.elasticsearch:
-            try:
-                es_ok = await verify_es_connection()
-                if es_ok:
-                    logger.info("✓ Elasticsearch连接成功")
-                else:
-                    logger.warning("✗ Elasticsearch连接失败（可选服务）")
-            except Exception as exc:
-                logger.warning("✗ Elasticsearch连接测试异常（可选服务）: %s", exc, exc_info=True)
+            if await verify_es_connection(self._clients.elasticsearch):
+                logger.info("✓ Elasticsearch连接测试成功")
+            else:
+                logger.warning("✗ Elasticsearch连接测试失败")
         else:
-            logger.info("○ Elasticsearch未配置（可选服务）")
+            logger.info("○ Elasticsearch未配置")
 
         # Test Milvus connection (optional)
-        if self._clients.milvus_alias:
-            try:
-                milvus_ok = await verify_milvus_connection()
-                if milvus_ok:
-                    logger.info("✓ Milvus连接成功")
-                else:
-                    logger.warning("✗ Milvus连接失败（可选服务）")
-            except Exception as exc:
-                logger.warning("✗ Milvus连接测试异常（可选服务）: %s", exc, exc_info=True)
+        if self._clients.milvus:
+            await verify_milvus_connection(self._clients.milvus)
         else:
-            logger.info("○ Milvus未配置（可选服务）")
+            logger.info("○ Milvus未配置")
 
         logger.info("基础设施客户端连接测试完成")
 
 
-    async def shutdown_clients(self) -> None:
+    async def shutdown_clients(self):
         """关闭所有已初始化的基础设施客户端。"""
         if self._clients is None:
             return
 
         logger.info("开始关闭基础设施客户端")
 
-        try:
-            await close_milvus_connection()
-        except Exception as exc:
-            logger.warning("Milvus连接关闭失败: %s", exc, exc_info=True)
+        if self._clients.milvus:
+            await close_milvus_connection(self._clients.milvus)
 
-        await close_es_client()
+        if self._clients.elasticsearch:
+            await close_es_client(self._clients.elasticsearch)
+
         await close_redis_client()
         await close_db_connections()
 

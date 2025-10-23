@@ -1,6 +1,7 @@
 """
 Redis客户端工厂
 """
+
 from typing import Optional
 
 from redis.asyncio import Redis, ConnectionPool
@@ -44,11 +45,11 @@ async def close_redis_client():
         logger.info("Redis连接池关闭成功")
 
 
-async def test_redis_connection() -> bool:
+async def test_redis_connection(client: Redis) -> bool:
     """验证Redis连接"""
     try:
-        redis_client = await get_redis_client()
         # 使用ping命令测试连接
-        return await redis_client.ping()
+        return await client.ping()
     except Exception as e:
         logger.error(f"Redis连接测试失败: {e}")
+        return False

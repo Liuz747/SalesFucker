@@ -38,3 +38,8 @@ class MilvusConfig(BaseSettings):
         description="搜索时检查的聚类数",
         default=10,
     )
+
+    @property
+    def milvus_uri(self) -> str:
+        """获取Milvus连接URL"""
+        return f"http://{self.MILVUS_HOST}:{self.MILVUS_PORT}"

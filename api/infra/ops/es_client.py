@@ -3,7 +3,6 @@ Elasticsearch客户端工厂
 
 提供异步ES客户端连接管理。
 """
-from typing import Optional
 
 from elasticsearch import AsyncElasticsearch
 
@@ -11,8 +10,6 @@ from config import mas_config
 from utils import get_component_logger
 
 logger = get_component_logger(__name__)
-
-_es_client: Optional[AsyncElasticsearch] = None
 
 
 async def get_es_client() -> AsyncElasticsearch:
@@ -24,45 +21,39 @@ async def get_es_client() -> AsyncElasticsearch:
     Returns:
         AsyncElasticsearch: 异步ES客户端实例
     """
-    global _es_client
+    logger.info(f"初始化Elasticsearch连接: {mas_config.ELASTICSEARCH_URL}")
+    client_options = {
+        "hosts": [mas_config.ELASTICSEARCH_URL],
+        "max_retries": mas_config.ES_MAX_RETRIES,
+        "retry_on_timeout": True,
+        "request_timeout": mas_config.ES_REQUEST_TIMEOUT,
+    }
 
-    if _es_client is None:
-        logger.info(f"初始化Elasticsearch连接: {mas_config.ELASTICSEARCH_URL}")
-        client_options = {
-            "hosts": [mas_config.ELASTICSEARCH_URL],
-            "max_retries": mas_config.ES_MAX_RETRIES,
-            "retry_on_timeout": True,
-            "request_timeout": mas_config.ES_REQUEST_TIMEOUT,
-        }
+    if mas_config.ELASTIC_PASSWORD:
+        client_options["basic_auth"] = (
+            mas_config.ELASTIC_USER,
+            mas_config.ELASTIC_PASSWORD,
+        )
+    else:
+        logger.warning("Elasticsearch认证配置不完整，已跳过basic_auth设置")
 
-        if mas_config.ELASTIC_PASSWORD:
-            client_options["basic_auth"] = (
-                mas_config.ELASTIC_USER,
-                mas_config.ELASTIC_PASSWORD,
-            )
-        else:
-            logger.warning("Elasticsearch认证配置不完整，已跳过basic_auth设置")
+    es_client = AsyncElasticsearch(**client_options)
 
-        _es_client = AsyncElasticsearch(**client_options)
-
-    return _es_client
+    return es_client
 
 
-async def close_es_client():
+async def close_es_client(client: AsyncElasticsearch):
     """
     关闭Elasticsearch客户端连接
-
-    优雅关闭连接，释放资源。
     """
-    global _es_client
-
-    if _es_client:
-        await _es_client.close()
-        _es_client = None
+    try:
+        await client.close()
         logger.info("Elasticsearch连接关闭成功")
+    except Exception as e:
+        logger.error(f"Elasticsearch连接关闭失败: {e}")
 
 
-async def verify_es_connection() -> bool:
+async def verify_es_connection(client: AsyncElasticsearch) -> bool:
     """
     验证Elasticsearch连接
 
@@ -70,10 +61,7 @@ async def verify_es_connection() -> bool:
         bool: 连接成功返回True，失败返回False
     """
     try:
-        es_client = await get_es_client()
-        info = await es_client.info()
-        logger.info(f"Elasticsearch连接测试成功\n{info}")
-        return True
+        return await client.ping()
     except Exception as e:
-        logger.error(f"Elasticsearch连接测试失败: {e}")
+        logger.error(f"✗ Elasticsearch连接测试失败: {e}")
         return False
