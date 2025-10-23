@@ -97,6 +97,7 @@ create table prompts(
 
     constraint uk_prompts_assistant_id_version_is_active UNIQUE (assistant_id, version, is_active)
 );
+delete from prompts where assistant_id = 'sales-assistant-1';
 
 
 

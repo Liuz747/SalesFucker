@@ -152,10 +152,9 @@ async def update_assistant_prompts(
         )
 
 
-@router.post("/{tenant_id}/{assistant_id}/test", response_model=PromptTestResponse)
+@router.post("/{assistant_id}/test", response_model=PromptTestResponse)
 async def test_assistant_prompts(
         request: PromptTestRequest,
-        tenant_id: str,
         assistant_id: str
 ) -> PromptTestResponse:
     """
@@ -164,10 +163,10 @@ async def test_assistant_prompts(
     在实际应用前测试提示词配置的效果，验证输出质量和行为一致性。
     """
     try:
-        logger.info(f"测试助理提示词: tenant={tenant_id}, assistant={assistant_id}")
+        logger.info(f"测试助理提示词:  assistant={assistant_id}")
 
         result = await PromptService.test_assistant_prompts(
-            assistant_id, tenant_id, request
+            assistant_id, request
         )
 
         logger.info(f"助理提示词测试完成: {assistant_id}, 总体评分: {result.overall_score}")
@@ -201,7 +200,7 @@ async def validate_assistant_prompts(
         logger.info(f"验证助理提示词: tenant={request.tenant_id}, assistant={assistant_id}")
 
         result = await PromptService.validate_assistant_prompts(
-            assistant_id, request.tenant_id, request
+            assistant_id, request
         )
 
         logger.info(f"助理提示词验证完成: {assistant_id}, 有效性: {result.is_valid}")
@@ -256,7 +255,8 @@ async def get_prompt_library(
             page_size=page_size
         )
 
-        result = await PromptService.get_prompt_library(search_request)
+        prompt_service = PromptService()
+        result = await prompt_service.get_prompt_library(search_request)
 
         logger.info(f"提示词库查询成功: 返回{len(result.items)}条记录")
         return result
@@ -291,8 +291,8 @@ async def get_prompt_templates_by_category(
             page=1,
             page_size=50
         )
-
-        result = await PromptService.get_prompt_library(search_request)
+        prompts_service = PromptService()
+        result = await prompts_service.get_prompt_library(search_request)
 
         logger.info(f"分类提示词模板查询成功: {category}, 返回{len(result.items)}条记录")
         return result
@@ -305,13 +305,14 @@ async def get_prompt_templates_by_category(
         )
 
 
-@router.post("/{target_assistant_id}/clone", response_model=PromptConfigResponse)
+@router.post("/{current_assistant_id}/clone", response_model=PromptsModel)
 async def clone_assistant_prompts(
-        target_assistant_id: str,
-        source_assistant_id: str = Query(..., description="源助理ID"),
-        tenant_id: str = Query(..., description="租户标识符"),
+        current_assistant_id: str,  # 当前数字员工是需要克隆提示词的数字员工
+        source_assistant_id: str = Query(..., description="目标助理ID"),
+        target_assistant_id: str = Query(..., description="源助理ID"),
+        target_tenant_id: str = Query(..., description="目标助理租户ID"),
         modify_personality: bool = Query(False, description="是否修改个性化部分")
-) -> PromptConfigResponse:
+) -> PromptsModel:
     """
     克隆助理提示词配置
     
@@ -319,10 +320,15 @@ async def clone_assistant_prompts(
     """
     try:
         logger.info(
-            f"克隆助理提示词: tenant={tenant_id}, source={source_assistant_id} -> target={target_assistant_id}")
+            f"克隆助理提示词: current_assistant_id={current_assistant_id}, source_assistant_id={source_assistant_id} ->"
+            f" target_assistant_id={target_assistant_id} target_tenant_id={target_tenant_id}")
 
-        result = await PromptService.clone_assistant_prompts(
-            source_assistant_id, target_assistant_id, tenant_id, modify_personality
+        if current_assistant_id != target_assistant_id:
+            raise Exception(f"需要克隆的数字员工必须是当前登录的数字员工")
+
+        prompts_service = PromptService()
+        result = await prompts_service.clone_assistant_prompts(
+            source_assistant_id, target_assistant_id, target_tenant_id, modify_personality
         )
 
         if not result:
@@ -332,8 +338,11 @@ async def clone_assistant_prompts(
                 detail="源助理提示词配置不存在"
             )
 
-        logger.info(f"助理提示词克隆成功: tenant={tenant_id}, {source_assistant_id} -> {target_assistant_id}")
-        return NewPromptResponse(result)
+        logger.info(f"助理提示词克隆成功:  current_assistant_id={current_assistant_id}, "
+                    f"source_assistant_id={source_assistant_id} -> target_assistant_id={target_assistant_id}"
+                    f" target_tenant_id={target_tenant_id}")
+        # return NewPromptResponse(result)
+        return result
     except HTTPException:
         raise
     except Exception as e:

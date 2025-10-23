@@ -139,13 +139,15 @@ class AssistantService:
                             forbidden_topics=request.prompt_config.forbidden_topics,
                             brand_voice=request.prompt_config.brand_voice,
                             product_knowledge=request.prompt_config.product_knowledge,
-                            version=request.prompt_config.version,
                             is_active=request.prompt_config.is_active,
                             created_at=now,
                             updated_at=now,
                         )
+                        promptsModel.version = time.perf_counter_ns()
                         prompts_id = await PromptsRepository.insert_prompts(promptsModel.to_orm(), session)
-                        prompts_orm = await PromptsRepository.get_prompts_by_id(prompts_id, session)
+                        prompts_orm = await PromptsRepository.get_latest_prompts_by_assistant_id(
+                            promptsModel.assistant_id, session
+                        )
 
                         promptsModel.id = prompts_id
 
@@ -160,7 +162,7 @@ class AssistantService:
                 self.logger.info(f"助理创建成功: {request.assistant_id}")
 
             async with database_session() as session:
-                new_prompts_orm = await PromptsRepository.get_prompts_by_id(prompts_id, session)
+                new_prompts_orm = await PromptsRepository.get_latest_prompts_by_assistant_id(request.assistant_id, session)
                 new_prompts_model = new_prompts_orm.to_model()
                 new_assistant_orm = await AssistantRepository.get_assistant_by_id(request.assistant_id, session)
                 new_assistant = new_assistant_orm.to_business_model()
