@@ -7,13 +7,12 @@ Hybrid Memory System - Elasticsearch索引管理
 - 多租户数据隔离
 - 时间范围查询和TTL管理
 """
-from typing import Dict, Any, Optional
-from datetime import datetime, timezone
+from typing import Any, Optional
 
 from elasticsearch import AsyncElasticsearch
 
 from config import mas_config
-from utils import get_component_logger
+from utils import get_component_logger, to_isoformat
 
 logger = get_component_logger(__name__)
 
@@ -171,12 +170,12 @@ class IndexManager:
             logger.error(f"索引创建失败: {e}")
             return False
 
-    async def get_index_info(self) -> Optional[Dict[str, Any]]:
+    async def get_index_info(self) -> Optional[dict[str, Any]]:
         """
         获取索引信息
 
         Returns:
-            Dict: 索引统计信息，失败返回None
+            dict: 索引统计信息，失败返回None
         """
         try:
             # 检查索引是否存在
@@ -233,7 +232,7 @@ class IndexManager:
             int: 删除的记录数
         """
         try:
-            now = datetime.now(timezone.utc).isoformat()
+            now = to_isoformat()
 
             query = {
                 "query": {
@@ -262,7 +261,7 @@ class IndexManager:
             return 0
 
     async def update_index_settings(
-        self, settings: Dict[str, Any]
+        self, settings: dict[str, Any]
     ) -> bool:
         """
         更新索引设置

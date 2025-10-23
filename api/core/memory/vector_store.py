@@ -1,13 +1,13 @@
 """
 Hybrid Memory System - Milvus向量数据库适配器
 
-将现有的MilvusDB封装为内存系统专用接口。
 支持高性能向量相似度搜索和记忆检索。
 """
-from typing import List, Dict, Any, Optional
+from typing import Any, Optional
 from dataclasses import dataclass
 
-from core.rag.vector_db import MilvusDB, SearchResult as MilvusSearchResult
+from infra.factory import infra_registry
+from pymilvus import MilvusClient
 from utils import get_component_logger
 
 logger = get_component_logger(__name__)
@@ -23,7 +23,7 @@ class SearchResult:
     memory_id: str
     similarity_score: float
     content: str
-    metadata: Dict[str, Any]
+    metadata: dict[str, Any]
     created_at: Optional[str] = None
     memory_type: Optional[str] = None
 
@@ -42,21 +42,27 @@ class VectorStore:
 
     def __init__(
         self,
-        host: str = "localhost",
-        port: int = 19530,
         embedding_dim: int = 3072,
     ):
         """
         初始化记忆向量存储
 
         Args:
-            host: Milvus服务器地址
-            port: Milvus端口
             embedding_dim: 向量维度 (默认3072，text-embedding-3-large)
         """
-        self.milvus_db = MilvusDB(host=host, port=port)
         self.embedding_dim = embedding_dim
-        logger.info(f"初始化MemoryVectorStore: {host}:{port}, dim={embedding_dim}")
+        self._client: Optional[MilvusClient] = None
+        logger.info(f"初始化MemoryVectorStore, dim={embedding_dim}")
+
+    @property
+    def client(self) -> MilvusClient:
+        """获取centralized Milvus client"""
+        if self._client is None:
+            clients = infra_registry.get_cached_clients()
+            if clients.milvus is None:
+                raise RuntimeError("Milvus客户端未初始化，请先调用infra_registry.create_clients()")
+            self._client = clients.milvus
+        return self._client
 
     def get_collection_name(self, tenant_id: str) -> str:
         """
@@ -70,11 +76,6 @@ class VectorStore:
         """
         return f"memories_{tenant_id}"
 
-    async def connect(self):
-        """连接到Milvus服务"""
-        await self.milvus_db.connect()
-        logger.info("Milvus连接成功")
-
     async def create_memory_collection(self, tenant_id: str) -> bool:
         """
         为租户创建记忆集合
@@ -86,11 +87,21 @@ class VectorStore:
             bool: 创建成功返回True
         """
         try:
-            collection = await self.milvus_db.create_collection(
-                tenant_id=tenant_id, dim=self.embedding_dim
+            collection_name = self.get_collection_name(tenant_id)
+
+            if self.client.has_collection(collection_name):
+                logger.debug(f"记忆集合已存在: {collection_name}")
+                return True
+
+            # 使用MilvusClient创建集合
+            self.client.create_collection(
+                collection_name=collection_name,
+                dimension=self.embedding_dim,
+                metric_type="COSINE",
             )
-            logger.info(f"记忆集合创建成功: {tenant_id}")
-            return collection is not None
+
+            logger.info(f"记忆集合创建成功: {collection_name}")
+            return True
         except Exception as e:
             logger.error(f"记忆集合创建失败: {e}")
             return False
@@ -98,8 +109,8 @@ class VectorStore:
     async def insert_memories(
         self,
         tenant_id: str,
-        memories: List[Dict[str, Any]],
-        embeddings: List[List[float]],
+        memories: list[dict[str, Any]],
+        embeddings: list[list[float]],
     ) -> bool:
         """
         批量插入记忆向量
@@ -117,14 +128,33 @@ class VectorStore:
             return False
 
         try:
-            # 复用product插入逻辑，因为底层数据结构相同
-            success = await self.milvus_db.insert_products(
-                tenant_id=tenant_id, products=memories, embeddings=embeddings
+            collection_name = self.get_collection_name(tenant_id)
+
+            if not await self.create_memory_collection(tenant_id):
+                logger.error(f"租户记忆集合未准备好: {collection_name}")
+                return False
+
+            # 准备插入数据
+            data = []
+            for memory, embedding in zip(memories, embeddings):
+                data.append({
+                    "id": memory.get("id"),
+                    "vector": embedding,
+                    "tenant_id": tenant_id,
+                    "content": memory.get("content", ""),
+                    "metadata": memory.get("metadata", {}),
+                    "created_at": memory.get("created_at"),
+                    "memory_type": memory.get("memory_type"),
+                })
+
+            # 使用MilvusClient插入
+            self.client.insert(
+                collection_name=collection_name,
+                data=data
             )
 
-            if success:
-                logger.info(f"插入{len(memories)}条记忆到租户{tenant_id}")
-            return success
+            logger.info(f"插入{len(memories)}条记忆到租户{tenant_id}")
+            return True
 
         except Exception as e:
             logger.error(f"插入记忆失败: {e}")
@@ -133,10 +163,10 @@ class VectorStore:
     async def search_similar_memories(
         self,
         tenant_id: str,
-        query_embedding: List[float],
+        query_embedding: list[float],
         top_k: int = 10,
         score_threshold: float = 0.7,
-    ) -> List[SearchResult]:
+    ) -> list[SearchResult]:
         """
         语义搜索相似记忆
 
@@ -152,27 +182,41 @@ class VectorStore:
             List[SearchResult]: 记忆搜索结果列表
         """
         try:
-            # 使用Milvus搜索
-            milvus_results = await self.milvus_db.search_similar(
-                tenant_id=tenant_id,
-                query_embedding=query_embedding,
-                top_k=top_k,
-                score_threshold=score_threshold,
+            collection_name = self.get_collection_name(tenant_id)
+
+            # 使用MilvusClient搜索
+            results = self.client.search(
+                collection_name=collection_name,
+                data=[query_embedding],
+                limit=top_k,
+                filter=f'tenant_id == "{tenant_id}"',
+                output_fields=["id", "content", "metadata", "created_at", "memory_type"],
             )
 
             # 转换为记忆格式
             memory_results = []
-            for result in milvus_results:
-                memory_results.append(
-                    SearchResult(
-                        memory_id=result.product_id,
-                        similarity_score=result.score,
-                        content=result.product_data.get("content", ""),
-                        metadata=result.product_data.get("metadata", {}),
-                        created_at=result.product_data.get("created_at"),
-                        memory_type=result.product_data.get("memory_type"),
+            for hits in results:
+                for hit in hits:
+                    score = hit.get("score")
+                    if score is None:
+                        score = getattr(hit, "score", None)
+                    if score is None:
+                        score = hit.get("distance", 0.0)
+
+                    if score < score_threshold:
+                        continue
+
+                    entity = hit.get("entity", {})
+                    memory_results.append(
+                        SearchResult(
+                            memory_id=str(hit.get("id", "")),
+                            similarity_score=float(score),
+                            content=entity.get("content", ""),
+                            metadata=entity.get("metadata", {}),
+                            created_at=entity.get("created_at"),
+                            memory_type=entity.get("memory_type"),
+                        )
                     )
-                )
 
             logger.info(
                 f"检索到{len(memory_results)}条相似记忆 (tenant={tenant_id})"
@@ -195,18 +239,22 @@ class VectorStore:
             bool: 删除成功返回True
         """
         try:
-            success = await self.milvus_db.delete_product(
-                tenant_id=tenant_id, product_id=memory_id
+            collection_name = self.get_collection_name(tenant_id)
+
+            # 使用MilvusClient删除
+            self.client.delete(
+                collection_name=collection_name,
+                filter=f'id == "{memory_id}"'
             )
-            if success:
-                logger.info(f"删除记忆成功: {memory_id}")
-            return success
+
+            logger.info(f"删除记忆成功: {memory_id}")
+            return True
 
         except Exception as e:
             logger.error(f"删除记忆失败: {e}")
             return False
 
-    async def get_collection_stats(self, tenant_id: str) -> Dict[str, Any]:
+    async def get_collection_stats(self, tenant_id: str) -> dict[str, Any]:
         """
         获取记忆集合统计信息
 
@@ -217,9 +265,19 @@ class VectorStore:
             Dict: 统计信息
         """
         try:
-            stats = await self.milvus_db.get_stats(tenant_id=tenant_id)
-            logger.info(f"获取集合统计: {stats}")
-            return stats
+            collection_name = self.get_collection_name(tenant_id)
+
+            # 使用MilvusClient获取统计信息
+            stats = self.client.get_collection_stats(collection_name=collection_name)
+
+            result = {
+                "collection_name": collection_name,
+                "tenant_id": tenant_id,
+                "total_entities": stats.get("row_count", 0),
+            }
+
+            logger.info(f"获取集合统计: {result}")
+            return result
 
         except Exception as e:
             logger.error(f"获取统计信息失败: {e}")
