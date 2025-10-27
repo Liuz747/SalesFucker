@@ -493,39 +493,15 @@ class PromptService:
     async def get_prompt_history(
             self,
             assistant_id: str,
-            tenant_id: str,
             limit: int = 10
     ) -> list[PromptsModel]:
         """获取提示词历史版本"""
         try:
-            config_key = f"{tenant_id}:{assistant_id}"
-            # history = self._prompt_history.get(config_key, [])
 
-            # 按时间倒序排序
-            # history.sort(key=lambda x: x["updated_at"], reverse=True)
-
-            # 限制数量
-            # limited_history = history[:limit]
-
-            # responses = []
-            # for config_data in limited_history:
-            #     prompt_config = AssistantPromptConfig(**config_data["config"])
-            #     responses.append(PromptConfigResponse(
-            #         success=True,
-            #         message="历史版本",
-            #         data={},
-            #         assistant_id=assistant_id,
-            #         tenant_id=tenant_id,
-            #         config=prompt_config,
-            #         created_at=config_data["created_at"],
-            #         updated_at=config_data["updated_at"]
-            #     ))
-
-            r = await PromptsRepository.get_prompts_list_order(tenant_id, assistant_id, limit)
+            r = await PromptsRepository.get_prompts_list_order(assistant_id, limit)
             l: list[PromptsModel] = []
             for prompt in r:
                 l.append(prompt.to_model())
-
             return l
 
         except Exception as e:
