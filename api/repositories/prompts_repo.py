@@ -235,7 +235,7 @@ class PromptsRepository:
             raise
 
     @staticmethod
-    async def get_prompts_list_order(tenant_id: str, assistant_id: str, limitNum: int) -> list[PromptsOrmModel]:
+    async def get_prompts_list_order( assistant_id: str, limitNum: int) -> list[PromptsOrmModel]:
         """
         获取所有激活状态的租户ID列表
 
@@ -244,12 +244,9 @@ class PromptsRepository:
         """
         try:
             async with (database_session() as session):
-
                 stmt = select(PromptsOrmModel).where(
-                    and_(PromptsOrmModel.tenant_id == tenant_id,
-                         PromptsOrmModel.tenant_id == assistant_id
-                         )
-                ).order_by(PromptsOrmModel.updated_at.desc()).limit(limitNum)
+                        PromptsOrmModel.assistant_id == assistant_id
+                ).order_by(PromptsOrmModel.version.desc()).limit(limitNum)
 
                 result = await session.execute(stmt)
                 r = result.scalars().all()

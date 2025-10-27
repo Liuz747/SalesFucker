@@ -356,7 +356,6 @@ async def clone_assistant_prompts(
 @router.get("/{assistant_id}/history", response_model=List[PromptsModel])
 async def get_prompt_history(
         assistant_id: str,
-        tenant_id: str = Query(..., description="租户标识符"),
         limit: int = Query(10, ge=1, le=50, description="历史版本数量限制")
 ) -> List[PromptsModel]:
     """
@@ -365,20 +364,15 @@ async def get_prompt_history(
     查看助理提示词配置的历史版本，支持版本回退和对比。
     """
     try:
-        logger.info(f"查询助理提示词历史: tenant={tenant_id}, assistant={assistant_id}")
+        logger.info(f"查询助理提示词历史: assistant={assistant_id} limit={limit}")
 
-        result = await PromptService.get_prompt_history(
-            assistant_id, tenant_id, limit
+        prompt_service = PromptService()
+        result = await prompt_service.get_prompt_history(
+            assistant_id, limit
         )
 
-        logger.info(f"助理提示词历史查询成功: {assistant_id}, 返回{len(result)}个版本")
-        return List[PromptsModel](
-            code=0,
-            message="查询成功",
-            # data=[PromptsModel(),PromptsModel()]
-            # data = ["1", "2"]
-            data=result
-        )
+        logger.info(f"助理提示词历史查询成功: {assistant_id}, limit={limit}, 返回{len(result)}个版本")
+        return result
 
     except Exception as e:
         logger.error(f"助理提示词历史查询失败: {e}")
