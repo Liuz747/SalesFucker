@@ -11,7 +11,7 @@ services:
     ports:
       - "3000:3000"
     environment: &langfuse-web-env
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PWD}@${DB_HOST}:${DB_PORT}/postgres
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PWD}@${DB_HOST}:${DB_PORT}/observe
       NEXTAUTH_SECRET: mysecret
       SALT: mysalt
       ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000" # generate via `openssl rand -hex 32`
@@ -204,7 +204,8 @@ services:
   temporal:
     image: temporalio/auto-setup
     depends_on:
-      - postgres
+      - langfuse-web
+      - langfuse-worker
       - elasticsearch
     environment:
       - DB=postgres12
