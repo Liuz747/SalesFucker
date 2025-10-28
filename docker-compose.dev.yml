@@ -66,7 +66,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-  
+
   postgres:
     image: postgres
     environment:
@@ -83,7 +83,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-  
+
   redis:
     image: redis
     environment:
@@ -127,6 +127,10 @@ services:
       - xpack.security.enabled=false
       - xpack.security.http.ssl.enabled=false
       - xpack.license.self_generated.type=basic
+      - cluster.routing.allocation.disk.threshold_enabled=true
+      - cluster.routing.allocation.disk.watermark.low=512mb
+      - cluster.routing.allocation.disk.watermark.high=256mb
+      - cluster.routing.allocation.disk.watermark.flood_stage=128mb
     mem_limit: 1g
     ulimits:
       memlock:
@@ -138,7 +142,6 @@ services:
       - es_data:/usr/share/elasticsearch/data
 
   etcd:
-    container_name: milvus-etcd
     image: quay.io/coreos/etcd:v3.5.18
     environment:
       - ETCD_AUTO_COMPACTION_MODE=revision
@@ -197,6 +200,25 @@ services:
       interval: 30s
       timeout: 20s
       retries: 3
+
+  temporal:
+    image: temporalio/auto-setup
+    depends_on:
+      - postgres
+      - elasticsearch
+    environment:
+      - DB=postgres12
+      - DB_PORT=${DB_PORT:-5432}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PWD=${POSTGRES_PWD:-your-secure-password-here}
+      - POSTGRES_SEEDS=${DB_HOST}
+      - ENABLE_ES=true
+      - ES_USER=${ELASTIC_USER:-elastic}
+      - ES_PWD=${ELASTIC_PASSWORD:-changeme}
+      - ES_SEEDS=elasticsearch
+      - TEMPORAL_ADDRESS=temporal:7233
+    ports:
+      - "7233:7233"
 
 volumes:
   clickhouse_data:
