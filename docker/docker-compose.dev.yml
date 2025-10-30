@@ -2,7 +2,7 @@ name: mas-observe
 
 services:
   langfuse-web:
-    image: registry.consumerclone.online/huanmu/mas-v0.2/frontend
+    image: ${REGISTRY_URL}/frontend
     depends_on: &langfuse-depends-on
       - postgres
       - minio
@@ -54,7 +54,7 @@ services:
       retries: 3
 
   langfuse-worker:
-    image: registry.consumerclone.online/huanmu/mas-v0.2/worker
+    image: ${REGISTRY_URL}/worker
     depends_on: *langfuse-depends-on
     ports:
       - "3030:3030"

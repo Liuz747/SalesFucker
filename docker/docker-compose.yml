@@ -4,8 +4,6 @@ services:
   # Main MAS application
   api:
     image: ${REGISTRY_URL}/api:latest
-    ports:
-      - "8000:8000"
     environment:
       - APP_KEY=${APP_KEY}
       - OPENAI_API_KEY=${OPENAI_API_KEY}
@@ -35,12 +33,11 @@ services:
       - redis
       - elasticsearch
       - milvus-standalone
-      - langfuse-web
       - temporal
     restart: unless-stopped
 
   nginx:
-    image: nginx:alpine
+    image: ${REGISTRY_URL}/nginx:alpine
     depends_on:
       - mas
       - langfuse-web
@@ -74,8 +71,6 @@ services:
       - minio
       - redis
       - clickhouse
-    ports:
-      - "3000:3000"
     environment: &langfuse-web-env
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PWD}@${DB_HOST}:${DB_PORT}/observe
       NEXTAUTH_SECRET: mysecret
