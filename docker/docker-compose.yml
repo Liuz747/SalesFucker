@@ -39,7 +39,7 @@ services:
   nginx:
     image: ${REGISTRY_URL}/nginx:alpine
     depends_on:
-      - mas
+      - api
       - langfuse-web
     ports:
       - "80:${NGINX_PORT:-80}"
