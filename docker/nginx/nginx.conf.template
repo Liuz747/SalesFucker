@@ -48,8 +48,8 @@ http {
 
         # API routes -> backend
         # Rewrites /api/* to /v1/* to match FastAPI router prefix
-        location /api {
-            proxy_pass http://mas_api/v1;
+        location /v1 {
+            proxy_pass http://mas_api;
             include /etc/nginx/proxy.conf;
         }
 
