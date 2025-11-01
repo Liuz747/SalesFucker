@@ -13,21 +13,21 @@ if [ -z "$DATABASE_URL" ]; then
     fi
 fi
 
-# At this point, DATABASE_URL should be the base URL (with or without trailing /)
-case "$DATABASE_URL" in
-    */) ;;
-    *) DATABASE_URL="${DATABASE_URL}/" ;;
+# At this point, DATABASE_URL should be the base URL
+case "${DATABASE_URL%/}" in
+    *://*/*)
+        echo "Error: DATABASE_URL should be a base URL without database name."
+        exit 1
+        ;;
+    *) DATABASE_URL="${DATABASE_URL%/}/" ;;
 esac
 
-# Extract or use provided DATABASE_NAME
-TARGET_DB="${DATABASE_NAME:-observe}"
-
 # Create the target database using the base URL
-echo "Creating database: $TARGET_DB"
-echo "CREATE DATABASE ${TARGET_DB};" | prisma db execute --stdin --url "$DATABASE_URL" 2>/dev/null || true
+echo "Creating database: $DATABASE_NAME"
+echo "CREATE DATABASE ${DATABASE_NAME};" | prisma db execute --stdin --url "$DATABASE_URL" 2>/dev/null || true
 
 # Construct final DATABASE_URL with target database
-DATABASE_URL="${DATABASE_URL}${TARGET_DB}"
+DATABASE_URL="${DATABASE_URL}${DATABASE_NAME}"
 
 if [ -n "$DATABASE_ARGS" ]; then
     # Append ARGS to DATABASE_URL
@@ -36,7 +36,7 @@ fi
 
 export DATABASE_URL
 
-# Auto-construct NEXTAUTH_URL from nginx config if not provided
+# Construct NEXTAUTH_URL from nginx config if not provided
 if [ -n "$NGINX_SERVER_NAME" ] && [ "$NGINX_SERVER_NAME" != "_" ]; then
     # Determine protocol based on HTTPS setting
     if [ "$NGINX_HTTPS_ENABLED" = "true" ]; then
@@ -44,14 +44,13 @@ if [ -n "$NGINX_SERVER_NAME" ] && [ "$NGINX_SERVER_NAME" != "_" ]; then
     else
         NEXTAUTH_URL="http://${NGINX_SERVER_NAME}"
     fi
-    export NEXTAUTH_URL
-    echo "Auto-generated NEXTAUTH_URL: $NEXTAUTH_URL"
 else
     echo "Warning: NEXTAUTH_URL not set and cannot be auto-generated (NGINX_SERVER_NAME is '_' or not set)"
     echo "Falling back to default: http://localhost:3000"
     NEXTAUTH_URL="http://localhost:3000"
-    export NEXTAUTH_URL
 fi
+
+export NEXTAUTH_URL
 
 # Check if CLICKHOUSE_URL is not set
 if [ -z "$CLICKHOUSE_URL" ]; then
