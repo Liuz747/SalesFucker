@@ -19,6 +19,27 @@ if [ -z "$DATABASE_URL" ]; then
     fi
 fi
 
+# Auto-construct NEXTAUTH_URL from nginx config if not provided
+if [ -z "$NEXTAUTH_URL" ]; then
+    if [ -n "$NGINX_SERVER_NAME" ] && [ "$NGINX_SERVER_NAME" != "_" ]; then
+        # Determine protocol based on HTTPS setting
+        if [ "$NGINX_HTTPS_ENABLED" = "true" ]; then
+            PROTOCOL="https"
+        else
+            PROTOCOL="http"
+        fi
+        NEXTAUTH_URL="${PROTOCOL}://${NGINX_SERVER_NAME}"
+        export NEXTAUTH_URL
+        echo "Auto-generated NEXTAUTH_URL: $NEXTAUTH_URL"
+    else
+        echo "Warning: NEXTAUTH_URL not set and cannot be auto-generated (NGINX_SERVER_NAME is '_' or not 
+set)"
+        echo "Falling back to default: http://localhost:3000"
+        NEXTAUTH_URL="http://localhost:3000"
+        export NEXTAUTH_URL
+    fi
+fi
+
 # Check if CLICKHOUSE_URL is not set
 if [ -z "$CLICKHOUSE_URL" ]; then
     echo "Error: CLICKHOUSE_URL is not configured. Migrating from V2? Check out migration guide: https://langfuse.com/self-hosting/upgrade-guides/upgrade-v2-to-v3"
@@ -29,6 +50,12 @@ fi
 if [ -z "$DIRECT_URL" ]; then
     export DIRECT_URL="${DATABASE_URL}"
 fi
+
+# Ensure target Postgres database exists before running migrations.
+DB_NO_QUERY="${DATABASE_URL%%\?*}"
+TARGET_DB="${DATABASE_NAME:-${DB_NO_QUERY##*/}}"
+ADMIN_URL="${DB_NO_QUERY%/*}/${POSTGRES_MAINTENANCE_DB:-postgres}"
+prisma db execute --url "$ADMIN_URL" -f "./frontend/scripts/create_database.sql"
 
 # Always execute the postgres migration, except when disabled.
 if [ "$LANGFUSE_AUTO_POSTGRES_MIGRATION_DISABLED" != "true" ]; then
