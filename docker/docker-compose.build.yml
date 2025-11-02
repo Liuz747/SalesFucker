@@ -3,7 +3,7 @@ name: mas-observe
 services:
   api:
     build:
-      context: ./api
+      context: ../api
       dockerfile: Dockerfile
     image: ${REGISTRY_URL}/api:latest
     ports:
@@ -37,48 +37,19 @@ services:
       - redis
       - elasticsearch
       - milvus-standalone
-      - langfuse-web
       - temporal
-    restart: unless-stopped
-
-  nginx:
-    image: nginx:alpine
-    depends_on:
-      - api
-      - langfuse-web
-    ports:
-      - "80:${NGINX_PORT:-80}"
-      - "443:${NGINX_SSL_PORT:-443}"
-    volumes:
-      - ./nginx/nginx.conf.template:/etc/nginx/nginx.conf.template:ro
-      - ./nginx/https.conf.template:/etc/nginx/https.conf.template:ro
-      - ./nginx/proxy.conf.template:/etc/nginx/proxy.conf.template:ro
-      - ./nginx/docker-entrypoint.sh:/docker-entrypoint.sh
-      - ./nginx/ssl:/etc/ssl:ro  # Place your SSL certs here if HTTPS enabled
-    entrypoint: /docker-entrypoint.sh
-    environment:
-      NGINX_SERVER_NAME: ${NGINX_SERVER_NAME:-_}
-      NGINX_PORT: ${NGINX_PORT:-80}
-      NGINX_SSL_PORT: ${NGINX_SSL_PORT:-443}
-      NGINX_HTTPS_ENABLED: ${NGINX_HTTPS_ENABLED:-false}
-      NGINX_SSL_CERT_FILENAME: ${NGINX_SSL_CERT_FILENAME:-mas.crt}
-      NGINX_SSL_CERT_KEY_FILENAME: ${NGINX_SSL_CERT_KEY_FILENAME:-mas.key}
-      NGINX_KEEPALIVE_TIMEOUT: ${NGINX_KEEPALIVE_TIMEOUT:-65}
-      NGINX_CLIENT_MAX_BODY_SIZE: ${NGINX_CLIENT_MAX_BODY_SIZE:-100M}
-      NGINX_PROXY_READ_TIMEOUT: ${NGINX_PROXY_READ_TIMEOUT:-3600s}
-      NGINX_PROXY_SEND_TIMEOUT: ${NGINX_PROXY_SEND_TIMEOUT:-3600s}
     restart: unless-stopped
 
   langfuse-web:
     build:
       dockerfile: ./frontend/Dockerfile
-      context: ./web
+      context: ../web
       platforms:
         - linux/arm64
         - linux/amd64
       args:
         - NEXT_PUBLIC_LANGFUSE_CLOUD_REGION=${NEXT_PUBLIC_LANGFUSE_CLOUD_REGION:-}
-    image: registry.consumerclone.online/huanmu/mas-v0.2/frontend:latest
+    image: ${REGISTRY_URL}/frontend:latest
     depends_on: &langfuse-depends-on
       - postgres
       - minio
@@ -87,11 +58,13 @@ services:
     ports:
       - "3000:3000"
     environment: &langfuse-web-env
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PWD}@${DB_HOST}:${DB_PORT}/observe
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PWD}@${DB_HOST}:${DB_PORT}/
+      DATABASE_NAME: ${LANGFUSE_DATABASE_NAME:-observe}
       NEXTAUTH_SECRET: mysecret
       SALT: mysalt
       ENCRYPTION_KEY: "0000000000000000000000000000000000000000000000000000000000000000" # generate via `openssl rand -hex 32`
-      NEXTAUTH_URL: http://localhost:3000
+      NGINX_SERVER_NAME: ${NGINX_SERVER_NAME:-_}
+      NGINX_HTTPS_ENABLED: ${NGINX_HTTPS_ENABLED:-false}
       TELEMETRY_ENABLED: ${TELEMETRY_ENABLED:-false}
       LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES: ${LANGFUSE_ENABLE_EXPERIMENTAL_FEATURES:-false}
       LANGFUSE_INIT_ORG_ID: ${LANGFUSE_INIT_ORG_ID:-}
@@ -132,13 +105,13 @@ services:
   langfuse-worker:
     build:
       dockerfile: ./worker/Dockerfile
-      context: ./web
+      context: ../web
       platforms:
         - linux/arm64
         - linux/amd64
       args:
         - NEXT_PUBLIC_LANGFUSE_CLOUD_REGION=${NEXT_PUBLIC_LANGFUSE_CLOUD_REGION:-}
-    image: registry.consumerclone.online/huanmu/mas-v0.2/worker:latest
+    image: ${REGISTRY_URL}/worker:latest
     depends_on: *langfuse-depends-on
     ports:
       - "3030:3030"
@@ -284,6 +257,34 @@ services:
       interval: 30s
       timeout: 20s
       retries: 3
+
+  nginx:
+    image: nginx:alpine
+    depends_on:
+      - api
+      - langfuse-web
+    ports:
+      - "80:${NGINX_PORT:-80}"
+      - "443:${NGINX_SSL_PORT:-443}"
+    volumes:
+      - ./nginx/nginx.conf.template:/etc/nginx/nginx.conf.template:ro
+      - ./nginx/https.conf.template:/etc/nginx/https.conf.template:ro
+      - ./nginx/proxy.conf.template:/etc/nginx/proxy.conf.template:ro
+      - ./nginx/docker-entrypoint.sh:/docker-entrypoint.sh
+      - ./nginx/ssl:/etc/ssl:ro  # Place your SSL certs here if HTTPS enabled
+    entrypoint: [ "sh", "/docker-entrypoint.sh" ]
+    environment:
+      NGINX_SERVER_NAME: ${NGINX_SERVER_NAME:-_}
+      NGINX_PORT: ${NGINX_PORT:-80}
+      NGINX_SSL_PORT: ${NGINX_SSL_PORT:-443}
+      NGINX_HTTPS_ENABLED: ${NGINX_HTTPS_ENABLED:-false}
+      NGINX_SSL_CERT_FILENAME: ${NGINX_SSL_CERT_FILENAME:-mas.crt}
+      NGINX_SSL_CERT_KEY_FILENAME: ${NGINX_SSL_CERT_KEY_FILENAME:-mas.key}
+      NGINX_KEEPALIVE_TIMEOUT: ${NGINX_KEEPALIVE_TIMEOUT:-65}
+      NGINX_CLIENT_MAX_BODY_SIZE: ${NGINX_CLIENT_MAX_BODY_SIZE:-100M}
+      NGINX_PROXY_READ_TIMEOUT: ${NGINX_PROXY_READ_TIMEOUT:-3600s}
+      NGINX_PROXY_SEND_TIMEOUT: ${NGINX_PROXY_SEND_TIMEOUT:-3600s}
+    restart: unless-stopped
 
   temporal:
     image: temporalio/auto-setup
