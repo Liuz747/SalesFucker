@@ -19,15 +19,11 @@ case "${DATABASE_URL%/}" in
         echo "Error: DATABASE_URL should be a base URL without database name."
         exit 1
         ;;
-    *) DATABASE_URL="${DATABASE_URL%/}/" ;;
+    *) BASE_DATABASE_URL="${DATABASE_URL%/}/" ;;
 esac
 
-# Create the target database using the base URL
-echo "Creating database: $DATABASE_NAME"
-echo "CREATE DATABASE ${DATABASE_NAME};" | prisma db execute --stdin --url "$DATABASE_URL" 2>/dev/null || true
-
 # Construct final DATABASE_URL with target database
-DATABASE_URL="${DATABASE_URL}${DATABASE_NAME}"
+DATABASE_URL="${BASE_DATABASE_URL}${DATABASE_NAME}"
 
 if [ -n "$DATABASE_ARGS" ]; then
     # Append ARGS to DATABASE_URL
@@ -65,6 +61,8 @@ fi
 
 # Always execute the postgres migration, except when disabled.
 if [ "$LANGFUSE_AUTO_POSTGRES_MIGRATION_DISABLED" != "true" ]; then
+    echo "Creating database: $DATABASE_NAME"
+    echo "CREATE DATABASE ${DATABASE_NAME};" | prisma db execute --stdin --url "$BASE_DATABASE_URL" 2>/dev/null || true
     prisma db execute --url "$DIRECT_URL" --file "./packages/shared/scripts/cleanup.sql"
 
     # Apply migrations
