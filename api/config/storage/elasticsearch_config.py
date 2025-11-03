@@ -102,4 +102,4 @@ class ElasticsearchConfig(BaseSettings):
     @property
     def elasticsearch_url(self) -> str:
         """构建Elasticsearch连接地址"""
-        return f"http://{self.ELASTICS_HOST}:{self.ELASTIC_PORT}"
+        return f"http://{self.ELASTIC_HOST}:{self.ELASTIC_PORT}"

@@ -22,7 +22,6 @@ async def get_milvus_connection() -> MilvusClient:
         MilvusClient: Milvus客户端实例
     """
     try:
-        logger.info(f"初始化Milvus客户端: {mas_config.MILVUS_HOST}")
         client = MilvusClient(
             uri=mas_config.milvus_uri,
             timeout=2  # 2秒超时，快速失败

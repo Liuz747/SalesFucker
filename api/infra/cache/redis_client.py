@@ -21,7 +21,6 @@ async def get_redis_client() -> Redis:
     global _redis_pool
 
     if _redis_pool is None:
-        logger.info(f"初始化Redis连接: {mas_config.REDIS_HOST}")
         _redis_pool = ConnectionPool.from_url(
             mas_config.redis_url,
             decode_responses=False,

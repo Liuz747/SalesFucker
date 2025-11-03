@@ -52,34 +52,34 @@ class InfraFactory:
 
         # Database engine (async)
         db_engine = await get_engine()
-        logger.info("数据库引擎准备完成")
+        logger.info("PostgreSQL 数据库引擎准备完成")
 
         # Redis client
         redis = await get_redis_client()
-        logger.info("Redis客户端准备完成")
+        logger.info("Redis 客户端准备完成")
 
         # Elasticsearch client (optional)
         elasticsearch: Optional[AsyncElasticsearch] = None
         try:
             elasticsearch = await get_es_client()
-            logger.info("Elasticsearch客户端准备完成")
+            logger.info("Elasticsearch 客户端准备完成")
         except Exception as exc:
-            logger.warning("Elasticsearch连接初始化失败: %s", exc, exc_info=True)
+            logger.warning("Elasticsearch 连接初始化失败: %s", exc, exc_info=True)
 
         # Milvus is optional
         milvus: Optional[MilvusClient] = None
         try:
             milvus = await get_milvus_connection()
-            logger.info("Milvus连接准备完成")
+            logger.info("Milvus 连接准备完成")
         except Exception as exc:
-            logger.warning("Milvus连接初始化失败: %s", exc, exc_info=True)
+            logger.warning("Milvus 连接初始化失败: %s", exc, exc_info=True)
 
         temporal: Optional[Client] = None
         try:
             temporal = await get_temporal_client()
-            logger.info("Temporal连接准备完成")
+            logger.info("Temporal 连接准备完成")
         except Exception as exc:
-            logger.warning("Temporal连接初始化失败: %s", exc, exc_info=True)
+            logger.warning("Temporal 连接初始化失败: %s", exc, exc_info=True)
 
         self._clients = InfraClients(
             db_engine=db_engine,

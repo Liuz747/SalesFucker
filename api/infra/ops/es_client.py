@@ -22,7 +22,6 @@ async def get_es_client() -> AsyncElasticsearch:
         AsyncElasticsearch: 异步ES客户端实例
     """
     try: 
-        logger.info(f"初始化Elasticsearch连接: {mas_config.ELASTIC_HOST}")
         client_options = {
             "hosts": [mas_config.elasticsearch_url],
             "max_retries": mas_config.ES_MAX_RETRIES,

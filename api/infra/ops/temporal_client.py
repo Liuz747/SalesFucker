@@ -16,7 +16,7 @@ async def get_temporal_client() -> Client:
     """
     异步获取Temporal客户端
 
-    使用全局单例模式，支持连接复用。
+    创建与Temporal服务器的连接实例，用于工作流执行和任务调度。
 
     Returns:
         Client: Temporal客户端实例
@@ -26,12 +26,8 @@ async def get_temporal_client() -> Client:
     """
 
     try:
-        logger.info(f"初始化Temporal客户端: {mas_config.temporal_url}")
         # 创建Temporal客户端
-        temporal_client = await Client.connect(mas_config.TEMPORAL_HOST)
-
-        logger.info(f"✓ Temporal客户端连接成功。命名空间: {mas_config.TEMPORAL_NAMESPACE}")
-
+        temporal_client = await Client.connect(mas_config.temporal_url)
         return temporal_client
     except Exception as e:
         logger.error(f"✗ Temporal客户端连接失败: {e}")
@@ -42,20 +38,11 @@ async def verify_temporal_connection(client: Client) -> bool:
     """
     验证Temporal服务器连接
 
-    通过检查系统健康状态来验证连接。
-
     Returns:
         bool: 连接成功返回True，失败返回False
     """
     try:
-        # 通过描述命名空间来验证连接
-        info = await client.workflow_service.get_system_info()
-
-        if info:
-            logger.info(f"✓ Temporal连接测试成功。 信息：{info}")
-            return True
-
-        return False
+        return await client.service_client.check_health()
 
     except Exception as e:
         logger.error(f"✗ Temporal连接测试失败: {e}")

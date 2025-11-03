@@ -36,8 +36,6 @@ async def get_engine() -> AsyncEngine:
     global _engine
     
     if _engine is None:
-        logger.info(f"初始化PostgreSQL连接: {mas_config.DB_HOST}")
-        
         _engine = create_async_engine(
             mas_config.postgres_url,
             # 连接池配置
