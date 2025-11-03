@@ -10,6 +10,7 @@ from elasticsearch import AsyncElasticsearch
 from pymilvus import MilvusClient
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncEngine
+from temporalio.client import Client
 
 
 @dataclass
@@ -20,3 +21,4 @@ class InfraClients:
     redis: Redis
     elasticsearch: AsyncElasticsearch | None
     milvus: MilvusClient | None
+    temporal: Client | None

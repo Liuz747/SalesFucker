@@ -4,10 +4,14 @@ services:
   langfuse-web:
     image: ${REGISTRY_URL}/frontend
     depends_on: &langfuse-depends-on
-      - postgres
-      - minio
-      - redis
-      - clickhouse
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
     ports:
       - "3000:3000"
     environment: &langfuse-web-env
@@ -121,9 +125,9 @@ services:
       retries: 3
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.2.0
     environment:
-      - ELASTIC_PASSWORD: ${ELASTIC_PASSWORD:-}
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-}
       - discovery.type=single-node
       - bootstrap.memory_lock=true
       - xpack.security.enabled=false
@@ -219,7 +223,7 @@ services:
       - ES_USER=${ELASTIC_USER:-elastic}
       - ES_PWD=${ELASTIC_PASSWORD:-changeme}
       - ES_SEEDS=elasticsearch
-      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_ADDRESS=${TEMPORAL_HOST:-temporal}:${TEMPORAL_PORT:-7233}
     ports:
       - "7233:7233"
 

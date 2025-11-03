@@ -16,9 +16,14 @@ class ElasticsearchConfig(BaseSettings):
     """
 
     # Elasticsearch 配置
-    ELASTICSEARCH_URL: str = Field(
-        description="Elasticsearch 服务器连接地址，用于存储对话历史和客户记忆",
-        default="http://localhost:9200",
+    ELASTIC_HOST: str = Field(
+        description="Elasticsearch 主机名",
+        default="localhost",
+    )
+
+    ELASTIC_PORT: int = Field(
+        description="Elasticsearch 端口号",
+        default=9200,
     )
 
     ELASTIC_USER: str | None = Field(
@@ -93,3 +98,8 @@ class ElasticsearchConfig(BaseSettings):
         description="请求超时时间(秒)",
         default=30,
     )
+
+    @property
+    def elasticsearch_url(self) -> str:
+        """构建Elasticsearch连接地址"""
+        return f"http://{self.ELASTICS_HOST}:{self.ELASTIC_PORT}"

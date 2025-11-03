@@ -8,6 +8,7 @@ from typing import Optional
 
 from elasticsearch import AsyncElasticsearch
 from pymilvus import MilvusClient
+from temporalio.client import Client
 
 from infra.db import get_engine, close_db_connections, test_db_connection
 from infra.cache import get_redis_client, close_redis_client, test_redis_connection
@@ -17,7 +18,9 @@ from infra.ops import (
     verify_es_connection,
     get_milvus_connection,
     close_milvus_connection,
-    verify_milvus_connection
+    verify_milvus_connection,
+    get_temporal_client,
+    verify_temporal_connection
 )
 from utils import get_component_logger
 from .types import InfraClients
@@ -71,11 +74,19 @@ class InfraFactory:
         except Exception as exc:
             logger.warning("Milvus连接初始化失败: %s", exc, exc_info=True)
 
+        temporal: Optional[Client] = None
+        try:
+            temporal = await get_temporal_client()
+            logger.info("Temporal连接准备完成")
+        except Exception as exc:
+            logger.warning("Temporal连接初始化失败: %s", exc, exc_info=True)
+
         self._clients = InfraClients(
             db_engine=db_engine,
             redis=redis,
             elasticsearch=elasticsearch,
             milvus=milvus,
+            temporal=temporal
         )
 
         logger.info("基础设施客户端初始化完成")
@@ -128,6 +139,14 @@ class InfraFactory:
             await verify_milvus_connection(self._clients.milvus)
         else:
             logger.info("○ Milvus未配置")
+
+        if self._clients.temporal:
+            if await verify_temporal_connection(self._clients.temporal):
+                logger.info("✓ Temporal连接测试成功")
+            else:
+                logger.warning("✗ Temporal连接测试失败")
+        else:
+            logger.info("○ Temporal未配置")
 
         logger.info("基础设施客户端连接测试完成")
 

@@ -9,6 +9,7 @@ from pydantic_settings import BaseSettings
 
 from .provider import LLMConfig
 from .tracer import TracerConfig
+from .temporal_config import TemporalConfig
 
 class AuthConfig(BaseSettings):
     """
@@ -60,5 +61,6 @@ class ServiceConfig(
     LLMConfig,
     LogConfig,
     TracerConfig,
+    TemporalConfig,
 ):
     pass

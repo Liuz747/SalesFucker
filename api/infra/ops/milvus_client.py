@@ -27,11 +27,10 @@ async def get_milvus_connection() -> MilvusClient:
             uri=mas_config.milvus_uri,
             timeout=2  # 2秒超时，快速失败
         )
+        return client
     except MilvusException as e:
         logger.error(f"Milvus客户端创建失败: {e}")
         raise ConnectionError(f"Failed to connect to Milvus: {e}")
-
-    return client
 
 
 async def close_milvus_connection(client: MilvusClient):

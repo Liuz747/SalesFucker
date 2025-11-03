@@ -22,8 +22,12 @@ services:
       - REDIS_PASSWORD=${REDIS_PASSWORD}
       - MILVUS_HOST=${MILVUS_HOST}
       - MILVUS_PORT=${MILVUS_PORT:-19530}
-      - ELASTICSEARCH_URL=${ELASTICSEARCH_URL}
+      - ELASTIC_HOST=${ELASTIC_HOST}
+      - ELASTIC_PORT=${ELASTIC_PORT:-9200}
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - TEMPORAL_HOST=${TEMPORAL_HOST}
+      - TEMPORAL_PORT=${TEMPORAL_PORT:-7233}
+      - TEMPORAL_NAMESPACE=${TEMPORAL_NAMESPACE:-default}
       - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
       - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
       - LANGFUSE_HOST=${LANGFUSE_HOST}
@@ -39,10 +43,14 @@ services:
   langfuse-web:
     image: ${REGISTRY_URL}/frontend:latest
     depends_on: &langfuse-depends-on
-      - postgres
-      - minio
-      - redis
-      - clickhouse
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
     environment: &langfuse-web-env
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PWD}@${DB_HOST}:${DB_PORT}/
       DATABASE_NAME: ${LANGFUSE_DATABASE_NAME:-observe}
@@ -249,7 +257,7 @@ services:
       - ES_USER=${ELASTIC_USER:-elastic}
       - ES_PWD=${ELASTIC_PASSWORD:-changeme}
       - ES_SEEDS=elasticsearch
-      - TEMPORAL_ADDRESS=temporal:7233
+      - TEMPORAL_ADDRESS=${TEMPORAL_HOST:-temporal}:${TEMPORAL_PORT:-7233}
 
   redis:
     image: ${REGISTRY_URL}/redis:8-alpine
