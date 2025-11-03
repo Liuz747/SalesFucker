@@ -241,24 +241,6 @@ services:
       timeout: 10s
       retries: 3
 
-  temporal:
-    image: ${REGISTRY_URL}/temporal:latest
-    depends_on:
-      - langfuse-web
-      - langfuse-worker
-      - elasticsearch
-    environment:
-      - DB=postgres12
-      - DB_PORT=${DB_PORT:-5432}
-      - POSTGRES_USER=${POSTGRES_USER:-postgres}
-      - POSTGRES_PWD=${POSTGRES_PWD:-your-secure-password-here}
-      - POSTGRES_SEEDS=${DB_HOST}
-      - ENABLE_ES=true
-      - ES_USER=${ELASTIC_USER:-elastic}
-      - ES_PWD=${ELASTIC_PASSWORD:-changeme}
-      - ES_SEEDS=elasticsearch
-      - TEMPORAL_ADDRESS=${TEMPORAL_HOST:-temporal}:${TEMPORAL_PORT:-7233}
-
   redis:
     image: ${REGISTRY_URL}/redis:8-alpine
     environment:
@@ -272,6 +254,23 @@ services:
       retries: 3
     command: --requirepass ${REDIS_PASSWORD:-myredissecret}
     restart: always
+
+  temporal:
+    image: ${REGISTRY_URL}/temporal:latest
+    depends_on:
+      - postgres
+      - elasticsearch
+    environment:
+      - DB=postgres12
+      - DB_PORT=${DB_PORT:-5432}
+      - POSTGRES_USER=${POSTGRES_USER:-postgres}
+      - POSTGRES_PWD=${POSTGRES_PWD:-your-secure-password-here}
+      - POSTGRES_SEEDS=${DB_HOST}
+      - ENABLE_ES=true
+      - ES_USER=${ELASTIC_USER:-elastic}
+      - ES_PWD=${ELASTIC_PASSWORD:-changeme}
+      - ES_SEEDS=elasticsearch
+      - TEMPORAL_ADDRESS=${TEMPORAL_HOST:-temporal}:${TEMPORAL_PORT:-7233}
 
 volumes:
   clickhouse_data:
