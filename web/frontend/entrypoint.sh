@@ -6,18 +6,47 @@ if [ -z "$DATABASE_URL" ]; then
     # Check if all required variables are provided
     if [ -n "$DATABASE_HOST" ] && [ -n "$DATABASE_USERNAME" ] && [ -n "$DATABASE_PASSWORD" ]  && [ -n "$DATABASE_NAME" ]; then
         # Construct DATABASE_URL from the provided variables
-        DATABASE_URL="postgresql://${DATABASE_USERNAME}:${DATABASE_PASSWORD}@${DATABASE_HOST}/${DATABASE_NAME}"
-        export DATABASE_URL
+        DATABASE_URL="postgresql://${DATABASE_USERNAME}:${DATABASE_PASSWORD}@${DATABASE_HOST}/"
     else
         echo "Error: Required database environment variables are not set. Provide a postgres url for DATABASE_URL."
         exit 1
     fi
-    if [ -n "$DATABASE_ARGS" ]; then
-        # Append ARGS to DATABASE_URL
-        DATABASE_URL="${DATABASE_URL}?$DATABASE_ARGS"
-        export DATABASE_URL
-    fi
 fi
+
+# At this point, DATABASE_URL should be the base URL
+case "${DATABASE_URL%/}" in
+    *://*/*)
+        echo "Error: DATABASE_URL should be a base URL without database name."
+        exit 1
+        ;;
+    *) BASE_DATABASE_URL="${DATABASE_URL%/}/" ;;
+esac
+
+# Construct final DATABASE_URL with target database
+DATABASE_URL="${BASE_DATABASE_URL}${DATABASE_NAME}"
+
+if [ -n "$DATABASE_ARGS" ]; then
+    # Append ARGS to DATABASE_URL
+    DATABASE_URL="${DATABASE_URL}?$DATABASE_ARGS"
+fi
+
+export DATABASE_URL
+
+# Construct NEXTAUTH_URL from nginx config if not provided
+if [ -n "$NGINX_SERVER_NAME" ] && [ "$NGINX_SERVER_NAME" != "_" ]; then
+    # Determine protocol based on HTTPS setting
+    if [ "$NGINX_HTTPS_ENABLED" = "true" ]; then
+        NEXTAUTH_URL="https://${NGINX_SERVER_NAME}"
+    else
+        NEXTAUTH_URL="http://${NGINX_SERVER_NAME}"
+    fi
+else
+    echo "Warning: NEXTAUTH_URL not set and cannot be auto-generated (NGINX_SERVER_NAME is '_' or not set)"
+    echo "Falling back to default: http://localhost:3000"
+    NEXTAUTH_URL="http://localhost:3000"
+fi
+
+export NEXTAUTH_URL
 
 # Check if CLICKHOUSE_URL is not set
 if [ -z "$CLICKHOUSE_URL" ]; then
@@ -32,6 +61,8 @@ fi
 
 # Always execute the postgres migration, except when disabled.
 if [ "$LANGFUSE_AUTO_POSTGRES_MIGRATION_DISABLED" != "true" ]; then
+    echo "Creating database: $DATABASE_NAME"
+    echo "CREATE DATABASE ${DATABASE_NAME};" | prisma db execute --stdin --url "$BASE_DATABASE_URL" 2>/dev/null || true
     prisma db execute --url "$DIRECT_URL" --file "./packages/shared/scripts/cleanup.sql"
 
     # Apply migrations

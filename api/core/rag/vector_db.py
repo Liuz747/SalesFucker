@@ -1,8 +1,8 @@
 """
 Milvus vector database operations
 """
-import asyncio
-from typing import Dict, List, Any, Optional
+
+from typing import Dict, List, Any
 from dataclasses import dataclass
 
 from pymilvus import (

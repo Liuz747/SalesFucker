@@ -1,0 +1,71 @@
+worker_processes auto;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log /var/log/nginx/access.log main;
+    error_log  /var/log/nginx/error.log notice;
+
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+
+    keepalive_timeout ${NGINX_KEEPALIVE_TIMEOUT};
+    client_max_body_size ${NGINX_CLIENT_MAX_BODY_SIZE};
+
+    # WebSocket support
+    map $http_upgrade $connection_upgrade {
+        default upgrade;
+        ''      close;
+    }
+
+    upstream mas_api {
+        server api:8000;
+    }
+
+    upstream observe {
+        server langfuse-web:3000;
+    }
+
+    server {
+        listen ${NGINX_PORT};
+        server_name ${NGINX_SERVER_NAME};
+
+        # Security headers
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-XSS-Protection "1; mode=block" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+        # API routes -> backend
+        # Rewrites /api/* to /v1/* to match FastAPI router prefix
+        location /v1 {
+            proxy_pass http://mas_api;
+            include /etc/nginx/proxy.conf;
+        }
+
+        # Health check
+        location = /healthz {
+            add_header Content-Type text/plain;
+            return 200 'ok';
+        }
+
+        # Frontend routes -> web
+        location / {
+            proxy_pass http://observe;
+            include /etc/nginx/proxy.conf;
+        }
+
+        # HTTPS configuration (injected if enabled)
+        ${HTTPS_CONFIG}
+    }
+}

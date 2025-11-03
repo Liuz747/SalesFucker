@@ -1,21 +1,26 @@
 """
-Elasticsearch Memory Integration
+记忆管理模块
 
-This package handles all customer memory and context management:
-- Multi-tenant customer profiles
-- Complete conversation history storage (user messages + LLM responses)
-- Behavioral pattern tracking
-- Context retrieval and persistence
-- High-performance multi-level caching
+该模块处理所有客户记忆和上下文管理功能：
+- 短期记忆（STM）通过Redis实现
+- 长期记忆（LTM）通过Elasticsearch实现
+- 向量语义搜索通过Milvus实现
+- 对话历史存储和管理
 
-Architecture:
-- HighPerformanceStore: Customer profiles with multi-level caching
-- ConversationStore: Complete message history with intelligent indexing
-- ConnectionPoolManager: Multi-tenant connection management
+主要组件：
+- ConversationStore: Redis短期会话存储
+- IndexManager: Elasticsearch索引管理器
+- VectorStore: Milvus向量存储接口
+- SearchResult: 记忆搜索结果数据类
 """
 
 from .conversation_store import ConversationStore
+from .index_manager import IndexManager
+from .vector_store import VectorStore, SearchResult
 
 __all__ = [
-    'ConversationStore'
-] 
+    'ConversationStore',
+    'IndexManager',
+    'VectorStore',
+    'SearchResult',
+]

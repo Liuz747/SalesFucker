@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
-from .prompts import AssistantPromptConfig
+from .prompts_schema import AssistantPromptConfig
 
 
 class AssistantStatus(str, Enum):

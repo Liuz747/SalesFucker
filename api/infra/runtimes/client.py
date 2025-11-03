@@ -5,10 +5,10 @@ LLM客户端
 专为快速启动设计，无复杂功能。
 """
 
-from infra.runtimes.providers import OpenAIProvider, AnthropicProvider, BaseProvider
-from infra.runtimes.entities import LLMRequest, LLMResponse, ProviderType
+from .providers import OpenAIProvider, AnthropicProvider, BaseProvider
+from .entities import LLMResponse, ProviderType, CompletionsRequest, ResponseMessageRequest
 # from infra.runtimes.routing import SimpleRouter
-from infra.runtimes.config import LLMConfig
+from .config import LLMConfig
 
 
 config = LLMConfig()
@@ -42,7 +42,7 @@ class LLMClient:
                 else:
                     raise Exception(f"不支持的供应商类型: {provider.type}")
 
-    async def completions(self, request: LLMRequest) -> LLMResponse:
+    async def completions(self, request: CompletionsRequest) -> LLMResponse:
         """
         主要聊天接口，支持显式和智能路由
         
@@ -57,13 +57,50 @@ class LLMClient:
             if provider_id not in self.active_providers:
                 raise Exception(f"指定的供应商不可用: {request.provider}")
 
+            provider = self.active_providers[provider_id]
+
             # 发送请求
-            response = await self.active_providers.get(provider_id).completions(request)
-            return response
+            if request.output_model:
+                return await provider.completions_structured(request)
+            else:
+                return await provider.completions(request)
 
         except ValueError:
             raise Exception(f"无效的供应商: {request.provider}")
         except Exception as e:
             raise e
 
+    async def responses(self, request: ResponseMessageRequest) -> LLMResponse:
+        """
+        使用OpenAI Responses API处理单轮对话请求
 
+        Responses API是OpenAI的新接口,相比Chat Completions更简洁,
+        适合单轮对话场景。支持更好的推理性能和内置工具。
+
+        参数:
+            request: ResponseMessageRequest请求对象,包含input和system_prompt
+
+        返回:
+            LLMResponse: 统一的LLM响应对象
+
+        异常:
+            Exception: 当供应商不可用或不是OpenAI时
+        """
+        try:
+            provider_id = request.provider.lower()
+            if provider_id not in self.active_providers:
+                raise Exception(f"指定的供应商不可用: {request.provider}")
+
+            provider = self.active_providers[provider_id]
+            if not isinstance(provider, OpenAIProvider):
+                raise Exception(f"不支持的供应商: {request.provider}")
+
+            if request.output_model:
+                return await provider.responses_structured(request)
+            else:
+                return await provider.responses(request)
+
+        except ValueError:
+            raise Exception(f"无效的供应商: {request.provider}")
+        except Exception as e:
+            raise e

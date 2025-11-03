@@ -22,7 +22,7 @@ from models.prompts import PromptsModel
 from repositories.prompts_repo import PromptsRepository
 from repositories.tenant_repo import TenantRepository
 from schemas.exceptions import TenantNotFoundException, AssistantConflictException, AssistantNotFoundException
-from legacy_api.schemas.assistants import (
+from schemas.assistants_schema import (
     AssistantCreateRequest, AssistantUpdateRequest, AssistantConfigRequest,
     AssistantListRequest, AssistantListResponse,
     AssistantStatsResponse, AssistantOperationResponse,
@@ -402,7 +402,7 @@ class AssistantService:
                     # 处理提示词配置更新（如果提供）
                     if request.prompt_config:
                         try:
-                            from legacy_api.schemas.prompts import PromptUpdateRequest
+                            from schemas.prompts_schema import PromptUpdateRequest
                             prompt_update = PromptUpdateRequest(
                                 personality_prompt=request.prompt_config.personality_prompt,
                                 greeting_prompt=request.prompt_config.greeting_prompt,

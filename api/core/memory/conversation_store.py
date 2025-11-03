@@ -11,7 +11,7 @@ import msgpack
 from redis.asyncio import Redis
 
 from infra.cache import get_redis_client
-from infra.runtimes import LLMRequest
+from infra.runtimes import CompletionsRequest
 from libs.types import Message, MessageParams
 from utils import get_component_logger
 
@@ -53,13 +53,17 @@ class ConversationStore:
         redis_client = self.redis_client or await get_redis_client()
         key = self._key(thread_id)
 
+        if not packed:
+            logger.debug(f"append_messages 跳过空消息写入 -> {key}")
+            return await redis_client.llen(key)
+
         async with redis_client.pipeline(transaction=True) as pipe:
             await pipe.rpush(key, *packed)
             await pipe.ltrim(key, -self.max_messages, -1)
             await pipe.expire(key, 3600)
             result = await pipe.execute()
 
-        # result[0] is RPUSH length, result[1] is OK for LTRIM, result[2] is expire(True/False)
+        # result[0] 是 RPUSH 长度, result[1] 是 LTRIM 返回值, result[2] 是 expire(True/False)
         new_len = int(result[0]) if result and isinstance(result[0], (int,)) else 0
         logger.debug(f"append {len(packed)} -> {key}, len={new_len}")
         return new_len
@@ -86,7 +90,7 @@ class ConversationStore:
         temperature: float = 0.7,
         max_tokens: int | None = None,
         stream: bool = False,
-    ) -> LLMRequest:
+    ) -> CompletionsRequest:
         """
         1) 将本次输入写入会话短期记忆
         2) 读取最近 N 条构建 LLMRequest
@@ -101,12 +105,13 @@ class ConversationStore:
                 filtered.append(self._pack_message(message))
         
         # append user message then read the window
-        await self.append_messages(thread_id, filtered)
+        if filtered:
+            await self.append_messages(thread_id, filtered)
 
         recent = await self.get_recent(thread_id, self.max_messages)
         window = system + recent if system else recent
 
-        return LLMRequest(
+        return CompletionsRequest(
             id=run_id,
             model=model,
             provider=provider,
@@ -117,7 +122,7 @@ class ConversationStore:
             thread_id=thread_id,
         )
 
-    async def save_assistant_reply(self, thread_id: UUID | str, content: str) -> None:
+    async def save_assistant_reply(self, thread_id: UUID, content: str) -> None:
         """生成后将助手消息写回上下文。"""
         packed = [self._pack_message(Message(role="assistant", content=content))]
         await self.append_messages(thread_id, packed)
