@@ -1,8 +1,8 @@
 """
 Simple product indexing with batch support
 """
-import asyncio
-from typing import Dict, List, Any, Optional
+
+from typing import Dict, List, Any
 from dataclasses import dataclass
 
 from .embedding import EmbeddingGenerator

@@ -1,588 +1,138 @@
-# Message Storage Strategy: Complete Conversation History
+# Message & Memory Storage Strategy
 
-## Overview
+The current MAS implementation stores conversation data through a layered memory stack that matches the code in `api/core/memory/` and `api/core/agents/memory/`. This document summarises how each component works and how to enable optional backends.
 
-This document outlines the optimal approach for storing every message from users and LLM responses in the MAS Cosmetic Agent System's dual database architecture. The strategy ensures complete conversation history, customer portrait management, and compliance with regulatory requirements.
+---
 
-## Architecture Context
+## 1. Components at a Glance
 
-### Dual Database System
-- **ElasticSearch**: Long-term memory storage for conversations, customer portraits, and tenant materials
-- **Milvus**: Vector database for RAG operations (product search and recommendations)
-- **Redis**: Real-time session state and caching
+| Layer | Module | Purpose |
+| --- | --- | --- |
+| Short-term memory | `core/memory/conversation_store.py` | Keeps the last N messages per thread in Redis for LangGraph context windows |
+| Long-term index (optional) | `core/memory/index_manager.py` | Manages the `memory_v1` index in Elasticsearch for search & analytics |
+| Vector store (optional) | `core/memory/vector_store.py` | Stores semantic embeddings in Milvus for similarity recall |
+| Multimodal cache | `core/agents/memory/multimodal_memory.py` | In-process cache for voice/image artefacts and user profiles |
+| Infrastructure bootstrap | `libs/factory.py` (`infra_registry`) | Creates and shares DB / Redis / Elasticsearch / Milvus clients |
 
-### Storage Requirements
-- Store every user input message
-- Store every LLM response with full agent processing metadata
-- Maintain customer portraits and preferences
-- Ensure complete audit trail for compliance
-- Support multi-tenant data isolation
+---
 
-## Optimal Storage Approach
+## 2. Short-Term Conversation Store (Redis)
 
-### 1. ElasticSearch Index Structure
-
-#### Customer Conversations Index
-```json
-{
-  "index": "customer_conversations",
-  "mapping": {
-    "tenant_id": {
-      "type": "keyword",
-      "description": "Tenant identifier for data isolation"
-    },
-    "customer_id": {
-      "type": "keyword", 
-      "description": "Customer identifier"
-    },
-    "conversation_id": {
-      "type": "keyword",
-      "description": "Unique conversation identifier"
-    },
-    "timestamp": {
-      "type": "date",
-      "description": "Message timestamp"
-    },
-    "message_type": {
-      "type": "keyword",
-      "description": "user_input | llm_response"
-    },
-    "content": {
-      "type": "text",
-      "description": "Message content"
-    },
-    "agent_responses": {
-      "type": "object",
-      "description": "All agent processing results"
-    },
-    "metadata": {
-      "type": "object",
-      "description": "Additional context and processing data"
-    }
-  }
-}
-```
-
-#### Customer Portraits Index
-```json
-{
-  "index": "customer_portraits",
-  "mapping": {
-    "tenant_id": {
-      "type": "keyword"
-    },
-    "customer_id": {
-      "type": "keyword"
-    },
-    "preferences": {
-      "type": "object",
-      "description": "Customer preferences and interests"
-    },
-    "purchase_history": {
-      "type": "object",
-      "description": "Purchase patterns and history"
-    },
-    "conversation_summary": {
-      "type": "text",
-      "description": "Latest conversation summary"
-    },
-    "last_updated": {
-      "type": "date"
-    }
-  }
-}
-```
-
-### 2. Message Storage Flow
-
-#### Complete Conversation Processing
+`ConversationStore` is used by LangGraph agents to persist recent exchanges:
 ```python
-async def process_conversation_with_storage(
-    customer_input: str,
-    tenant_id: str,
-    customer_id: str
-) -> ConversationState:
-    """Complete conversation processing with full message storage"""
-    
-    conversation_id = generate_conversation_id()
-    
-    # Step 1: Store user input immediately
-    await message_storage.store_user_message(
-        tenant_id=tenant_id,
-        customer_id=customer_id,
-        conversation_id=conversation_id,
-        content=customer_input,
-        metadata={
-            "timestamp": datetime.now(),
-            "session_id": get_session_id(),
-            "user_agent": get_user_agent()
-        }
-    )
-    
-    # Step 2: Process through all agents
-    state = await orchestrator.process_conversation(
-        customer_input, tenant_id, customer_id
-    )
-    
-    # Step 3: Store LLM response with complete metadata
-    await message_storage.store_llm_response(
-        tenant_id=tenant_id,
-        customer_id=customer_id,
-        conversation_id=conversation_id,
-        content=state.final_response,
-        agent_responses={
-            "compliance_agent": state.compliance_result,
-            "sentiment_agent": state.sentiment_result,
-            "intent_agent": state.intent_result,
-            "sales_agent": state.sales_result,
-            "product_agent": state.product_result,
-            "memory_agent": state.memory_result,
-            "strategy_agent": state.strategy_result,
-            "proactive_agent": state.proactive_result,
-            "suggestion_agent": state.suggestion_result
-        },
-        metadata={
-            "processing_time": state.processing_time,
-            "confidence_scores": state.confidence_scores,
-            "compliance_status": state.compliance_status,
-            "recommendations_generated": state.recommendations_count
-        }
-    )
-    
-    # Step 4: Update customer portrait
-    await customer_portrait.update_from_conversation(
-        tenant_id=tenant_id,
-        customer_id=customer_id,
-        conversation_summary=state.final_response,
-        preferences=extract_preferences(state),
-        sentiment_score=state.sentiment_score
-    )
-    
-    return state
+from uuid import uuid4
+from infra.runtimes import CompletionsRequest
+from core.memory import ConversationStore
+
+store = ConversationStore()
+thread_id = uuid4()
+request = await store.prepare_request(
+    run_id=uuid4(),
+    provider="openai",
+    model="gpt-4o-mini",
+    messages=[...],
+    thread_id=thread_id,
+)
+response = await agent.invoke_llm(request)
+await store.save_assistant_reply(thread_id, response.content)
 ```
+Key behaviour:
+- Messages are serialised with `msgpack` and pushed into Redis lists (`conversation:<thread_id>`)
+- List length is trimmed to `max_messages` (default 20)
+- Keys expire after 1 hour unless refreshed
+- Works even when Redis credentials are injected at runtime (`REDIS_URL` or host/port/password trio)
 
-### 3. Implementation Components
+---
 
-#### Message Storage Service
+## 3. Optional Long-Term Memory
+
+### 3.1 Elasticsearch Index Manager
+`IndexManager` creates and maintains the `memory_v1` index when Elasticsearch is available. It requires:
+```env
+ELASTICSEARCH_URL=http://localhost:9200
+ELASTIC_PASSWORD=changeme  # optional if auth enabled
+ES_MEMORY_INDEX=memory_v1
+ES_VECTOR_DIMENSION=1024
+```
+Usage pattern:
 ```python
-class MessageStorageService:
-    """ElasticSearch-based message storage service"""
-    
-    def __init__(self, elasticsearch_client):
-        self.es = elasticsearch_client
-        self.conversation_index = "customer_conversations"
-        self.portrait_index = "customer_portraits"
-    
-    async def store_user_message(
-        self,
-        tenant_id: str,
-        customer_id: str,
-        conversation_id: str,
-        content: str,
-        metadata: Dict = None
-    ) -> bool:
-        """Store user input message"""
-        document = {
-            "tenant_id": tenant_id,
-            "customer_id": customer_id,
-            "conversation_id": conversation_id,
-            "timestamp": datetime.now(),
-            "message_type": "user_input",
-            "content": content,
-            "metadata": metadata or {}
-        }
-        
-        try:
-            await self.es.index(
-                index=self.conversation_index,
-                document=document
-            )
-            return True
-        except Exception as e:
-            logger.error(f"Failed to store user message: {e}")
-            return False
-    
-    async def store_llm_response(
-        self,
-        tenant_id: str,
-        customer_id: str,
-        conversation_id: str,
-        content: str,
-        agent_responses: Dict,
-        metadata: Dict = None
-    ) -> bool:
-        """Store LLM response with agent processing results"""
-        document = {
-            "tenant_id": tenant_id,
-            "customer_id": customer_id,
-            "conversation_id": conversation_id,
-            "timestamp": datetime.now(),
-            "message_type": "llm_response",
-            "content": content,
-            "agent_responses": agent_responses,
-            "metadata": metadata or {}
-        }
-        
-        try:
-            await self.es.index(
-                index=self.conversation_index,
-                document=document
-            )
-            return True
-        except Exception as e:
-            logger.error(f"Failed to store LLM response: {e}")
-            return False
-    
-    async def get_conversation_history(
-        self,
-        tenant_id: str,
-        customer_id: str,
-        limit: int = 50
-    ) -> List[Dict]:
-        """Retrieve conversation history for context"""
-        query = {
-            "query": {
-                "bool": {
-                    "must": [
-                        {"term": {"tenant_id": tenant_id}},
-                        {"term": {"customer_id": customer_id}}
-                    ]
-                }
-            },
-            "sort": [{"timestamp": {"order": "desc"}}],
-            "size": limit
-        }
-        
-        try:
-            response = await self.es.search(
-                index=self.conversation_index,
-                body=query
-            )
-            return [hit["_source"] for hit in response["hits"]["hits"]]
-        except Exception as e:
-            logger.error(f"Failed to retrieve conversation history: {e}")
-            return []
-```
+from core.memory import IndexManager
 
-#### Customer Portrait Service
+manager = IndexManager()
+await infra_registry.create_clients()        # ensures ES client exists
+await manager.create_memory_index()
+await manager.client.index(
+    index=manager.index_name,
+    id="memory-1",
+    document={
+        "tenant_id": "tenant-1",
+        "content": "用户下单了修复面霜",
+        "created_at": to_isoformat(),
+        "embedding": embedding_vector,
+    },
+)
+```
+The index schema supports multi-tenant filtering, dense vectors (`dense_vector`), and TTL-style timestamps (`expires_at`).
+
+### 3.2 Milvus Vector Store
+`VectorStore` relies on Milvus via the same `infra_registry` bootstrap:
+```env
+MILVUS_HOST=localhost
+MILVUS_PORT=19530
+```
+Example:
 ```python
-class CustomerPortraitService:
-    """Customer profile management service"""
-    
-    def __init__(self, elasticsearch_client):
-        self.es = elasticsearch_client
-        self.portrait_index = "customer_portraits"
-    
-    async def update_from_conversation(
-        self,
-        tenant_id: str,
-        customer_id: str,
-        conversation_summary: str,
-        preferences: Dict = None,
-        sentiment_score: float = None
-    ) -> bool:
-        """Update customer portrait based on conversation"""
-        
-        # Get existing portrait or create new one
-        existing = await self.get_portrait(tenant_id, customer_id)
-        
-        if existing:
-            # Update existing portrait
-            update_data = {
-                "conversation_summary": conversation_summary,
-                "last_updated": datetime.now()
-            }
-            
-            if preferences:
-                update_data["preferences"] = {
-                    **existing.get("preferences", {}),
-                    **preferences
-                }
-            
-            if sentiment_score is not None:
-                update_data["sentiment_score"] = sentiment_score
-            
-            try:
-                await self.es.update(
-                    index=self.portrait_index,
-                    id=f"{tenant_id}_{customer_id}",
-                    body={"doc": update_data}
-                )
-                return True
-            except Exception as e:
-                logger.error(f"Failed to update customer portrait: {e}")
-                return False
-        else:
-            # Create new portrait
-            portrait = {
-                "tenant_id": tenant_id,
-                "customer_id": customer_id,
-                "conversation_summary": conversation_summary,
-                "preferences": preferences or {},
-                "purchase_history": {},
-                "last_updated": datetime.now()
-            }
-            
-            if sentiment_score is not None:
-                portrait["sentiment_score"] = sentiment_score
-            
-            try:
-                await self.es.index(
-                    index=self.portrait_index,
-                    id=f"{tenant_id}_{customer_id}",
-                    document=portrait
-                )
-                return True
-            except Exception as e:
-                logger.error(f"Failed to create customer portrait: {e}")
-                return False
-    
-    async def get_portrait(
-        self,
-        tenant_id: str,
-        customer_id: str
-    ) -> Optional[Dict]:
-        """Get customer portrait"""
-        try:
-            response = await self.es.get(
-                index=self.portrait_index,
-                id=f"{tenant_id}_{customer_id}"
-            )
-            return response["_source"]
-        except Exception:
-            return None
+from core.memory import VectorStore
+
+store = VectorStore(embedding_dim=3072)
+await infra_registry.create_clients()
+await store.insert_memories(
+    tenant_id="tenant-1",
+    memories=[{"id": "m1", "content": "客户喜欢轻薄底妆"}],
+    embeddings=[embedding_vector],
+)
+results = await store.search_similar_memories("tenant-1", embedding_vector, top_k=5)
 ```
+Each tenant gets a dedicated collection (`memories_<tenant_id>`). If Milvus is not available, the factory logs a warning and downstream calls should catch the resulting exceptions.
 
-## Performance Optimizations
+---
 
-### 1. Batch Processing
-```python
-class BatchMessageProcessor:
-    """Batch message processing for high-volume scenarios"""
-    
-    def __init__(self, batch_size: int = 100):
-        self.batch_size = batch_size
-        self.message_queue = []
-    
-    async def add_message(self, message: Dict):
-        """Add message to batch queue"""
-        self.message_queue.append(message)
-        
-        if len(self.message_queue) >= self.batch_size:
-            await self.flush_batch()
-    
-    async def flush_batch(self):
-        """Flush batch to ElasticSearch"""
-        if not self.message_queue:
-            return
-        
-        try:
-            bulk_data = []
-            for message in self.message_queue:
-                bulk_data.extend([
-                    {"index": {"_index": "customer_conversations"}},
-                    message
-                ])
-            
-            await self.es.bulk(body=bulk_data)
-            self.message_queue.clear()
-        except Exception as e:
-            logger.error(f"Failed to flush message batch: {e}")
-```
+## 4. Multimodal Memory Manager
 
-### 2. Caching Strategy
-```python
-class ConversationCache:
-    """Redis-based conversation caching"""
-    
-    def __init__(self, redis_client):
-        self.redis = redis_client
-        self.cache_ttl = 3600  # 1 hour
-    
-    async def cache_conversation_history(
-        self,
-        tenant_id: str,
-        customer_id: str,
-        history: List[Dict]
-    ):
-        """Cache recent conversation history"""
-        cache_key = f"conv_history:{tenant_id}:{customer_id}"
-        await self.redis.setex(
-            cache_key,
-            self.cache_ttl,
-            json.dumps(history)
-        )
-    
-    async def get_cached_history(
-        self,
-        tenant_id: str,
-        customer_id: str
-    ) -> Optional[List[Dict]]:
-        """Get cached conversation history"""
-        cache_key = f"conv_history:{tenant_id}:{customer_id}"
-        cached = await self.redis.get(cache_key)
-        return json.loads(cached) if cached else None
-```
+`MultimodalMemoryManager` retains additional artefacts (transcriptions, image analysis, voice patterns) in an in-process dictionary. It is primarily used by the memory agent to build lightweight user profiles.
 
-### 3. Index Optimization
-```json
-{
-  "index": "customer_conversations",
-  "settings": {
-    "number_of_shards": 3,
-    "number_of_replicas": 1,
-    "refresh_interval": "1s",
-    "index": {
-      "max_result_window": 10000
-    }
-  },
-  "mappings": {
-    "properties": {
-      "tenant_id": {"type": "keyword"},
-      "customer_id": {"type": "keyword"},
-      "conversation_id": {"type": "keyword"},
-      "timestamp": {"type": "date"},
-      "message_type": {"type": "keyword"},
-      "content": {
-        "type": "text",
-        "analyzer": "standard"
-      }
-    }
-  }
-}
-```
+Important notes:
+- Data is scoped to the manager instance; for persistence, plug in Elasticsearch/Milvus layers or write to your own storage inside the async tasks
+- `_update_user_profile` runs asynchronously via `asyncio.create_task` to avoid blocking the main workflow
+- The manager exposes helper methods to retrieve recent conversations and summarise image results
 
-## Security and Compliance
+---
 
-### 1. Data Encryption
-- **At Rest**: ElasticSearch encryption for stored data
-- **In Transit**: TLS encryption for all communications
-- **Field-Level**: Sensitive fields encrypted separately
+## 5. End-to-End Flow
+1. `ThreadService` orchestrates a LangGraph workflow via `orchestrator.process_conversation`
+2. Agents call `ConversationStore.prepare_request` → Redis stores the sliding window
+3. After generating a reply, agents call `save_assistant_reply` to keep context fresh
+4. Depending on feature toggles, services may push data to Elasticsearch (structured memories) and Milvus (embeddings)
+5. Multimodal artefacts are cached in memory for quick profile enrichment
 
-### 2. Access Control
-```python
-class AccessControl:
-    """Multi-tenant access control"""
-    
-    def validate_tenant_access(
-        self,
-        user_tenant_id: str,
-        requested_tenant_id: str
-    ) -> bool:
-        """Validate tenant access permissions"""
-        return user_tenant_id == requested_tenant_id
-    
-    def filter_by_tenant(
-        self,
-        query: Dict,
-        tenant_id: str
-    ) -> Dict:
-        """Add tenant filter to queries"""
-        if "query" not in query:
-            query["query"] = {}
-        
-        if "bool" not in query["query"]:
-            query["query"]["bool"] = {"must": []}
-        
-        query["query"]["bool"]["must"].append({
-            "term": {"tenant_id": tenant_id}
-        })
-        
-        return query
-```
+This design keeps the minimal Redis-backed loop always available, while optional services can be enabled by providing credentials in `.env` and starting the corresponding containers from `docker/docker-compose.dev.yml`.
 
-### 3. Data Retention
-```python
-class DataRetentionManager:
-    """Data retention and cleanup"""
-    
-    def __init__(self, retention_days: int = 2555):  # 7 years
-        self.retention_days = retention_days
-    
-    async def cleanup_old_conversations(self):
-        """Remove conversations older than retention period"""
-        cutoff_date = datetime.now() - timedelta(days=self.retention_days)
-        
-        query = {
-            "query": {
-                "range": {
-                    "timestamp": {
-                        "lt": cutoff_date.isoformat()
-                    }
-                }
-            }
-        }
-        
-        try:
-            await self.es.delete_by_query(
-                index="customer_conversations",
-                body=query
-            )
-        except Exception as e:
-            logger.error(f"Failed to cleanup old conversations: {e}")
-```
+---
 
-## Monitoring and Analytics
+## 6. Monitoring & Troubleshooting
 
-### 1. Storage Metrics
-```python
-class StorageMetrics:
-    """Monitor storage performance and usage"""
-    
-    async def get_storage_stats(self, tenant_id: str) -> Dict:
-        """Get storage statistics for tenant"""
-        stats = await self.es.indices.stats(
-            index=f"customer_conversations"
-        )
-        
-        return {
-            "total_documents": stats["indices"]["customer_conversations"]["total"]["docs"]["count"],
-            "storage_size": stats["indices"]["customer_conversations"]["total"]["store"]["size_in_bytes"],
-            "indexing_rate": stats["indices"]["customer_conversations"]["total"]["indexing"]["index_total"]
-        }
-```
+| 现象 | 说明 | 排查建议 |
+| --- | --- | --- |
+| Redis 列表长度未增长 | 消息中只有 system role 或 Redis 未连接 | 检查 Redis 日志，确认 `REDIS_URL` 正确，或在调试时添加 user/assistant 消息 |
+| `RuntimeError: Elasticsearch客户端未初始化` | 未调用 `infra_registry.create_clients()` 或未提供 ES 配置 | 在应用启动（FastAPI lifespan）阶段确保 `create_clients()` 成功，或禁用相关功能 |
+| Milvus 插入失败 | 未创建集合或嵌入维度不匹配 | 确认 `embedding_dim` 与模型输出一致，并在 Docker 中启动 `milvus-standalone` |
+| 内存占用持续升高 | 多模态管理器为进程内缓存 | 定期调用清理函数或落地到持久化存储 |
 
-### 2. Performance Monitoring
-- **Storage Latency**: Monitor message storage response times
-- **Query Performance**: Track conversation history retrieval speed
-- **Error Rates**: Monitor storage failures and retries
-- **Capacity Planning**: Track storage growth and plan scaling
+---
 
-## Implementation Checklist
+## 7. 下一步
+- 根据业务需要扩展 `ConversationStore` 的 TTL、窗口大小或多租户隔离策略
+- 实现自动化任务，将 Redis buffer 周期性刷写到 Elasticsearch/Milvus
+- 在 LangGraph workflow 中引入召回节点，结合向量检索结果增强回复
 
-### Phase 1: Core Implementation
-- [ ] Create ElasticSearch indexes with proper mappings
-- [ ] Implement MessageStorageService
-- [ ] Implement CustomerPortraitService
-- [ ] Integrate with Orchestrator
-- [ ] Add basic error handling and logging
-
-### Phase 2: Performance Optimization
-- [ ] Implement batch processing for high-volume scenarios
-- [ ] Add Redis caching for conversation history
-- [ ] Optimize ElasticSearch queries and indexes
-- [ ] Implement connection pooling
-
-### Phase 3: Security and Compliance
-- [ ] Add encryption for sensitive data
-- [ ] Implement multi-tenant access controls
-- [ ] Add data retention policies
-- [ ] Create audit logging
-
-### Phase 4: Monitoring and Analytics
-- [ ] Add storage performance metrics
-- [ ] Implement capacity monitoring
-- [ ] Create alerting for storage issues
-- [ ] Add data quality checks
-
-## Conclusion
-
-This message storage strategy provides a comprehensive solution for storing every user message and LLM response in the MAS system. The approach ensures:
-
-1. **Complete Audit Trail**: Every message is stored with full context
-2. **Performance Optimization**: Batch processing and caching for high-volume scenarios
-3. **Multi-Tenant Security**: Complete data isolation between tenants
-4. **Compliance Ready**: Data retention and encryption for regulatory requirements
-5. **Scalable Architecture**: ElasticSearch-based storage that can handle growth
-
-The implementation follows the dual database architecture with ElasticSearch handling long-term memory while Milvus manages RAG operations, providing optimal performance and functionality for the B2B cosmetic agent system. 
+按照以上策略，您可以依据现实部署情况自由组合 Redis、Elasticsearch、Milvus 与进程内缓存，实现 MAS 的会话与记忆体系。

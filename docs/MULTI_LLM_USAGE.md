@@ -1,348 +1,124 @@
-# 多LLM供应商系统使用指南
+# 多 LLM 运行时使用指南
 
-## 概述
+MAS 当前采用的多 LLM 运行时，位于 `api/infra/runtimes/`。该实现专注于快速启动与测试：读取 `data/models.yaml` 配置，依据 `.env` 中的 API Key 启用供应商，并通过统一的 `LLMClient` 暴露 Completions 与 Responses 能力。
 
-MAS Cosmetic Agent System 现已支持多LLM供应商，包括 OpenAI、Anthropic、Google Gemini 和 DeepSeek。系统提供智能路由、自动故障转移、成本优化和性能监控等功能。
+---
 
-## 核心特性
-
-### 🎯 智能路由
-- **动态供应商选择**: 根据智能体类型、查询复杂度、历史性能自动选择最优供应商
-- **成本优化路由**: 在保证质量的前提下选择成本最低的供应商
-- **中文内容优化**: 针对中文查询优选支持中文的模型
-
-### 🔄 自动故障转移
-- **无缝切换**: 供应商失败时自动切换到备用供应商
-- **上下文保持**: 故障转移过程中保持对话上下文完整性
-- **断路器模式**: 自动隔离故障供应商，防止级联失败
-
-### 💰 成本追踪与优化
-- **实时成本监控**: 按供应商、智能体、租户维度追踪成本
-- **预算管理**: 支持日预算、月预算和成本告警
-- **优化建议**: 自动分析使用模式，提供成本优化建议
-
-### 📊 性能监控
-- **全链路监控**: 从请求到响应的完整性能追踪
-- **健康检查**: 实时监控供应商健康状态
-- **使用分析**: 详细的使用统计和趋势分析
-
-## 快速开始
-
-### 1. 环境配置
-
-```bash
-# 设置API密钥
-export OPENAI_API_KEY="sk-..."
-export ANTHROPIC_API_KEY="sk-ant-..."
-export GEMINI_API_KEY="..."
-export DEEPSEEK_API_KEY="..."
-export LLM_CONFIG_ENCRYPTION_KEY="your-encryption-key"
+## 1. 目录结构
+```text
+api/infra/runtimes/
+├── client.py          # LLMClient 实现（OpenAI/Anthropic/OpenRouter）
+├── config.py          # 读取 YAML 模型清单
+├── entities.py        # 请求 / 响应 / 枚举类型
+├── providers/         # 具体供应商实现（OpenAIProvider、AnthropicProvider）
+├── routing.py         # 简单路由器（保留扩展位）
+└── legacy_llm/        # 旧版 mixin，供历史代码兼容
 ```
 
-### 2. 基础使用
+`data/models.yaml` 用于声明可用模型，只要 `.env` 中存在对应 API Key，模型就会被 `LLMConfig` 加载。
 
+---
+
+## 2. 环境配置
+在 `api/.env` 中设定所需的密钥：
+```env
+OPENAI_API_KEY=sk-...
+ANTHROPIC_API_KEY=sk-ant-...
+GOOGLE_API_KEY=...
+OPENROUTER_API_KEY=sk-or-...
+```
+> 未配置密钥的供应商会被自动跳过。
+
+如需调整模型列表，编辑 `api/data/models.yaml`，示例结构：
+```yaml
+- id: "openai"
+  type: "openai"
+  base_url: "https://api.openai.com/v1"
+  enabled: true
+  models:
+    - id: "gpt-4o-mini"
+      name: "GPT-4 Omni Mini"
+      type: "text"
+      enabled: true
+```
+
+---
+
+## 3. 快速调用示例
 ```python
 import asyncio
-from src.llm import get_multi_llm_client, RoutingStrategy
+from uuid import uuid4
 
-async def basic_usage():
-    # 获取多LLM客户端
-    client = await get_multi_llm_client()
-    
-    # 发送聊天请求
-    response = await client.chat_completion(
-        messages=[{
-            "role": "user",
-            "content": "推荐一些适合敏感肌的护肤品"
-        }],
-        agent_type="product",
-        tenant_id="my_tenant",
-        strategy=RoutingStrategy.BALANCED
+from infra.runtimes import LLMClient, CompletionsRequest
+from libs.types import Message
+
+async def main():
+    client = LLMClient()
+
+    request = CompletionsRequest(
+        id=uuid4(),
+        provider="openai",      # 对应 models.yaml 中的 provider id
+        model="gpt-4o-mini",    # 对应模型 id
+        messages=[
+            Message(role="system", content="你是专业美妆顾问"),
+            Message(role="user", content="推荐一款适合干皮的面霜")
+        ],
+        temperature=0.7,
+        max_tokens=512,
     )
-    
-    print(response)
 
-# 运行示例
-asyncio.run(basic_usage())
+    response = await client.completions(request)
+    print(response.content)
+
+asyncio.run(main())
 ```
 
-### 3. 增强版智能体
-
-使用 `MultiLLMBaseAgent` 替换原有的 `BaseAgent`：
-
+### Responses API / 结构化输出
 ```python
-from src.llm import MultiLLMBaseAgent, RoutingStrategy
+from infra.runtimes import LLMClient, ResponseMessageRequest
+from pydantic import BaseModel
 
-class ProductAgent(MultiLLMBaseAgent):
-    def __init__(self, agent_id: str, tenant_id: str):
-        super().__init__(agent_id, tenant_id)
-        # 设置产品智能体的路由策略
-        self.set_routing_strategy(RoutingStrategy.AGENT_OPTIMIZED)
-    
-    async def process_message(self, message: AgentMessage) -> AgentMessage:
-        # 使用多LLM功能
-        response = await self.llm_chat_completion(
-            messages=[{
-                "role": "user",
-                "content": message.payload["content"]
-            }],
-            temperature=0.7
-        )
-        
-        return self.send_message(
-            recipient=message.sender,
-            message_type="response",
-            payload={"response": response}
-        )
-```
+class CalendarEvent(BaseModel):
+    name: str
+    date: str
 
-### 4. 现有智能体升级
-
-为现有智能体添加多LLM支持：
-
-```python
-from src.llm import MultiLLMAgentMixin
-
-class ExistingSalesAgent(MultiLLMAgentMixin, BaseAgent):
-    def __init__(self, agent_id: str, tenant_id: str):
-        super().__init__(agent_id, tenant_id)
-    
-    async def generate_sales_response(self, query: str) -> str:
-        # 使用混入提供的LLM功能
-        return await self.llm_completion(
-            messages=[{
-                "role": "system", 
-                "content": "你是专业的美妆销售顾问"
-            }, {
-                "role": "user",
-                "content": query
-            }]
-        )
-```
-
-## 配置管理
-
-### 全局配置
-
-```python
-from src.llm import ConfigManager, ProviderType
-
-async def setup_config():
-    config_manager = ConfigManager()
-    
-    # 创建OpenAI供应商配置
-    openai_config = await config_manager.create_provider_config(
-        provider_type=ProviderType.OPENAI,
-        api_key=os.getenv("OPENAI_API_KEY"),
-        priority=1,
-        rate_limit_rpm=3500
-    )
-    
-    # 保存配置
-    global_config = GlobalProviderConfig(
-        default_providers={
-            ProviderType.OPENAI.value: openai_config
-        }
-    )
-    
-    await config_manager.save_global_config(global_config)
-```
-
-### 租户配置
-
-```python
-from src.llm import TenantProviderConfig, AgentProviderMapping, CostConfig
-
-# 创建租户特定配置
-tenant_config = TenantProviderConfig(
-    tenant_id="beauty_brand_a",
-    agent_mappings={
-        "sales": AgentProviderMapping(
-            agent_type="sales",
-            primary_provider=ProviderType.ANTHROPIC,
-            fallback_providers=[ProviderType.OPENAI],
-            quality_threshold=0.85
-        )
-    },
-    cost_config=CostConfig(
-        daily_budget=100.0,
-        monthly_budget=2000.0
-    )
+client = LLMClient()
+request = ResponseMessageRequest(
+    id=uuid4(),
+    provider="openai",
+    model="gpt-4o",
+    input="安排一次面部护理预约在下周三下午三点",
+    system_prompt="请提取预约信息并返回 JSON",
+    output_model=CalendarEvent,
 )
+response = await client.responses(request)
+print(response.content)  # 已解析为 CalendarEvent 实例
 ```
 
-## 智能体类型优化配置
+---
 
-系统为不同智能体类型提供了优化配置：
+## 4. 在智能体中使用
+旧版智能体通过 `legacy_llm/llm_mixin.py` 集成多 LLM 功能：
+- `get_multi_llm_client()` 会返回全局单例，复用连接
+- `RoutingStrategy` 枚举保留接口，可在未来接入更复杂的路由策略
 
-| 智能体类型 | 推荐供应商 | 特点 |
-|------------|------------|------|
-| compliance | Anthropic | Claude擅长合规分析和内容审核 |
-| sentiment | Gemini | 对中文情感分析效果好 |
-| intent | OpenAI | GPT在意图识别方面准确性高 |
-| sales | Anthropic | Claude更适合销售对话和推理 |
-| product | OpenAI | GPT在产品推荐方面表现优异 |
-| memory | DeepSeek | 成本低廉，适合记忆存储任务 |
-| suggestion | Anthropic | Claude擅长分析和建议生成 |
+若需在新的智能体中调用，只需直接依赖 `LLMClient`。
 
-## 路由策略
+---
 
-### PERFORMANCE_FIRST
-优先选择响应时间最快、成功率最高的供应商
-```python
-strategy = RoutingStrategy.PERFORMANCE_FIRST
-```
+## 5. 扩展要点
+- **新增供应商**：实现 `providers/BaseProvider` 子类，并在 `config.py` 中加入映射
+- **模型筛选**：`data/models.yaml` 中将 `enabled` 设为 `false` 即可临时禁用
+- **成本/统计**：当前版本未集成成本追踪，可在 `LLMResponse` 中的 `usage` 字段上层处理
+- **路由策略**：`routing.SimpleRouter` 预留了根据 agent 或租户自定义策略的接口
 
-### COST_FIRST  
-优先选择成本最低的供应商
-```python
-strategy = RoutingStrategy.COST_FIRST
-```
+---
 
-### BALANCED
-平衡性能和成本
-```python
-strategy = RoutingStrategy.BALANCED
-```
+## 6. 常见问题
+| 现象 | 可能原因 | 排查方式 |
+| --- | --- | --- |
+| `ValueError: 指定的供应商不可用` | `.env` 未配置对应 API Key 或 provider id 拼写错误 | 确认 `models.yaml` 与请求 `provider` 字段一致，并设置 API Key |
+| `HTTP 401` | API Key 失效或未授权对应模型 | 在供应商平台确认 key 权限，或更换模型 ID |
+| `No API key found for provider` 日志垃圾 | `config.py` 会对缺失密钥的 provider 打印提示 | 视为提示即可，若想静默可在加载逻辑中移除 print |
 
-### AGENT_OPTIMIZED
-根据智能体类型选择最适合的供应商
-```python
-strategy = RoutingStrategy.AGENT_OPTIMIZED
-```
-
-### CHINESE_OPTIMIZED
-优化中文内容处理
-```python
-strategy = RoutingStrategy.CHINESE_OPTIMIZED
-```
-
-## 监控和分析
-
-### 获取系统状态
-
-```python
-# 供应商状态
-provider_status = await client.get_provider_status(tenant_id="my_tenant")
-
-# 成本分析
-cost_analysis = await client.get_cost_analysis(tenant_id="my_tenant")
-
-# 路由统计
-routing_stats = await client.get_routing_stats()
-
-# 故障转移统计
-failover_stats = await client.get_failover_stats()
-```
-
-### 优化建议
-
-```python
-# 获取成本优化建议
-suggestions = await client.get_optimization_suggestions(
-    tenant_id="my_tenant",
-    min_savings=0.1  # 最小节省10%
-)
-
-for suggestion in suggestions:
-    print(f"优化类型: {suggestion['optimization_type']}")
-    print(f"潜在节省: ${suggestion['potential_savings']:.4f}")
-    print(f"建议: {suggestion['description']}")
-```
-
-## 故障处理
-
-### 断路器管理
-
-```python
-from src.llm import FailoverSystem
-
-# 手动重置断路器
-await failover_system.reset_circuit_breaker(
-    provider_type=ProviderType.OPENAI,
-    tenant_id="my_tenant"
-)
-```
-
-### 健康检查
-
-```python
-# 系统健康检查
-health_status = await client.health_check()
-
-if health_status["status"] != "healthy":
-    print(f"系统状态异常: {health_status['error']}")
-```
-
-## 最佳实践
-
-### 1. 智能体设计
-
-- 为不同智能体类型选择合适的路由策略
-- 设置合理的质量阈值和成本优先级
-- 利用智能体特定的LLM偏好设置
-
-### 2. 成本控制
-
-- 设置合理的日预算和月预算
-- 启用成本优化功能
-- 定期检查优化建议
-
-### 3. 性能优化
-
-- 监控供应商健康状态
-- 根据性能数据调整路由配置
-- 利用缓存策略减少重复请求
-
-### 4. 故障预防
-
-- 配置多个备用供应商
-- 设置合理的重试和超时参数
-- 定期检查断路器状态
-
-## 迁移指南
-
-### 从单供应商迁移
-
-1. 保持现有代码兼容性：
-```python
-# 现有代码继续有效
-from src.llm import get_llm_client
-client = get_llm_client()  # 返回原有OpenAI客户端
-```
-
-2. 逐步迁移到多供应商：
-```python
-# 新代码使用多供应商
-from src.llm import get_multi_llm_client
-client = await get_multi_llm_client()
-```
-
-3. 升级智能体基类：
-```python
-# 从 BaseAgent 升级到 MultiLLMBaseAgent
-from src.llm import MultiLLMBaseAgent
-```
-
-## 常见问题
-
-### Q: 如何确保API密钥安全？
-A: 系统使用加密存储API密钥，支持环境变量和加密配置文件。
-
-### Q: 如何处理供应商配额用完的情况？
-A: 系统会自动检测配额限制并切换到备用供应商。
-
-### Q: 如何优化成本？
-A: 启用成本优化功能，系统会自动选择成本效益最高的供应商。
-
-### Q: 如何确保中文内容质量？
-A: 使用 CHINESE_OPTIMIZED 路由策略，系统会优选支持中文的模型。
-
-## 技术支持
-
-如有问题，请查看：
-- 系统日志: 包含详细的错误信息和性能数据
-- 健康检查接口: 实时系统状态
-- 统计信息接口: 使用情况和性能指标
-
-更多详细信息请参考源码注释和单元测试。
+该指南覆盖了当前仓库中的轻量多 LLM 模式，若未来切换回完整的成本路由框架，可在 `docs` 中追加迁移说明。
