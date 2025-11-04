@@ -41,8 +41,8 @@ async def get_es_client() -> AsyncElasticsearch:
 
         return es_client
     except Exception as e:
-        logger.error(f"✗ Elasticsearch连接失败: {e}")
-        raise ConnectionError(f"Failed to connect to Elasticsearch: {e}")
+        logger.error(f"✗ Elasticsearch 客户端创建失败: {e}")
+        raise
 
 
 async def close_es_client(client: AsyncElasticsearch):
@@ -64,7 +64,7 @@ async def verify_es_connection(client: AsyncElasticsearch) -> bool:
         bool: 连接成功返回True，失败返回False
     """
     try:
-        return await client.ping()
+        return await client.ping(error_trace=False)
     except Exception as e:
         logger.error(f"✗ Elasticsearch连接测试失败: {e}")
         return False
