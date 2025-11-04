@@ -139,11 +139,6 @@ class ThreadState(BaseModel):
         description="对话历史记录"
     )
     
-    # 智能体特定状态
-    strategy_hints: dict[str, Any] = Field(
-        default_factory=dict,
-        description="市场策略提示信息"
-    )
     sales_response: str = Field("", description="销售智能体响应")
     
     # 最终响应

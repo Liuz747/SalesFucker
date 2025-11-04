@@ -7,11 +7,16 @@ Provides emotional context, purchase intent, and customer needs assessment.
 """
 
 from typing import Dict, Any
+from uuid import uuid4
 
 from langfuse import observe
 
 from ..base import BaseAgent, parse_json_response
-from utils import get_current_datetime
+from core.prompts.templates import get_default_prompt, AgentType, PromptType
+from utils import get_current_datetime, get_processing_time_ms
+from config import mas_config
+from infra.runtimes import CompletionsRequest
+from libs.types import Message
 
 
 class SentimentAnalysisAgent(BaseAgent):
@@ -31,7 +36,22 @@ class SentimentAnalysisAgent(BaseAgent):
         # 简化初始化
         super().__init__()
 
+        # 使用配置文件中的默认provider和对应的模型
+        import os
+        # 强制设置为openrouter进行测试
+        self.llm_provider = "openrouter"
+        print(f"[DEBUG] 强制设置 llm_provider = {self.llm_provider}")
 
+        # 根据provider选择合适的模型
+        if self.llm_provider == "openrouter":
+            self.llm_model = "google/gemini-2.5-flash-preview-09-2025"  # openrouter中可用的模型
+        elif self.llm_provider == "zenmux":
+            self.llm_model = "openai/gpt-5-chat"  # zenmux中的模型
+        else:
+            self.llm_model = "gpt-4o-mini"  # 默认OpenAI模型
+
+        print(f"[DEBUG] 选择的 llm_model = {self.llm_model}")
+        
         self.logger.info(f"情感与意图分析智能体初始化完成: {self.agent_id}")
 
 
@@ -65,8 +85,6 @@ class SentimentAnalysisAgent(BaseAgent):
             state["intent_analysis"] = analysis_result.get("intent", {})
             state.setdefault("active_agents", []).append(self.agent_id)
 
-            # 根据分析结果设置策略提示
-            self._set_strategy_hints(state, analysis_result)
 
             return state
 
@@ -129,8 +147,24 @@ class SentimentAnalysisAgent(BaseAgent):
             )
 
             # 调用LLM分析
-            messages = [{"role": "user", "content": prompt}]
-            response = await self.llm_call(messages, temperature=0.3)
+            messages = [
+                Message(role="user", content=prompt)
+            ]
+            request = CompletionsRequest(
+                id=uuid4(),
+                provider=self.llm_provider,
+                model=self.llm_model,
+                temperature=0.3,
+                messages=messages
+            )
+            print(f"[DEBUG] 情感分析 - 发送请求: Provider={self.llm_provider}, Model={self.llm_model}")
+            llm_response = await self.invoke_llm(request)
+            print(f"[DEBUG] 情感分析 - 收到响应: {type(llm_response)}, Content length: {len(str(llm_response.content)) if llm_response and llm_response.content else 0}")
+            raw_response = (
+                llm_response.content
+                if isinstance(llm_response.content, str)
+                else str(llm_response.content)
+            )
 
             # 解析结构化响应
             default_result = {
@@ -152,7 +186,7 @@ class SentimentAnalysisAgent(BaseAgent):
                     "customer_profile": {}
                 }
             }
-            analysis_result = parse_json_response(response, default_result=default_result)
+            analysis_result = parse_json_response(raw_response, default_result=default_result)
 
             # 添加元数据
             analysis_result["sentiment"]["agent_id"] = self.agent_id
@@ -211,63 +245,6 @@ class SentimentAnalysisAgent(BaseAgent):
 
         return "\n".join(formatted)
 
-    def _set_strategy_hints(self, state: dict, analysis_result: dict):
-        """
-        根据综合分析结果设置策略提示
-
-        参数:
-            state: 对话状态
-            analysis_result: 综合分析结果（包含情感和意图）
-        """
-        intent_data = analysis_result.get("intent", {})
-        sentiment_data = analysis_result.get("sentiment", {})
-
-        # 提取关键信息
-        intent_level = intent_data.get("intent", "browsing")
-        urgency = intent_data.get("urgency", "medium")
-        sentiment = sentiment_data.get("sentiment", "neutral")
-        decision_stage = intent_data.get("decision_stage", "awareness")
-
-        strategy_hints = {}
-
-        # 根据意图级别设置策略
-        if intent_level == "ready_to_buy":
-            strategy_hints["approach"] = "closing_focused"
-            strategy_hints["priority"] = "conversion"
-        elif intent_level == "comparing":
-            strategy_hints["approach"] = "competitive_advantage"
-            strategy_hints["priority"] = "differentiation"
-        elif intent_level == "interested":
-            strategy_hints["approach"] = "educational"
-            strategy_hints["priority"] = "trust_building"
-        else:
-            strategy_hints["approach"] = "exploratory"
-            strategy_hints["priority"] = "rapport_building"
-
-        # 根据情感调整策略
-        if sentiment == "negative":
-            strategy_hints["tone"] = "empathetic"
-            strategy_hints["focus"] = "problem_solving"
-        elif sentiment == "positive":
-            strategy_hints["tone"] = "enthusiastic"
-            strategy_hints["focus"] = "momentum_building"
-        else:
-            strategy_hints["tone"] = "professional"
-            strategy_hints["focus"] = "information_gathering"
-
-        # 根据紧急程度调整
-        if urgency == "high":
-            strategy_hints["response_speed"] = "immediate"
-            strategy_hints["detail_level"] = "concise"
-        elif urgency == "low":
-            strategy_hints["response_speed"] = "thorough"
-            strategy_hints["detail_level"] = "comprehensive"
-        else:
-            strategy_hints["response_speed"] = "balanced"
-            strategy_hints["detail_level"] = "moderate"
-
-        # 将策略提示存储在状态中
-        state.setdefault("strategy_hints", {}).update(strategy_hints)
 
     def _build_conversation_context(self, state: dict) -> str:
         """
@@ -304,19 +281,3 @@ class SentimentAnalysisAgent(BaseAgent):
             context_parts.append(f"Compliance status: {compliance_result.get('status', 'unknown')}")
 
         return " | ".join(context_parts) if context_parts else "Initial interaction"
-
-    def get_sentiment_metrics(self) -> Dict[str, Any]:
-        """
-        获取综合分析性能指标
-
-        返回:
-            Dict[str, Any]: 性能指标信息
-        """
-        return {
-            "total_analyses": self.processing_stats.get("messages_processed", 0),
-            "error_rate": self.processing_stats.get("errors", 0) / max(1, self.processing_stats.get("messages_processed", 1)) * 100,
-            "average_processing_time": self.processing_stats.get("average_response_time", 0),
-            "last_activity": self.processing_stats.get("last_activity", None),
-            "agent_id": self.agent_id,
-            "analysis_type": "sentiment_and_intent"
-        }

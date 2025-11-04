@@ -11,10 +11,17 @@
 - LangGraph工作流节点处理
 """
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List, Union
+from uuid import uuid4
 
 from ..base import BaseAgent
 from .sales_strategies import get_sales_strategies, analyze_customer_segment, get_strategy_for_segment, adapt_strategy_to_context
+from .response_service import SalesResponseService
+from core.agents.sentiment import SalesResponseAdapter
+from utils import to_isoformat
+from config import mas_config
+from infra.runtimes import CompletionsRequest
+from libs.types import Message
 
 
 class SalesAgent(BaseAgent):
@@ -33,32 +40,92 @@ class SalesAgent(BaseAgent):
     def __init__(self):
         # 简化初始化
         super().__init__()
-        
+
         # Strategy management
         self.sales_strategies = get_sales_strategies()
-        
-        self.logger.info(f"销售智能体初始化完成: {self.agent_id}, MAS架构自动LLM优化")
+
+        # 使用配置文件中的默认provider和对应的模型
+        self.llm_provider = mas_config.DEFAULT_LLM_PROVIDER 
+
+        # 根据provider选择合适的模型
+        if self.llm_provider == "openrouter":
+            self.llm_model = "google/gemini-2.5-flash-preview-09-2025"  # openrouter中可用的模型
+        elif self.llm_provider == "zenmux":
+            self.llm_model = "openai/gpt-5-chat"  # zenmux中的模型
+        else:
+            self.llm_model = "gpt-4o-mini"  # 默认OpenAI模型
+
+        # 统一响应生成服务 - 管理所有响应生成逻辑
+        self.response_service = SalesResponseService(
+            completion_fn=self._invoke_text_completion,
+            llm_provider=self.llm_provider,
+            llm_model=self.llm_model
+        )
+
+        # 兼容性：保留response_adapter以支持现有代码
+        self.response_adapter = SalesResponseAdapter(
+            completion_fn=self._invoke_text_completion,
+            logger=self.logger,
+        )
+
+        self.logger.info(f"销售智能体初始化完成: {self.agent_id}, 重构后的模块化架构")
+
+    async def _invoke_text_completion(
+        self,
+        messages: List[Union[Message, dict[str, str]]],
+        *,
+        temperature: float,
+        max_tokens: Optional[int] = None,
+        provider: Optional[str] = None,
+        model: Optional[str] = None,
+    ) -> str:
+        """构造统一的 CompletionsRequest 并返回文本内容。"""
+        normalized_messages: List[Message] = []
+        for message in messages:
+            if isinstance(message, Message):
+                normalized_messages.append(message)
+            else:
+                normalized_messages.append(
+                    Message(role=message["role"], content=message["content"])
+                )
+
+        request = CompletionsRequest(
+            id=uuid4(),
+            provider=(provider or self.llm_provider),
+            model=(model or self.llm_model),
+            temperature=temperature,
+            max_tokens=max_tokens,
+            messages=normalized_messages,
+        )
+
+        llm_response = await self.invoke_llm(request)
+
+        if llm_response and isinstance(llm_response.content, str):
+            return llm_response.content
+
+        return "" if not llm_response else str(llm_response.content)
     
     
     async def process_conversation(self, state: dict) -> dict:
         """
         处理对话状态（LangGraph工作流节点）
-        
-        在LangGraph工作流中执行销售对话处理，生成个性化销售响应。
-        
+
+        重构后的简化的对话处理逻辑，专注于流程控制和状态管理。
+        响应生成逻辑委托给response_adapter。
+
         参数:
             state: 当前对话状态
-            
+
         返回:
             ThreadState: 更新后的对话状态
         """
         try:
             customer_input = state.get("customer_input", "")
-            
+
             # 从IntentAnalysisAgent获取增强的客户分析数据
             intent_analysis = state.get("intent_analysis", {}) or {}
             customer_profile_data = intent_analysis.get("customer_profile", {})
-            
+
             # 提取客户需求信息 (来自LLM分析)
             needs = {
                 "skin_concerns": customer_profile_data.get("skin_concerns", []),
@@ -67,10 +134,10 @@ class SalesAgent(BaseAgent):
                 "experience_level": customer_profile_data.get("experience_level", "intermediate"),
                 "budget_signals": customer_profile_data.get("budget_signals", [])
             }
-            
+
             # 获取对话阶段 (来自LLM分析)
             stage_value = intent_analysis.get("conversation_stage", "consultation")
-            
+
             # 使用LLM提取的信息丰富客户档案
             state.setdefault("customer_profile", {})
             if customer_profile_data.get("skin_type_indicators"):
@@ -79,11 +146,11 @@ class SalesAgent(BaseAgent):
                 state["customer_profile"]["budget_preference"] = customer_profile_data["budget_signals"][0]
             if customer_profile_data.get("experience_level"):
                 state["customer_profile"]["experience_level"] = customer_profile_data["experience_level"]
-            
+
             # 客户细分和策略选择
             customer_segment = analyze_customer_segment(state["customer_profile"])
             strategy = get_strategy_for_segment(customer_segment)
-            
+
             # 根据上下文调整策略
             context = {
                 "sentiment": (state.get("sentiment_analysis", {}) or {}).get("sentiment", "neutral"),
@@ -91,12 +158,25 @@ class SalesAgent(BaseAgent):
                 "purchase_intent": state.get("purchase_intent", "browsing")
             }
             adapted_strategy = adapt_strategy_to_context(strategy, context)
-            
-            # 生成LLM驱动的个性化响应
-            response = await self._generate_llm_response(
-                customer_input, needs, stage_value, adapted_strategy, state
+
+            # 构建完整的响应生成上下文
+            response_context = {
+                "customer_input": customer_input,
+                "sentiment_analysis": state.get("sentiment_analysis", {}),
+                "intent_analysis": intent_analysis,
+                "needs": needs,
+                "strategy": adapted_strategy,
+                "stage": stage_value,
+                "customer_profile": state["customer_profile"],
+                "purchase_intent": state.get("purchase_intent", "browsing"),
+                "decision_stage": intent_analysis.get("decision_stage", "awareness")
+            }
+
+            # 使用新的统一响应生成服务
+            response = await self.response_service.generate_response(
+                customer_input, response_context, strategy="auto"
             )
-            
+
             # 更新对话状态
             state["sales_response"] = response
             state.setdefault("active_agents", []).append(self.agent_id)
@@ -106,415 +186,208 @@ class SalesAgent(BaseAgent):
             ])
 
             return state
-            
+
         except Exception as e:
             self.logger.error(f"Agent processing failed: {e}", exc_info=True)
             state["error_state"] = "sales_processing_error"
             return state
     
-    async def _generate_llm_response(
-            self,
-            customer_input: str,
-            needs: dict,
-            stage: str,
-            strategy: dict,
-            state: dict
-    ) -> str:
-        """
-        使用MAS多LLM生成个性化销售响应
+    # ===== 新增的便利方法 =====
+    # 这些方法现在委托给response_adapter和templates模块
 
-        利用BaseAgent的MAS多LLM功能，智能选择最优供应商生成销售响应。
-        支持基于情感分析结果的个性化回复生成。
-
-        参数:
-            customer_input: 客户输入
-            needs: 客户需求分析
-            stage: 对话阶段
-            strategy: 销售策略
-            state: 对话状态
-
-        返回:
-            str: LLM生成的个性化销售响应
-        """
-        try:
-            # 检查是否有sentiment分析结果，使用对应的提示词模板
-            sentiment_analysis = state.get("sentiment_analysis", {})
-            intent_analysis = state.get("intent_analysis", {})
-
-            if sentiment_analysis and sentiment_analysis.get("sentiment"):
-                # 使用情感驱动的提示词模板
-                return await self._generate_sentiment_based_response(
-                    customer_input, sentiment_analysis, intent_analysis, state
-                )
-            else:
-                # 使用标准提示词模板
-                return await self._generate_standard_response(
-                    customer_input, needs, stage, strategy, state
-                )
-
-        except Exception as e:
-            self.logger.error(f"多LLM响应生成失败: {e}")
-            # 降级到简单模板响应
-            return self._generate_fallback_response(stage, strategy)
-
-    async def _generate_sentiment_based_response(
-            self,
-            customer_input: str,
-            sentiment_analysis: dict,
-            intent_analysis: dict,
-            state: dict
-    ) -> str:
-        """
-        基于情感分析结果生成个性化响应
-
-        使用统一的 YAML 智能体模板进行情感驱动回复。
-
-        参数:
-            customer_input: 客户输入
-            sentiment_analysis: 情感分析结果
-            intent_analysis: 意图分析结果
-            state: 对话状态
-
-        返回:
-            str: 基于情感的个性化响应
-        """
-        try:
-            # 提取情感和意图信息
-            customer_profile = state.get("customer_profile", {})
-            intent_customer_profile = intent_analysis.get("customer_profile", {})
-
-            # 渲染提示词模板
-            prompt = render_agent_prompt(
-                "sales",
-                "chat_with_sentiment",
-                customer_input=customer_input,
-                sentiment=sentiment_analysis.get("sentiment", "neutral"),
-                sentiment_score=sentiment_analysis.get("score", 0.0),
-                satisfaction=sentiment_analysis.get("satisfaction", "unknown"),
-                urgency=sentiment_analysis.get("urgency", "medium"),
-                emotions=", ".join(sentiment_analysis.get("emotions", ["无明显情绪"])),
-                skin_type=customer_profile.get("skin_type", "未知"),
-                skin_concerns=", ".join(intent_customer_profile.get("skin_concerns", ["一般咨询"])),
-                budget_range=customer_profile.get("budget_range", "中等"),
-                experience_level=intent_customer_profile.get("experience_level", "中级"),
-                intent=intent_analysis.get("intent", "browsing"),
-                decision_stage=intent_analysis.get("decision_stage", "awareness"),
-            )
-
-            # 使用简化的LLM调用
-            messages = [
-                {"role": "system", "content": "你是专业的美妆销售顾问，善于根据客户情绪状态调整沟通方式"},
-                {"role": "user", "content": prompt}
-            ]
-            response = await self.llm_call(
-                messages=messages,
-                temperature=0.8,
-                max_tokens=512
-            )
-
-            if response:
-                return response
-            else:
-                self.logger.warning("情感驱动响应生成失败，使用降级响应")
-                return self._generate_fallback_response("consultation", {"tone": "friendly"})
-
-        except Exception as e:
-            self.logger.error(f"情感驱动响应生成失败: {e}")
-            return self._generate_fallback_response("consultation", {"tone": "friendly"})
-
-    async def _generate_standard_response(
-            self,
-            customer_input: str,
-            needs: dict,
-            stage: str,
-            strategy: dict,
-            state: dict
-    ) -> str:
-        """
-        生成标准销售响应（不基于情感分析）
-
-        参数:
-            customer_input: 客户输入
-            needs: 客户需求分析
-            stage: 对话阶段
-            strategy: 销售策略
-            state: 对话状态
-
-        返回:
-            str: 标准销售响应
-        """
-        try:
-            # 构建上下文信息
-            context = {
-                "customer_profile": state.get("customer_profile", {}),
-                "conversation_history": state.get("conversation_history", [])[-5:],
-                "product_context": {
-                    "concerns": needs.get("concerns", []),
-                    "budget_range": state.get("customer_profile", {}).get("budget_range", "medium"),
-                    "skin_type": state.get("customer_profile", {}).get("skin_type", "not specified")
-                }
-            }
-
-            # 构建销售咨询提示词
-            prompt = f"""
-            作为专业的美妆销售顾问，请为以下客户咨询提供个性化建议：
-
-            客户咨询：{customer_input}
-
-            客户档案：
-            - 肌肤类型：{state.get('customer_profile', {}).get('skin_type', '未知')}
-            - 关注问题：{', '.join(needs.get('concerns', ['一般咨询']))}
-            - 预算范围：{state.get('customer_profile', {}).get('budget_range', '中等')}
-            - 经验水平：{needs.get('experience_level', '中级')}
-
-            销售策略：
-            - 语调风格：{strategy.get('tone', '友好')} ({self._get_tone_description(strategy.get('tone', 'friendly'))})
-            - 建议方式：{strategy.get('approach', '咨询式')}
-            - 对话阶段：{stage}
-
-            请提供：
-            1. 针对客户关注问题的专业分析
-            2. 个性化的产品建议或解决方案
-            3. 合适的后续问题或引导
-            4. 保持{strategy.get('tone', '友好')}的语调风格
-
-            请用中文回复，语言自然流畅，体现专业性和亲和力。
-            """
-
-            # 使用简化的LLM调用
-            messages = [
-                {"role": "system", "content": "你是专业的美妆销售顾问"},
-                {"role": "user", "content": prompt}
-            ]
-            response = await self.llm_call(
-                messages=messages,
-                temperature=0.8,
-                max_tokens=512
-            )
-
-            if response:
-                return response
-            else:
-                # 如果多LLM未启用或失败，降级到简单响应
-                self.logger.warning("多LLM响应失败，使用降级响应")
-                return self._generate_fallback_response(stage, strategy)
-
-        except Exception as e:
-            self.logger.error(f"标准响应生成失败: {e}")
-            # 降级到简单模板响应
-            return self._generate_fallback_response(stage, strategy)
-    
-    async def _generate_sales_response(self, customer_input: str, context: Dict[str, Any]) -> str:
-        """生成销售响应（多LLM增强）"""
-        try:
-            # 构建简化的销售咨询提示词
-            prompt = f"""
-作为{self.tenant_id}品牌的专业美妆顾问，请为以下客户咨询提供个性化建议：
-
-客户咨询：{customer_input}
-
-请提供专业、友好的回复，包含：
-1. 对客户需求的理解
-2. 相关的产品建议或解决方案
-3. 后续的引导问题
-
-请用中文回复，保持专业和亲和的语调。
-"""
-            
-            # 使用简化的LLM调用
-            messages = [
-                {"role": "system", "content": "你是专业的美妆销售顾问"},
-                {"role": "user", "content": prompt}
-            ]
-            response = await self.llm_call(
-                messages=messages,
-                temperature=0.8,
-                max_tokens=400
-            )
-            
-            if response:
-                return response
-            else:
-                self.logger.warning("多LLM响应失败，使用降级响应")
-                return self._generate_fallback_response("consultation", {"tone": "friendly"})
-            
-        except Exception as e:
-            self.logger.error(f"销售响应生成失败: {e}")
-            return self._generate_fallback_response("consultation", {"tone": "friendly"})
-    
-    def _get_tone_description(self, tone: str) -> str:
-        """获取语调描述"""
-        tone_descriptions = {
-            "sophisticated": "elegant and refined",
-            "energetic": "enthusiastic and exciting", 
-            "professional": "expert and authoritative",
-            "warm": "caring and personal",
-            "friendly": "approachable and helpful"
-        }
-        return tone_descriptions.get(tone, "professional and helpful")
-    
-    def _generate_fallback_response(self, stage: str, strategy: Dict[str, Any]) -> str:
-        """生成降级响应"""
-        tone = strategy.get("tone", "friendly")
-        
-        if stage == "greeting":
-            return "Hello! Welcome! I'm excited to help you find the perfect beauty products today. What brings you here?"
-        elif stage == "consultation":
-            return "I'd love to help you find products that work perfectly for your needs. Could you tell me more about what you're looking for?"
-        else:
-            return "Thank you for your interest! How can I help you with your beauty needs today?"
-    
-    def get_conversation_metrics(self) -> Dict[str, Any]:
-        """获取销售对话性能指标"""
-        return {
-            "total_conversations": self.processing_stats["messages_processed"],
-            "error_rate": self.processing_stats["errors"] / max(1, self.processing_stats["messages_processed"]) * 100,
-            "last_activity": self.processing_stats["last_activity"],
-            "agent_id": self.agent_id,
-            "tenant_id": self.tenant_id
-        }
-    
-    # ===== 销售智能体专用提示词方法 =====
-    
     async def get_greeting_message(self, context: Optional[Dict[str, Any]] = None) -> Optional[str]:
         """
-        获取个性化问候消息
-        
-        销售智能体专用方法，根据上下文生成合适的问候语。
-        
+        获取个性化问候消息（委托给templates模块）
+
         参数:
-            context: 上下文信息，如客户资料、时间、场景等
-            
+            context: 上下文信息
+
         返回:
-            str: 个性化问候消息，失败时返回None
-            
-        示例:
-            context = {
-                'agent_name': '小美',
-                'customer_name': '李女士', 
-                'time_of_day': '早上',
-                'previous_visit': True
-            }
+            str: 个性化问候消息
         """
         try:
-            if hasattr(self, '_prompt_manager') and self._prompt_manager:
-                if not self.tenant_id:
-                    raise ValueError(f"Sales agent {self.agent_id} requires tenant_id for greeting prompt")
-                greeting = await self._prompt_manager.get_greeting_prompt(
-                    agent_id=self.agent_id,
-                    agent_type=self.agent_type,
-                    tenant_id=self.tenant_id,
-                    context=context or {}
-                )
-                self.logger.debug(f"获取问候消息成功: {len(greeting or '')}字符")
-                return greeting
-            else:
-                # 降级处理：使用基础问候语
-                agent_name = context.get('agent_name', '美妆顾问') if context else '美妆顾问'
-                return f"您好！我是您的专属{agent_name}，很高兴为您服务！请问有什么可以帮助您的吗？"
-                
+            from core.prompts.templates import get_greeting_prompt
+            return get_greeting_prompt(context or {})
         except Exception as e:
             self.logger.warning(f"获取问候消息失败: {e}")
             return "您好！欢迎来到我们的美妆专柜，有什么可以帮助您的吗？"
-    
+
     async def get_product_recommendation_prompt(self, context: Optional[Dict[str, Any]] = None) -> Optional[str]:
         """
-        获取产品推荐提示词模板
-        
-        根据客户需求生成个性化的产品推荐引导语。
-        
+        获取产品推荐提示词（委托给templates模块）
+
         参数:
             context: 推荐上下文信息
-                - skin_type: 肌肤类型 (干性/油性/混合性/敏感性)
-                - skin_concerns: 肌肤问题 (抗老/美白/保湿/控油等)
-                - budget_range: 预算范围
-                - lifestyle: 生活方式
-                - preferred_brands: 偏好品牌
-                
+
         返回:
-            str: 产品推荐模板，失败时返回None
-            
-        示例:
-            context = {
-                'skin_type': '混合性肌肤',
-                'skin_concerns': '毛孔粗大',
-                'budget_range': '300-500元',
-                'lifestyle': '上班族'
-            }
+            str: 产品推荐提示词
         """
         try:
-            if hasattr(self, '_prompt_manager') and self._prompt_manager:
-                if not self.tenant_id:
-                    raise ValueError(f"Sales agent {self.agent_id} requires tenant_id for product recommendation")
-                recommendation = await self._prompt_manager.get_product_recommendation_prompt(
-                    agent_id=self.agent_id,
-                    agent_type=self.agent_type,
-                    tenant_id=self.tenant_id,
-                    context=context or {}
-                )
-                self.logger.debug(f"获取产品推荐模板成功: {len(recommendation or '')}字符")
-                return recommendation
-            else:
-                # 降级处理：基础推荐模板
-                skin_type = context.get('skin_type', '您的肌肤') if context else '您的肌肤'
-                return f"根据{skin_type}的特点，我为您精心挑选了以下几款产品，它们非常适合您的需求..."
-                
+            from core.prompts.templates import get_product_recommendation_prompt
+            return get_product_recommendation_prompt(context or {})
         except Exception as e:
             self.logger.warning(f"获取产品推荐模板失败: {e}")
             return None
-    
+
     async def get_objection_handling_prompt(self, objection_type: str, context: Optional[Dict[str, Any]] = None) -> Optional[str]:
         """
-        获取异议处理提示词
-        
-        销售智能体专用方法，处理客户的不同类型异议。
-        
+        获取异议处理提示词（委托给templates模块）
+
         参数:
-            objection_type: 异议类型 (price/quality/need/trust/timing等)
-            context: 异议具体内容和客户信息
-            
+            objection_type: 异议类型
+            context: 异议上下文信息
+
         返回:
-            str: 异议处理指导语，失败时返回基础回复
-            
-        示例:
-            objection_type = "price"
-            context = {
-                'customer_budget': '200元以下',
-                'product_price': '399元',
-                'customer_concern': '太贵了'
-            }
+            str: 异议处理提示词
         """
         try:
-            if hasattr(self, '_prompt_manager') and self._prompt_manager:
-                # 扩展上下文包含异议类型
-                full_context = {'objection_type': objection_type}
-                if context:
-                    full_context.update(context)
-                    
-                if not self.tenant_id:
-                    raise ValueError(f"Sales agent {self.agent_id} requires tenant_id for objection handling")
-                objection_prompt = await self._prompt_manager.get_custom_prompt(
-                    prompt_type='objection_handling',
-                    agent_id=self.agent_id,
-                    agent_type=self.agent_type,
-                    tenant_id=self.tenant_id,
-                    context=full_context
-                )
-                
-                if objection_prompt:
-                    self.logger.debug(f"获取异议处理提示词成功: {objection_type}")
-                    return objection_prompt
-                    
+            from core.prompts.templates import get_objection_handling_prompt
+            full_context = {'objection_type': objection_type}
+            if context:
+                full_context.update(context)
+            return get_objection_handling_prompt(full_context)
         except Exception as e:
-            self.logger.warning(f"获取异议处理提示词失败 {objection_type}: {e}")
-        
-        # 降级处理：基础异议回应
-        basic_responses = {
-            'price': '我理解您对价格的考虑。让我为您介绍一下这个产品的价值所在...',
-            'quality': '您的担心很有道理。让我详细为您介绍产品的品质保证...',
-            'need': '我明白您可能觉得不太需要。让我们一起分析一下您的实际情况...',
-            'trust': '建立信任确实需要时间。让我为您展示一些客户的真实反馈...',
-            'timing': '时机确实很重要。我们来看看什么时候开始使用效果最佳...'
-        }
-        
-        return basic_responses.get(objection_type, '我理解您的顾虑，让我们一起来讨论一下...') 
+            self.logger.warning(f"获取异议处理提示词失败: {e}")
+
+            # 降级处理：基础异议回应
+            basic_responses = {
+                'price': '我理解您对价格的考虑。让我为您介绍一下这个产品的价值所在...',
+                'quality': '您的担心很有道理。让我详细为您介绍产品的品质保证...',
+                'need': '我明白您可能觉得不太需要。让我们一起分析一下您的实际情况...',
+                'trust': '建立信任确实需要时间。让我为您展示一些客户的真实反馈...',
+                'timing': '时机确实很重要。我们来看看什么时候开始使用效果最佳...'
+            }
+            return basic_responses.get(objection_type, '我理解您的顾虑，让我们一起来讨论一下...')
+
+    def integrate_sentiment_guidance(self, state: dict, sentiment_guidance: dict) -> dict:
+        """
+        将sentiment agent的指导建议整合到sales agent的状态中（委托给response_adapter）
+
+        参数:
+            state: 当前对话状态
+            sentiment_guidance: sentiment agent提供的指导建议
+
+        返回:
+            dict: 更新后的状态
+        """
+        try:
+            return self.response_adapter.integrate_sentiment_guidance(state, sentiment_guidance)
+        except Exception as e:
+            self.logger.error(f"整合sentiment指导失败: {e}")
+            return state
+
+    async def generate_enhanced_response_with_shared_prompts(
+            self,
+            customer_input: str,
+            sentiment_guidance: dict,
+            state: dict
+    ) -> str:
+        """
+        使用共享提示词模块生成增强响应（委托给response_adapter）
+
+        参数:
+            customer_input: 客户输入
+            sentiment_guidance: sentiment agent提供的指导建议
+            state: 对话状态
+
+        返回:
+            str: 增强的销售响应
+        """
+        try:
+            return await self.response_adapter.generate_collaborative_response(
+                customer_input, sentiment_guidance, state
+            )
+        except Exception as e:
+            self.logger.error(f"生成增强响应失败: {e}")
+            return "我操，太HIFI了"
+
+    def get_shared_prompt_summary(self) -> dict:
+        """
+        获取当前可用共享提示词的摘要信息
+
+        返回:
+            dict: 共享提示词摘要
+        """
+        try:
+            return {
+                "available_shared_prompts": [
+                    {
+                        "type": "SHARED_EMOTION_MAPPING",
+                        "description": "情感状态映射策略指导",
+                        "use_case": "根据情感分析结果调整销售策略"
+                    },
+                    {
+                        "type": "SHARED_RESPONSE_ADAPTATION",
+                        "description": "响应内容适配指导",
+                        "use_case": "根据客户状态调整回复风格和内容"
+                    },
+                    {
+                        "type": "SHARED_CONTEXT_ANALYSIS",
+                        "description": "客户上下文综合分析框架",
+                        "use_case": "多维度理解客户全貌"
+                    },
+                    {
+                        "type": "SHARED_CUSTOMER_UNDERSTANDING",
+                        "description": "客户理解传递模板",
+                        "use_case": "agents间共享客户理解信息"
+                    }
+                ],
+                "collaboration_functions": [
+                    "get_greeting_prompt() - 获取问候提示词",
+                    "get_product_recommendation_prompt() - 获取产品推荐提示词",
+                    "get_objection_handling_prompt() - 获取异议处理提示词",
+                    "generate_enhanced_response_with_shared_prompts() - 生成增强响应",
+                    "integrate_sentiment_guidance() - 整合sentiment指导"
+                ],
+                "usage_examples": {
+                    "greeting": "await get_greeting_message(context)",
+                    "product_recommendation": "await get_product_recommendation_prompt(context)",
+                    "objection_handling": "await get_objection_handling_prompt('price', context)",
+                    "enhanced_response": "await generate_enhanced_response_with_shared_prompts(customer_input, sentiment_guidance, state)"
+                }
+            }
+        except Exception as e:
+            self.logger.error(f"获取共享提示词摘要失败: {e}")
+            return {"error": str(e)}
+
+    # ===== 新增的性能监控方法 =====
+
+    def get_response_service_metrics(self) -> Dict[str, Any]:
+        """获取响应生成服务的性能指标"""
+        return self.response_service.get_performance_metrics()
+
+    def reset_response_service_stats(self) -> None:
+        """重置响应生成服务的统计信息"""
+        self.response_service.reset_stats()
+
+    # ===== 新增的响应生成策略方法 =====
+
+    async def generate_sentiment_response(
+        self,
+        customer_input: str,
+        context: Dict[str, Any]
+    ) -> str:
+        """生成情感驱动的响应"""
+        return await self.response_service.generate_response(
+            customer_input, context, strategy="sentiment_driven"
+        )
+
+    async def generate_standard_response(
+        self,
+        customer_input: str,
+        context: Dict[str, Any]
+    ) -> str:
+        """生成标准销售响应"""
+        return await self.response_service.generate_response(
+            customer_input, context, strategy="standard"
+        )
+
+    async def generate_collaborative_response(
+        self,
+        customer_input: str,
+        context: Dict[str, Any]
+    ) -> str:
+        """生成协作响应"""
+        return await self.response_service.generate_response(
+            customer_input, context, strategy="collaborative"
+        )

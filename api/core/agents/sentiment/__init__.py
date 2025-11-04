@@ -6,5 +6,6 @@ Integrates with the multi-agent system to provide emotional context for conversa
 """
 
 from .agent import SentimentAnalysisAgent
+from .response_adaptation import SalesResponseAdapter
 
-__all__ = ["SentimentAnalysisAgent"]
+__all__ = ["SentimentAnalysisAgent", "SalesResponseAdapter"]
