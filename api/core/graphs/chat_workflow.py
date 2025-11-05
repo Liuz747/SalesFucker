@@ -49,10 +49,9 @@ class ChatWorkflow(BaseWorkflow):
         """
         # 节点映射：节点名称 -> 智能体ID常量
         node_mappings = [
-            AgentNodes.COMPLIANCE_NODE,
-            AgentNodes.SENTIMENT_NODE,
-            AgentNodes.SALES_NODE,
-            AgentNodes.MEMORY_NODE,
+            WorkflowConstants.SENTIMENT_NODE,
+            WorkflowConstants.SALES_NODE,
+            WorkflowConstants.MEMORY_NODE,
         ]
         
         # 注册所有节点处理函数
@@ -65,29 +64,16 @@ class ChatWorkflow(BaseWorkflow):
         """
         定义优化的节点间连接边
 
-        实现并行处理以提高性能。
+        实现简化的串行处理流程。
 
         参数:
             graph: 要定义边的状态图
         """
-        # 添加阻止完成节点
-        graph.add_node("blocked_completion", self._blocked_completion_node)
+        # 简化的串行处理流程
+        graph.add_edge(WorkflowConstants.SENTIMENT_NODE, WorkflowConstants.SALES_NODE)
+        graph.add_edge(WorkflowConstants.SALES_NODE, WorkflowConstants.MEMORY_NODE)
 
-        # 合规检查路由
-        graph.add_conditional_edges(
-            AgentNodes.COMPLIANCE_NODE,
-            self._compliance_router,
-            {
-                "continue": AgentNodes.SENTIMENT_NODE,  # 继续到情感分析
-                "block": "blocked_completion"  # 合规阻止时的完成节点
-            }
-        )
-
-        # 串行处理流程
-        graph.add_edge(AgentNodes.SENTIMENT_NODE, AgentNodes.SALES_NODE)
-        graph.add_edge(AgentNodes.SALES_NODE, AgentNodes.MEMORY_NODE)
-
-        logger.debug("优化工作流边定义完成 - 启用并行处理")
+        logger.debug("简化工作流边定义完成 - 移除合规检查节点")
     
     def _set_entry_exit_points(self, graph: StateGraph):
         """
@@ -96,36 +82,13 @@ class ChatWorkflow(BaseWorkflow):
         参数:
             graph: 要设置入口出口的状态图
         """
-        # 设置工作流入口点 - 从合规检查开始
-        graph.set_entry_point(AgentNodes.COMPLIANCE_NODE)
-        
-        # 设置工作流出口点 - 内存节点是正常流程的结束，阻止完成是异常流程的结束
-        graph.set_finish_point([AgentNodes.MEMORY_NODE, "blocked_completion"])
+        # 设置工作流入口点 - 从情感分析开始
+        graph.set_entry_point(WorkflowConstants.SENTIMENT_NODE)
+
+        # 设置工作流出口点 - 内存节点是正常流程的结束
+        graph.set_finish_point(WorkflowConstants.MEMORY_NODE)
         
         logger.debug("工作流入口出口点设置完成")
-    
-    def _compliance_router(self, state: WorkflowExecutionModel) -> str:
-        """
-        合规检查路由器
-        
-        根据合规检查结果决定后续处理路径。
-        
-        参数:
-            state: 当前对话状态
-            
-        返回:
-            str: 路由决策结果 ("continue" 或 "block")
-        """
-        compliance_result = state.compliance_result
-
-        # 检查合规状态
-        compliance_status = compliance_result.get("status", "approved")
-
-        if compliance_status == "blocked":
-            logger.warning(f"内容被合规系统阻止: {state.customer_input[:50]}...")
-            return "block"
-        
-        return "continue"
     
     def _init_fallback_handlers(self) -> dict[str, Callable]:
         """
@@ -137,10 +100,9 @@ class ChatWorkflow(BaseWorkflow):
             dict[str, Callable]: 节点名称到降级处理器的映射
         """
         return {
-            AgentNodes.COMPLIANCE_NODE: self._compliance_fallback,
-            AgentNodes.SENTIMENT_NODE: self._sentiment_fallback,
-            AgentNodes.SALES_NODE: self._sales_fallback,
-            AgentNodes.MEMORY_NODE: self._memory_fallback,
+            WorkflowConstants.SENTIMENT_NODE: self._sentiment_fallback,
+            WorkflowConstants.SALES_NODE: self._sales_fallback,
+            WorkflowConstants.MEMORY_NODE: self._memory_fallback,
         }
     
     async def _process_agent_node(self, state: WorkflowExecutionModel, node_name: str) -> dict:
@@ -200,30 +162,7 @@ class ChatWorkflow(BaseWorkflow):
             return await self._process_agent_node(state, node_name)
         return agent_node
     
-    async def _blocked_completion_node(self, state: WorkflowExecutionModel) -> dict:
-        """合规阻止完成节点"""
-        compliance_result = state.compliance_result
-        return {
-            "final_response": compliance_result.get(
-                "user_message",
-                "很抱歉，您的请求涉及到敏感内容，无法继续处理。"
-            ),
-            "processing_complete": True,
-            "blocked_by_compliance": True
-        }
-    
     # ============ 降级处理器 ============
-    
-    def _compliance_fallback(self, state: WorkflowExecutionModel, error: Optional[Exception]) -> dict:
-        """合规审查降级处理"""
-        return {
-            "compliance_result": {
-                "status": "approved",
-                "fallback": True,
-                "message": "合规检查系统暂时不可用，默认通过"
-            }
-        }
-    
     def _sentiment_fallback(self, state: WorkflowExecutionModel, error: Optional[Exception]) -> dict:
         """情感与意图综合分析降级处理"""
         return {

@@ -33,27 +33,13 @@ class SentimentAnalysisAgent(BaseAgent):
     """
     
     def __init__(self):
-        # 简化初始化
         super().__init__()
 
-        # 使用配置文件中的默认provider和对应的模型
-        import os
-        # 强制设置为openrouter进行测试
-        self.llm_provider = "openrouter"
-        print(f"[DEBUG] 强制设置 llm_provider = {self.llm_provider}")
+        # 使用系统配置的默认provider和模型
+        self.llm_provider = mas_config.DEFAULT_LLM_PROVIDER
+        self.llm_model = "openai/gpt-5-chat"  # 默认模型，LLMClient会根据provider自动选择合适模型
 
-        # 根据provider选择合适的模型
-        if self.llm_provider == "openrouter":
-            self.llm_model = "google/gemini-2.5-flash-preview-09-2025"  # openrouter中可用的模型
-        elif self.llm_provider == "zenmux":
-            self.llm_model = "openai/gpt-5-chat"  # zenmux中的模型
-        else:
-            self.llm_model = "gpt-4o-mini"  # 默认OpenAI模型
-
-        print(f"[DEBUG] 选择的 llm_model = {self.llm_model}")
-        
         self.logger.info(f"情感与意图分析智能体初始化完成: {self.agent_id}")
-
 
     @observe(name="sentiment-intent-analysis", as_type="generation")
     async def process_conversation(self, state: dict) -> dict:
