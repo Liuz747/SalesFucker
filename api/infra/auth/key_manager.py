@@ -28,15 +28,15 @@ class ServiceKeyManager:
         """
         self.storage_path = storage_path
         self._ensure_storage_directory()
-    
+
     def _ensure_storage_directory(self):
         """Ensure storage directory exists."""
         os.makedirs(self.storage_path, exist_ok=True)
-    
+
     def _get_key_file_path(self, app_key: str) -> str:
         """Get file path for service key storage."""
         return os.path.join(self.storage_path, f"{app_key}.json")
-    
+
     def generate_key_pair(self, app_key: str, ttl_days: int = 30) -> Dict:
         """
         Generate new RSA key pair for service.
@@ -54,7 +54,7 @@ class ServiceKeyManager:
             key_size=2048,
             backend=default_backend()
         )
-        
+
         # Serialize private key
         private_pem = private_key.private_bytes(
             encoding=serialization.Encoding.PEM,
@@ -95,7 +95,7 @@ class ServiceKeyManager:
             "expires_at": key_data["expires_at"],
             "algorithm": "RS256"
         }
-    
+
     def get_public_key(self, app_key: str) -> Optional[str]:
         """
         Get public key for service verification.
@@ -122,7 +122,7 @@ class ServiceKeyManager:
             return key_data["public_key"]
         except Exception:
             return None
-    
+
     def is_key_valid(self, app_key: str) -> bool:
         """
         Check if key pair is valid and not expired.
@@ -134,35 +134,7 @@ class ServiceKeyManager:
             True if key is valid, False otherwise
         """
         return self.get_public_key(app_key) is not None
-    
-    def revoke_key(self, app_key: str) -> bool:
-        """
-        Revoke key pair for service.
-        
-        Args:
-            app_key: Service app key identifier
-            
-        Returns:
-            True if revoked successfully, False if not found
-        """
-        key_file = self._get_key_file_path(app_key)
-        if not os.path.exists(key_file):
-            return False
-        
-        try:
-            with open(key_file, 'r') as f:
-                key_data = json.load(f)
-            
-            key_data["status"] = "revoked"
-            key_data["revoked_at"] = get_current_datetime().isoformat()
-            
-            with open(key_file, 'w') as f:
-                json.dump(key_data, f, indent=2)
-            
-            return True
-        except Exception:
-            return False
-    
+
     def cleanup_expired_keys(self) -> int:
         """
         Remove expired key files.

@@ -21,8 +21,7 @@ class AppConfig(DeploymentConfig, StorageConfig, ServiceConfig):
     包含的配置模块：
     - DeploymentConfig: 部署配置（应用信息、API、日志、性能）
     - StorageConfig: 存储系统配置（Elasticsearch、Redis、PostgreSQL、Milvus）
-    - LLMConfig: LLM 提供商和多LLM系统配置
-    - AuthConfig: JWT 和身份验证配置
+    - ServiceConfig: 服务配置（LLM提供商、身份验证、外部服务）
     """
     
     model_config = SettingsConfigDict(
