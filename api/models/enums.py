@@ -24,12 +24,3 @@ class ThreadStatus(StrEnum):
     FAILED = "FAILED"
     PAUSED = "PAUSED"
     DELETED = "DELETED"
-
-
-class InputType(StrEnum):
-    """输入类型枚举"""
-    TEXT = "text"
-    AUDIO = "input_audio"
-    IMAGE = "input_image"
-    VIDEO = "input_video"
-    FILES = "input_files"

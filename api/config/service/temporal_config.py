@@ -31,6 +31,21 @@ class TemporalConfig(BaseSettings):
         default=30,
     )
 
+    TASK_QUEUE: str = Field(
+        description="Temporal任务队列",
+        default="mas-active-trigger",
+    )
+
+    MAX_CONCURRENT_ACTIVITIES: int = Field(
+        description="最大并发活动数量",
+        default=100,
+    )
+
+    WORKER_COUNT: int = Field(
+        description="工作器数量",
+        default=3,
+    )
+
     @property
     def temporal_url(self) -> str:
         """获取Temporal服务器地址"""

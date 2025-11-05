@@ -1,8 +1,16 @@
+from enum import StrEnum
 from typing import Sequence, TypeAlias
 
 from pydantic import BaseModel, Field, field_validator
 
-from models.enums import InputType
+
+class InputType(StrEnum):
+    """输入类型枚举"""
+    TEXT = "text"
+    AUDIO = "input_audio"
+    IMAGE = "input_image"
+    VIDEO = "input_video"
+    FILES = "input_files"
 
 
 class InputContent(BaseModel):

@@ -14,7 +14,6 @@
 """
 
 from .enums import (
-    InputType,
     ThreadStatus,
     TenantRole,
     TenantStatus
@@ -37,7 +36,6 @@ __all__ = [
     "TenantRole",
     "TenantStatus",
     "ThreadStatus",
-    "InputType",
 
     # Tenant
     "TenantOrm",

@@ -40,7 +40,7 @@ class DeploymentConfig(BaseSettings):
     )
 
     # 回调配置
-    CALLBACK_URL: HttpUrl = Field(
+    CALLBACK_URL: HttpUrl | None = Field(
         description="后台工作流完成后的回调URL地址",
         default=None,
     )
