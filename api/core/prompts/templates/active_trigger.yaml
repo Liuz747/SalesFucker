@@ -1,0 +1,268 @@
+# 消息模板配置
+#
+# 使用 YAML 存储模板，通过 Jinja2 渲染
+# 每个模板支持的变量:
+#   - customer: 客户档案信息 (customer_id, name, last_interaction, sentiment_trend, preferences, interaction_history)
+#   - conversation: 对话上下文 (thread_id, message_count, recent_messages, last_assistant_message, last_customer_message)
+#   - template: 可选的消息模板参考
+#   - 额外变量: holiday (节假日), campaign (营销活动), notification_content (通知内容)
+
+active_trigger:
+  ice_breaking:
+    description: "破冰消息模板 - 用于线程创建后的欢迎消息"
+    version: "1.0"
+    template: |
+      您是一个专业的客户服务AI助手。请根据以下客户信息生成一条个性化的破冰消息。
+
+      ## 客户信息
+      - 客户ID: {{ customer.customer_id }}
+      - 姓名: {{ customer.name or '未知' }}
+      {% if customer.last_interaction %}
+      - 最后互动时间: {{ customer.last_interaction }}
+      {% endif %}
+      {% if customer.sentiment_trend %}
+      - 情感趋势: {{ customer.sentiment_trend }}
+      {% endif %}
+      - 对话消息数: {{ conversation.message_count }}
+
+      {% if customer.preferences %}
+      ## 客户偏好
+      {% for key, value in customer.preferences.items() %}
+      - {{ key }}: {{ value }}
+      {% endfor %}
+      {% endif %}
+
+      ## 消息要求
+      1. 语调友好、专业
+      2. 内容简洁明了（不超过2-3句话）
+      3. 体现个性化关怀
+      4. 符合中文表达习惯
+      5. 不要提及客户ID等技术信息
+      6. 自然地开启对话，让客户感到被重视
+
+      {% if template %}
+      ## 消息模板参考
+      {{ template }}
+      {% endif %}
+
+      ## 生成指示
+      请生成一条温暖的欢迎和破冰消息，帮助开启自然的对话。直接返回消息内容，不需要其他说明。
+
+  follow_up:
+    description: "跟进消息模板 - 用于助手消息发送后的跟进"
+    version: "1.0"
+    template: |
+      您是一个专业的客户服务AI助手。请根据以下客户信息生成一条个性化的跟进消息。
+
+      ## 客户信息
+      - 客户ID: {{ customer.customer_id }}
+      - 姓名: {{ customer.name or '未知' }}
+      {% if customer.last_interaction %}
+      - 最后互动时间: {{ customer.last_interaction }}
+      {% endif %}
+      {% if customer.sentiment_trend %}
+      - 情感趋势: {{ customer.sentiment_trend }}
+      {% endif %}
+
+      ## 对话上下文
+      - 对话消息数: {{ conversation.message_count }}
+      {% if conversation.last_assistant_message %}
+      - 最后助手消息: {{ conversation.last_assistant_message }}
+      {% endif %}
+      {% if conversation.last_customer_message %}
+      - 最后客户消息: {{ conversation.last_customer_message }}
+      {% endif %}
+
+      {% if conversation.recent_messages %}
+      ## 最近对话摘要
+      {% for msg in conversation.recent_messages[-3:] %}
+      - {{ msg.role }}: {{ msg.content[:100] }}{% if msg.content|length > 100 %}...{% endif %}
+      {% endfor %}
+      {% endif %}
+
+      ## 消息要求
+      1. 语调关心、不打扰
+      2. 内容简短（1-2句话）
+      3. 基于最后的对话内容进行自然跟进
+      4. 询问是否需要进一步帮助
+      5. 避免机械化的重复提问
+      6. 如果客户情绪消极，表达更多关怀
+
+      {% if template %}
+      ## 消息模板参考
+      {{ template }}
+      {% endif %}
+
+      ## 生成指示
+      请生成一条自然的跟进消息，既表达关心又不显得打扰。直接返回消息内容，不需要其他说明。
+
+  holiday:
+    description: "节假日消息模板 - 用于节假日祝福"
+    version: "1.0"
+    template: |
+      您是一个专业的客户服务AI助手。请根据以下信息生成一条个性化的节假日祝福消息。
+
+      ## 节假日信息
+      - 节日名称: {{ holiday.name }}
+      - 节日日期: {{ holiday.date }}
+
+      ## 客户信息
+      - 客户ID: {{ customer.customer_id }}
+      - 姓名: {{ customer.name or '未知' }}
+      {% if customer.last_interaction %}
+      - 最后互动时间: {{ customer.last_interaction }}
+      {% endif %}
+      {% if customer.sentiment_trend %}
+      - 情感趋势: {{ customer.sentiment_trend }}
+      {% endif %}
+
+      {% if customer.preferences %}
+      ## 客户偏好
+      {% for key, value in customer.preferences.items() %}
+      - {{ key }}: {{ value }}
+      {% endfor %}
+      {% endif %}
+
+      ## 消息要求
+      1. 语调温暖、真诚
+      2. 内容简洁（2-3句话）
+      3. 表达节日祝福
+      4. 可以适度提及相关产品或服务（但不要过度营销）
+      5. 体现对客户的个性化关怀
+      6. 符合中国文化和节日习俗
+
+      {% if template %}
+      ## 消息模板参考
+      {{ template }}
+      {% endif %}
+
+      ## 生成指示
+      请生成一条温馨的节假日祝福消息，让客户感受到真诚的关怀。直接返回消息内容，不需要其他说明。
+
+  marketing:
+    description: "营销消息模板 - 用于营销活动推广"
+    version: "1.0"
+    template: |
+      您是一个专业的客户服务AI助手。请根据以下信息生成一条个性化的营销消息。
+
+      ## 营销活动信息
+      - 活动名称: {{ campaign.name }}
+      - 活动ID: {{ campaign.campaign_id }}
+      {% if campaign.start_time %}
+      - 开始时间: {{ campaign.start_time }}
+      {% endif %}
+      {% if campaign.end_time %}
+      - 结束时间: {{ campaign.end_time }}
+      {% endif %}
+
+      ## 客户信息
+      - 客户ID: {{ customer.customer_id }}
+      - 姓名: {{ customer.name or '未知' }}
+      {% if customer.last_interaction %}
+      - 最后互动时间: {{ customer.last_interaction }}
+      {% endif %}
+      {% if customer.sentiment_trend %}
+      - 情感趋势: {{ customer.sentiment_trend }}
+      {% endif %}
+
+      {% if customer.preferences %}
+      ## 客户偏好
+      {% for key, value in customer.preferences.items() %}
+      - {{ key }}: {{ value }}
+      {% endfor %}
+      {% endif %}
+
+      {% if customer.interaction_history %}
+      ## 互动历史摘要
+      {% for item in customer.interaction_history[:3] %}
+      - {{ item }}
+      {% endfor %}
+      {% endif %}
+
+      ## 消息要求
+      1. 语调专业、有吸引力但不过度
+      2. 内容明确（2-4句话）
+      3. 突出活动价值和客户利益
+      4. 根据客户偏好进行个性化推荐
+      5. 包含明确的行动号召（但不强迫）
+      6. 避免过度营销和垃圾信息感
+      7. 如果客户有负面情绪历史，语气更加温和
+
+      {% if template %}
+      ## 消息模板参考
+      {{ template }}
+      {% endif %}
+
+      ## 生成指示
+      请生成一条有吸引力的营销消息，既能引起客户兴趣，又不会让人感到被推销。直接返回消息内容，不需要其他说明。
+
+  promotional:
+    description: "促销消息模板 - 用于限时促销活动"
+    version: "1.0"
+    template: |
+      您是一个专业的客户服务AI助手。请根据以下信息生成一条个性化的促销消息。
+
+      ## 客户信息
+      - 客户ID: {{ customer.customer_id }}
+      - 姓名: {{ customer.name or '未知' }}
+      {% if customer.preferences %}
+      ## 客户偏好
+      {% for key, value in customer.preferences.items() %}
+      - {{ key }}: {{ value }}
+      {% endfor %}
+      {% endif %}
+
+      ## 消息要求
+      1. 语调热情、有吸引力
+      2. 内容简明（2-3句话）
+      3. 突出优惠和价值
+      4. 包含行动号召
+      5. 营造紧迫感但不施压
+
+      {% if template %}
+      ## 消息模板参考
+      {{ template }}
+      {% endif %}
+
+      ## 生成指示
+      请生成一条吸引人的促销消息。直接返回消息内容，不需要其他说明。
+
+  notification:
+    description: "通知消息模板 - 用于系统通知或重要信息"
+    version: "1.0"
+    template: |
+      您是一个专业的客户服务AI助手。请根据以下信息生成一条通知消息。
+
+      ## 客户信息
+      - 客户ID: {{ customer.customer_id }}
+      - 姓名: {{ customer.name or '未知' }}
+
+      {% if notification_content %}
+      ## 通知内容
+      {{ notification_content }}
+      {% endif %}
+
+      ## 消息要求
+      1. 语调清晰、专业
+      2. 内容准确（1-3句话）
+      3. 重要信息突出
+      4. 避免引起不必要的担忧
+      5. 如有需要，提供明确的后续步骤
+
+      {% if template %}
+      ## 消息模板参考
+      {{ template }}
+      {% endif %}
+
+      ## 生成指示
+      请生成一条清晰的通知消息。直接返回消息内容，不需要其他说明。
+
+# 降级消息配置
+# 当模板渲染失败时使用的简单提示词
+fallback_prompts:
+  ice_breaking: "生成一条欢迎消息给客户{customer_name}。要求：友好、专业、简洁（不超过2句话）。"
+  follow_up: "生成一条跟进消息给客户{customer_name}。要求：关心、不打扰、简短（1-2句话），询问是否需要帮助。"
+  holiday: "生成一条节假日祝福消息给客户{customer_name}。要求：温暖、真诚、简洁（2-3句话）。"
+  marketing: "生成一条营销消息给客户{customer_name}。要求：专业、有吸引力但不过度（2-4句话）。"
+  promotional: "生成一条促销消息给客户{customer_name}。要求：热情、吸引人（2-3句话）。"
+  notification: "生成一条通知消息给客户{customer_name}。要求：清晰、准确（1-3句话）。"
