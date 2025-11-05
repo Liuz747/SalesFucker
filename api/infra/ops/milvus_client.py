@@ -28,8 +28,7 @@ async def get_milvus_connection() -> MilvusClient:
         )
         return client
     except MilvusException as e:
-        logger.error(f"Milvus客户端创建失败: {e}")
-        raise ConnectionError(f"Failed to connect to Milvus: {e}")
+        raise ConnectionError(e)
 
 
 async def close_milvus_connection(client: MilvusClient):
