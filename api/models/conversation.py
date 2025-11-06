@@ -19,28 +19,28 @@ from .enums import ThreadStatus
 
 class ThreadOrm(Base):
     """线程数据库ORM模型 - 优化云数据库性能"""
-    
+
     __tablename__ = "threads"
-    
+
     thread_id = Column(Uuid, primary_key=True, server_default=func.gen_random_uuid())
     assistant_id = Column(Uuid, index=True)
     tenant_id = Column(String(64), nullable=False, index=True)
-    status = Column(Enum(ThreadStatus, name='thread_status'), default=ThreadStatus.ACTIVE, nullable=False, index=True)
+    status = Column(Enum(ThreadStatus, name='thread_status'), default=ThreadStatus.IDLE, nullable=False, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
 class Thread(BaseModel):
     """对话线程数据模型"""
-    
+
     thread_id: Optional[UUID] = Field(None, description="线程标识符")
     assistant_id: Optional[UUID] = Field(None, description="助手标识符")
-    status: ThreadStatus = Field(default=ThreadStatus.ACTIVE, description="线程状态")
+    status: ThreadStatus = Field(default=ThreadStatus.IDLE, description="线程状态")
     created_at: datetime = Field(default_factory=get_current_datetime, description="创建时间")
     updated_at: datetime = Field(default_factory=get_current_datetime, description="更新时间")
     processing_time: Optional[float] = Field(None, description="处理时间（毫秒）")
     metadata: ThreadMetadata = Field(description="线程元数据")
-    
+
     @classmethod
     def to_model(cls, thread_orm: ThreadOrm) -> Self:
         """从ThreadOrm对象创建Thread Pydantic模型"""

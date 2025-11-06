@@ -18,9 +18,9 @@ class TenantStatus(StrEnum):
 
 class ThreadStatus(StrEnum):
     """对话状态枚举"""
+    IDLE = "IDLE"
     ACTIVE = "ACTIVE"
     PROCESSING = "PROCESSING"
-    COMPLETED = "COMPLETED"
     FAILED = "FAILED"
     PAUSED = "PAUSED"
     DELETED = "DELETED"

@@ -15,8 +15,7 @@ from typing import Dict, Any, Optional
 
 from ..base import BaseAgent
 from .sales_strategies import get_sales_strategies, analyze_customer_segment, get_strategy_for_segment, adapt_strategy_to_context
-from core.prompts.templates import get_default_prompt, AgentType, PromptType
-from utils import to_isoformat
+from core.prompts.prompt_manager import render_agent_prompt
 
 
 class SalesAgent(BaseAgent):
@@ -169,7 +168,7 @@ class SalesAgent(BaseAgent):
         """
         基于情感分析结果生成个性化响应
 
-        使用templates.py中的CHAT_WITH_SENTIMENT模板。
+        使用统一的 YAML 智能体模板进行情感驱动回复。
 
         参数:
             customer_input: 客户输入
@@ -181,18 +180,14 @@ class SalesAgent(BaseAgent):
             str: 基于情感的个性化响应
         """
         try:
-            # 从templates.py获取情感驱动的聊天提示词
-            prompt_template = get_default_prompt(
-                AgentType.SALES,
-                PromptType.CHAT_WITH_SENTIMENT
-            )
-
             # 提取情感和意图信息
             customer_profile = state.get("customer_profile", {})
             intent_customer_profile = intent_analysis.get("customer_profile", {})
 
-            # 填充模板参数
-            prompt = prompt_template.format(
+            # 渲染提示词模板
+            prompt = render_agent_prompt(
+                "sales",
+                "chat_with_sentiment",
                 customer_input=customer_input,
                 sentiment=sentiment_analysis.get("sentiment", "neutral"),
                 sentiment_score=sentiment_analysis.get("score", 0.0),
@@ -204,7 +199,7 @@ class SalesAgent(BaseAgent):
                 budget_range=customer_profile.get("budget_range", "中等"),
                 experience_level=intent_customer_profile.get("experience_level", "中级"),
                 intent=intent_analysis.get("intent", "browsing"),
-                decision_stage=intent_analysis.get("decision_stage", "awareness")
+                decision_stage=intent_analysis.get("decision_stage", "awareness"),
             )
 
             # 使用简化的LLM调用

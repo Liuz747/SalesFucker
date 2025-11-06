@@ -36,7 +36,7 @@ class ThreadRepository:
     """
         
     @staticmethod
-    async def get_thread(thread_id: str, session: AsyncSession) -> Optional[ThreadOrm]:
+    async def get_thread(thread_id: UUID, session: AsyncSession) -> Optional[ThreadOrm]:
         """
         获取线程数据库模型
         
@@ -66,18 +66,17 @@ class ThreadRepository:
             raise
 
     @staticmethod
-    async def update_thread(thread: ThreadOrm, session: AsyncSession) -> Optional[ThreadOrm]:
+    async def update_thread_model(thread: ThreadOrm, session: AsyncSession) -> ThreadOrm:
         """更新线程数据库模型"""
         try:
-            session.merge(thread)
             logger.debug(f"更新线程: {thread.thread_id}")
-            return thread
+            return await session.merge(thread)
         except Exception as e:
             logger.error(f"更新线程数据库模型失败: {thread.thread_id}, 错误: {e}")
             raise
 
     @staticmethod
-    async def delete_thread(thread_id: str, session: AsyncSession):
+    async def delete_thread(thread_id: UUID, session: AsyncSession):
         """删除线程数据库模型"""
         try:
             thread = await session.get(ThreadOrm, thread_id)
@@ -93,7 +92,7 @@ class ThreadRepository:
             raise
 
     @staticmethod
-    async def update_thread_field(thread_id: str, value: dict, session: AsyncSession) -> bool:
+    async def update_thread_field(thread_id: UUID, value: dict, session: AsyncSession) -> bool:
         """更新线程数据库模型字段"""
         try:
             stmt = (
@@ -132,10 +131,10 @@ class ThreadRepository:
             raise
 
     @staticmethod
-    async def get_thread_cache(thread_id: str, redis_client: Redis) -> Optional[Thread]:
+    async def get_thread_cache(thread_id: UUID, redis_client: Redis) -> Optional[Thread]:
         """获取线程缓存"""
         try:
-            redis_key = f"thread:{thread_id}"
+            redis_key = f"thread:{str(thread_id)}"
             redis_data = await redis_client.get(redis_key)
 
             if redis_data:

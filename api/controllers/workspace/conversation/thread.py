@@ -49,7 +49,7 @@ async def create_thread(
         # 创建业务模型对象
         thread = Thread(
             thread_id=thread_id,
-            status=ThreadStatus.ACTIVE,
+            status=ThreadStatus.IDLE,
             metadata=ThreadMetadata(
                 tenant_id=tenant.tenant_id
             )
@@ -115,4 +115,3 @@ async def get_thread(
     except Exception as e:
         logger.error(f"线程获取失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-

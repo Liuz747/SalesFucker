@@ -16,7 +16,7 @@ from uuid import UUID
 from typing import Optional
 
 from infra.db import database_session
-from infra.cache import get_redis_client
+from libs.factory import infra_registry
 from repositories.thread_repo import ThreadRepository, Thread
 from utils import get_component_logger
 
@@ -50,12 +50,12 @@ class ThreadService:
 
             if thread_orm:
                 # 2. 异步更新Redis缓存
-                redis_client = await get_redis_client()
+                redis_client = infra_registry.get_cached_clients().redis
                 thread_model = Thread.to_model(thread_orm)
-                asyncio.create_task(ThreadRepository.update_thread_cache(
-                    thread_model,
-                    redis_client
-                ))
+                asyncio.create_task(
+                    ThreadRepository.update_thread_cache(thread_model, redis_client)
+                )
+
                 
                 logger.debug(f"线程写入redis缓存成功: {thread_model.thread_id}")
                 return thread_model.thread_id
@@ -67,7 +67,7 @@ class ThreadService:
             raise
     
     @staticmethod
-    async def get_thread(thread_id: str) -> Optional[Thread]:
+    async def get_thread(thread_id: UUID) -> Optional[Thread]:
         """
         获取线程
         
@@ -75,7 +75,7 @@ class ThreadService:
         """
         try:
             # 直接获取Redis客户端，使用连接池
-            redis_client = await get_redis_client()
+            redis_client = infra_registry.get_cached_clients().redis
             
             # Level 1: Redis缓存 (< 10ms)
             thread_model = await ThreadRepository.get_thread_cache(thread_id, redis_client)
@@ -99,24 +99,26 @@ class ThreadService:
             return None
     
     @staticmethod
-    async def update_thread(thread: Thread) -> bool:
+    async def update_thread(thread: Thread) -> Thread:
         """更新线程"""
         try:
             thread_orm = thread.to_orm()
             
             # 立即更新数据库
             async with database_session() as session:
-                await ThreadRepository.update_thread(thread_orm, session)
+                updated_thread_orm = await ThreadRepository.update_thread_model(thread_orm, session)
 
             # 直接获取Redis客户端，使用连接池
-            redis_client = await get_redis_client()
+            redis_client = infra_registry.get_cached_clients().redis
+
+            thread_model = Thread.to_model(updated_thread_orm)
+
             # 异步更新Redis缓存
-            asyncio.create_task(ThreadRepository.update_thread_cache(
-                thread,
-                redis_client
-            ))
+            asyncio.create_task(
+                ThreadRepository.update_thread_cache(thread_model, redis_client)
+            )
             
-            return True
+            return thread_model
             
         except Exception as e:
             logger.error(f"线程更新失败: {e}")

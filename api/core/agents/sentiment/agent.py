@@ -11,8 +11,8 @@ from typing import Dict, Any
 from langfuse import observe
 
 from ..base import BaseAgent, parse_json_response
-from core.prompts.templates import get_default_prompt, AgentType, PromptType
-from utils import get_current_datetime, get_processing_time_ms
+from core.prompts.prompt_manager import render_agent_prompt
+from utils import get_current_datetime
 
 
 class SentimentAnalysisAgent(BaseAgent):
@@ -121,16 +121,12 @@ class SentimentAnalysisAgent(BaseAgent):
                 recent_history = conversation_history[-5:]  # 最近5轮对话
                 history_text = f"\n对话历史：\n{self._format_history(recent_history)}\n"
 
-            # 从templates.py获取情感分析提示词模板
-            prompt_template = get_default_prompt(
-                AgentType.SENTIMENT,
-                PromptType.SENTIMENT_ANALYSIS
-            )
-
-            # 填充模板参数
-            prompt = prompt_template.format(
+            # 渲染情感分析提示词模板
+            prompt = render_agent_prompt(
+                "sentiment",
+                "sentiment_analysis",
                 history_text=history_text,
-                customer_input=customer_input
+                customer_input=customer_input,
             )
 
             # 调用LLM分析
