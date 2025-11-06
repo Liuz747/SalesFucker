@@ -44,7 +44,7 @@ def upgrade() -> None:
     sa.Column('thread_id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.Column('assistant_id', sa.Uuid(), nullable=True),
     sa.Column('tenant_id', sa.String(length=64), nullable=False),
-    sa.Column('status', sa.Enum('ACTIVE', 'PROCESSING', 'COMPLETED', 'FAILED', 'PAUSED', 'DELETED', name='thread_status'), nullable=False),
+    sa.Column('status', sa.Enum('ACTIVE', 'PROCESSING', 'IDLE', 'FAILED', 'PAUSED', 'DELETED', name='thread_status'), nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.PrimaryKeyConstraint('thread_id')
