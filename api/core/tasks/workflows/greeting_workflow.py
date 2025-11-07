@@ -19,7 +19,7 @@ from uuid import UUID
 from temporalio import workflow
 from temporalio.common import RetryPolicy
 
-from core.tasks.workflow_entities import MessagingResult
+from core.tasks.workflow_entities import MessagingResult, ThreadStatus
 
 # Note: Activities should not be imported directly in workflows.
 # Instead, we reference them by name in workflow.execute_activity().
@@ -49,7 +49,7 @@ class GreetingWorkflow:
             MessagingResult: 消息发送结果
         """
         try:
-            # Note: logger is not available in workflow sandbox, remove logging
+            workflow.logger.info(f"线程监控工作流开始执行: thread_id={thread_id}")
 
             # 1. 等待5分钟（300秒）
             await asyncio.sleep(10)
@@ -62,11 +62,13 @@ class GreetingWorkflow:
                 retry_policy=self.retry_policy
             )
 
+            workflow.logger.info(f"first step finished")
             # 3. 如果状态不是'idle'，说明客户已经发送了消息，不需要自动发送
             if thread_status != 'IDLE':
+                workflow.logger.info(f"线程已有活动，跳过自动消息: thread_id={thread_id}, status={thread_status}")
                 return MessagingResult(
                     success=True,
-                    metadata={"action": "skipped", "reason": "thread_has_activity", "thread_status": thread_status}
+                    metadata={"action": "skipped", "reason": "thread_has_activity", "thread_status": str(thread_status)}
                 )
 
             # 4. 线程仍为idle，生成自动消息
