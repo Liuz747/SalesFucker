@@ -10,7 +10,7 @@ from collections.abc import Callable
 from langgraph.graph import StateGraph
 
 from core.agents.base import BaseAgent
-from core.app.entities import WorkflowExecutionModel
+from core.entities import WorkflowExecutionModel
 from utils import get_component_logger
 from libs.constants import WorkflowConstants, StatusConstants
 from .base_workflow import BaseWorkflow

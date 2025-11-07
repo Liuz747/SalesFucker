@@ -19,7 +19,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends
 
 from config import mas_config
-from core.workflows.greeting_workflow import GreetingWorkflow
+from core.tasks.workflows.greeting_workflow import GreetingWorkflow
 from libs.factory import infra_registry
 from utils import get_component_logger
 from models import Thread, ThreadStatus, TenantModel

@@ -15,7 +15,6 @@ from typing import Dict, Any, Optional
 
 from ..base import BaseAgent
 from .sales_strategies import get_sales_strategies, analyze_customer_segment, get_strategy_for_segment, adapt_strategy_to_context
-from core.prompts.prompt_manager import render_agent_prompt
 
 
 class SalesAgent(BaseAgent):

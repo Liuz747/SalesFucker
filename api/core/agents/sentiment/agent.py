@@ -11,7 +11,6 @@ from typing import Dict, Any
 from langfuse import observe
 
 from ..base import BaseAgent, parse_json_response
-from core.prompts.prompt_manager import render_agent_prompt
 from utils import get_current_datetime
 
 

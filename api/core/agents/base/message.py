@@ -15,8 +15,7 @@ from typing import Any, Optional
 from pydantic import BaseModel, Field
 
 from libs.constants import MessageConstants
-from libs.types import MessageType
-from models import InputType
+from libs.types import MessageType, InputType
 
 
 class AgentMessage(BaseModel):

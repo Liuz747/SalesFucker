@@ -13,7 +13,7 @@
 
 from abc import ABC, abstractmethod
 
-from core.app.entities import WorkflowExecutionModel
+from core.entities import WorkflowExecutionModel
 from infra.runtimes import LLMClient, CompletionsRequest, LLMResponse
 from utils import get_component_logger
 
