@@ -12,10 +12,15 @@
 - 客户档案管理集成
 """
 
-from uuid import UUID
+import asyncio
 from typing import Annotated
+from uuid import UUID
+
 from fastapi import APIRouter, HTTPException, Depends
 
+from config import mas_config
+from core.workflows.greeting_workflow import GreetingWorkflow
+from libs.factory import infra_registry
 from utils import get_component_logger
 from models import Thread, ThreadStatus, TenantModel
 from services import ThreadService
@@ -56,6 +61,16 @@ async def create_thread(
         )
         
         thread_id = await ThreadService.create_thread(thread)
+
+        temporal_client = infra_registry.get_cached_clients().temporal
+        asyncio.create_task(
+            temporal_client.start_workflow(
+                GreetingWorkflow.run,
+                thread_id,
+                id=f"greeting-{thread_id}",
+                task_queue=mas_config.TASK_QUEUE
+            )
+        )
         
         return {
             "thread_id": thread_id,

@@ -69,6 +69,7 @@ class ThreadRepository:
     async def update_thread_model(thread: ThreadOrm, session: AsyncSession) -> ThreadOrm:
         """更新线程数据库模型"""
         try:
+            thread.updated_at = func.now()
             logger.debug(f"更新线程: {thread.thread_id}")
             return await session.merge(thread)
         except Exception as e:
@@ -95,6 +96,7 @@ class ThreadRepository:
     async def update_thread_field(thread_id: UUID, value: dict, session: AsyncSession) -> bool:
         """更新线程数据库模型字段"""
         try:
+            value['updated_at'] = func.now()
             stmt = (
                 update(ThreadOrm)
                 .where(ThreadOrm.thread_id == thread_id)
