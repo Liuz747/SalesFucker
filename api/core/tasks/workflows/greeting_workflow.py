@@ -12,17 +12,20 @@
 5. 如果为'active' -> 什么都不做
 """
 
-import asyncio
 from datetime import timedelta
 from uuid import UUID
 
 from temporalio import workflow
 from temporalio.common import RetryPolicy
 
-from core.tasks.workflow_entities import MessagingResult, ThreadStatus
+from core.tasks.entities import ThreadStatus, MessagingResult, MessageType
 
-# Note: Activities should not be imported directly in workflows.
-# Instead, we reference them by name in workflow.execute_activity().
+with workflow.unsafe.imports_passed_through():
+    from core.tasks.activities import (
+        check_thread_activity_status,
+        invoke_task_llm,
+        send_callback_message
+    )
 
 
 @workflow.defn
@@ -48,23 +51,23 @@ class GreetingWorkflow:
         Returns:
             MessagingResult: 消息发送结果
         """
+        # TODO: Add more detailed logging info and error exceptions
         try:
             workflow.logger.info(f"线程监控工作流开始执行: thread_id={thread_id}")
 
             # 1. 等待5分钟（300秒）
-            await asyncio.sleep(10)
+            await workflow.sleep(10)
 
             # 2. 检查线程状态是否仍为'idle'
             thread_status = await workflow.execute_activity(
-                "check_thread_activity_status",
+                check_thread_activity_status,
                 thread_id,
                 start_to_close_timeout=timedelta(seconds=10),
                 retry_policy=self.retry_policy
             )
 
-            workflow.logger.info(f"first step finished")
             # 3. 如果状态不是'idle'，说明客户已经发送了消息，不需要自动发送
-            if thread_status != 'IDLE':
+            if thread_status != ThreadStatus.IDLE:
                 workflow.logger.info(f"线程已有活动，跳过自动消息: thread_id={thread_id}, status={thread_status}")
                 return MessagingResult(
                     success=True,
@@ -73,19 +76,16 @@ class GreetingWorkflow:
 
             # 4. 线程仍为idle，生成自动消息
             content = await workflow.execute_activity(
-                "invoke_task_llm",
-                thread_id,
-                "greeting",
+                invoke_task_llm,
+                args=[thread_id, MessageType.GREETING],
                 start_to_close_timeout=timedelta(seconds=60),
                 retry_policy=self.retry_policy
             )
 
             # 5. 发送消息
             result = await workflow.execute_activity(
-                "send_callback_message",
-                thread_id,
-                content,
-                "greeting",
+                send_callback_message,
+                args=[thread_id, content, MessageType.GREETING],
                 start_to_close_timeout=timedelta(seconds=30),
                 retry_policy=self.retry_policy
             )

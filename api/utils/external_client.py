@@ -85,4 +85,4 @@ class ExternalClient:
                     delay = 0.5 * (2 ** attempt)  # 指数退避
                     logger.warning(f"请求失败，{delay}秒后重试: {e}")
                     await asyncio.sleep(delay)
-            raise e
+                raise e

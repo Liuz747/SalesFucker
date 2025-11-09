@@ -17,7 +17,7 @@ from temporalio import activity
 
 from services import ThreadService
 from utils import get_component_logger
-from ..workflow_entities import ThreadStatus
+from core.tasks.entities import ThreadStatus
 
 logger = get_component_logger(__name__)
 
@@ -31,7 +31,7 @@ async def check_thread_activity_status(thread_id: UUID) -> ThreadStatus:
         thread = await ThreadService.get_thread(thread_id)
 
         if thread:
-            return thread.status
+            return ThreadStatus(thread.status)
 
     except Exception as e:
         logger.error(f"检查线程活动状态失败: thread_id={thread_id}, 错误: {e}", exc_info=True)

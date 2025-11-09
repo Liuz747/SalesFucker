@@ -9,7 +9,8 @@ from uuid import UUID
 from temporalio import activity
 
 from core.prompts.template_loader import get_prompt_template
-from infra.runtimes import LLMClient
+from infra.runtimes import LLMClient, CompletionsRequest
+from libs.types import Message
 from utils import get_component_logger
 
 logger = get_component_logger(__name__)
@@ -28,13 +29,16 @@ async def invoke_task_llm(thread_id: UUID, task_name: str):
         if not prompt:
             raise ValueError(f"Template not found for task: {task_name}")
 
-        response = await llm_client.completions(
+        request = CompletionsRequest(
+            id=None,
             model="gpt-4o-mini",
-            provider='openrouter',
+            provider='openai',
             max_tokens=1024,
             thread_id=thread_id,
-            messages=[{"role": "user", "content": prompt}]
+            messages=[Message(role='user', content=prompt)]
         )
+
+        response = await llm_client.completions(request)
         return response.content
     except Exception as e:
         logger.error(f"生成自动消息失败: thread_id={thread_id}, 错误: {e}", exc_info=True)

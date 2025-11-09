@@ -11,7 +11,7 @@ from temporalio import activity
 
 from config import mas_config
 from utils import get_component_logger, ExternalClient
-from ..entities import MessagingResult
+from core.tasks.entities import MessagingResult
 
 logger = get_component_logger(__name__)
 
@@ -32,7 +32,9 @@ async def send_callback_message(thread_id: str, content: str, task_name: str) ->
     try:
         logger.info(f"发送自动消息: thread_id={thread_id}")
 
-        client = ExternalClient(base_url=mas_config.CALLBACK_URL)
+        callback_url = str(mas_config.CALLBACK_URL)
+
+        client = ExternalClient(base_url=callback_url)
 
         payload = {
             "thread_id": thread_id,
