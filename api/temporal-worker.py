@@ -12,14 +12,12 @@ from temporalio.worker import Worker
 
 from config import mas_config
 from libs.factory import infra_registry
-# from core.tasks.workflows import get_all_workflows
-# from core.tasks.activities import get_all_activities
 from core.tasks.activities import (
     check_thread_activity_status,
     invoke_task_llm,
     send_callback_message
 )
-from core.tasks.workflows.greeting_workflow import GreetingWorkflow
+from core.tasks.workflows import GreetingWorkflow
 from utils import configure_logging, get_component_logger
 
 logger = get_component_logger(__name__)
