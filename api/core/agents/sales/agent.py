@@ -16,7 +16,9 @@ from uuid import uuid4
 
 from ..base import BaseAgent
 from libs.types import Message
+from infra.runtimes.entities import CompletionsRequest
 from utils import get_current_datetime
+from config import mas_config
 
 
 class SalesResponseGenerator:
@@ -32,8 +34,8 @@ class SalesResponseGenerator:
         customer_input: str,
         sales_prompt: str,
         sentiment_context: Dict[str, Any]
-    ) -> str:
-        """生成销售响应"""
+    ) -> tuple[str, dict]:
+        """生成销售响应，返回响应内容和token使用信息"""
         try:
             # 构建基于情感提示的响应请求
             prompt = f"""作为专业的美妆销售顾问，请根据以下指导原则回应客户：
@@ -58,25 +60,38 @@ class SalesResponseGenerator:
             messages = [
                 Message(role="user", content=prompt)
             ]
-            request = {
-                "id": uuid4(),
-                "provider": self.llm_provider,
-                "model": self.llm_model,
-                "temperature": 0.7,
-                "messages": messages
-            }
+            request = CompletionsRequest(
+                id=uuid4(),
+                provider=self.llm_provider,
+                model=self.llm_model,
+                temperature=0.7,
+                messages=messages
+            )
 
             llm_response = await self.invoke_llm(request)
 
-            if llm_response and isinstance(llm_response.content, str):
-                return llm_response.content.strip()
-            elif llm_response:
-                return str(llm_response.content).strip()
+            # 提取token信息
+            token_info = {}
+            if llm_response and hasattr(llm_response, 'usage') and isinstance(llm_response.usage, dict):
+                input_tokens = llm_response.usage.get('input_tokens', 0)
+                output_tokens = llm_response.usage.get('output_tokens', 0)
+                token_info['tokens_used'] = input_tokens + output_tokens
+                token_info['input_tokens'] = input_tokens
+                token_info['output_tokens'] = output_tokens
+                self.logger.debug(f"Token统计: 输入={input_tokens}, 输出={output_tokens}, 总计={token_info['tokens_used']}")
             else:
-                return self._get_fallback_response(sales_prompt)
+                self.logger.warning("LLM响应缺少有效的usage信息")
+
+            if llm_response and isinstance(llm_response.content, str):
+                return llm_response.content.strip(), token_info
+            elif llm_response:
+                return str(llm_response.content).strip(), token_info
+            else:
+                return self._get_fallback_response(sales_prompt), {}
 
         except Exception as e:
-            return self._get_fallback_response(sales_prompt)
+            self.logger.error(f"生成销售响应时发生错误: {e}", exc_info=True)
+            return self._get_fallback_response(sales_prompt), {"tokens_used": 0, "error": str(e)}
 
     def _get_fallback_response(self, sales_prompt: str) -> str:
         """获取降级响应"""
@@ -148,16 +163,16 @@ class SalesAgent(BaseAgent):
             processed_input = sentiment_analysis.get("processed_input", customer_input)
 
             # 生成销售响应
-            response = await self._generate_sales_response(
+            response, token_info = await self._generate_sales_response(
                 processed_input,
                 sales_prompt,
                 sentiment_analysis
             )
 
             # 更新对话状态
-            updated_state = self._update_state(state, response, sentiment_analysis)
+            updated_state = self._update_state(state, response, sentiment_analysis, token_info)
 
-            self.logger.info(f"销售响应生成完成: 长度={len(response)}字符")
+            self.logger.info(f"销售响应生成完成: 长度={len(response)}字符, tokens={token_info.get('tokens_used', 0)}")
             return updated_state
 
         except Exception as e:
@@ -168,9 +183,106 @@ class SalesAgent(BaseAgent):
     # ===== 新增的便利方法 =====
     # 这些方法现在委托给response_adapter和templates模块
 
+<<<<<<< HEAD
     async def get_greeting_message(self, context: Optional[Dict[str, Any]] = None) -> Optional[str]:
         """
         获取个性化问候消息（委托给templates模块）
+=======
+    async def _generate_sales_response(
+        self,
+        customer_input: str,
+        sales_prompt: str,
+        sentiment_context: Dict[str, Any]
+    ) -> tuple[str, dict]:
+        """生成销售响应，返回响应内容和token信息"""
+        if not sales_prompt:
+            # 如果没有情感提示词，使用基础响应
+            return "您好！我是您的美妆顾问，很高兴为您服务。请告诉我您的需求。", {}
+
+        return await self.response_generator.generate_response(
+            customer_input,
+            sales_prompt,
+            sentiment_context
+        )
+
+    def _update_state(self, state: dict, response: str, sentiment_analysis: Dict[str, Any], token_info: dict = None) -> dict:
+        """更新对话状态"""
+        # 设置销售响应 - 同时存储在两个位置以确保兼容性
+        state["sales_response"] = response
+
+        # 确保 values 和 agent_responses 结构存在并存储响应
+        if state.get("values") is None:
+            state["values"] = {}
+        if state["values"].get("agent_responses") is None:
+            state["values"]["agent_responses"] = {}
+
+        agent_data = {
+            "sales_response": response,
+            "sentiment_analysis": sentiment_analysis,
+            "timestamp": get_current_datetime()
+        }
+
+        # 添加token使用信息
+        if token_info:
+            agent_data.update(token_info)
+            self.logger.info(f"添加token信息到agent_responses: {token_info}")
+
+        state["values"]["agent_responses"][self.agent_id] = agent_data
+
+        # 调试日志：跟踪响应存储
+        self.logger.info(f"销售响应已存储: 长度={len(response)} 字符, agent_id={self.agent_id}")
+        self.logger.info(f"values.agent_responses 结构已更新: {list(state.get('values', {}).get('agent_responses', {}).keys())}")
+        self.logger.info(f"销售响应内容预览: {response[:50]}...")
+
+        # 更新活跃智能体列表
+        state.setdefault("active_agents", []).append(self.agent_id)
+
+        # 更新对话历史
+        customer_input = sentiment_analysis.get("processed_input", state.get("customer_input", ""))
+        state.setdefault("conversation_history", []).extend([
+            {"role": "user", "content": customer_input},
+            {"role": "assistant", "content": response}
+        ])
+
+        return state
+
+    def _create_error_state(self, state: dict, error_message: str) -> dict:
+        """创建错误状态"""
+        fallback_response = "感谢您的咨询！我是您的美妆顾问，很乐意为您服务。请告诉我您的具体需求。"
+
+        # 设置销售响应 - 同时存储在两个位置以确保兼容性
+        state["sales_response"] = fallback_response
+        state["error_state"] = "sales_processing_error"
+
+        # 确保 agent_responses 结构存在并存储错误状态响应
+        state.setdefault("agent_responses", {})
+        state["agent_responses"][self.agent_id] = {
+            "sales_response": fallback_response,
+            "error": error_message,
+            "timestamp": get_current_datetime()
+        }
+
+        state.setdefault("active_agents", []).append(self.agent_id)
+
+        return state
+
+    def get_agent_info(self) -> Dict[str, Any]:
+        """获取智能体信息"""
+        return {
+            "agent_id": self.agent_id,
+            "llm_provider": self.llm_provider,
+            "llm_model": self.llm_model,
+            "capabilities": [
+                "sentiment_driven_response",
+                "multimodal_input_support",
+                "personalized_interaction"
+            ],
+            "dependencies": [
+                "sentiment_analysis",
+                "sales_prompt"
+            ]
+        }
+>>>>>>> e292a6d (add: feedback handler)
 
     def health_check(self) -> Dict[str, Any]:
         """健康检查"""

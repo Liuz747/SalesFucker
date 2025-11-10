@@ -86,6 +86,18 @@ class Orchestrator:
             result = await self.graph.ainvoke(initial_state)
             elapsed_time = get_processing_time(start_time)
 
+            # 调试日志：记录工作流执行结果
+            logger.info(f"工作流执行完成，结果类型: {type(result)}")
+            if isinstance(result, dict):
+                logger.info(f"工作流结果字段: {list(result.keys())}")
+                if 'output' in result:
+                    logger.info(f"output 存在，长度: {len(result.get('output', ''))}")
+                    logger.info(f"output 内容预览: {result.get('output', '')[:50]}...")
+                else:
+                    logger.warning(f"output 不存在，可用字段: {list(result.keys())}")
+            else:
+                logger.warning(f"工作流结果不是字典类型: {result}")
+
             logger.info(
                 f"对话处理完成 - 耗时: {elapsed_time:.2f}s, "
                 f"状态: {'成功' if not result.get('exception_count') else '失败'}"
@@ -106,9 +118,9 @@ class Orchestrator:
                     "is_multimodal": is_multimodal
                 },
                 output={
-                    "final_response": result.get("final_response"),
-                    "agents_executed": list(result.get("values", {}).keys()),
-                    "processing_complete": result.get("processing_complete", False)
+                    "output": result.get("output", "") if result else "",
+                    "agents_executed": list((result.get("values") or {}).keys()) if result else [],
+                    "processing_complete": result.get("processing_complete", False) if result else False
                 },
                 metadata={
                     "tenant_id": workflow.tenant_id,

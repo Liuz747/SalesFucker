@@ -9,16 +9,23 @@
 2. Chat Agent - 基于情感分析结果生成个性化回复
 """
 
-from typing import Optional
+from typing import Optional, TYPE_CHECKING
 from collections.abc import Callable
 
 from langgraph.graph import StateGraph
 
+<<<<<<< HEAD:api/core/graphs/sentiment_chat_workflow.py
 from core.agents.base import BaseAgent
 from core.entities import WorkflowExecutionModel
+=======
+from core.app.entities import WorkflowExecutionModel
+>>>>>>> e292a6d (add: feedback handler):api/core/workflows/sentiment_chat_workflow.py
 from utils import get_component_logger
 from libs.constants import AgentNodes
 from .base_workflow import BaseWorkflow
+
+if TYPE_CHECKING:
+    from core.agents.base import BaseAgent
 
 
 logger = get_component_logger(__name__)
@@ -37,7 +44,7 @@ class SentimentChatWorkflow(BaseWorkflow):
     - 适合快速响应场景
     """
 
-    def __init__(self, agents: dict[str, BaseAgent]):
+    def __init__(self, agents: dict[str, "BaseAgent"]):
         """
         初始化情感聊天工作流
 

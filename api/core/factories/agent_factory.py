@@ -20,6 +20,16 @@ from utils import get_component_logger
 logger = get_component_logger(__name__)
 
 
+class FallbackAgent(BaseAgent):
+    """降级智能体 - 用于处理其他智能体创建失败的情况"""
+
+    async def process_conversation(self, state: dict) -> dict:
+        """提供基本的对话状态传递"""
+        self.logger.warning(f"降级智能体 {self.agent_id} 正在处理对话")
+        # 简单地返回原状态，不进行任何修改
+        return state
+
+
 # 工作流节点名 -> 智能体类 映射
 AGENT_NODE_MAPPING = {
     AgentNodes.SENTIMENT_NODE: SentimentAnalysisAgent,
@@ -44,10 +54,22 @@ def create_agents_set() -> dict[str, BaseAgent]:
             # 使用工作流节点名称作为智能体ID与键，便于工作流直接查找
             agent.agent_id = node_name
             agents[node_name] = agent
+            logger.info(f"智能体 {node_name} 创建成功")
 
         except Exception as e:
-            # 如果某个智能体创建失败，记录错误但继续创建其他智能体
+            # 如果某个智能体创建失败，记录错误并创建一个基础降级智能体
             logger.error(f"创建智能体 {node_name} 失败: {e}")
-            continue
+
+            # 创建基础降级智能体作为占位符
+            try:
+                fallback_agent = FallbackAgent()
+                fallback_agent.agent_id = node_name
+                fallback_agent._is_fallback = True  # 标记为降级智能体
+                agents[node_name] = fallback_agent
+                logger.warning(f"为 {node_name} 创建了降级智能体")
+            except Exception as fallback_error:
+                logger.error(f"创建降级智能体 {node_name} 也失败了: {fallback_error}")
+                # 完全失败的情况下，至少确保字典中有这个键，值为 None
+                agents[node_name] = None
 
     return agents
