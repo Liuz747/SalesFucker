@@ -7,7 +7,6 @@
 - 销售智能体 (Sales Agent)
 - 产品专家智能体 (Product Expert Agent)
 - 记忆管理智能体 (Memory Agent)
-- 市场策略集群 (Market Strategy Cluster: Premium, Budget, Youth, Mature)
 - 主动营销智能体 (Proactive Agent)
 - AI建议智能体 (AI Suggestion Agent)
 

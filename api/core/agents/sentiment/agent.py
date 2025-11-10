@@ -19,6 +19,7 @@ from .multimodal_input_processor import MultimodalInputProcessor
 from .sentiment_analyzer import SentimentAnalyzer
 from .sales_prompt_generator import SalesPromptGenerator
 from utils import get_current_datetime
+from config import mas_config
 
 
 class SentimentAnalysisAgent(BaseAgent):
@@ -138,8 +139,8 @@ class SentimentAnalysisAgent(BaseAgent):
             return "您好！我是您的美妆顾问，很高兴为您服务。"
 
     def _update_state(self, state: dict, processed_text: str, sentiment_result: dict, sales_prompt: str, multimodal_context: dict) -> dict:
-        """更新对话状态"""
-        # 更新情感分析结果
+        """更新对话状态 - 专门为sales节点提供processed_text和sales_prompt"""
+        # 更新情感分析结果（保持向后兼容）
         state["sentiment_analysis"] = {
             **sentiment_result,
             "processed_input": processed_text,
@@ -149,25 +150,38 @@ class SentimentAnalysisAgent(BaseAgent):
             "processing_timestamp": get_current_datetime().isoformat()
         }
 
+        # 新增：专门为sales节点提供的两个独立字段
+        state["processed_text"] = processed_text  # 多模态消息转换的纯文字
+        state["sales_prompt"] = sales_prompt      # 情感分析后匹配的提示词
+
         # 更新活跃智能体列表
         state.setdefault("active_agents", []).append(self.agent_id)
+
+        self.logger.info(f"sentiment节点输出 -> processed_text长度: {len(processed_text)}, sales_prompt长度: {len(sales_prompt)}")
 
         return state
 
     def _create_error_state(self, state: dict, error_message: str) -> dict:
         """创建错误状态"""
+        fallback_text = str(state.get("customer_input", ""))
+        fallback_prompt = "您好！我是您的美妆顾问，系统暂时遇到问题，但仍然很乐意为您服务。"
+
         state["sentiment_analysis"] = {
             "sentiment": "neutral",
             "score": 0.0,
             "urgency": "medium",
             "confidence": 0.0,
-            "processed_input": str(state.get("customer_input", "")),
+            "processed_input": fallback_text,
             "multimodal_context": {"type": "error"},
-            "sales_prompt": "您好！我是您的美妆顾问，系统暂时遇到问题，但仍然很乐意为您服务。",
+            "sales_prompt": fallback_prompt,
             "agent_id": self.agent_id,
             "error": error_message,
             "fallback": True
         }
+
+        # 为sales节点提供的两个独立字段
+        state["processed_text"] = fallback_text
+        state["sales_prompt"] = fallback_prompt
 
         state.setdefault("active_agents", []).append(self.agent_id)
         return state

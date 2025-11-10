@@ -28,6 +28,73 @@ class PromptStrategy(ABC):
         pass
 
 
+class ThresholdBasedStrategy(PromptStrategy):
+    """基于情感分值阈值的策略 - 用户要求的核心算法"""
+
+    def __init__(self):
+        # 情感分值阈值配置
+        self.thresholds = {
+            "very_positive": 0.7,
+            "positive": 0.3,
+            "neutral": (-0.3, 0.3),
+            "negative": -0.3,
+            "very_negative": -0.7
+        }
+
+        # 阈值对应的提示词模板
+        self.threshold_prompts = {
+            "very_positive": "客户情绪非常积极！可以主动推荐高端产品，强调卓越效果和独特价值。建议使用热情专业的方式进行深度推荐。",
+            "positive": "客户情绪积极，可以推荐产品并详细介绍功效。建议使用友好专业的方式引导购买。",
+            "neutral": "客户情绪平稳，需要先了解需求再提供建议。建议使用专业耐心的方式建立信任。",
+            "negative": "客户有负面情绪，需要先安抚和理解问题。建议使用温和关怀的方式提供解决方案。",
+            "very_negative": "客户情绪低落或愤怒，优先安抚情绪，耐心倾听问题。建议使用同理心强的方式化解负面情绪。"
+        }
+
+    def generate(self, sentiment_result: Dict[str, Any], context: Dict[str, Any] = None) -> str:
+        """基于情感分值阈值生成提示词"""
+        score = sentiment_result.get("score", 0.0)
+        confidence = sentiment_result.get("confidence", 0.0)
+
+        # 根据分值确定阈值区间
+        threshold_category = self._classify_by_threshold(score)
+
+        # 获取基础提示词
+        base_prompt = self.threshold_prompts.get(threshold_category, self.threshold_prompts["neutral"])
+
+        # 根据置信度调整
+        confidence_modifier = self._get_confidence_modifier(confidence)
+
+        # 添加分值信息（用于调试）
+        score_info = f"[情感分值: {score:.2f}, 置信度: {confidence:.2f}]"
+
+        return f"{base_prompt} {confidence_modifier} {score_info}"
+
+    def _classify_by_threshold(self, score: float) -> str:
+        """根据分值分类到阈值区间"""
+        if score >= self.thresholds["very_positive"]:
+            return "very_positive"
+        elif score >= self.thresholds["positive"]:
+            return "positive"
+        elif score <= self.thresholds["very_negative"]:
+            return "very_negative"
+        elif score <= self.thresholds["negative"]:
+            return "negative"
+        else:
+            # 在neutral区间内
+            return "neutral"
+
+    def _get_confidence_modifier(self, confidence: float) -> str:
+        """根据置信度添加修饰语"""
+        if confidence >= 0.8:
+            return "情感判断高度准确，可以按此策略执行。"
+        elif confidence >= 0.6:
+            return "情感判断相对准确，建议按此策略执行并观察反应。"
+        elif confidence >= 0.4:
+            return "情感判断有一定不确定性，建议谨慎执行并及时调整。"
+        else:
+            return "情感判断不确定，建议采用中性策略并多观察。"
+
+
 class SentimentBasedStrategy(PromptStrategy):
     """基于情感的基础策略"""
 
@@ -209,12 +276,13 @@ class SalesPromptGenerator(LoggerMixin):
     def __init__(self):
         super().__init__()
         self.strategies: List[PromptStrategy] = [
-            PersonalizedStrategy(),  # 最完整的策略
+            ThresholdBasedStrategy(),  # 新增的阈值匹配策略（最高优先级）
+            PersonalizedStrategy(),  # 个性化策略
             MultimodalEnhancedStrategy(),  # 多模态增强策略
-            SentimentBasedStrategy()  # 基础策略
+            SentimentBasedStrategy()  # 基础策略（降级使用）
         ]
 
-        self.logger.info("销售提示词生成器初始化完成")
+        self.logger.info("销售提示词生成器初始化完成，使用阈值匹配策略")
 
     def generate_prompt(
         self,
