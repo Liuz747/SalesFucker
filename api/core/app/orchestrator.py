@@ -15,7 +15,7 @@ from langfuse import observe, get_client
 
 from core.entities import WorkflowExecutionModel
 from models import WorkflowRun
-from ..workflows import ChatWorkflow, TestWorkflow, SentimentChatWorkflow
+from ..graphs import ChatWorkflow, TestWorkflow, SentimentChatWorkflow
 from .workflow_builder import WorkflowBuilder
 from .state_manager import StateManager
 from utils import (
