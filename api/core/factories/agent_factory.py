@@ -18,7 +18,7 @@ from core.agents.product import ProductExpertAgent
 from core.agents.memory import MemoryAgent
 from core.agents.strategy import MarketStrategyCoordinator
 from core.agents.chat.agent import ChatAgent
-from libs.constants import WorkflowConstants
+from libs.constants import AgentNodes
 from utils import get_component_logger
 
 logger = get_component_logger(__name__)
@@ -26,10 +26,10 @@ logger = get_component_logger(__name__)
 
 # 工作流节点名 -> 智能体类 映射
 AGENT_NODE_MAPPING = {
-    WorkflowConstants.COMPLIANCE_NODE: ComplianceAgent,
-    WorkflowConstants.SENTIMENT_NODE: SentimentAnalysisAgent,
-    WorkflowConstants.SALES_NODE: SalesAgent,
-    WorkflowConstants.MEMORY_NODE: MemoryAgent,
+    AgentNodes.COMPLIANCE_NODE: ComplianceAgent,
+    AgentNodes.SENTIMENT_NODE: SentimentAnalysisAgent,
+    AgentNodes.SALES_NODE: SalesAgent,
+    AgentNodes.MEMORY_NODE: MemoryAgent,
     "chat_agent": ChatAgent,
 }
 
