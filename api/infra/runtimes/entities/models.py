@@ -1,6 +1,6 @@
+from dataclasses import dataclass
 from enum import StrEnum
 from typing import Optional
-from dataclasses import dataclass
 
 
 class ModelType(StrEnum):

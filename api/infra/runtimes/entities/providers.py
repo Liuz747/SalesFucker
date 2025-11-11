@@ -1,13 +1,14 @@
-from enum import StrEnum
-
-from typing import List, Optional
 from dataclasses import dataclass
+from enum import StrEnum
+from typing import Optional
+
 from .models import Model
 
 class ProviderType(StrEnum):
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     GEMINI = "gemini"
+
 
 @dataclass
 class Provider:
@@ -16,5 +17,5 @@ class Provider:
     name: str
     api_key: str
     base_url: Optional[str] = None
-    models: List[Model] = None
+    models: list[Model] = None
     enabled: bool = True

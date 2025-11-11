@@ -14,9 +14,7 @@ from core.agents.base import BaseAgent
 from core.agents.compliance import ComplianceAgent
 from core.agents.sales import SalesAgent
 from core.agents.sentiment import SentimentAnalysisAgent
-from core.agents.product import ProductExpertAgent
 from core.agents.memory import MemoryAgent
-from core.agents.strategy import MarketStrategyCoordinator
 from core.agents.chat.agent import ChatAgent
 from libs.constants import AgentNodes
 from utils import get_component_logger
