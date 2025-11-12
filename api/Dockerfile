@@ -21,7 +21,7 @@ RUN uv sync --frozen
 COPY . .
 
 # Copy and set permissions for entrypoint script
-COPY docker-entrypoint.sh /entrypoint.sh
+COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 COPY scripts/database.py /app/scripts/database.py
