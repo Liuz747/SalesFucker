@@ -1,3 +1,7 @@
+"""
+工作流运行业务模型模块
+"""
+
 from collections.abc import Mapping
 from datetime import datetime
 from typing import Any, Optional
@@ -17,7 +21,6 @@ class WorkflowExecutionModel(BaseModel):
     assistant_id: UUID = Field(description="助手标识符")
     tenant_id: str = Field(description="租户标识符")
 
-    next_node: Optional[str] = Field(default=None, description="下一个节点")
     input: InputContentParams = Field(description="输入内容")
     output: Optional[str] = Field(default=None, description="输入类型")
     values: Optional[Mapping[str, Any]] = Field(default=None, description="工作流节点交互的状态")

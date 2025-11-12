@@ -26,12 +26,10 @@ from ..wraps import (
 )
 from .background_process import BackgroundWorkflowProcessor
 
-
 logger = get_component_logger(__name__, "WorkflowRouter")
 
 # 创建工作流路由器
 router = APIRouter()
-
 
 
 @router.post("/wait")
@@ -61,11 +59,17 @@ async def create_run(
                 detail=f"线程不存在: {thread_id}"
             )
 
-        if thread.status != ThreadStatus.ACTIVE:
-            raise HTTPException(
-                status_code=400,
-                detail=f"线程状态无效，无法处理运行请求。当前状态: {thread.status}，需要状态: {ThreadStatus.ACTIVE}"
-            )
+        match thread.status:
+            case ThreadStatus.IDLE:
+                thread.status = ThreadStatus.ACTIVE
+                thread = await ThreadService.update_thread(thread)
+            case ThreadStatus.ACTIVE:
+                pass
+            case _:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"线程状态无效，无法处理运行请求。当前状态: {thread.status}，需要状态: {ThreadStatus.ACTIVE}"
+                )
 
         # 验证线程租户ID匹配
         if thread.metadata.tenant_id != tenant.tenant_id:
@@ -143,11 +147,17 @@ async def create_background_run(
                 detail=f"线程不存在: {thread_id}"
             )
 
-        if thread.status != ThreadStatus.ACTIVE:
-            raise HTTPException(
-                status_code=400,
-                detail=f"线程状态无效，无法处理运行请求。当前状态: {thread.status}，需要状态: {ThreadStatus.ACTIVE}"
-            )
+        match thread.status:
+            case ThreadStatus.IDLE:
+                thread.status = ThreadStatus.ACTIVE
+                thread = await ThreadService.update_thread(thread)
+            case ThreadStatus.ACTIVE:
+                pass
+            case _:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"线程状态无效，无法处理运行请求。当前状态: {thread.status}，需要状态: {ThreadStatus.ACTIVE}"
+                )
 
         # 验证线程租户ID匹配
         if thread.metadata.tenant_id != tenant.tenant_id:
@@ -218,24 +228,15 @@ async def get_run_status(
                 status_code=403,
                 detail="租户ID不匹配，无法访问此线程"
             )
-        
-        # 获取线程状态（现在使用线程状态代替运行状态）
-        current_thread = await ThreadService.get_thread(thread_id)
-
-        if not current_thread:
-            raise HTTPException(
-                status_code=404,
-                detail=f"线程不存在: {thread_id}"
-            )
 
         # 返回线程状态信息
         return {
-            "thread_id": current_thread.thread_id,
-            "status": current_thread.status,
-            "created_at": current_thread.created_at,
-            "updated_at": current_thread.updated_at,
+            "thread_id": thread.thread_id,
+            "status": thread.status,
+            "created_at": thread.created_at,
+            "updated_at": thread.updated_at,
             "run_id": run_id,  # 保持向后兼容性
-            "metadata": current_thread.metadata.model_dump()
+            "metadata": thread.metadata.model_dump()
         }
     
     except HTTPException:

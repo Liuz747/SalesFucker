@@ -14,9 +14,7 @@ import uuid
 from typing import Any, Optional
 from pydantic import BaseModel, Field
 
-from libs.constants import MessageConstants
-from libs.types import MessageType
-from models import InputType
+from libs.types import MessageType, InputType
 
 
 class AgentMessage(BaseModel):
@@ -98,7 +96,7 @@ class ThreadState(BaseModel):
     # 客户输入
     customer_input: str = Field("", description="客户当前输入的消息内容")
     input_type: InputType = Field(
-        MessageConstants.TEXT_INPUT, 
+        'text', 
         description="输入类型：text=文本, voice=语音, image=图片"
     )
     input_metadata: dict[str, Any] = Field(

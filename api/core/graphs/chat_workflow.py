@@ -10,9 +10,9 @@ from collections.abc import Callable
 from langgraph.graph import StateGraph
 
 from core.agents.base import BaseAgent
-from core.app.entities import WorkflowExecutionModel
+from core.entities import WorkflowExecutionModel
 from utils import get_component_logger
-from libs.constants import WorkflowConstants, StatusConstants
+from libs.constants import AgentNodes
 from .base_workflow import BaseWorkflow
 
 
@@ -49,10 +49,10 @@ class ChatWorkflow(BaseWorkflow):
         """
         # 节点映射：节点名称 -> 智能体ID常量
         node_mappings = [
-            WorkflowConstants.COMPLIANCE_NODE,
-            WorkflowConstants.SENTIMENT_NODE,
-            WorkflowConstants.SALES_NODE,
-            WorkflowConstants.MEMORY_NODE,
+            AgentNodes.COMPLIANCE_NODE,
+            AgentNodes.SENTIMENT_NODE,
+            AgentNodes.SALES_NODE,
+            AgentNodes.MEMORY_NODE,
         ]
         
         # 注册所有节点处理函数
@@ -75,17 +75,17 @@ class ChatWorkflow(BaseWorkflow):
 
         # 合规检查路由
         graph.add_conditional_edges(
-            WorkflowConstants.COMPLIANCE_NODE,
+            AgentNodes.COMPLIANCE_NODE,
             self._compliance_router,
             {
-                "continue": WorkflowConstants.SENTIMENT_NODE,  # 继续到情感分析
+                "continue": AgentNodes.SENTIMENT_NODE,  # 继续到情感分析
                 "block": "blocked_completion"  # 合规阻止时的完成节点
             }
         )
 
         # 串行处理流程
-        graph.add_edge(WorkflowConstants.SENTIMENT_NODE, WorkflowConstants.SALES_NODE)
-        graph.add_edge(WorkflowConstants.SALES_NODE, WorkflowConstants.MEMORY_NODE)
+        graph.add_edge(AgentNodes.SENTIMENT_NODE, AgentNodes.SALES_NODE)
+        graph.add_edge(AgentNodes.SALES_NODE, AgentNodes.MEMORY_NODE)
 
         logger.debug("优化工作流边定义完成 - 启用并行处理")
     
@@ -97,10 +97,10 @@ class ChatWorkflow(BaseWorkflow):
             graph: 要设置入口出口的状态图
         """
         # 设置工作流入口点 - 从合规检查开始
-        graph.set_entry_point(WorkflowConstants.COMPLIANCE_NODE)
+        graph.set_entry_point(AgentNodes.COMPLIANCE_NODE)
         
         # 设置工作流出口点 - 内存节点是正常流程的结束，阻止完成是异常流程的结束
-        graph.set_finish_point([WorkflowConstants.MEMORY_NODE, "blocked_completion"])
+        graph.set_finish_point([AgentNodes.MEMORY_NODE, "blocked_completion"])
         
         logger.debug("工作流入口出口点设置完成")
     
@@ -137,10 +137,10 @@ class ChatWorkflow(BaseWorkflow):
             dict[str, Callable]: 节点名称到降级处理器的映射
         """
         return {
-            WorkflowConstants.COMPLIANCE_NODE: self._compliance_fallback,
-            WorkflowConstants.SENTIMENT_NODE: self._sentiment_fallback,
-            WorkflowConstants.SALES_NODE: self._sales_fallback,
-            WorkflowConstants.MEMORY_NODE: self._memory_fallback,
+            AgentNodes.COMPLIANCE_NODE: self._compliance_fallback,
+            AgentNodes.SENTIMENT_NODE: self._sentiment_fallback,
+            AgentNodes.SALES_NODE: self._sales_fallback,
+            AgentNodes.MEMORY_NODE: self._memory_fallback,
         }
     
     async def _process_agent_node(self, state: WorkflowExecutionModel, node_name: str) -> dict:
@@ -218,7 +218,7 @@ class ChatWorkflow(BaseWorkflow):
         """合规审查降级处理"""
         return {
             "compliance_result": {
-                "status": StatusConstants.APPROVED,
+                "status": "approved",
                 "fallback": True,
                 "message": "合规检查系统暂时不可用，默认通过"
             }
@@ -255,7 +255,7 @@ class ChatWorkflow(BaseWorkflow):
         """记忆管理降级处理"""
         return {
             "memory_update": {
-                "status": StatusConstants.FAILED,
+                "status": "failed",
                 "message": "记忆系统暂时不可用",
                 "fallback": True
             }

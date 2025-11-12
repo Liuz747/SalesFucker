@@ -15,9 +15,9 @@ from collections.abc import Callable
 from langgraph.graph import StateGraph
 
 from core.agents.base import BaseAgent
-from core.app.entities import WorkflowExecutionModel
+from core.entities import WorkflowExecutionModel
 from utils import get_component_logger
-from libs.constants import WorkflowConstants
+from libs.constants import AgentNodes
 from .base_workflow import BaseWorkflow
 
 
@@ -56,8 +56,8 @@ class SentimentChatWorkflow(BaseWorkflow):
         """
         # 注册两个核心节点
         node_mappings = [
-            WorkflowConstants.SENTIMENT_NODE,
-            WorkflowConstants.SALES_NODE,  # 作为chat agent使用
+            AgentNodes.SENTIMENT_NODE,
+            AgentNodes.SALES_NODE,  # 作为chat agent使用
         ]
 
         # 注册所有节点处理函数
@@ -76,7 +76,7 @@ class SentimentChatWorkflow(BaseWorkflow):
             graph: 要定义边的状态图
         """
         # 直接连接：sentiment分析 -> 聊天回复
-        graph.add_edge(WorkflowConstants.SENTIMENT_NODE, WorkflowConstants.SALES_NODE)
+        graph.add_edge(AgentNodes.SENTIMENT_NODE, AgentNodes.SALES_NODE)
 
         logger.debug("工作流边定义完成 - sentiment -> chat")
 
@@ -88,10 +88,10 @@ class SentimentChatWorkflow(BaseWorkflow):
             graph: 要设置入口出口的状态图
         """
         # 设置工作流入口点 - 从情感分析开始
-        graph.set_entry_point(WorkflowConstants.SENTIMENT_NODE)
+        graph.set_entry_point(AgentNodes.SENTIMENT_NODE)
 
         # 设置工作流出口点 - 聊天节点是流程的结束
-        graph.set_finish_point(WorkflowConstants.SALES_NODE)
+        graph.set_finish_point(AgentNodes.SALES_NODE)
 
         logger.debug("工作流入口出口点设置完成")
 
@@ -103,8 +103,8 @@ class SentimentChatWorkflow(BaseWorkflow):
             dict[str, Callable]: 节点名称到降级处理器的映射
         """
         return {
-            WorkflowConstants.SENTIMENT_NODE: self._sentiment_fallback,
-            WorkflowConstants.SALES_NODE: self._chat_fallback,
+            AgentNodes.SENTIMENT_NODE: self._sentiment_fallback,
+            AgentNodes.SALES_NODE: self._chat_fallback,
         }
 
     async def _process_agent_node(self, state: WorkflowExecutionModel, node_name: str) -> dict:
