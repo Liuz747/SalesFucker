@@ -9,7 +9,7 @@ import asyncio
 import logging
 from typing import Dict, Any, Optional, List
 
-from .recommendation_engine import RAGRecommendationEngine
+# from .recommendation_engine import RAGRecommendationEngine
 from .fallback_system import FallbackRecommendationSystem
 from .recommendation_formatter import RecommendationFormatter
 from .product_knowledge import ProductKnowledgeManager

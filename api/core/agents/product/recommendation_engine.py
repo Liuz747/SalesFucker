@@ -10,13 +10,13 @@ import logging
 from typing import Dict, Any, List
 from datetime import datetime
 
-from core.rag import (
-    ProductRecommender,
-    RecommendationType, 
-    RecommendationRequest,
-    ProductSearch,
-    SearchQuery
-)
+# from core.rag import (
+#     ProductRecommender,
+#     RecommendationType, 
+#     RecommendationRequest,
+#     ProductSearch,
+#     SearchQuery
+# )
 
 logger = logging.getLogger(__name__)
 

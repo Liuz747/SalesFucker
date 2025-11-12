@@ -8,10 +8,9 @@
 from uuid import UUID
 
 import msgpack
-from redis.asyncio import Redis
 
-from infra.cache import get_redis_client
 from infra.runtimes import CompletionsRequest
+from libs.factory import infra_registry
 from libs.types import Message, MessageParams
 from utils import get_component_logger
 
@@ -27,7 +26,7 @@ class ConversationStore:
 
     def __init__(self):
         self.max_messages = 20
-        self.redis_client: Redis | None = None
+        self.redis_client = infra_registry.get_cached_clients().redis
 
     # ------------- key helpers -------------
     @staticmethod
@@ -50,7 +49,7 @@ class ConversationStore:
         thread_id: UUID,
         packed: list[bytes],
     ):
-        redis_client = self.redis_client or await get_redis_client()
+        redis_client = self.redis_client
         key = self._key(thread_id)
 
         if not packed:
@@ -71,7 +70,7 @@ class ConversationStore:
     # ------------- read path -------------
     async def get_recent(self,  thread_id: UUID, limit: int | None = None) -> MessageParams:
         """获取最近 limit 条消息（默认使用 store 的 max_messages）。"""
-        redis = self.redis_client or await get_redis_client()
+        redis = self.redis_client
         key = self._key(thread_id)
         n = limit or self.max_messages
         # last n: [-n, -1]
