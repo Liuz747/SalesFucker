@@ -8,8 +8,8 @@ TEMPORAL_HOST=${TEMPORAL_HOST:-temporal}
 TEMPORAL_PORT=${TEMPORAL_PORT:-7233}
 
 # Wait for Temporal
-echo "⏳ Waiting for Temporal to start..."
-until curl -sf "http://$TEMPORAL_HOST:$TEMPORAL_PORT" > /dev/null 2>&1; do
+until > /dev/tcp/$TEMPORAL_HOST/$TEMPORAL_PORT 2>/dev/null; do
+    echo "⏳ Waiting for Temporal to start..."
     sleep 2
 done
 echo "✅ Temporal is ready!"

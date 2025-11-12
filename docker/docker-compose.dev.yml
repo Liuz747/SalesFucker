@@ -60,7 +60,7 @@ services:
       retries: 3
 
   langfuse-worker:
-    image: ${REGISTRY_URL}/worker
+    image: ${REGISTRY_URL}/langfuse-worker
     depends_on: *langfuse-depends-on
     ports:
       - "3030:3030"
