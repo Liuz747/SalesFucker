@@ -127,8 +127,8 @@ class ChatWorkflow(BaseWorkflow):
         """
         agent = self.agents.get(node_name)
         if not agent:
-            logger.warning(f"智能体未找到: {node_name}")
-            return self._apply_fallback(state, node_name, None)
+            logger.error(f"智能体未找到: {node_name}")
+            raise ValueError(f"Agent '{node_name}' not found")
 
         try:
             # 将 Pydantic 模型转换为 dict 供 agent 处理
@@ -166,54 +166,14 @@ class ChatWorkflow(BaseWorkflow):
 
         except Exception as e:
             logger.error(f"节点 {node_name} 处理错误: {e}", exc_info=True)
-            return self._apply_fallback(state, node_name, e)
+            raise e
 
-    def _apply_fallback(self, state: WorkflowExecutionModel, node_name: str, error: Optional[Exception]) -> dict:
-        """
-        应用降级处理策略
-
-        参数:
-            state: 当前状态
-            node_name: 节点名称
-            error: 可选的错误信息
-
-        返回:
-            dict: 应用降级后的状态
-        """
-        logger.warning(f"应用降级处理: {node_name}, 错误: {error}")
-
-        # 将 Pydantic 模型转换为 dict
-        state_dict = state.model_dump()
-
-        # 基于节点类型提供不同的降级响应
-        if node_name == "sentiment":
-            state_dict["sentiment_analysis"] = {
-                "sentiment": "neutral",
-                "score": 0.5,
-                "urgency": "medium",
-                "processed_input": state.input,
-                "sales_prompt": "以友好专业的方式回应客户，了解其具体需求。"
-            }
-        elif node_name == "sales_agent":
-            state_dict["sales_response"] = "您好！我是您的美妆顾问，很高兴为您服务。请告诉我您的具体需求，我会为您提供专业建议。"
-        elif node_name == "memory":
-            state_dict["memory_retrieved"] = {}
-            state_dict["memory_stored"] = True
-        elif node_name == "chat_agent":
-            state_dict["final_response"] = "感谢您的咨询，我会尽力为您提供帮助。"
-            state_dict["processing_complete"] = True
-
-        # 标记错误状态但不阻止工作流继续
-        state_dict["error_state"] = f"{node_name}_fallback_applied"
-        state_dict.setdefault("active_agents", []).append(f"{node_name}_fallback")
-
-        return state_dict
-    
     def _create_agent_node(self, node_name: str):
         """创建智能体节点的通用方法"""
         async def agent_node(state: WorkflowExecutionModel) -> dict:
             return await self._process_agent_node(state, node_name)
         return agent_node
+<<<<<<< HEAD
     
     # ============ 降级处理器 ============
     def _sentiment_fallback(self, state: WorkflowExecutionModel, error: Optional[Exception]) -> dict:
@@ -264,3 +224,5 @@ class ChatWorkflow(BaseWorkflow):
     #         }
     #     }
 >>>>>>> e292a6d (add: feedback handler):api/core/workflows/chat_workflow.py
+=======
+>>>>>>> a8a33ef (fix: excutor type)

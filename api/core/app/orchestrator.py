@@ -79,7 +79,7 @@ class Orchestrator:
         start_time = get_current_datetime()
 
         try:
-            # 构建初始工作流状态
+            # 构建初始工作流状态（dict格式）
             initial_state = self.state_manager.create_initial_state(workflow)
 
             # 执行工作流
@@ -91,8 +91,11 @@ class Orchestrator:
             if isinstance(result, dict):
                 logger.info(f"工作流结果字段: {list(result.keys())}")
                 if 'output' in result:
-                    logger.info(f"output 存在，长度: {len(result.get('output', ''))}")
-                    logger.info(f"output 内容预览: {result.get('output', '')[:50]}...")
+                    if result['output'] is not None:
+                        logger.info(f"output 存在，长度: {len(result.get('output', ''))}")
+                        logger.info(f"output 内容预览: {result.get('output', '')[:50]}...")
+                    else:
+                        logger.warning("output 字段为 None")
                 else:
                     logger.warning(f"output 不存在，可用字段: {list(result.keys())}")
             else:

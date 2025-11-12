@@ -352,3 +352,322 @@ agents:
         - 系统升级：技术层面的改进建议
 
         请持续监控系统表现，提供有价值的改进建议。
+    debug_sales_prompt:
+      description: Sales agent debug prompt when sales_prompt is missing
+      version: '1.0'
+      template: |-
+        检测到销售提示词为空，这可能是由于情感分析结果传递问题导致的。
+
+        客户输入：{{ customer_input }}
+
+        情感分析状态：{{ sentiment_analysis_status }}
+
+        基于当前可用信息，提供以下响应：
+
+        感谢您的咨询！我是您的专业美妆顾问。我注意到您表达了一些情感，让我为您提供专业的美妆建议。
+
+        针对您的需求，我建议：
+        1. 首先了解您的肌肤状况和关注问题
+        2. 根据您的具体需求推荐适合的产品
+        3. 为您制定个性化的美妆方案
+
+        请告诉我更多关于您的具体需求，这样我能为您提供更精准的建议。
+    error_recovery:
+      description: Sales agent error recovery prompt
+      version: '1.0'
+      template: |-
+        系统遇到了一些技术问题，但我仍然很乐意为您提供专业的美妆咨询服务。
+
+        客户输入：{{ customer_input }}
+        错误类型：{{ error_type }}
+
+        虽然系统出现了问题，但我的专业知识依然可以为您服务：
+
+        🌸 如果您需要护肤建议，我可以为您分析肌肤状况
+        💄 如果您需要彩妆指导，我可以为您推荐适合的产品
+        ✨ 如果您有任何美妆疑问，我都会耐心为您解答
+
+        请告诉我您具体需要什么帮助，我会尽力为您提供最好的服务！
+    emergency_response:
+      description: Emergency response when all systems fail
+      version: '1.0'
+      template: |-
+        您好！我是您的美妆顾问。
+
+        虽然系统遇到了一些技术问题，但我仍然可以为您提供专业的美妆咨询服务。
+
+        请您：
+        1. 告诉我您的肌肤类型（干性/油性/混合性/敏感性）
+        2. 说明您想解决的肌肤问题
+        3. 描述您的美妆需求和预算范围
+
+        我会根据多年的专业经验，为您提供最适合的产品建议和使用指导。
+
+        期待为您提供优质的服务！🌹
+  sentiment:
+    enhanced_analysis:
+      description: Enhanced sentiment analysis prompt with better context handling
+      version: '1.0'
+      template: |-
+        作为专业的情感分析师，请深入分析客户的情绪状态和购买意图：
+
+        客户输入：{{ customer_input }}
+
+        多模态上下文：{{ multimodal_context }}
+
+        历史交互记录：{{ interaction_history }}
+
+        请返回详细的JSON分析结果，包含以下维度：
+
+        {
+          "sentiment": {
+            "primary": "positive/negative/neutral",
+            "score": 0.0-1.0,
+            "confidence": 0.0-1.0,
+            "emotional_indicators": {
+              "enthusiasm": 0.0-1.0,
+              "concern": 0.0-1.0,
+              "satisfaction": 0.0-1.0,
+              "urgency": 0.0-1.0,
+              "frustration": 0.0-1.0,
+              "excitement": 0.0-1.0
+            },
+            "mood_description": "客户当前情绪的详细描述"
+          },
+          "intent": {
+            "primary_intent": "browsing/researching/comparing/purchasing/complaining/consulting",
+            "intent_strength": 0.0-1.0,
+            "purchase_readiness": "low/medium/high",
+            "decision_stage": "awareness/interest/consideration/intent/evaluation/purchase",
+            "urgency_level": "low/medium/high",
+            "category_interest": ["skincare", "makeup", "tools", "consultation"],
+            "specific_needs": ["具体需求1", "具体需求2"]
+          },
+          "customer_profile": {
+            "experience_level": "beginner/intermediate/advanced",
+            "skin_concerns": ["关注的肌肤问题"],
+            "budget_signals": ["价格敏感度指标"],
+            "communication_style": "direct/detail-oriented/emotional/logical"
+          },
+          "sales_guidance": {
+            "recommended_approach": "热情推荐/耐心解答/专业分析/情感支持",
+            "key_talking_points": ["销售要点1", "销售要点2"],
+            "tone_adjustment": "warm/professional/empathetic/confident",
+            "urgency_response": "立即回应/详细咨询/循序渐进"
+          }
+        }
+
+        分析要点：
+        1. 深入理解客户的真实情感状态
+        2. 识别潜在的购买信号和阻碍因素
+        3. 分析客户的沟通偏好和决策模式
+        4. 为后续销售对话提供精准的策略建议
+        5. 考虑文化背景和美妆行业特点
+    sales_prompt_generation:
+      description: Generate specific sales prompts based on sentiment analysis
+      version: '1.0'
+      template: |-
+        基于情感分析结果，生成个性化的销售引导策略：
+
+        情感分析结果：
+        - 主要情绪：{{ sentiment }} (强度: {{ sentiment_score }})
+        - 满意度：{{ satisfaction }}
+        - 紧迫程度：{{ urgency }}
+        - 主要情绪指标：{{ emotional_indicators }}
+
+        客户画像：
+        - 肌肤关注：{{ skin_concerns }}
+        - 经验水平：{{ experience_level }}
+        - 购买意图：{{ intent }}
+        - 决策阶段：{{ decision_stage }}
+
+        请生成具体的销售引导策略：
+
+        {% if sentiment == "positive" %}
+        客户情绪积极，可以：
+        - 热情回应并深入了解需求
+        - 主动推荐高品质产品
+        - 分享产品的独特优势和效果
+        - 营造购买紧迫感（如限量、优惠等）
+        {% elif sentiment == "negative" %}
+        客户情绪消极，需要：
+        - 耐心倾听并表示理解
+        - 先解决客户的担忧和问题
+        - 提供专业的解决方案建议
+        - 建立信任关系后再谈产品
+        {% else %}
+        客户情绪中性，应该：
+        - 专业引导了解具体需求
+        - 提供详细的产品信息
+        - 通过对比展示产品价值
+        - 循序渐进建立购买兴趣
+        {% endif %}
+
+        {% if urgency == "high" %}
+        高紧迫度策略：
+        - 快速响应，直接提供解决方案
+        - 强调产品的即时效果
+        - 推荐现货充足的热门产品
+        - 提供快速购买通道
+        {% elif urgency == "medium" %}
+        中等紧迫度策略：
+        - 详细了解需求后推荐
+        - 对比不同产品的优劣
+        - 提供试用装或小规格选择
+        - 给予适当的考虑时间
+        {% else %}
+        低紧迫度策略：
+        - 深入咨询和个性化建议
+        - 全面的产品教育和指导
+        - 建立长期的信任关系
+        - 关注客户的整体美妆需求
+        {% endif %}
+
+        具体话术建议：
+        1. 开场问候：{{ opening_greeting }}
+        2. 需求挖掘：{{ need_discovery }}
+        3. 产品推荐：{{ product_recommendation }}
+        4. 异议处理：{{ objection_handling }}
+        5. 促成成交：{{ closing_approach }}
+  sales:
+    emotion_response:
+      description: Sales agent emotion-based response templates
+      version: '1.0'
+      template: |-
+        {% if sentiment == "positive" and urgency == "high" %}
+        太好了！我看得出您对美妆很有热情！让我立刻为您推荐几款热门爆款产品，这些都是我们最受欢迎的明星产品，效果非常好！
+
+        根据您的需求，我特别推荐：
+        {{ product_recommendations }}
+
+        这些产品现在都有特别优惠，而且库存不多，建议您尽快下单哦！
+        {% elif sentiment == "positive" and urgency == "medium" %}
+        您对美妆的关注让我印象深刻！我很乐意为您详细介绍一些适合的产品。
+
+        针对您的情况，我建议考虑以下几个方面：
+        {{ detailed_analysis }}
+
+        我们可以先从基础护肤开始，然后逐步完善您的美妆routine。
+        {% elif sentiment == "negative" and urgency == "high" %}
+        我完全理解您现在的感受，美妆问题确实会让人困扰。让我先帮您分析一下问题所在，然后提供针对性的解决方案。
+
+        根据您描述的情况：
+        {{ problem_analysis }}
+
+        我建议我们从解决最紧急的问题开始，我有一些非常有效的解决方案可以快速帮到您。
+        {% elif sentiment == "negative" and urgency == "medium" %}
+        我理解您的担忧，美妆确实有很多需要注意的地方。让我们一步一步来解决这些问题。
+
+        首先，我想了解一下：
+        {{ consultation_questions }}
+
+        根据您的回答，我会为您制定一个完整的解决方案。
+        {% elif sentiment == "neutral" and urgency == "high" %}
+        好的，我明白您希望快速找到合适的产品。让我直接为您推荐一些经过验证的优质选择。
+
+        基于您的需求，这些产品值得考虑：
+        {{ quick_recommendations }}
+
+        这些都是我们的明星产品，效果经过验证，可以放心选择。
+        {% else %}
+        感谢您的咨询！我是您的专业美妆顾问，很高兴为您提供个性化的美妆建议。
+
+        为了给您最合适的推荐，我想了解一下：
+        {{ standard_consultation }}
+
+        请您告诉我更多信息，这样我能为您提供更精准的建议。
+        {% endif %}
+    conversation_starters:
+      description: Conversation starters based on customer context
+      version: '1.0'
+      template: |-
+        {% if customer_type == "first_time" %}
+        欢迎第一次光临我们的美妆专柜！我是{{ agent_name }}，您的专属美妆顾问。
+
+        我看得出您对美妆很感兴趣！为了给您最合适的建议，我想了解一下：
+        - 您平时的护肤routine是怎样的？
+        - 有什么特别想改善的肌肤问题吗？
+        - 您更偏向于自然清淡的妆容还是精致的全妆look？
+
+        不用担心，我会根据您的情况为您制定完整的美妆方案！
+        {% elif customer_type == "returning" %}
+        {{ customer_name }}！很高兴再次见到您！
+
+        我记得上次您购买了{{ previous_products }}，使用效果如何？
+
+        今天是来补货，还是想尝试一些新的产品呢？我最近发现了几款非常棒的新品，特别适合{{ skin_type }}肌肤！
+        {% elif customer_type == "browsing" %}
+        您好！我注意到您对{{ viewed_products }}很感兴趣。
+
+        这些都是我们的热门产品呢！您是想了解具体的使用效果，还是希望我为您推荐更多类似的产品？
+
+        如果您不介意，我可以为您介绍一下这些产品的特色和适用场景。
+        {% endif %}
+    product_education:
+      description: Product education templates
+      version: '1.0'
+      template: |-
+        让我为您详细介绍一下这款{{ product_name }}：
+
+        🌟 **产品亮点**
+        {{ key_features }}
+
+        💡 **适合人群**
+        - 肌肤类型：{{ suitable_skin_types }}
+        - 年龄段：{{ age_range }}
+        - 适用季节：{{ seasons }}
+
+        📋 **使用方法**
+        {{ usage_instructions }}
+
+        ⏰ **使用时间建议**
+        {{ timing_recommendations }}
+
+        ✨ **预期效果**
+        - 短期效果（1-2周）：{{ short_term_effects }}
+        - 中期效果（1-2月）：{{ medium_term_effects }}
+        - 长期效果（3月以上）：{{ long_term_effects }}
+
+        💰 **价位说明**
+        {{ price_justification }}
+
+        您还有什么想了解的吗？我可以为您演示使用方法，或者分享一些搭配建议。
+    objection_responses:
+      description: Common objection responses
+      version: '1.0'
+      template: |-
+        {% if objection_type == "price" %}
+        我完全理解您对价格的考虑。让我为您分析一下这个投资的价值：
+
+        {{ price_breakdown }}
+
+        实际上，如果按每日使用成本计算：
+        - 这款产品可以使用{{ usage_duration }}
+        - 平均每天成本只有{{ daily_cost }}元
+        - 相比{{ comparison_products }}，性价比非常高
+
+        另外，我们现在有{{ current_promotions }}，可以为您节省不少费用。
+        {% elif objection_type == "effect" %}
+        您的担心很合理，毕竟每个人的肌肤状况不同。
+
+        关于效果，我可以分享一些真实的使用反馈：
+        {{ customer_testimonials }}
+
+        为了让您更放心，我们提供：
+        - {{ trial_options }}
+        - {{ guarantee_policy }}
+        - {{ return_policy }}
+
+        这样您可以零风险尝试，如果效果不满意可以随时退换。
+        {% elif objection_type == "suitability" %}
+        您的谨慎态度很好！选择适合自己的产品确实很重要。
+
+        让我为您分析一下适用性：
+        {{ suitability_analysis }}
+
+        如果您还是不太确定，我建议：
+        {{ recommendations_for_hesitant_customers }}
+
+        我们的目标是为您找到最合适的产品，而不是销售不适合的商品。
+        {% endif %}
+

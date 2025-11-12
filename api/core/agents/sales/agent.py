@@ -17,7 +17,8 @@ from uuid import uuid4
 from ..base import BaseAgent
 from libs.types import Message
 from infra.runtimes.entities import CompletionsRequest
-from utils import get_current_datetime
+from ...prompts.prompt_manager import render_agent_prompt
+from utils import get_current_datetime, get_component_logger
 from config import mas_config
 
 
@@ -95,14 +96,7 @@ class SalesResponseGenerator:
 
     def _get_fallback_response(self, sales_prompt: str) -> str:
         """获取降级响应"""
-        if "紧急" in sales_prompt or "急" in sales_prompt:
-            return "我理解您的需求很紧急，让我立即为您提供专业的建议和解决方案。"
-        elif "积极" in sales_prompt:
-            return "很高兴为您服务！基于您的需求，我很乐意为您推荐最合适的产品。"
-        elif "负面" in sales_prompt or "安抚" in sales_prompt:
-            return "我理解您的顾虑，让我为您提供专业的解决方案，确保您满意。"
-        else:
-            return "您好！作为您的美妆顾问，我很乐意为您提供专业的建议和推荐。"
+        return "感谢您的咨询！我是您的专业美妆顾问，很高兴为您提供个性化的美容建议。请告诉我您的具体需求，我会为您推荐最适合的产品。"
 
 
 class SalesAgent(BaseAgent):
@@ -124,10 +118,10 @@ class SalesAgent(BaseAgent):
 
         # 根据provider选择合适的模型
         if self.llm_provider == "openrouter":
-            self.llm_model = "google/gemini-2.5-flash-preview-09-2025"
+            self.llm_model = "openai/gpt-5-chat"  # 使用OpenRouter中可用的模型
         elif self.llm_provider == "zenmux":
-            self.llm_model = "openai/gpt-5-chat"
-        else:
+            self.llm_model = "gpt-4o"
+        elif self.llm_provider == "openai":
             self.llm_model = "gpt-4o-mini"
 
         # 初始化响应生成器
@@ -157,10 +151,12 @@ class SalesAgent(BaseAgent):
         try:
             customer_input = state.get("customer_input", "")
             sentiment_analysis = state.get("sentiment_analysis", {})
-
-            # 提取情感分析结果和销售提示词
-            sales_prompt = sentiment_analysis.get("sales_prompt", "")
+            sales_prompt = state.get("sales_prompt", "")
             processed_input = sentiment_analysis.get("processed_input", customer_input)
+
+            self.logger.info(f"统一状态读取 - customer_input长度: {len(customer_input)}, sales_prompt长度: {len(sales_prompt)}")
+            self.logger.info(f"情感分析 - sentiment: {sentiment_analysis.get('sentiment')}, urgency: {sentiment_analysis.get('urgency')}")
+            self.logger.debug(f"sales_prompt内容: {sales_prompt[:100]}..." if len(sales_prompt) > 100 else f"sales_prompt内容: {sales_prompt}")
 
             # 生成销售响应
             response, token_info = await self._generate_sales_response(
@@ -169,19 +165,29 @@ class SalesAgent(BaseAgent):
                 sentiment_analysis
             )
 
+            self.logger.info(f"生成的响应 - 长度: {len(response)}, tokens: {token_info}")
+            self.logger.debug(f"响应内容预览: {response[:100]}..." if len(response) > 100 else f"响应内容: {response}")
             # 更新对话状态
             updated_state = self._update_state(state, response, sentiment_analysis, token_info)
 
             self.logger.info(f"销售响应生成完成: 长度={len(response)}字符, tokens={token_info.get('tokens_used', 0)}")
+            self.logger.info("=== Sales Agent 处理完成 ===")
             return updated_state
 
         except Exception as e:
+<<<<<<< HEAD
             self.logger.error(f"Agent processing failed: {e}", exc_info=True)
             state["error_state"] = "sales_processing_error"
             return state
     
     # ===== 新增的便利方法 =====
     # 这些方法现在委托给response_adapter和templates模块
+=======
+            self.logger.error(f"销售处理失败: {e}", exc_info=True)
+            self.logger.error(f"失败时的状态信息 - customer_input: {state.get('customer_input', 'None')}")
+            self.logger.error(f"失败时的sentiment_analysis: {state.get('sentiment_analysis', {})}")
+            return self._create_error_state(state, str(e))
+>>>>>>> a8a33ef (fix: excutor type)
 
 <<<<<<< HEAD
     async def get_greeting_message(self, context: Optional[Dict[str, Any]] = None) -> Optional[str]:
@@ -195,15 +201,20 @@ class SalesAgent(BaseAgent):
         sentiment_context: Dict[str, Any]
     ) -> tuple[str, dict]:
         """生成销售响应，返回响应内容和token信息"""
-        if not sales_prompt:
-            # 如果没有情感提示词，使用基础响应
-            return "您好！我是您的美妆顾问，很高兴为您服务。请告诉我您的需求。", {}
+        self.logger.info(f"准备生成销售响应 - sales_prompt长度: {len(sales_prompt)}, sentiment: {sentiment_context.get('sentiment', 'unknown')}")
 
-        return await self.response_generator.generate_response(
+        if not sales_prompt:
+            self.logger.error("Sales prompt为空，情感分析可能失败")
+            raise ValueError("Sales prompt cannot be empty - sentiment analysis may have failed")
+
+        response, token_info = await self.response_generator.generate_response(
             customer_input,
             sales_prompt,
             sentiment_context
         )
+
+        self.logger.info(f"销售响应生成完成 - 响应长度: {len(response)}, tokens: {token_info.get('total_tokens', 0)}")
+        return response, token_info
 
     def _update_state(self, state: dict, response: str, sentiment_analysis: Dict[str, Any], token_info: dict = None) -> dict:
         """更新对话状态"""
@@ -225,14 +236,13 @@ class SalesAgent(BaseAgent):
         # 添加token使用信息
         if token_info:
             agent_data.update(token_info)
-            self.logger.info(f"添加token信息到agent_responses: {token_info}")
+            self.logger.info(f"销售响应token信息: {token_info}")
 
         state["values"]["agent_responses"][self.agent_id] = agent_data
 
         # 调试日志：跟踪响应存储
-        self.logger.info(f"销售响应已存储: 长度={len(response)} 字符, agent_id={self.agent_id}")
-        self.logger.info(f"values.agent_responses 结构已更新: {list(state.get('values', {}).get('agent_responses', {}).keys())}")
-        self.logger.info(f"销售响应内容预览: {response[:50]}...")
+        self.logger.info(f"销售响应已存储到根级别: sales_response({len(response)}字符)")
+        self.logger.info(f"状态传递完成 -> 下一个Agent可访问: state['sales_response']")
 
         # 更新活跃智能体列表
         state.setdefault("active_agents", []).append(self.agent_id)

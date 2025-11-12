@@ -52,7 +52,6 @@ class SentimentChatWorkflow(BaseWorkflow):
             agents: 智能体字典，需要包含 sentiment 和 sales 节点
         """
         self.agents = agents
-        self.fallback_handlers = self._init_fallback_handlers()
 
     def _register_nodes(self, graph: StateGraph):
         """
@@ -102,24 +101,12 @@ class SentimentChatWorkflow(BaseWorkflow):
 
         logger.debug("工作流入口出口点设置完成")
 
-    def _init_fallback_handlers(self) -> dict[str, Callable]:
-        """
-        初始化降级处理器映射
-
-        返回:
-            dict[str, Callable]: 节点名称到降级处理器的映射
-        """
-        return {
-            AgentNodes.SENTIMENT_NODE: self._sentiment_fallback,
-            AgentNodes.SALES_NODE: self._chat_fallback,
-        }
-
-    async def _process_agent_node(self, state: WorkflowExecutionModel, node_name: str) -> dict:
+    async def _process_agent_node(self, state: dict, node_name: str) -> dict:
         """
         通用智能体节点处理方法
 
         参数:
-            state: 当前对话状态
+            state: 当前对话状态（dict类型）
             node_name: 节点名称
 
         返回:
@@ -127,76 +114,35 @@ class SentimentChatWorkflow(BaseWorkflow):
         """
         agent = self.agents.get(node_name)
         if not agent:
-            logger.warning(f"智能体未找到: {node_name}")
-            return self._apply_fallback(state, node_name, None)
+            logger.error(f"智能体未找到: {node_name}")
+            raise ValueError(f"Agent '{node_name}' not found")
 
         try:
-            # 将 Pydantic 模型转换为 dict 供 agent 处理
-            state_dict = state.model_dump()
-            # 将 input 兼容映射为各 Agent 期望的 customer_input
-            state_dict.setdefault("customer_input", state.input)
-            result_state = await agent.process_conversation(state_dict)
+            # 修复：直接使用dict状态，无需model_dump转换
+            # 确保 input 兼容映射为各 Agent 期望的 customer_input
+            state.setdefault("customer_input", state.get("input"))
+
+            # 调试日志：记录节点处理前的状态
+            logger.debug(f"节点 {node_name} 处理前状态键: {list(state.keys())}")
+            if "sales_prompt" in state:
+                logger.debug(f"节点 {node_name} 接收到sales_prompt，长度: {len(state['sales_prompt'])}")
+
+            result_state = await agent.process_conversation(state)
+
+            # 调试日志：记录节点处理后的状态
+            logger.debug(f"节点 {node_name} 处理后状态键: {list(result_state.keys())}")
+            if "sales_prompt" in result_state:
+                logger.debug(f"节点 {node_name} 输出sales_prompt，长度: {len(result_state['sales_prompt'])}")
 
             logger.debug(f"节点处理完成: {node_name}")
             return result_state
 
         except Exception as e:
             logger.error(f"节点 {node_name} 处理错误: {e}", exc_info=True)
-            return self._apply_fallback(state, node_name, e)
-
-    def _apply_fallback(self, state: WorkflowExecutionModel, node_name: str, error: Optional[Exception]) -> dict:
-        """
-        应用降级处理策略
-
-        参数:
-            state: 当前状态
-            node_name: 节点名称
-            error: 可选的错误信息
-
-        返回:
-            dict: 应用降级后的状态
-        """
-        fallback_handler = self.fallback_handlers.get(node_name)
-        if fallback_handler:
-            return fallback_handler(state, error)
-        else:
-            # 默认降级处理
-            return {"error_state": f"{node_name}_unavailable"}
+            raise e
 
     def _create_agent_node(self, node_name: str):
         """创建智能体节点的通用方法"""
-        async def agent_node(state: WorkflowExecutionModel) -> dict:
+        async def agent_node(state: dict) -> dict:
             return await self._process_agent_node(state, node_name)
         return agent_node
-
-    # ============ 降级处理器 ============
-
-    def _sentiment_fallback(self, state: WorkflowExecutionModel, error: Optional[Exception]) -> dict:
-        """情感分析降级处理"""
-        return {
-            "sentiment_analysis": {
-                "sentiment": "neutral",
-                "score": 0.0,
-                "confidence": 0.5,
-                "emotions": [],
-                "satisfaction": "unknown",
-                "urgency": "medium",
-                "fallback": True
-            },
-            "intent_analysis": {
-                "intent": "browsing",
-                "category": "general",
-                "confidence": 0.5,
-                "urgency": "medium",
-                "decision_stage": "awareness",
-                "fallback": True
-            }
-        }
-
-    def _chat_fallback(self, state: WorkflowExecutionModel, error: Optional[Exception]) -> dict:
-        """聊天智能体降级处理"""
-        return {
-            "sales_response": "我操，太HIFI了",
-            "fallback": True,
-            "timestamp": state.timestamp
-        }

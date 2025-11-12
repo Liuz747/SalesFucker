@@ -18,6 +18,7 @@ from uuid import uuid4
 
 from libs.types import Message
 from utils import LoggerMixin
+from infra.runtimes.entities import CompletionsRequest
 
 
 class SentimentAnalysisStrategy(ABC):
@@ -44,7 +45,9 @@ class LLMSentimentAnalyzer(SentimentAnalysisStrategy):
                 "sentiment": "neutral",
                 "score": 0.0,
                 "urgency": "medium",
-                "confidence": 0.0
+                "confidence": 0.0,
+                "tokens_used": 0,
+                "total_tokens": 0
             }
 
         try:
@@ -53,13 +56,13 @@ class LLMSentimentAnalyzer(SentimentAnalysisStrategy):
             messages = [
                 Message(role="user", content=prompt)
             ]
-            request = {
-                "id": uuid4(),
-                "provider": self.llm_provider,
-                "model": self.llm_model,
-                "temperature": 0.1,
-                "messages": messages
-            }
+            request = CompletionsRequest(
+                id=uuid4(),
+                provider=self.llm_provider,
+                model=self.llm_model,
+                temperature=0.1,
+                messages=messages
+            )
 
             llm_response = await self.invoke_llm(request)
             raw_response = (
@@ -68,9 +71,24 @@ class LLMSentimentAnalyzer(SentimentAnalysisStrategy):
                 else str(llm_response.content)
             )
 
+            # 提取token信息
+            tokens_used = 0
+            total_tokens = 0
+            if llm_response and hasattr(llm_response, 'usage') and isinstance(llm_response.usage, dict):
+                input_tokens = llm_response.usage.get('input_tokens', 0)
+                output_tokens = llm_response.usage.get('output_tokens', 0)
+                total_tokens = input_tokens + output_tokens
+                tokens_used = total_tokens
+
             # 解析并验证结果
             result = self._parse_llm_response(raw_response)
-            return self._validate_and_normalize(result)
+            validated_result = self._validate_and_normalize(result)
+
+            # 添加token信息
+            validated_result["tokens_used"] = tokens_used
+            validated_result["total_tokens"] = total_tokens
+
+            return validated_result
 
         except Exception as e:
             return {
@@ -78,6 +96,8 @@ class LLMSentimentAnalyzer(SentimentAnalysisStrategy):
                 "score": 0.0,
                 "urgency": "medium",
                 "confidence": 0.0,
+                "tokens_used": 0,
+                "total_tokens": 0,
                 "error": str(e)
             }
 
