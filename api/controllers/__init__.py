@@ -21,7 +21,7 @@ API Package - Multi-Agent System API
 
 from fastapi import APIRouter
 
-from .console import tenant_router, auth_router
+from .console import tenant_router, auth_router, health_router
 from .inner import completion_router
 from .workspace import (
     conversations_router,
@@ -41,6 +41,7 @@ app_router.include_router(prompts_router, prefix="/prompts", tags=["prompts"])
 app_router.include_router(public_traffic_router, prefix="/social-media", tags=["social-media"])
 app_router.include_router(tenant_router, prefix="/tenants", tags=["tenant"])
 app_router.include_router(completion_router, prefix="/messages", tags=["messages"])
+app_router.include_router(health_router, tags=["health"])
 
 
 __version__ = "0.2.1"

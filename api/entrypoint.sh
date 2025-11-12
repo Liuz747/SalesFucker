@@ -4,6 +4,16 @@ set -e
 
 MODE=${MODE:-api}
 
+TEMPORAL_HOST=${TEMPORAL_HOST:-temporal}
+TEMPORAL_PORT=${TEMPORAL_PORT:-7233}
+
+# Wait for Temporal
+echo "⏳ Waiting for Temporal to start..."
+until curl -sf "http://$TEMPORAL_HOST:$TEMPORAL_PORT" > /dev/null 2>&1; do
+    sleep 2
+done
+echo "✅ Temporal is ready!"
+
 echo "Starting MAS in $MODE mode..."
 
 if [ "$MODE" = "api" ]; then

@@ -1,6 +1,9 @@
 name: mas-observe
 
 x-shared-var: &shared-mas-env
+  # Deployment
+  APP_KEY: ${APP_KEY}
+  CALLBACK_URL: ${CALLBACK_URL}
   # LLM Provider Keys
   OPENAI_API_KEY: ${OPENAI_API_KEY}
   ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
@@ -40,19 +43,15 @@ services:
     image: ${REGISTRY_URL}/api:latest
     environment:
       <<: *shared-mas-env
-      APP_KEY: ${APP_KEY}
-      CALLBACK_URL: ${CALLBACK_URL}
     depends_on: &mas-depends-on
+      milvus-standalone:
+        condition: service_healthy
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-      elasticsearch:
-        condition: service_started
-      milvus-standalone:
-        condition: service_healthy
-      temporal:
-        condition: service_healthy
+      - elasticsearch
+      - temporal
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s

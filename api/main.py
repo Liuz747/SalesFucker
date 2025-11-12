@@ -64,7 +64,6 @@ app.add_middleware(
 # 添加自定义中间件 (order matters - JWT first for security)
 app.add_middleware(JWTMiddleware, exclude_paths=[
     "/",
-    "/health",
     "/docs",
     "/openapi.json",
     "/redoc",
