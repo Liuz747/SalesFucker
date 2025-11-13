@@ -112,3 +112,31 @@ class ReloadPromptResponse(BaseModel):
 
     method: MethodType = Field(description="重载的提示词类型")
     message: str = Field(description="操作结果消息")
+
+
+class MomentData(BaseModel):
+    """朋友圈内容模型"""
+
+    id: str = Field(description="朋友圈ID")
+    moment_content: Optional[str] = Field(None, description="朋友圈文案内容")
+    url_list: Optional[Sequence[str]] = Field(default_factory=list, description="朋友圈图片URL列表")
+
+
+class MomentsAnalysisRequest(BaseModel):
+    """朋友圈分析请求"""
+
+    task_list: Sequence[MomentData] = Field(description="朋友圈内容列表")
+
+
+class MomentsActionResult(BaseModel):
+    """朋友圈互动结果"""
+
+    id: str = Field(description="朋友圈ID")
+    actions: Sequence[SocialMediaActionType] = Field(default_factory=list, description="互动类型列表：1=点赞，2=评论")
+    message: Optional[str] = Field(None, description="评论内容，仅当actions包含2时有值")
+
+
+class MomentsAnalysisResponse(BaseModel):
+    """朋友圈分析响应"""
+
+    tasks: Sequence[MomentsActionResult] = Field(default_factory=list, description="朋友圈互动结果列表")

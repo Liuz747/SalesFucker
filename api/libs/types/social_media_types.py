@@ -24,3 +24,4 @@ class MethodType(StrEnum):
     REPLIES = "replies"
     KEYWORDS = "keywords"
     PRIVATE_MESSAGE = "private_message"
+    MOMENTS = "moments"
