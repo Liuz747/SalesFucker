@@ -2,14 +2,16 @@
 Hybrid Memory System - Elasticsearch索引管理
 
 创建和管理memory_v1索引，支持：
-- 密集向量存储和kNN搜索
+- 密集向量存储
 - 全文检索和语义搜索
 - 多租户数据隔离
 - 时间范围查询和TTL管理
 """
+from datetime import datetime
 from typing import Any, Optional
+from uuid import UUID
 
-from elasticsearch import AsyncElasticsearch
+from elasticsearch import AsyncElasticsearch, NotFoundError
 
 from config import mas_config
 from libs.factory import infra_registry
@@ -18,7 +20,7 @@ from utils import get_component_logger, to_isoformat
 logger = get_component_logger(__name__)
 
 
-class IndexManager:
+class ElasticsearchIndex:
     """
     Memory索引管理器
 
@@ -72,13 +74,20 @@ class IndexManager:
             index_mapping = {
                 "settings": {
                     "number_of_shards": mas_config.ES_NUMBER_OF_SHARDS,
-                    "number_of_replicas": mas_config.ES_NUMBER_OF_REPLICAS,
+                    "number_of_replicas": 1,
                     "refresh_interval": mas_config.ES_REFRESH_INTERVAL,
                     "index": {
                         "max_result_window": 10000,  # 最大分页深度
                     },
+                    "analysis": {
+                        "analyzer": {
+                            "ik_max_word": {"type": "ik_max_word"},
+                            "ik_smart": {"type": "ik_smart"}
+                        }
+                    }
                 },
                 "mappings": {
+                    "dynamic": False,
                     "properties": {
                         # 核心字段
                         "tenant_id": {"type": "keyword"},
@@ -86,57 +95,30 @@ class IndexManager:
                         # 记忆内容
                         "content": {
                             "type": "text",
-                            "analyzer": "ik_max_word",  # 使用标准分词器，支持中英文
-                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}
-                        },
-                        "summary": {
-                            "type": "text",
                             "analyzer": "ik_max_word",
+                            "search_analyzer": "ik_smart",
+                            "fields": {
+                                "keyword": {"type": "keyword", "ignore_above": 256}
+                            }
                         },
                         # 向量嵌入 - 关键字段
                         "embedding": {
                             "type": "dense_vector",
                             "dims": mas_config.ES_VECTOR_DIMENSION,
-                            "index": True,
-                            "similarity": mas_config.ES_SIMILARITY_METRIC,
+                            "index": False
                         },
                         # 元数据
-                        "memory_type": {
-                            "type": "keyword",  # short_term, long_term, episodic, semantic
-                        },
-                        "importance_score": {
-                            "type": "float",  # 0.0-1.0
-                        },
-                        "access_count": {
-                            "type": "integer",
-                        },
-                        "last_accessed_at": {
-                            "type": "date",
-                        },
-                        "created_at": {
-                            "type": "date",
-                        },
-                        "expires_at": {
-                            "type": "date",  # 用于TTL删除
-                        },
+                        "memory_type": {"type": "keyword"},  # short_term, long_term, episodic, semantic
+                        "importance_score": {"type": "float", "doc_values": False},  # 0.0-1.0
+                        "access_count": {"type": "integer", "doc_values": False},
+                        "last_accessed_at": {"type": "date"},
+                        "created_at": {"type": "date"},
+                        "expires_at": {"type": "date"},
                         # 关联信息
-                        "tags": {
-                            "type": "keyword",
-                        },
+                        "tags": {"type": "keyword"},
                         "entities": {
                             "type": "object",
                             "enabled": True,
-                        },
-                        # 上下文信息
-                        "context": {
-                            "type": "object",
-                            "properties": {
-                                "conversation_id": {"type": "keyword"},
-                                "message_id": {"type": "keyword"},
-                                "agent_name": {"type": "keyword"},
-                                "intent": {"type": "keyword"},
-                                "sentiment": {"type": "keyword"},
-                            },
                         },
                         # 检索元数据
                         "metadata": {
@@ -148,9 +130,11 @@ class IndexManager:
             }
 
             # 创建索引
-            response = await self.client.indices.create(
-                index=self.index_name, body=index_mapping
-            )
+            response = await self.client.indices.create(index=self.index_name, **index_mapping)
+
+            # wait cluster ready
+            await self.client.cluster.health(index=self.index_name, wait_for_status="yellow")
+
 
             logger.info(f"索引创建成功: {self.index_name} - {response}")
             return True
@@ -159,114 +143,168 @@ class IndexManager:
             logger.error(f"索引创建失败: {e}")
             return False
 
-    async def get_index_info(self) -> Optional[dict[str, Any]]:
+    # --------------------------------------------------------------------
+    # Insert summary entry
+    # --------------------------------------------------------------------
+    async def store_summary(
+        self,
+        tenant_id: str,
+        thread_id: UUID,
+        content: str,
+        memory_type: str = "mid_term",
+        expires_at: Optional[datetime] = None,
+        tags: Optional[list[str]] = None,
+        metadata: Optional[dict[str, Any]] = None,
+    ) -> str:
         """
-        获取索引信息
+        Insert a summary document into Elasticsearch.
 
         Returns:
-            dict: 索引统计信息，失败返回None
+            Document ID
         """
+        doc = {
+            "tenant_id": tenant_id,
+            "thread_id": str(thread_id),
+            "content": content,
+            "memory_type": memory_type,
+            "created_at": to_isoformat(),
+            "last_accessed_at": None,
+            "expires_at": to_isoformat(expires_at) if expires_at else None,
+            "tags": tags or [],
+            "entities": {},
+            "importance_score": None,
+            "access_count": 0,
+            "metadata": metadata or {},
+        }
+
         try:
-            # 检查索引是否存在
-            exists = await self.client.indices.exists(index=self.index_name)
-            if not exists:
-                logger.warning(f"索引不存在: {self.index_name}")
-                return None
-
-            # 获取索引统计
-            stats = await self.client.indices.stats(index=self.index_name)
-
-            # 获取索引映射
-            mappings = await self.client.indices.get_mapping(
-                index=self.index_name
-            )
-
-            return {
-                "index_name": self.index_name,
-                "docs_count": stats["_all"]["primaries"]["docs"]["count"],
-                "store_size": stats["_all"]["primaries"]["store"]["size_in_bytes"],
-                "mappings": mappings[self.index_name]["mappings"],
-                "created": True,
-            }
+            result = await self.client.index(index=self.index_name, document=doc)
+            doc_id = result["_id"]
+            logger.debug(f"[ElasticsearchIndex] Created summary doc: {doc_id}")
+            return doc_id
 
         except Exception as e:
-            logger.error(f"获取索引信息失败: {e}")
-            return None
+            logger.exception(f"[ElasticsearchIndex] Failed to store summary: {e}")
+            raise
 
-    async def refresh_index(self) -> bool:
+    # --------------------------------------------------------------------
+    # Get all summaries for a thread (sorted)
+    # --------------------------------------------------------------------
+    async def get_thread_summaries(
+        self,
+        tenant_id: str,
+        thread_id: UUID,
+        limit: int = 20,
+    ) -> list[dict]:
         """
-        刷新索引，使新文档立即可搜索
-
-        Returns:
-            bool: 刷新成功返回True
+        Fetch summaries for a given thread.
         """
-        try:
-            await self.client.indices.refresh(index=self.index_name)
-            logger.info(f"索引刷新成功: {self.index_name}")
-            return True
-        except Exception as e:
-            logger.error(f"索引刷新失败: {e}")
-            return False
-
-    async def delete_expired_memories(self, batch_size: int = 1000) -> int:
-        """
-        删除过期记忆
-
-        基于expires_at字段删除过期数据。
-
-        Args:
-            batch_size: 批量删除大小
-
-        Returns:
-            int: 删除的记录数
-        """
-        try:
-            now = to_isoformat()
-
-            query = {
-                "query": {
-                    "range": {
-                        "expires_at": {
-                            "lt": now,
-                        }
-                    }
-                }
+        query = {
+            "bool": {
+                "filter": [
+                    {"term": {"tenant_id": tenant_id}},
+                    {"term": {"thread_id": str(thread_id)}},
+                ]
             }
+        }
 
-            response = await self.client.delete_by_query(
+        try:
+            res = await self.client.search(
                 index=self.index_name,
-                body=query,
-                conflicts="proceed",
-                wait_for_completion=True,
-                scroll_size=batch_size,
+                query=query,
+                sort=[{"created_at": {"order": "asc"}}],
+                size=limit,
             )
+            return [hit["_source"] | {"id": hit["_id"]} for hit in res["hits"]["hits"]]
 
-            deleted_count = response.get("deleted", 0)
-            logger.info(f"删除过期记忆: {deleted_count}条")
-            return deleted_count
-
+        except NotFoundError:
+            return []
         except Exception as e:
-            logger.error(f"删除过期记忆失败: {e}")
-            return 0
+            logger.exception(f"[ElasticsearchIndex] Failed to get thread summaries: {e}")
+            return []
 
-    async def update_index_settings(
-        self, settings: dict[str, Any]
-    ) -> bool:
+    # --------------------------------------------------------------------
+    # General search
+    # --------------------------------------------------------------------
+    async def search(
+        self,
+        tenant_id: str,
+        query_text: str,
+        thread_id: UUID,
+        limit: int = 5,
+    ) -> list[dict]:
         """
-        更新索引设置
-
-        Args:
-            settings: 要更新的设置字典
-
-        Returns:
-            bool: 更新成功返回True
+        Keyword search using full-text match + tenant/thread filters.
         """
+        filters = [
+            {"term": {"tenant_id": tenant_id}},
+            {"term": {"thread_id": str(thread_id)}},
+        ]
+
+        query = {
+            "bool": {
+                "must": [{"match": {"content": query_text}}],
+                "filter": filters,
+            }
+        }
+
         try:
-            await self.client.indices.put_settings(
-                index=self.index_name, body=settings
+            res = await self.client.search(
+                index=self.index_name,
+                query=query,
+                sort=[{"created_at": {"order": "desc"}}],
+                size=limit,
             )
-            logger.info(f"索引设置更新成功: {self.index_name}")
-            return True
+            return [hit["_source"] | {"id": hit["_id"]} for hit in res["hits"]["hits"]]
+
         except Exception as e:
-            logger.error(f"索引设置更新失败: {e}")
-            return False
+            logger.exception(f"[ElasticsearchIndex] Search failed: {e}")
+            return []
+
+    # --------------------------------------------------------------------
+    # Update access metadata
+    # --------------------------------------------------------------------
+    async def update_access_metadata(
+        self,
+        doc_id: str,
+        access_count: Optional[int] = None,
+    ):
+        """
+        Update access_count and last_accessed_at.
+        """
+        body = {"doc": {"last_accessed_at": to_isoformat()}}
+        if access_count is not None:
+            body["doc"]["access_count"] = access_count
+
+        try:
+            await self.client.update(
+                index=self.index_name,
+                id=doc_id,
+                body=body,
+            )
+        except Exception as e:
+            logger.warning(f"[ElasticsearchIndex] Failed to update metadata: {e}")
+
+    # --------------------------------------------------------------------
+    # Delete expired memory entries
+    # --------------------------------------------------------------------
+    async def delete_expired(self):
+        """
+        Delete all documents whose expires_at < now().
+        """
+        query = {
+            "range": {
+                "expires_at": {"lt": "now"}
+            }
+        }
+
+        try:
+            res = await self.client.delete_by_query(
+                index=self.index_name,
+                query=query,
+                conflicts="proceed"
+            )
+            logger.info(f"[ElasticsearchIndex] Deleted expired docs: {res['deleted']}")
+
+        except Exception as e:
+            logger.error(f"[ElasticsearchIndex] Failed to delete expired docs: {e}")
