@@ -63,7 +63,7 @@ class ElasticsearchConfig(BaseSettings):
 
     ES_REFRESH_INTERVAL: str = Field(
         description="索引刷新间隔 (实时性要求)",
-        default="1s",
+        default="30s",
     )
 
     ES_NUMBER_OF_SHARDS: PositiveInt = Field(

@@ -9,9 +9,11 @@ from .providers import OpenAIProvider, AnthropicProvider, BaseProvider
 from .entities import LLMResponse, ProviderType, CompletionsRequest, ResponseMessageRequest
 # from infra.runtimes.routing import SimpleRouter
 from .config import LLMConfig
+from utils import get_component_logger
 
 
 config = LLMConfig()
+logger = get_component_logger(__name__, "LLMClient")
 
 
 class LLMClient:
@@ -45,30 +47,30 @@ class LLMClient:
     async def completions(self, request: CompletionsRequest) -> LLMResponse:
         """
         主要聊天接口，支持显式和智能路由
-        
+
         参数:
             request: LLM请求对象
-            
+
         返回:
             LLMResponse: LLM响应对象
         """
+        provider_id = request.provider.lower()
+
+        # 检查供应商是否可用
+        if provider_id not in self.active_providers:
+            raise Exception(f"指定的供应商不可用: {request.provider}")
+
+        provider = self.active_providers[provider_id]
+
+        # 发送请求
         try:
-            provider_id = request.provider.lower()
-            if provider_id not in self.active_providers:
-                raise Exception(f"指定的供应商不可用: {request.provider}")
-
-            provider = self.active_providers[provider_id]
-
-            # 发送请求
             if request.output_model:
                 return await provider.completions_structured(request)
             else:
                 return await provider.completions(request)
-
-        except ValueError:
-            raise Exception(f"无效的供应商: {request.provider}")
         except Exception as e:
-            raise e
+            logger.error(f"供应商 {provider_id} 调用失败: {str(e)}")
+            raise
 
     async def responses(self, request: ResponseMessageRequest) -> LLMResponse:
         """
@@ -86,21 +88,21 @@ class LLMClient:
         异常:
             Exception: 当供应商不可用或不是OpenAI时
         """
+        provider_id = request.provider.lower()
+
+        # 检查供应商是否可用
+        if provider_id not in self.active_providers:
+            raise Exception(f"指定的供应商不可用: {request.provider}")
+
+        provider = self.active_providers[provider_id]
+        if not isinstance(provider, OpenAIProvider):
+            raise Exception(f"不支持的供应商: {request.provider}")
+
         try:
-            provider_id = request.provider.lower()
-            if provider_id not in self.active_providers:
-                raise Exception(f"指定的供应商不可用: {request.provider}")
-
-            provider = self.active_providers[provider_id]
-            if not isinstance(provider, OpenAIProvider):
-                raise Exception(f"不支持的供应商: {request.provider}")
-
             if request.output_model:
                 return await provider.responses_structured(request)
             else:
                 return await provider.responses(request)
-
-        except ValueError:
-            raise Exception(f"无效的供应商: {request.provider}")
         except Exception as e:
-            raise e
+            logger.error(f"供应商 {provider_id} 调用失败: {str(e)}")
+            raise

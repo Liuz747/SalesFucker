@@ -55,7 +55,7 @@ class SocialMediaPublicTrafficService:
         ]
         request = CompletionsRequest(
             id=run_id,
-            model="google/gemini-2.5-flash-preview-09-2025",
+            model="openai/gpt-oss-120b:exacto",
             provider="openrouter",
             temperature=0.5,
             max_tokens=4000,

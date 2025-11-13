@@ -29,7 +29,6 @@ class IndexManager:
     def __init__(self):
         self._es_client: Optional[AsyncElasticsearch] = None
         self.index_name = mas_config.ES_MEMORY_INDEX
-        self.vector_dim = mas_config.ES_VECTOR_DIMENSION
 
     @property
     def client(self) -> AsyncElasticsearch:
@@ -82,37 +81,22 @@ class IndexManager:
                 "mappings": {
                     "properties": {
                         # 核心字段
-                        "memory_id": {
-                            "type": "keyword",
-                        },
-                        "tenant_id": {
-                            "type": "keyword",
-                        },
-                        "thread_id": {
-                            "type": "keyword",
-                        },
-                        "user_id": {
-                            "type": "keyword",
-                        },
+                        "tenant_id": {"type": "keyword"},
+                        "thread_id": {"type": "keyword",},
                         # 记忆内容
                         "content": {
                             "type": "text",
-                            "analyzer": "standard",  # 使用标准分词器，支持中英文
-                            "fields": {
-                                "keyword": {
-                                    "type": "keyword",
-                                    "ignore_above": 256,
-                                }
-                            },
+                            "analyzer": "ik_max_word",  # 使用标准分词器，支持中英文
+                            "fields": {"keyword": {"type": "keyword", "ignore_above": 256}}
                         },
                         "summary": {
                             "type": "text",
-                            "analyzer": "standard",
+                            "analyzer": "ik_max_word",
                         },
                         # 向量嵌入 - 关键字段
                         "embedding": {
                             "type": "dense_vector",
-                            "dims": self.vector_dim,
+                            "dims": mas_config.ES_VECTOR_DIMENSION,
                             "index": True,
                             "similarity": mas_config.ES_SIMILARITY_METRIC,
                         },
