@@ -1,9 +1,10 @@
 """
 Hybrid Memory System - Elasticsearch索引管理
 
-创建和管理memory_v1索引，支持：
-- 密集向量存储
-- 全文检索和语义搜索
+创建和管理memory_v1索引，支持混合记忆架构：
+- 文本内容存储和全文检索（使用IK分词器）
+- 元数据管理和过滤查询
+- 向量嵌入存储
 - 多租户数据隔离
 - 时间范围查询和TTL管理
 """
@@ -25,7 +26,7 @@ class ElasticsearchIndex:
     Memory索引管理器
 
     负责memory_v1索引的创建、更新和维护。
-    支持向量检索、全文搜索和混合查询。
+    专注于文本搜索、元数据管理和记忆存储。
     """
 
     def __init__(self):
@@ -157,10 +158,19 @@ class ElasticsearchIndex:
         metadata: Optional[dict[str, Any]] = None,
     ) -> str:
         """
-        Insert a summary document into Elasticsearch.
+        向Elasticsearch插入摘要文档
+
+        Args:
+            tenant_id: 租户ID
+            thread_id: 对话线程ID
+            content: 记忆内容
+            memory_type: 记忆类型，默认为"mid_term"
+            expires_at: 过期时间（可选）
+            tags: 标签列表（可选）
+            metadata: 元数据字典（可选）
 
         Returns:
-            Document ID
+            str: 文档ID
         """
         doc = {
             "tenant_id": tenant_id,
@@ -197,7 +207,15 @@ class ElasticsearchIndex:
         limit: int = 20,
     ) -> list[dict]:
         """
-        Fetch summaries for a given thread.
+        获取指定对话线程的所有摘要
+
+        Args:
+            tenant_id: 租户ID
+            thread_id: 对话线程ID
+            limit: 返回结果数量限制，默认20
+
+        Returns:
+            list[dict]: 摘要列表，按创建时间升序排列
         """
         query = {
             "bool": {
@@ -234,7 +252,16 @@ class ElasticsearchIndex:
         limit: int = 5,
     ) -> list[dict]:
         """
-        Keyword search using full-text match + tenant/thread filters.
+        使用全文匹配和租户/线程过滤器进行关键词搜索
+
+        Args:
+            tenant_id: 租户ID
+            query_text: 搜索查询文本
+            thread_id: 对话线程ID
+            limit: 返回结果数量限制，默认5
+
+        Returns:
+            list[dict]: 搜索结果列表，按创建时间降序排列
         """
         filters = [
             {"term": {"tenant_id": tenant_id}},
@@ -270,7 +297,14 @@ class ElasticsearchIndex:
         access_count: Optional[int] = None,
     ):
         """
-        Update access_count and last_accessed_at.
+        更新记忆访问元数据
+
+        Args:
+            doc_id: 文档ID
+            access_count: 访问次数（可选）
+
+        Note:
+            始终更新last_accessed_at，如果提供access_count则同时更新
         """
         body = {"doc": {"last_accessed_at": to_isoformat()}}
         if access_count is not None:
@@ -290,7 +324,12 @@ class ElasticsearchIndex:
     # --------------------------------------------------------------------
     async def delete_expired(self):
         """
-        Delete all documents whose expires_at < now().
+        删除所有过期的记忆文档
+
+        删除条件：expires_at < 当前时间
+
+        Note:
+            使用delete_by_query批量删除，设置conflicts="proceed"以处理版本冲突
         """
         query = {
             "range": {
