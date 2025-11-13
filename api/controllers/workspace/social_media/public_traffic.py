@@ -20,10 +20,16 @@ from schemas.social_media_schema import (
     ChatGenerationResponse,
     ReloadPromptRequest,
     ReloadPromptResponse,
+    MomentsAnalysisRequest,
+    MomentsAnalysisResponse,
 )
 from services.social_media_service import (
     SocialMediaPublicTrafficService,
     SocialMediaServiceError,
+)
+from services.moments_service import (
+    MomentsAnalysisService,
+    MomentsServiceError,
 )
 from utils import get_component_logger
 
@@ -176,4 +182,33 @@ async def reload_prompt(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="提示词重载失败，请稍后重试",
+        )
+
+
+@router.post("/moments", response_model=MomentsAnalysisResponse)
+async def analyze_moments(
+    request: MomentsAnalysisRequest,
+    service: Annotated[MomentsAnalysisService, Depends()],
+):
+    """分析朋友圈内容并生成互动建议"""
+    try:
+        logger.info(f"收到朋友圈分析请求，包含 {len(request.task_list)} 条内容")
+
+        # 调用朋友圈分析服务
+        result = await service.analyze_moments(request)
+
+        logger.info(f"朋友圈分析成功完成，返回 {len(result.tasks)} 条互动建议")
+        return result
+
+    except MomentsServiceError as e:
+        logger.error(f"朋友圈分析服务错误: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(e) or "朋友圈分析失败，请稍后重试",
+        )
+    except Exception as e:
+        logger.error("朋友圈分析失败: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="朋友圈分析失败，请稍后重试",
         )
