@@ -90,11 +90,12 @@ create table prompts(
     brand_voice  varchar(500) NULL,-- 品牌声音定义 - 品牌特色和价值观
     product_knowledge varchar(2000) NULL, -- 产品知识要点 - 重点产品信息和卖点
     version bigint not NULL,-- 配置版本
-    is_active BOOLEAN NULL DEFAULT NULL,
+    is_enable BOOLEAN NULL DEFAULT NULL, -- 该提示词是否启用
+    is_active BOOLEAN NULL DEFAULT NULL, -- 软删标记
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 使用当前时区的时间戳作为默认值
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP, -- 使用当前时区的时间戳作为默认值
 
-
+    constraint uk_prompts_assistant_id_is_enable UNIQUE (assistant_id, is_enable),
     constraint uk_prompts_assistant_id_version_is_active UNIQUE (assistant_id, version, is_active)
 );
 delete from prompts where assistant_id = 'sales-assistant-1';

@@ -61,7 +61,8 @@ class PromptsModel(BaseModel):
     brand_voice: Optional[str] = Field(default=None, description="品牌声音定义 - 品牌特色和价值观")
     product_knowledge: Optional[str] = Field(default=None, description="产品知识要点 - 重点产品信息和卖点")
     version: int = Field(default="1758731200000", description="配置版本")
-    is_active: Optional[bool] = Field(default=None, description="租户是否激活")
+    is_enable: Optional[bool] = Field(default=None, description="提示词是否启用")
+    is_active: Optional[bool] = Field(default=None, description="数据是否软删")
     created_at: datetime = Field(description="创建时间")
     updated_at: datetime = Field(description="最后一次更新时间")
 
@@ -81,9 +82,10 @@ class PromptsModel(BaseModel):
             brand_voice=self.brand_voice,
             product_knowledge=self.product_knowledge,
             version=self.version,
+            is_enable=self.is_enable,
             is_active=self.is_active,
             created_at=self.created_at,
-            updated_at=self.updated_at
+            updated_at=self.updated_at,
         )
 
 
@@ -100,9 +102,9 @@ class PromptsOrmModel(Base):
 
     # 主键和基本标识
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    tenant_id = Column(String(255), nullable=False)
+    tenant_id: str = Column(String(255), nullable=False)
     # tenant_name = Column(String(500), nullable=False)
-    assistant_id = Column(String(255), nullable=False)
+    assistant_id: str = Column(String(255), nullable=False)
     # assistant_name = Column(String(500), nullable=False)
 
     personality_prompt: str = Column(String(5000), nullable=False)
@@ -120,13 +122,14 @@ class PromptsOrmModel(Base):
     version: int = Column(BigInteger, nullable=False)
 
     # 状态信息
-    is_active = Column(Boolean, nullable=True, default=True)
-    created_at = Column(
+    is_enable: Optional[bool] = Column(Boolean, nullable=True, default=None)
+    is_active: Optional[bool] = Column(Boolean, nullable=True, default=None)
+    created_at: datetime = Column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now()
     )
-    updated_at = Column(
+    updated_at: datetime = Column(
         DateTime(timezone=True),
         nullable=False,
         server_default=func.now(),
@@ -169,9 +172,10 @@ class PromptsOrmModel(Base):
             brand_voice=self.brand_voice,
             product_knowledge=self.product_knowledge,
             version=self.version,
+            is_enable=self.is_enable,
             is_active=self.is_active,
             created_at=self.created_at,
-            updated_at=self.updated_at
+            updated_at=self.updated_at,
         )
 
     def copy(self) -> "PromptsOrmModel":
@@ -190,6 +194,7 @@ class PromptsOrmModel(Base):
             brand_voice=self.brand_voice,
             product_knowledge=self.product_knowledge,
             version=self.version,
+            is_enable=self.is_enable,
             is_active=self.is_active,
             created_at=self.created_at,
             updated_at=self.updated_at
