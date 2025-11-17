@@ -23,8 +23,7 @@ class StateManager:
     对话状态管理器
     
     职责：
-    - 将业务层输入映射为 LangGraph 初始状态（dict格式）
-    - 将LangGraph结果转换回WorkflowExecutionModel
+    - 将业务层输入映射为 LangGraph 初始状态
     - 规范工作流执行完成与错误时的状态结构
     - 提供最小但一致的状态字段集合
     """

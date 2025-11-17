@@ -53,7 +53,7 @@ class Orchestrator:
         self.state_manager = StateManager()
 
         # 构建工作流图
-        self.workflow_builder = WorkflowBuilder(TestWorkflow)
+        self.workflow_builder = WorkflowBuilder(SentimentChatWorkflow)
         self.graph = self.workflow_builder.build_graph()
 
         logger.info("多智能体编排器初始化完成")
@@ -79,27 +79,12 @@ class Orchestrator:
         start_time = get_current_datetime()
 
         try:
-            # 构建初始工作流状态（dict格式）
+            # 构建初始工作流状态
             initial_state = self.state_manager.create_initial_state(workflow)
 
             # 执行工作流
             result = await self.graph.ainvoke(initial_state)
             elapsed_time = get_processing_time(start_time)
-
-            # 调试日志：记录工作流执行结果
-            logger.info(f"工作流执行完成，结果类型: {type(result)}")
-            if isinstance(result, dict):
-                logger.info(f"工作流结果字段: {list(result.keys())}")
-                if 'output' in result:
-                    if result['output'] is not None:
-                        logger.info(f"output 存在，长度: {len(result.get('output', ''))}")
-                        logger.info(f"output 内容预览: {result.get('output', '')[:50]}...")
-                    else:
-                        logger.warning("output 字段为 None")
-                else:
-                    logger.warning(f"output 不存在，可用字段: {list(result.keys())}")
-            else:
-                logger.warning(f"工作流结果不是字典类型: {result}")
 
             logger.info(
                 f"对话处理完成 - 耗时: {elapsed_time:.2f}s, "
@@ -121,9 +106,9 @@ class Orchestrator:
                     "is_multimodal": is_multimodal
                 },
                 output={
-                    "output": result.get("output", "") if result else "",
-                    "agents_executed": list((result.get("values") or {}).keys()) if result else [],
-                    "processing_complete": result.get("processing_complete", False) if result else False
+                    "final_response": result.get("final_response"),
+                    "agents_executed": list(result.get("values", {}).keys()),
+                    "processing_complete": result.get("processing_complete", False)
                 },
                 metadata={
                     "tenant_id": workflow.tenant_id,
