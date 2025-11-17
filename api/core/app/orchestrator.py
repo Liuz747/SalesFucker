@@ -53,7 +53,7 @@ class Orchestrator:
         self.state_manager = StateManager()
 
         # 构建工作流图
-        self.workflow_builder = WorkflowBuilder(SentimentChatWorkflow)
+        self.workflow_builder = WorkflowBuilder(ChatWorkflow)
         self.graph = self.workflow_builder.build_graph()
 
         logger.info("多智能体编排器初始化完成")
