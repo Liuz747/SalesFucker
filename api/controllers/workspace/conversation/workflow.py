@@ -77,6 +77,9 @@ async def create_run(
         start_time = get_current_datetime()
         workflow_id = uuid4()
 
+        # 如果请求中没有提供assistant_id，自动生成一个
+        assistant_id = request.assistant_id or uuid4()
+
         workflow = WorkflowRun(
             workflow_id=workflow_id,
             thread_id=thread.thread_id,
@@ -173,6 +176,9 @@ async def create_background_run(
         # 生成运行ID
         run_id = uuid4()
         created_at = get_current_datetime()
+
+        # 如果请求中没有提供assistant_id，自动生成一个
+        assistant_id = request.assistant_id or uuid4()
 
         # 获取后台处理器
         processor = BackgroundWorkflowProcessor()
