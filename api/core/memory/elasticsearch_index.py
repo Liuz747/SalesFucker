@@ -48,7 +48,7 @@ class ElasticsearchIndex:
         创建memory_v1索引
 
         索引特性：
-        - dense_vector字段支持kNN语义搜索
+        - dense_vector字段仅支持向量存储
         - text字段支持全文检索
         - 多租户隔离字段
         - 时间戳和TTL支持
@@ -82,7 +82,7 @@ class ElasticsearchIndex:
                     },
                     "analysis": {
                         "analyzer": {
-                            "ik_max_word": {"type": "ik_max_word"},
+                            "ik_max": {"type": "ik_max_word"},
                             "ik_smart": {"type": "ik_smart"}
                         }
                     }
@@ -96,7 +96,7 @@ class ElasticsearchIndex:
                         # 记忆内容
                         "content": {
                             "type": "text",
-                            "analyzer": "ik_max_word",
+                            "analyzer": "ik_max",
                             "search_analyzer": "ik_smart",
                             "fields": {
                                 "keyword": {"type": "keyword", "ignore_above": 256}
@@ -127,7 +127,7 @@ class ElasticsearchIndex:
                             "enabled": False,  # 不索引，仅存储
                         },
                     }
-                },
+                }
             }
 
             # 创建索引
@@ -198,7 +198,7 @@ class ElasticsearchIndex:
             raise
 
     # --------------------------------------------------------------------
-    # Get all summaries for a thread (sorted)
+    # 按 thread 获取摘要列表
     # --------------------------------------------------------------------
     async def get_thread_summaries(
         self,
@@ -233,7 +233,7 @@ class ElasticsearchIndex:
                 sort=[{"created_at": {"order": "asc"}}],
                 size=limit,
             )
-            return [hit["_source"] | {"id": hit["_id"]} for hit in res["hits"]["hits"]]
+            return [{"id": hit["_id"], **hit["_source"]} for hit in res["hits"]["hits"]]
 
         except NotFoundError:
             return []
@@ -248,7 +248,7 @@ class ElasticsearchIndex:
         self,
         tenant_id: str,
         query_text: str,
-        thread_id: UUID,
+        thread_id: Optional[UUID] = None,
         limit: int = 5,
     ) -> list[dict]:
         """
@@ -263,10 +263,9 @@ class ElasticsearchIndex:
         Returns:
             list[dict]: 搜索结果列表，按创建时间降序排列
         """
-        filters = [
-            {"term": {"tenant_id": tenant_id}},
-            {"term": {"thread_id": str(thread_id)}},
-        ]
+        filters = [{"term": {"tenant_id": tenant_id}}]
+        if thread_id:
+            filters.append({"term": {"thread_id": str(thread_id)}})
 
         query = {
             "bool": {
@@ -282,7 +281,7 @@ class ElasticsearchIndex:
                 sort=[{"created_at": {"order": "desc"}}],
                 size=limit,
             )
-            return [hit["_source"] | {"id": hit["_id"]} for hit in res["hits"]["hits"]]
+            return [{"id": hit["_id"], **hit["_source"]} for hit in res["hits"]["hits"]]
 
         except Exception as e:
             logger.exception(f"[ElasticsearchIndex] Search failed: {e}")
