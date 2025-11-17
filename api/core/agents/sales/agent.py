@@ -17,7 +17,6 @@ from uuid import uuid4
 from ..base import BaseAgent
 from libs.types import Message
 from infra.runtimes.entities import CompletionsRequest
-from ...prompts.prompt_manager import render_agent_prompt
 from utils import get_current_datetime, get_component_logger
 from config import mas_config
 
