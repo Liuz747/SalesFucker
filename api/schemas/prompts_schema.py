@@ -178,7 +178,10 @@ class AssistantPromptConfig(BaseModel):
     )
 
     # 版本控制
-    version: str = Field(default="1.0.0", description="配置版本")
+    # version: str = Field(default="1.0.0", description="配置版本")
+    # 版本控制目前使用 时间戳，暂不支持用户自定义
+
+    # todo is_active 不应该由外部制定
     is_active: bool = Field(default=True, description="是否启用")
 
     @field_validator("llm_parameters")

@@ -108,7 +108,7 @@ class AssistantRepository:
 
 
     @staticmethod
-    async def delete(tenant_id: str) -> bool:
+    async def delete(assistant_id: str, session: AsyncSession) -> bool:
         """
         删除租户（软删除）
 
@@ -119,6 +119,7 @@ class AssistantRepository:
             bool: 是否删除成功
         """
         try:
+            """
             async with database_session() as session:
                 # 软删除：设置为非激活状态
                 stmt = (
@@ -136,9 +137,25 @@ class AssistantRepository:
                     logger.warning(f"租户不存在，无法删除: {tenant_id}")
 
                 return flag
+            """
+            # 软删除：设置为非激活状态
+            stmt = (
+                update(AssistantOrmModel)
+                .where(AssistantOrmModel.assistant_id == assistant_id)
+                .values(is_active=False, updated_at=get_current_datetime())
+            )
+            result = await session.execute(stmt)
+            await session.commit()
 
+            flag = result.rowcount > 0
+            if flag:
+                logger.info(f"软删除租户: assistant_id={assistant_id}")
+            else:
+                logger.warning(f"租户不存在，无法删除: assistant_id={assistant_id}")
+
+            return flag
         except Exception as e:
-            logger.error(f"删除租户失败: {tenant_id}, 错误: {e}")
+            logger.error(f"删除租户失败: assistant_id={assistant_id}, 错误: {e}")
             raise
 
     @staticmethod
