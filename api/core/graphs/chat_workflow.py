@@ -9,12 +9,8 @@ from collections.abc import Callable
 
 from langgraph.graph import StateGraph
 
-<<<<<<< HEAD:api/core/graphs/chat_workflow.py
 from core.agents.base import BaseAgent
 from core.entities import WorkflowExecutionModel
-=======
-from core.app.entities import WorkflowExecutionModel
->>>>>>> e292a6d (add: feedback handler):api/core/workflows/chat_workflow.py
 from utils import get_component_logger
 from libs.constants import AgentNodes
 from .base_workflow import BaseWorkflow
@@ -173,7 +169,6 @@ class ChatWorkflow(BaseWorkflow):
         async def agent_node(state: WorkflowExecutionModel) -> dict:
             return await self._process_agent_node(state, node_name)
         return agent_node
-<<<<<<< HEAD
     
     # ============ 降级处理器 ============
     def _sentiment_fallback(self, state: WorkflowExecutionModel, error: Optional[Exception]) -> dict:
@@ -203,17 +198,6 @@ class ChatWorkflow(BaseWorkflow):
     #     }
     #     return {"agent_responses": agent_responses}
 
-<<<<<<< HEAD:api/core/graphs/chat_workflow.py
-    def _memory_fallback(self, state: WorkflowExecutionModel, error: Optional[Exception]) -> dict:
-        """记忆管理降级处理"""
-        return {
-            "memory_update": {
-                "status": "failed",
-                "message": "记忆系统暂时不可用",
-                "fallback": True
-            }
-        }
-=======
     # def _memory_fallback(self, state: WorkflowExecutionModel, error: Optional[Exception]) -> dict:
     #     """记忆管理降级处理"""
     #     return {
@@ -223,6 +207,3 @@ class ChatWorkflow(BaseWorkflow):
     #             "fallback": True
     #         }
     #     }
->>>>>>> e292a6d (add: feedback handler):api/core/workflows/chat_workflow.py
-=======
->>>>>>> a8a33ef (fix: excutor type)

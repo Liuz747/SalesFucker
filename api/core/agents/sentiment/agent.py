@@ -320,11 +320,4 @@ class SentimentAnalysisAgent(BaseAgent):
         except Exception as e:
             self.logger.error(f"配置更新失败: {e}")
 
-<<<<<<< HEAD
         return " | ".join(context_parts) if context_parts else "Initial interaction"
-=======
-    def _get_openai_api_key(self):
-        """获取OpenAI API密钥（示例方法）"""
-        # 实际实现中应该从安全配置中获取
-        return None
->>>>>>> 21ddef5 (chore: sentiment and multimodal reply)

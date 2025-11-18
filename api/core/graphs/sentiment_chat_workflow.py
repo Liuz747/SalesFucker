@@ -14,12 +14,8 @@ from collections.abc import Callable
 
 from langgraph.graph import StateGraph
 
-<<<<<<< HEAD:api/core/graphs/sentiment_chat_workflow.py
 from core.agents.base import BaseAgent
 from core.entities import WorkflowExecutionModel
-=======
-from core.app.entities import WorkflowExecutionModel
->>>>>>> e292a6d (add: feedback handler):api/core/workflows/sentiment_chat_workflow.py
 from utils import get_component_logger
 from libs.constants import AgentNodes
 from .base_workflow import BaseWorkflow

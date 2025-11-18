@@ -174,125 +174,17 @@ class SalesAgent(BaseAgent):
             return updated_state
 
         except Exception as e:
-<<<<<<< HEAD
             self.logger.error(f"Agent processing failed: {e}", exc_info=True)
             state["error_state"] = "sales_processing_error"
             return state
     
     # ===== 新增的便利方法 =====
     # 这些方法现在委托给response_adapter和templates模块
-=======
-            self.logger.error(f"销售处理失败: {e}", exc_info=True)
-            self.logger.error(f"失败时的状态信息 - customer_input: {state.get('customer_input', 'None')}")
-            self.logger.error(f"失败时的sentiment_analysis: {state.get('sentiment_analysis', {})}")
-            return self._create_error_state(state, str(e))
->>>>>>> a8a33ef (fix: excutor type)
 
-<<<<<<< HEAD
-    async def get_greeting_message(self, context: Optional[Dict[str, Any]] = None) -> Optional[str]:
+    async def get_greeting_message(self, context: [Dict[str, Any]] = None) -> [str]:
         """
         获取个性化问候消息（委托给templates模块）
-=======
-    async def _generate_sales_response(
-        self,
-        customer_input: str,
-        sales_prompt: str,
-        sentiment_context: Dict[str, Any]
-    ) -> tuple[str, dict]:
-        """生成销售响应，返回响应内容和token信息"""
-        self.logger.info(f"准备生成销售响应 - sales_prompt长度: {len(sales_prompt)}, sentiment: {sentiment_context.get('sentiment', 'unknown')}")
-
-        if not sales_prompt:
-            self.logger.error("Sales prompt为空，情感分析可能失败")
-            raise ValueError("Sales prompt cannot be empty - sentiment analysis may have failed")
-
-        response, token_info = await self.response_generator.generate_response(
-            customer_input,
-            sales_prompt,
-            sentiment_context
-        )
-
-        self.logger.info(f"销售响应生成完成 - 响应长度: {len(response)}, tokens: {token_info.get('total_tokens', 0)}")
-        return response, token_info
-
-    def _update_state(self, state: dict, response: str, sentiment_analysis: Dict[str, Any], token_info: dict = None) -> dict:
-        """更新对话状态"""
-        # 设置销售响应 - 同时存储在两个位置以确保兼容性
-        state["sales_response"] = response
-
-        # 确保 values 和 agent_responses 结构存在并存储响应
-        if state.get("values") is None:
-            state["values"] = {}
-        if state["values"].get("agent_responses") is None:
-            state["values"]["agent_responses"] = {}
-
-        agent_data = {
-            "sales_response": response,
-            "sentiment_analysis": sentiment_analysis,
-            "timestamp": get_current_datetime()
-        }
-
-        # 添加token使用信息
-        if token_info:
-            agent_data.update(token_info)
-            self.logger.info(f"销售响应token信息: {token_info}")
-
-        state["values"]["agent_responses"][self.agent_id] = agent_data
-
-        # 调试日志：跟踪响应存储
-        self.logger.info(f"销售响应已存储到根级别: sales_response({len(response)}字符)")
-        self.logger.info(f"状态传递完成 -> 下一个Agent可访问: state['sales_response']")
-
-        # 更新活跃智能体列表
-        state.setdefault("active_agents", []).append(self.agent_id)
-
-        # 更新对话历史
-        customer_input = sentiment_analysis.get("processed_input", state.get("customer_input", ""))
-        state.setdefault("conversation_history", []).extend([
-            {"role": "user", "content": customer_input},
-            {"role": "assistant", "content": response}
-        ])
-
-        return state
-
-    def _create_error_state(self, state: dict, error_message: str) -> dict:
-        """创建错误状态"""
-        fallback_response = "感谢您的咨询！我是您的美妆顾问，很乐意为您服务。请告诉我您的具体需求。"
-
-        # 设置销售响应 - 同时存储在两个位置以确保兼容性
-        state["sales_response"] = fallback_response
-        state["error_state"] = "sales_processing_error"
-
-        # 确保 agent_responses 结构存在并存储错误状态响应
-        state.setdefault("agent_responses", {})
-        state["agent_responses"][self.agent_id] = {
-            "sales_response": fallback_response,
-            "error": error_message,
-            "timestamp": get_current_datetime()
-        }
-
-        state.setdefault("active_agents", []).append(self.agent_id)
-
-        return state
-
-    def get_agent_info(self) -> Dict[str, Any]:
-        """获取智能体信息"""
-        return {
-            "agent_id": self.agent_id,
-            "llm_provider": self.llm_provider,
-            "llm_model": self.llm_model,
-            "capabilities": [
-                "sentiment_driven_response",
-                "multimodal_input_support",
-                "personalized_interaction"
-            ],
-            "dependencies": [
-                "sentiment_analysis",
-                "sales_prompt"
-            ]
-        }
->>>>>>> e292a6d (add: feedback handler)
-
+        """
     def health_check(self) -> Dict[str, Any]:
         """健康检查"""
         try:
