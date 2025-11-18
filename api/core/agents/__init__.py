@@ -29,7 +29,6 @@ from .compliance import ComplianceAgent, ComplianceRule, ComplianceRuleManager
 from .sales import SalesAgent
 from .sentiment import SentimentAnalysisAgent
 from .product import ProductExpertAgent
-from .memory import MemoryAgent
 from .strategy import MarketStrategyCoordinator
 from .proactive import ProactiveAgent
 from .suggestion import AISuggestionAgent
@@ -47,7 +46,6 @@ __all__ = [
     "SalesAgent",
     "SentimentAnalysisAgent",
     "ProductExpertAgent",
-    "MemoryAgent",
     "MarketStrategyCoordinator",
     "ProactiveAgent",
     "AISuggestionAgent",
