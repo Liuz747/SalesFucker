@@ -71,7 +71,7 @@ class AssistantModel(BaseModel):
     last_active_at: Optional[datetime] = Field(description="")
     registered_devices: List[str] = Field(default=[], description="")
 
-    prompts_model_list: Optional[List[PromptsModel]] = Field(default=None, description="所属提示词")
+    prompts_model_list: Optional[PromptsModel] = Field(default=None, description="所属提示词")
 
 
 class AssistantOrmModel(Base):

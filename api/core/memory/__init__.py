@@ -9,18 +9,19 @@
 
 主要组件：
 - ConversationStore: Redis短期会话存储
-- IndexManager: Elasticsearch索引管理器
-- VectorStore: Milvus向量存储接口
-- SearchResult: 记忆搜索结果数据类
+- ElasticsearchIndex: Elasticsearch索引管理器
+- StorageManager: 混合记忆协调器
+- SummarizationService: LLM摘要服务
 """
 
 from .conversation_store import ConversationStore
-from .index_manager import IndexManager
-from .vector_store import VectorStore, SearchResult
+from .elasticsearch_index import ElasticsearchIndex
+from .storage_manager import StorageManager
+from .summarize import SummarizationService
 
 __all__ = [
     'ConversationStore',
-    'IndexManager',
-    'VectorStore',
-    'SearchResult',
+    'ElasticsearchIndex',
+    'StorageManager',
+    'SummarizationService',
 ]

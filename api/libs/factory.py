@@ -16,6 +16,7 @@ from infra.ops import (
     get_es_client,
     close_es_client,
     verify_es_connection,
+    create_memory_index,
     get_milvus_connection,
     close_milvus_connection,
     verify_milvus_connection,
@@ -129,6 +130,7 @@ class InfraFactory:
         if self._clients.elasticsearch:
             if await verify_es_connection(self._clients.elasticsearch):
                 logger.info("✓ Elasticsearch连接测试成功")
+                await create_memory_index(self._clients.elasticsearch)
             else:
                 logger.warning("✗ Elasticsearch连接测试失败")
         else:

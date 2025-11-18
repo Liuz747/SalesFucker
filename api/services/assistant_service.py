@@ -12,9 +12,12 @@ AI员工处理器
 """
 
 import asyncio
+import time
 import uuid
 from typing import Optional, Dict, Any, List
 from datetime import datetime
+
+from fastapi import HTTPException
 
 from infra.cache import get_redis_client
 from infra.db import database_session
@@ -136,13 +139,15 @@ class AssistantService:
                             forbidden_topics=request.prompt_config.forbidden_topics,
                             brand_voice=request.prompt_config.brand_voice,
                             product_knowledge=request.prompt_config.product_knowledge,
-                            version=request.prompt_config.version,
                             is_active=request.prompt_config.is_active,
                             created_at=now,
                             updated_at=now,
                         )
-                        prompts_id = await PromptsRepository.insertPrompts(promptsModel.to_orm(), session)
-                        prompts_orm = await PromptsRepository.get_prompts_by_id(prompts_id, session)
+                        promptsModel.version = time.perf_counter_ns()
+                        prompts_id = await PromptsRepository.insert_prompts(promptsModel.to_orm(), session)
+                        prompts_orm = await PromptsRepository.get_latest_prompts_by_assistant_id(
+                            promptsModel.assistant_id, session
+                        )
 
                         promptsModel.id = prompts_id
 
@@ -157,11 +162,11 @@ class AssistantService:
                 self.logger.info(f"助理创建成功: {request.assistant_id}")
 
             async with database_session() as session:
-                new_prompts_orm = await PromptsRepository.get_prompts_by_id(prompts_id, session)
+                new_prompts_orm = await PromptsRepository.get_latest_prompts_by_assistant_id(request.assistant_id, session)
                 new_prompts_model = new_prompts_orm.to_model()
                 new_assistant_orm = await AssistantRepository.get_assistant_by_id(request.assistant_id, session)
                 new_assistant = new_assistant_orm.to_business_model()
-                new_assistant.prompts_model_list = [new_prompts_model]
+                new_assistant.prompts_model_list = new_prompts_model
 
         except Exception as e:
             self.logger.error(f"助理创建失败: {e}")
@@ -363,80 +368,116 @@ class AssistantService:
                     assistant_orm.assistant_name = request.assistant_name
                 if request.personality_type is not None:
                     # update_fields["personality_type"] = request.personality_type
-                    assistant_orm.personality_type = request.personality_type
+                    assistant_orm.assistant_personality_type = request.personality_type
                 if request.expertise_level is not None:
                     # update_fields["expertise_level"] = request.expertise_level
-                    assistant_orm.expertise_level = request.expertise_level
+                    assistant_orm.assistant_expertise_level = request.expertise_level
                 if request.sales_style is not None:
                     # update_fields["sales_style"] = {**assistant["sales_style"], **request.sales_style}
-                    assistant_orm.sales_style = request.sales_style
+                    assistant_orm.assistant_sales_style = request.sales_style
                 if request.voice_tone is not None:
                     # update_fields["voice_tone"] = {**assistant["voice_tone"], **request.voice_tone}
-                    assistant_orm.voice_tone = request.voice_tone
+                    assistant_orm.assistant_voice_tone = request.voice_tone
                 if request.specializations is not None:
                     # update_fields["specializations"] = request.specializations
-                    assistant_orm.specializations = request.specializations
+                    assistant_orm.assistant_specializations = request.specializations
                 if request.working_hours is not None:
                     # update_fields["working_hours"] = {**assistant["working_hours"], **request.working_hours}
-                    assistant_orm.working_hours = request.working_hours
+                    assistant_orm.assistant_working_hours = request.working_hours
                 if request.max_concurrent_customers is not None:
                     # update_fields["max_concurrent_customers"] = request.max_concurrent_customers
-                    assistant_orm.max_concurrent_customers = request.max_concurrent_customers
+                    assistant_orm.assistant_max_concurrent_customers = request.max_concurrent_customers
                 if request.permissions is not None:
                     # update_fields["permissions"] = request.permissions
-                    assistant_orm.permissions = request.permissions
+                    assistant_orm.assistant_permissions = request.permissions
                 if request.profile is not None:
                     # update_fields["profile"] = {**assistant["profile"], **request.profile}
-                    assistant_orm.profile = request.profile
+                    assistant_orm.assistant_profile = request.profile
                 # if request.status is not None:
                     # update_fields["status"] = request.status
                     # assistant_orm.status = request.status
-
-
-                # 更新时间戳
-                # update_fields["updated_at"] = datetime.utcnow()
                 assistant_orm.updated_at = get_current_datetime()
 
-                # todo 暂时先不考虑提示词
-                if 1 == 2:
-                    # 处理提示词配置更新（如果提供）
-                    if request.prompt_config:
-                        try:
-                            from schemas.prompts_schema import PromptUpdateRequest
-                            prompt_update = PromptUpdateRequest(
-                                personality_prompt=request.prompt_config.personality_prompt,
+                r = await AssistantRepository.update_assistant(assistant_orm, session)
+                if r is True:
+                    # raise Exception("更新助理失败")
+                    self.logger.info(f"助理更新成功: {assistant_id}")
+
+                prompt_orm = None
+                # 处理提示词配置更新（如果提供）
+                if request.prompt_config:
+                    try:
+                        prompts_orm = await PromptsRepository.get_prompts_by_assistant_id(assistant_id, session)
+                        now = get_current_datetime()
+
+                        if prompts_orm is None:
+                            # 没有提示词，需要创建
+                            promptsModel = PromptsModel(
+                                tenant_id=assistant_orm.tenant_id,
+                                assistant_id=assistant_id,
+                                personality_prompt=request.personality_type,
                                 greeting_prompt=request.prompt_config.greeting_prompt,
                                 product_recommendation_prompt=request.prompt_config.product_recommendation_prompt,
                                 objection_handling_prompt=request.prompt_config.objection_handling_prompt,
                                 closing_prompt=request.prompt_config.closing_prompt,
                                 context_instructions=request.prompt_config.context_instructions,
                                 llm_parameters=request.prompt_config.llm_parameters,
-                                brand_voice=request.prompt_config.brand_voice,
-                                product_knowledge=request.prompt_config.product_knowledge,
                                 safety_guidelines=request.prompt_config.safety_guidelines,
                                 forbidden_topics=request.prompt_config.forbidden_topics,
-                                is_active=request.prompt_config.is_active
+                                brand_voice=request.prompt_config.brand_voice,
+                                product_knowledge=request.prompt_config.product_knowledge,
+                                version=time.perf_counter_ns(),
+                                is_active=request.prompt_config.is_active,
+                                created_at=now,
+                                updated_at=now,
                             )
-                            await self.prompt_handler.update_assistant_prompts(
-                                assistant_id, tenant_id, prompt_update
-                            )
-                            self.logger.info(f"助理 {assistant_id} 提示词配置更新成功")
-                        except Exception as e:
-                            self.logger.warning(f"助理 {assistant_id} 提示词配置更新失败: {e}")
-                            # 不阻止助理更新，只记录警告
+                            prompts_id = await PromptsRepository.insert_prompts(promptsModel.to_orm(), session)
+                            if prompts_id is None:
+                                raise HTTPException(status_code=500, detail="提示词不存在，创建失败")
 
-            # 应用更新
-            # assistant.update(update_fields)
-            # self._assistants_store[assistant_key] = assistant
-            # logger.debug(f"更新租户: {config.tenant_id}")
+                        else:
+                            # 存在提示词，需要重新创建
+                            if request.prompt_config.personality_prompt is not None:
+                                prompts_orm.personality_prompt = request.prompt_config.personality_prompt
+                            if request.prompt_config.greeting_prompt is not None:
+                                prompts_orm.greeting_prompt = request.prompt_config.greeting_prompt
+                            if request.prompt_config.product_recommendation_prompt is not None:
+                                prompts_orm.product_recommendation_prompt = request.prompt_config.product_recommendation_prompt
+                            if request.prompt_config.objection_handling_prompt is not None:
+                                prompts_orm.objection_handling_prompt = request.prompt_config.objection_handling_prompt
+                            if request.prompt_config.closing_prompt is not None:
+                                prompts_orm.closing_prompt = request.prompt_config.closing_prompt
+                            if request.prompt_config.context_instructions is not None:
+                                prompts_orm.context_instructions = request.prompt_config.context_instructions
+                            if request.prompt_config.llm_parameters is not None:
+                                prompts_orm.llm_parameters = request.prompt_config.llm_parameters
+                            if request.prompt_config.safety_guidelines is not None:
+                                prompts_orm.safety_guidelines = request.prompt_config.safety_guidelines
+                            if request.prompt_config.forbidden_topics is not None:
+                                prompts_orm.forbidden_topics = request.prompt_config.forbidden_topics
+                            if request.prompt_config.brand_voice is not None:
+                                prompts_orm.brand_voice = request.prompt_config.brand_voice
+                            if request.prompt_config.product_knowledge is not None:
+                                prompts_orm.product_knowledge = request.prompt_config.product_knowledge
+                            prompts_orm.updated_at = now,
+                            prompts_orm.version = time.perf_counter_ns(),
+                            from dataclasses import dataclass, asdict
+                            is_success = await PromptsRepository.insert_prompts(prompts_orm, session)
+                            if not is_success:
+                                raise HTTPException("更新错误")
+                        self.logger.info(f"助理 {assistant_id} 提示词配置更新成功")
+                    except Exception as e:
+                        self.logger.warning(f"助理 {assistant_id} 提示词配置更新失败: {e}")
+                        # 不阻止助理更新，只记录警告
 
             async with database_session() as session:
-                r = await AssistantRepository.update_assistant(assistant_orm, session)
-                if r is True:
-                    # raise Exception("更新助理失败")
-                    self.logger.info(f"助理更新成功: {assistant_id}")
+                # 更新缓存数据
+                update_prompts = await PromptsRepository.get_prompts_by_assistant_id(assistant_id, session)
+                PromptsRepository.update_prompts_cache(update_prompts.to_model(), await get_redis_client())
+                assistant_orm = await AssistantRepository.get_assistant_by_id(assistant_id, session)
                 assistant_model = assistant_orm.to_business_model()
-            await AssistantRepository.update_assistant_cache_4_task(assistant_model)
+                AssistantRepository.update_assistant_cache_4_task(assistant_model)
+            assistant_model.prompts_model_list = update_prompts
             return assistant_model
 
         except Exception as e:
@@ -586,7 +627,7 @@ class AssistantService:
         """停用助理"""
         return await self._change_assistant_status(assistant_id, tenant_id, AssistantStatus.INACTIVE, "deactivate")
 
-    async def delete_assistant(self, assistant_id: str, tenant_id: str, force: bool = False) -> AssistantOperationResponse:
+    async def delete_assistant(self, assistant_id: str, force: bool = False) -> bool:
         """
         删除助理
         
@@ -599,62 +640,21 @@ class AssistantService:
             AssistantOperationResponse: 操作结果
         """
         try:
-            # assistant_key = f"{tenant_id}:{assistant_id}"
-            assistant = await AssistantService.get_assistant_by_id(assistant_id)
+            async with database_session() as session:
+                assistant_orm = await AssistantRepository.get_assistant_by_id(assistant_id, session)
+                if not assistant_orm:
+                    return False
 
-            if not assistant:
-                return AssistantOperationResponse(
-                    code=4001,
-                    message="助理不存在",
-                    # success=False,
-                    # message="助理不存在",
-                    # data={},
-                    # assistant_id=assistant_id,
-                    # operation="delete",
-                    # result_data={"error": "助理不存在"}
-                )
+                # todo 检查是否有活跃对话（模拟检查）
+                current_customers = 0
+                if current_customers > 0 and not force:
+                    raise HTTPException("助理有活跃对话，需要强制删除标志")
 
-            # todo 检查是否有活跃对话（模拟检查）
-            # stats = self._assistant_stats.get(assistant_key, {})
-            # current_customers = stats.get("current_customers", 0)
-            current_customers = 0
-
-            if current_customers > 0 and not force:
-                return AssistantOperationResponse(
-                    code=10001,
-                    message="助理有活跃对话，需要强制删除标志",
-                    # success=False,
-                    # message="助理有活跃对话，需要强制删除标志",
-                    # data={},
-                    # assistant_id=assistant_id,
-                    # operation="delete",
-                    # result_data={"error": "有活跃对话", "active_conversations": current_customers}
-                )
-
-            # 删除助理数据
-            # del self._assistants_store[assistant_key]
-            # if assistant_key in self._assistant_stats:
-            #     del self._assistant_stats[assistant_key]
-            assistant.is_active = None
-            # todo 不应该调用 save，应该调用 update，后面有了接口再调整
-            assistant = await AssistantService.save(assistant)
-
-            self.logger.info(f"助理删除成功: {assistant_id}")
-
-            return AssistantOperationResponse(
-                code=0,
-                message="助理删除成功",
-                # data=assistant,
-
-                # success=True,
-                # message="助理删除成功",
-                # data={},
-                # assistant_id=assistant_id,
-                # operation="delete",
-                # result_data={"deleted": True, "force": force},
-                # affected_conversations=current_customers
-            )
-
+                flag = await AssistantRepository.delete(assistant_id, session)
+                if not flag:
+                    raise HTTPException("删除失败，请咨询管理员")
+                self.logger.info(f"助理删除成功: {assistant_id}")
+                return True
         except Exception as e:
             self.logger.error(f"助理删除失败: {e}")
             raise

@@ -1,7 +1,10 @@
+from typing import Sequence
+
 from langfuse import observe
 
 from core.entities import WorkflowExecutionModel
-from core.memory import ConversationStore
+from core.memory import StorageManager
+from infra.runtimes import CompletionsRequest
 from libs.types import Message
 from utils import get_current_datetime, get_processing_time_ms
 from ..base import BaseAgent
@@ -28,12 +31,8 @@ class ChatAgent(BaseAgent):
                             - 提供准确、有用的信息
                             - 如果不确定，诚实地说明
                             - 回复要简洁明了
-
-                            用户输入: {user_input}
-
-                            请提供合适的回复：
                             """
-        self.memory_store = ConversationStore()
+        self.memory_manager = StorageManager()
         self.logger.info(f"ChatAgent初始化完成: {self.agent_id}")
 
     @observe(name="chat-agent-conversation", as_type="span")
@@ -52,30 +51,43 @@ class ChatAgent(BaseAgent):
         try:
             self.logger.info(f"ChatAgent开始处理对话 - 线程: {state.thread_id}")
 
+            # 将当前用户输入写入短期记忆
+            await self.memory_manager.store_messages(
+                tenant_id=state.tenant_id,
+                thread_id=state.thread_id,
+                messages=[Message(role="user", content=state.input)],
+            )
+
             # 准备聊天提示词
-            formatted_prompt = self.chat_prompt.format(user_input=state.input)
+            user_text = self._input_to_text(state.input)
 
-            messages = [
-                Message(role="system", content=formatted_prompt),
-                Message(role="user", content=state.input),
-            ]
+            short_term_messages, long_term_memories = await self.memory_manager.retrieve_context(
+                tenant_id=state.tenant_id,
+                thread_id=state.thread_id,
+                query_text=user_text,
+            )
 
-            request = await self.memory_store.prepare_request(
-                run_id=state.workflow_id,
+            system_prompt = self._build_system_prompt(self.chat_prompt, long_term_memories)
+            llm_messages = [Message(role="system", content=system_prompt)]
+            llm_messages.extend(short_term_messages)
+
+            request = CompletionsRequest(
+                id=state.workflow_id,
                 provider="openrouter",
                 model="openai/gpt-5-mini",
-                messages=messages,
+                messages=llm_messages,
                 thread_id=state.thread_id,
                 temperature=1,
-                max_tokens=500
+                max_tokens=1000
             )
 
             # 调用LLM生成回复
             chat_response = await self.invoke_llm(request)
 
-            await self.memory_store.save_assistant_reply(
-                state.thread_id,
-                content=chat_response.content
+            await self.memory_manager.save_assistant_message(
+                tenant_id=state.tenant_id,
+                thread_id=state.thread_id,
+                message=chat_response.content,
             )
 
             # 计算处理时间
@@ -117,3 +129,31 @@ class ChatAgent(BaseAgent):
                 "finished_at": get_current_datetime(),
                 "values": error_values
             }
+
+    def _input_to_text(self, content) -> str:
+        if isinstance(content, str):
+            return content
+        if isinstance(content, Sequence):
+            parts: list[str] = []
+            for node in content:
+                value = getattr(node, "content", None)
+                parts.append(value if isinstance(value, str) else str(node))
+            return "\n".join(parts)
+        return str(content)
+
+    def _build_system_prompt(self, base_prompt: str, summaries: list[dict]) -> str:
+        if not summaries:
+            return base_prompt
+
+        lines: list[str] = []
+        for idx, summary in enumerate(summaries, 1):
+            content = summary.get("content") or ""
+            tags = summary.get("tags") or []
+            tag_display = (
+                f" (标签: {', '.join(str(tag) for tag in tags)})"
+                if tags
+                else ""
+            )
+            lines.append(f"{idx}. {content}{tag_display}")
+
+        return f"{base_prompt}\n\n以下长期记忆可帮助回答用户问题：\n" + "\n".join(lines)
