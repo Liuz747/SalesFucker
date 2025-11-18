@@ -29,9 +29,6 @@ from .compliance import ComplianceAgent, ComplianceRule, ComplianceRuleManager
 from .sales import SalesAgent
 from .sentiment import SentimentAnalysisAgent
 from .product import ProductExpertAgent
-from .strategy import MarketStrategyCoordinator
-from .proactive import ProactiveAgent
-from .suggestion import AISuggestionAgent
 
 # 导出所有智能体类和核心组件
 __all__ = [
@@ -45,8 +42,5 @@ __all__ = [
     "ComplianceRuleManager",
     "SalesAgent",
     "SentimentAnalysisAgent",
-    "ProductExpertAgent",
-    "MarketStrategyCoordinator",
-    "ProactiveAgent",
-    "AISuggestionAgent",
+    "ProductExpertAgent"
 ] 
