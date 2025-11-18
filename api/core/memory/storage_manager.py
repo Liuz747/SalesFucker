@@ -12,9 +12,10 @@ Storage Manager
 
 import asyncio
 from datetime import timedelta
-from typing import Optional
+from typing import Any, Optional
 from uuid import UUID
 
+from config import mas_config
 from libs.types import MessageParams, Message
 from utils import get_component_logger, get_current_datetime
 from .conversation_store import ConversationStore
@@ -47,13 +48,11 @@ class StorageManager:
         # 初始化子组件
         self.conversation_store = ConversationStore()
         self.elasticsearch_index = ElasticsearchIndex()
-        self.summarization_service = None  # 延迟初始化，需要传入 LLMClient
+        self.summarization_service = SummarizationService()
+        self._summary_guard = asyncio.Lock()
+        self._active_summaries: set[UUID] = set()
 
         logger.info("StorageManager initialized")
-
-    def set_summarization_service(self, summarization_service: SummarizationService):
-        """设置摘要服务实例 (依赖注入)"""
-        self.summarization_service = summarization_service
 
     async def store_messages(
         self,
@@ -81,9 +80,39 @@ class StorageManager:
 
         # 检查是否需要摘要转换
         if total_messages >= self.summary_trigger_threshold:
-            asyncio.create_task(self._trigger_summarization(tenant_id, thread_id))
+            await self._schedule_summarization(tenant_id, thread_id)
 
         return total_messages
+
+    async def add_episodic_memory(
+        self,
+        tenant_id: str,
+        thread_id: UUID,
+        content: str,
+        tags: Optional[list[str]] = None,
+        metadata: Optional[dict[str, Any]] = None
+    ) -> str:
+        """
+        存储临时（非对话）记忆到长期记忆
+
+        Args:
+            tenant_id: 租户标识
+            thread_id: 对话线程ID
+            content: 要存储的临时记忆内容
+            tags: 可选的标签列表
+            metadata: 可选的元数据字典
+
+        Returns:
+            str: 存储的临时记忆的ID
+        """
+
+        return await self.elasticsearch_index.store_episodic_memory(
+            tenant_id=tenant_id,
+            thread_id=thread_id,
+            content=content,
+            tags=tags,
+            metadata=metadata
+        )
 
     async def save_assistant_message(self, tenant_id: str, thread_id: UUID, message: str):
         """
@@ -96,6 +125,22 @@ class StorageManager:
         """
         msg = [Message(role="assistant", content=message)]
         return await self.store_messages(tenant_id, thread_id, msg)
+
+    async def _schedule_summarization(self, tenant_id: str, thread_id: UUID):
+        """确保同一线程仅存在一个并发摘要任务。"""
+        async with self._summary_guard:
+            if thread_id in self._active_summaries:
+                return
+            self._active_summaries.add(thread_id)
+
+        async def runner():
+            try:
+                await self._trigger_summarization(tenant_id, thread_id)
+            finally:
+                async with self._summary_guard:
+                    self._active_summaries.discard(thread_id)
+
+        asyncio.create_task(runner())
 
     async def _trigger_summarization(self, tenant_id: str, thread_id: UUID) -> bool:
         """触发摘要转换流程"""
@@ -121,8 +166,8 @@ class StorageManager:
                 tenant_id=tenant_id,
                 thread_id=thread_id,
                 content=summary_content,
-                memory_type="mid_term",
-                expires_at=get_current_datetime() + timedelta(days=30),
+                memory_type="long_term",
+                expires_at=get_current_datetime() + timedelta(days=mas_config.ES_MEMORY_TTL_DAYS),
                 tags=["conversation_summary"]
             )
 
@@ -177,7 +222,9 @@ class StorageManager:
 
         except Exception as e:
             logger.error(f"Failed to retrieve context for thread {thread_id}: {e}")
-            return [], []
+            short_term_messages: MessageParams = []
+            long_term_summaries: list[dict] = []
+            return short_term_messages, long_term_summaries
 
     async def cleanup_expired_memories(self):
         """清理过期的记忆条目"""

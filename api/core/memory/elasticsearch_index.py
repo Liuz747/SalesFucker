@@ -43,107 +43,6 @@ class ElasticsearchIndex:
             self._es_client = clients.elasticsearch
         return self._es_client
 
-    async def create_memory_index(self, force_recreate: bool = False) -> bool:
-        """
-        创建memory_v1索引
-
-        索引特性：
-        - dense_vector字段仅支持向量存储
-        - text字段支持全文检索
-        - 多租户隔离字段
-        - 时间戳和TTL支持
-
-        Args:
-            force_recreate: 是否强制重建索引（会删除现有数据）
-
-        Returns:
-            bool: 创建成功返回True
-        """
-        try:
-            # 检查索引是否已存在
-            exists = await self.client.indices.exists(index=self.index_name)
-
-            if exists:
-                if force_recreate:
-                    logger.warning(f"删除现有索引: {self.index_name}")
-                    await self.client.indices.delete(index=self.index_name)
-                else:
-                    logger.info(f"索引已存在: {self.index_name}")
-                    return True
-
-            # 定义索引映射
-            index_mapping = {
-                "settings": {
-                    "number_of_shards": mas_config.ES_NUMBER_OF_SHARDS,
-                    "number_of_replicas": 1,
-                    "refresh_interval": mas_config.ES_REFRESH_INTERVAL,
-                    "index": {
-                        "max_result_window": 10000,  # 最大分页深度
-                    },
-                    "analysis": {
-                        "analyzer": {
-                            "ik_max": {"type": "ik_max_word"},
-                            "ik_smart": {"type": "ik_smart"}
-                        }
-                    }
-                },
-                "mappings": {
-                    "dynamic": False,
-                    "properties": {
-                        # 核心字段
-                        "tenant_id": {"type": "keyword"},
-                        "thread_id": {"type": "keyword",},
-                        # 记忆内容
-                        "content": {
-                            "type": "text",
-                            "analyzer": "ik_max",
-                            "search_analyzer": "ik_smart",
-                            "fields": {
-                                "keyword": {"type": "keyword", "ignore_above": 256}
-                            }
-                        },
-                        # 向量嵌入 - 关键字段
-                        "embedding": {
-                            "type": "dense_vector",
-                            "dims": mas_config.ES_VECTOR_DIMENSION,
-                            "index": False
-                        },
-                        # 元数据
-                        "memory_type": {"type": "keyword"},  # short_term, long_term, episodic, semantic
-                        "importance_score": {"type": "float", "doc_values": False},  # 0.0-1.0
-                        "access_count": {"type": "integer", "doc_values": False},
-                        "last_accessed_at": {"type": "date"},
-                        "created_at": {"type": "date"},
-                        "expires_at": {"type": "date"},
-                        # 关联信息
-                        "tags": {"type": "keyword"},
-                        "entities": {
-                            "type": "object",
-                            "enabled": True,
-                        },
-                        # 检索元数据
-                        "metadata": {
-                            "type": "object",
-                            "enabled": False,  # 不索引，仅存储
-                        },
-                    }
-                }
-            }
-
-            # 创建索引
-            response = await self.client.indices.create(index=self.index_name, **index_mapping)
-
-            # wait cluster ready
-            await self.client.cluster.health(index=self.index_name, wait_for_status="yellow")
-
-
-            logger.info(f"索引创建成功: {self.index_name} - {response}")
-            return True
-
-        except Exception as e:
-            logger.error(f"索引创建失败: {e}")
-            return False
-
     # --------------------------------------------------------------------
     # Insert summary entry
     # --------------------------------------------------------------------
@@ -152,7 +51,7 @@ class ElasticsearchIndex:
         tenant_id: str,
         thread_id: UUID,
         content: str,
-        memory_type: str = "mid_term",
+        memory_type: str = "long_term",
         expires_at: Optional[datetime] = None,
         tags: Optional[list[str]] = None,
         metadata: Optional[dict[str, Any]] = None,
@@ -164,7 +63,7 @@ class ElasticsearchIndex:
             tenant_id: 租户ID
             thread_id: 对话线程ID
             content: 记忆内容
-            memory_type: 记忆类型，默认为"mid_term"
+            memory_type: 记忆类型，默认为"long_term"
             expires_at: 过期时间（可选）
             tags: 标签列表（可选）
             metadata: 元数据字典（可选）
@@ -197,6 +96,53 @@ class ElasticsearchIndex:
             logger.exception(f"[ElasticsearchIndex] Failed to store summary: {e}")
             raise
 
+    async def store_episodic_memory(
+        self,
+        tenant_id: str,
+        thread_id: UUID,
+        content: str,
+        tags: Optional[list[str]] = None,
+        metadata: Optional[dict[str, Any]] = None,
+    ) -> str:
+        """
+        向Elasticsearch插入短记忆文档
+
+        Args:
+            tenant_id: 租户ID
+            thread_id: 对话线程ID
+            content: 记忆内容
+            tags: 标签列表（可选）
+            metadata: 元数据字典（可选）
+
+        Returns:
+            str: 文档ID
+        """
+
+        doc = {
+            "tenant_id": tenant_id,
+            "thread_id": str(thread_id),
+            "content": content,
+            "memory_type": "episodic",
+            "created_at": to_isoformat(),
+            "tags": tags or [],
+            "entities": {},
+            "metadata": metadata or {},
+            "access_count": 0,
+            "importance_score": 0.9,
+            "last_accessed_at": None,
+            "expires_at": None,
+        }
+
+        try:
+            result = await self.client.index(index=self.index_name, document=doc)
+            doc_id = result["_id"]
+            logger.debug(f"[ElasticsearchIndex] Created episodic summary doc: {doc_id}")
+            return doc_id
+
+        except Exception as e:
+            logger.exception(f"[ElasticsearchIndex] Failed to store summary: {e}")
+            raise
+
     # --------------------------------------------------------------------
     # 按 thread 获取摘要列表
     # --------------------------------------------------------------------
@@ -205,6 +151,7 @@ class ElasticsearchIndex:
         tenant_id: str,
         thread_id: UUID,
         limit: int = 20,
+        memory_type: str = "long_term",
     ) -> list[dict]:
         """
         获取指定对话线程的所有摘要
@@ -213,24 +160,24 @@ class ElasticsearchIndex:
             tenant_id: 租户ID
             thread_id: 对话线程ID
             limit: 返回结果数量限制，默认20
+            memory_types: 需要的记忆类型过滤（默认仅long term）
 
         Returns:
-            list[dict]: 摘要列表，按创建时间升序排列
+            list[dict]: 摘要列表，按创建时间降序排列
         """
-        query = {
-            "bool": {
-                "filter": [
-                    {"term": {"tenant_id": tenant_id}},
-                    {"term": {"thread_id": str(thread_id)}},
-                ]
-            }
-        }
+        filters = [
+            {"term": {"tenant_id": tenant_id}},
+            {"term": {"thread_id": str(thread_id)}},
+            {"term": {"memory_type": memory_type}}
+        ]
+
+        query = {"bool": {"filter": filters}}
 
         try:
             res = await self.client.search(
                 index=self.index_name,
                 query=query,
-                sort=[{"created_at": {"order": "asc"}}],
+                sort=[{"created_at": {"order": "desc"}}],
                 size=limit,
             )
             return [{"id": hit["_id"], **hit["_source"]} for hit in res["hits"]["hits"]]
