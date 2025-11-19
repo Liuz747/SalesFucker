@@ -9,7 +9,7 @@
 2. Chat Agent - 基于情感分析结果生成个性化回复
 """
 
-from typing import Optional, TYPE_CHECKING
+from typing import Optional
 from collections.abc import Callable
 
 from langgraph.graph import StateGraph
@@ -19,9 +19,7 @@ from core.entities import WorkflowExecutionModel
 from utils import get_component_logger
 from libs.constants import AgentNodes
 from .base_workflow import BaseWorkflow
-
-if TYPE_CHECKING:
-    from core.agents.base import BaseAgent
+from core.agents.base import BaseAgent
 
 
 logger = get_component_logger(__name__)

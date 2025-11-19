@@ -4,7 +4,7 @@
 实现聊天对话的具体工作流逻辑，包括节点处理、条件路由和状态管理。
 """
 
-from typing import Optional, TYPE_CHECKING
+from typing import Optional
 from collections.abc import Callable
 
 from langgraph.graph import StateGraph
@@ -14,9 +14,7 @@ from core.entities import WorkflowExecutionModel
 from utils import get_component_logger
 from libs.constants import AgentNodes
 from .base_workflow import BaseWorkflow
-
-if TYPE_CHECKING:
-    from core.agents.base import BaseAgent
+from core.agents.base import BaseAgent
 
 
 logger = get_component_logger(__name__)
