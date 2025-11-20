@@ -13,3 +13,7 @@ class AgentNodes:
     STRATEGY_NODE = "market_strategy"
     SALES_NODE = "sales_agent"
     PRODUCT_NODE = "product_expert"
+
+    # 新增并行节点
+    APPOINTMENT_INTENT_NODE = "appointment_intent_analysis"
+    MATERIAL_INTENT_NODE = "material_intent_analysis"

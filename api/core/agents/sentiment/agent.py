@@ -277,10 +277,11 @@ class SentimentAnalysisAgent(BaseAgent):
         agent_response_data["token_usage"] = token_info
         agent_response_data["tokens_used"] = token_info["total_tokens"]
 
-        # LangGraph节点间传递
+        # LangGraph节点间传递 - 直接设置到model字段避免并发冲突
         state["processed_text"] = processed_text
         state["matched_prompt"] = matched_prompt  # SalesAgent 将使用matched_prompt 作为优化输入
         state["journey_stage"] = journey_stage    # 旅程阶段
+        state["values"] = state.get("values", {})
 
         # 保留原有的 sentiment_analysis，添加标准化token信息
         state["sentiment_analysis"] = {
