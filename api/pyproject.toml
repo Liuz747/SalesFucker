@@ -16,6 +16,7 @@ dependencies = [
     "asyncpg>=0.30.0",
     "colorlog>=6.9.0",
     "cryptography>=46.0.3",
+    "dashscope>=1.25.1",
     "elasticsearch>=9.1.0",
     "fastapi>=0.116.1",
     "google-genai>=1.30.0",

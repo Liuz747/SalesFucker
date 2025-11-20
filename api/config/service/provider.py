@@ -39,6 +39,11 @@ class LLMConfig(BaseSettings):
         default="",
     )
 
+    DASHSCOPE_API_KEY: str = Field(
+        description="阿里云通义千问 DashScope API 密钥，用于访问 Paraformer 语音转文字服务",
+        default="",
+    )
+
     # 多LLM 系统配置
     DEFAULT_LLM_PROVIDER: str = Field(
         description="默认 LLM 提供商",

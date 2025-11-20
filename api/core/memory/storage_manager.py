@@ -84,6 +84,7 @@ class StorageManager:
 
         return total_messages
 
+    # TODO: 需要考虑当客户聊天轮次在Redis有效期内没有达到存长期记忆threshold的场景该怎么解决
     async def add_episodic_memory(
         self,
         tenant_id: str,
