@@ -43,6 +43,5 @@ def create_agents_set() -> dict[str, BaseAgent]:
         # 使用工作流节点名称作为智能体ID与键，便于工作流直接查找
         agent.agent_id = node_name
         agents[node_name] = agent
-        logger.info(f"智能体 {node_name} 创建成功")
 
     return agents

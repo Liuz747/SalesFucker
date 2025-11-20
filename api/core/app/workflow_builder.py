@@ -70,6 +70,5 @@ class WorkflowBuilder:
         # 编译工作流图
         compiled_graph = graph.compile()
         
-        logger.info("工作流图构建完成")
         return compiled_graph
     

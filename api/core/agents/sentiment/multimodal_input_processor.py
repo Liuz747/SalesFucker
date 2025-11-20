@@ -27,7 +27,6 @@ class MultimodalInputProcessor(LoggerMixin):
         super().__init__()
         self.tenant_id = tenant_id
         self.config = config or {}
-        self.logger.info(f"简化多模态处理器初始化完成 - 租户: {tenant_id}")
 
     async def process_input(self, customer_input: InputContentParams) -> Tuple[str, Dict[str, Any]]:
         """

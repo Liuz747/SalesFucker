@@ -281,9 +281,6 @@ class SalesPromptGenerator(LoggerMixin):
             MultimodalEnhancedStrategy(),  # 多模态增强策略
             SentimentBasedStrategy()  # 基础策略（降级使用）
         ]
-
-        self.logger.info("销售提示词生成器初始化完成，使用阈值匹配策略")
-
     def generate_prompt(
         self,
         sentiment_result: Dict[str, Any],

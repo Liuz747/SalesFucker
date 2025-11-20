@@ -47,9 +47,8 @@ class SentimentAnalysisAgent(BaseAgent):
         self.llm_provider = mas_config.DEFAULT_LLM_PROVIDER
 
         # 使用OpenRouter中可用的模型
-        self.llm_model = "openai/gpt-5-chat"
+        self.llm_model = "openai/gpt-5-mini"
 
-        # 记忆管理
         self.memory_manager = StorageManager()
         self.prompt_matcher = PromptMatcher()
 
@@ -124,7 +123,7 @@ class SentimentAnalysisAgent(BaseAgent):
 
             # 步骤3: 处理多模态输入
             processed_text, multimodal_context = await self._process_input(customer_input)
-            self.logger.info(f"多模态输入处理完成 - processed_text长度: {len(processed_text)}, context类型: {multimodal_context.get('type')}")
+            self.logger.info(f"多模态输入处理完成 - 输入消息条数: {len(processed_text)}, context类型: {multimodal_context.get('type')}")
 
             # 步骤4: 执行情感分析（使用短期消息历史+当前输入）
             sentiment_result = await self._analyze_sentiment_with_history(processed_text, multimodal_context, memory_context['short_term'])
@@ -148,8 +147,8 @@ class SentimentAnalysisAgent(BaseAgent):
             )
 
             processing_time = (get_current_datetime() - start_time).total_seconds()
-            self.logger.info(f"情感分析完成（增强版）: 耗时{processing_time:.2f}s, 情感={sentiment_result.get('sentiment')}, 旅程={journey_stage}")
-            self.logger.info("=== Sentiment Agent 处理完成（增强版） ===")
+            self.logger.info(f"情感分析完成: 耗时{processing_time:.2f}s, 情感={sentiment_result.get('sentiment')}, 旅程={journey_stage}")
+            self.logger.info("=== Sentiment Agent 处理完成 ===")
 
             return updated_state
 
@@ -159,7 +158,7 @@ class SentimentAnalysisAgent(BaseAgent):
             raise e
 
     def _input_to_text(self, content) -> str:
-        """将输入转换为文本（参考ChatAgent）"""
+        """将输入转换为文本"""
         if isinstance(content, str):
             return content
         if isinstance(content, Sequence):
@@ -228,6 +227,15 @@ class SentimentAnalysisAgent(BaseAgent):
 
         except Exception as e:
             self.logger.error(f"提示词匹配失败: {e}")
+            return {
+                "system_prompt": "你是一个专业友好的美容顾问。",
+                "tone": "专业、友好",
+                "strategy": "标准服务",
+                "matched_key": "fallback",
+                "sentiment_level": "medium",
+                "journey_stage": journey_stage,
+                "sentiment_score": sentiment_score
+            }
 
     def _update_state_enhanced(
         self, state: dict, processed_text: str, sentiment_result: dict,
@@ -235,7 +243,7 @@ class SentimentAnalysisAgent(BaseAgent):
         journey_stage: str
     ) -> dict:
         """
-        🔥 新增：增强版状态更新（添加 matched_prompt 和 memory_context）
+        状态更新（添加 matched_prompt 和 memory_context）
 
         Args:
             state: 原始状态
@@ -255,16 +263,15 @@ class SentimentAnalysisAgent(BaseAgent):
             "total_tokens": sentiment_result.get("total_tokens", 0)
         }
 
-        # 🔥 增强版：根级别状态（LangGraph节点间传递）
+        # LangGraph节点间传递
         state["processed_text"] = processed_text
-        state["matched_prompt"] = matched_prompt  # 🆕 SalesAgent 将使用这个
-        state["memory_context"] = memory_context  # 🆕 记忆上下文
-        state["journey_stage"] = journey_stage    # 🆕 旅程阶段
+        state["matched_prompt"] = matched_prompt  # SalesAgent 将使用matched_prompt 作为优化输入
+        state["journey_stage"] = journey_stage    # 旅程阶段
 
         # 保留原有的 sentiment_analysis
         state["sentiment_analysis"] = {
             **sentiment_result,
-            "journey_stage": journey_stage,        # 🆕 添加旅程信息
+            "journey_stage": journey_stage,        #  添加旅程信息
             "processed_input": processed_text,
             "multimodal_context": multimodal_context,
             "agent_id": self.agent_id,
@@ -279,9 +286,8 @@ class SentimentAnalysisAgent(BaseAgent):
 
         agent_data = {
             "sentiment_analysis": sentiment_result,
-            "matched_prompt": matched_prompt,      # 🆕
-            "memory_context": memory_context,      # 🆕
-            "journey_stage": journey_stage,        # 🆕
+            "matched_prompt": matched_prompt,
+            "journey_stage": journey_stage,
             "processed_input": processed_text,
             "timestamp": get_current_datetime(),
             **sentiment_tokens
@@ -292,8 +298,8 @@ class SentimentAnalysisAgent(BaseAgent):
         # 更新活跃智能体列表
         state.setdefault("active_agents", []).append(self.agent_id)
 
-        self.logger.info(f"增强版状态管理完成 - 新增字段: matched_prompt, memory_context, journey_stage")
-        self.logger.info(f"状态传递完成 -> SalesAgent 可访问: state['matched_prompt'], state['memory_context']")
+        self.logger.info(f"增强版状态管理完成 - 新增字段: matched_prompt, journey_stage")
+        self.logger.info(f"状态传递完成 -> SalesAgent 可访问: state['matched_prompt']")
 
         return state
 
@@ -347,8 +353,6 @@ class SentimentAnalysisAgent(BaseAgent):
 
 当前用户输入：
 {current_text}"""
-
-                self.logger.info(f"使用历史消息进行情感分析 - 历史消息数: {len(recent_user_messages)}, 合并后文本长度: {len(combined_text)}")
 
                 # 增强上下文信息，标明这是历史上下文分析
                 enhanced_context = {

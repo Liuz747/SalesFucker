@@ -260,7 +260,7 @@ class SentimentAnalyzer(LoggerMixin):
             LLMSentimentAnalyzer(llm_provider, llm_model, invoke_llm_fn)
         ]
 
-        self.logger.info(f"情感分析器初始化完成 - LLM: {llm_provider}/{llm_model}")
+        self.logger.info(f"情感分析llm: {llm_provider}/{llm_model}")
 
     async def analyze_sentiment(
         self,
