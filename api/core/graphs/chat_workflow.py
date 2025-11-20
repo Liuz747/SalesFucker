@@ -11,7 +11,6 @@ from langgraph.graph import StateGraph
 
 from core.agents.base import BaseAgent
 from core.entities import WorkflowExecutionModel
-from core.memory.storage_manager import StorageManager
 from utils import get_component_logger
 from libs.constants import AgentNodes
 from .base_workflow import BaseWorkflow
@@ -27,13 +26,12 @@ class ChatWorkflow(BaseWorkflow):
     实现具体的聊天对话流程，包括合规检查、情感分析、
     意图识别和销售处理。
 
-    记忆管理已提升到工作流层级，不再依赖单独的 MemoryAgent。
+    记忆管理已下沉到各智能体内部，不再依赖工作流层级的统一处理。
 
     包含增强的节点处理能力：
     - 智能体节点处理与错误恢复
     - 降级处理策略
     - 并行处理优化
-    - 统一记忆管理
     """
 
     def __init__(self, agents: dict[str, "BaseAgent"]):
@@ -41,8 +39,6 @@ class ChatWorkflow(BaseWorkflow):
         初始化聊天工作流
         """
         self.agents = agents
-        # 工作流级别的统一记忆管理
-        self.storage_manager = StorageManager()
         # self.fallback_handlers = self._init_fallback_handlers()
     
     def _register_nodes(self, graph: StateGraph):
@@ -50,7 +46,7 @@ class ChatWorkflow(BaseWorkflow):
         注册工作流节点
 
         将所有智能体处理函数注册到工作流图中。
-        移除了 MEMORY_NODE，记忆管理在工作流层级统一处理。
+        移除了 MEMORY_NODE，记忆管理在各智能体内部处理。
 
         参数:
             graph: 要注册节点的状态图
@@ -72,7 +68,6 @@ class ChatWorkflow(BaseWorkflow):
         定义优化的节点间连接边
 
         实现简化的串行处理流程，移除了 MEMORY_NODE。
-        记忆管理将在每个节点处理后自动进行。
 
         参数:
             graph: 要定义边的状态图
@@ -97,27 +92,11 @@ class ChatWorkflow(BaseWorkflow):
 
         logger.debug("工作流入口出口点设置完成")
     
-    # def _init_fallback_handlers(self) -> dict[str, Callable]:
-    #     """
-    #     初始化降级处理器映射
-        
-    #     为每个节点类型定义特定的降级处理逻辑。
-        
-    #     返回:
-    #         dict[str, Callable]: 节点名称到降级处理器的映射
-    #     """
-    #     return {
-    #         AgentNodes.SENTIMENT_NODE: self._sentiment_fallback,
-    #         AgentNodes.SALES_NODE: self._sales_fallback,
-    #         AgentNodes.MEMORY_NODE: self._memory_fallback,
-    #     }
-    
     async def _process_agent_node(self, state: WorkflowExecutionModel, node_name: str) -> dict:
         """
         通用智能体节点处理方法
 
-        统一处理智能体调用、错误处理和记忆管理。
-        在每个节点处理前后进行记忆上下文的检索和存储。
+        统一处理智能体调用和错误处理。
 
         参数:
             state: 当前对话状态字典
@@ -136,14 +115,6 @@ class ChatWorkflow(BaseWorkflow):
             state_dict = state.model_dump()
             # 将 input 兼容映射为各 Agent 期望的 customer_input
             state_dict.setdefault("customer_input", state.input)
-
-            # 添加工作流级别的记忆服务到状态
-            state_dict["storage_manager"] = self.storage_manager
-
-            # 在 agent 处理前，统一检索记忆上下文
-            if hasattr(state, 'conversation_id') and state.conversation_id:
-                memory_context = await self._retrieve_memory_context(state.conversation_id)
-                state_dict["memory_context"] = memory_context
 
             result_state = await agent.process_conversation(state_dict)
 
@@ -168,12 +139,8 @@ class ChatWorkflow(BaseWorkflow):
 
                 # 更新其他字段到状态模型
                 for key, value in result_state.items():
-                    if hasattr(state, key) and key not in ["values", "agent_responses", "storage_manager"]:
+                    if hasattr(state, key) and key not in ["values", "agent_responses"]:
                         setattr(state, key, value)
-
-            # 在工作流层级统一处理记忆存储（如果是最后一个节点）
-            if node_name == AgentNodes.SALES_NODE:
-                await self._store_conversation_memory(state)
 
             return state
 
@@ -186,108 +153,3 @@ class ChatWorkflow(BaseWorkflow):
         async def agent_node(state: WorkflowExecutionModel) -> dict:
             return await self._process_agent_node(state, node_name)
         return agent_node
-
-    # ============ 记忆管理方法 ============
-    async def _retrieve_memory_context(self, conversation_id: str) -> dict:
-        """
-        检索记忆上下文
-
-        参数:
-            conversation_id: 对话ID
-
-        返回:
-            dict: 记忆上下文，包含短期和长期记忆
-        """
-        try:
-            return await self.storage_manager.retrieve_context(conversation_id)
-        except Exception as e:
-            logger.error(f"检索记忆上下文失败: {e}", exc_info=True)
-            return {"short_term": [], "long_term": []}
-
-    async def _store_conversation_memory(self, state: WorkflowExecutionModel):
-        """
-        存储对话记忆
-
-        在工作流结束时，将整个对话轮次存储到记忆系统。
-
-        参数:
-            state: 工作流状态
-        """
-        try:
-            if not hasattr(state, 'conversation_id') or not state.conversation_id:
-                logger.warning("conversation_id 为空，跳过记忆存储")
-                return
-
-            # 构建消息参数
-            from libs.types import MessageParams
-
-            # 用户消息
-            user_message = MessageParams(
-                conversation_id=state.conversation_id,
-                message_id=f"{state.conversation_id}_user_{state.timestamp}",
-                content=state.input or "",
-                message_type="user",
-                timestamp=state.timestamp
-            )
-
-            # 助手响应（从 SalesAgent 的响应中获取）
-            assistant_response = ""
-            if state.values and "agent_responses" in state.values:
-                agent_responses = state.values["agent_responses"]
-                if AgentNodes.SALES_NODE in agent_responses:
-                    assistant_response = agent_responses[AgentNodes.SALES_NODE].get("response", "")
-
-            assistant_message = MessageParams(
-                conversation_id=state.conversation_id,
-                message_id=f"{state.conversation_id}_assistant_{state.timestamp}",
-                content=assistant_response,
-                message_type="assistant",
-                timestamp=state.timestamp
-            )
-
-            # 存储消息到记忆系统
-            await self.storage_manager.store_message(user_message)
-            await self.storage_manager.store_message(assistant_message)
-
-            logger.debug(f"对话记忆存储成功，对话ID: {state.conversation_id}")
-
-        except Exception as e:
-            logger.error(f"存储对话记忆失败: {e}", exc_info=True)
-    
-    # ============ 降级处理器 ============
-    def _sentiment_fallback(self, state: WorkflowExecutionModel, error: Optional[Exception]) -> dict:
-        """情感与意图综合分析降级处理"""
-        return {
-            "sentiment_analysis": {
-                "sentiment": "neutral",
-                "score": 0.0,
-                "confidence": 0.5,
-                "fallback": True
-            },
-            "intent_analysis": {
-                "intent": "general_inquiry",
-                "confidence": 0.5,
-                "category": "unknown",
-                "fallback": True
-            }
-        }
-
-    # def _sales_fallback(self, state: WorkflowExecutionModel, error: Optional[Exception]) -> dict:
-    #     """销售智能体降级处理"""
-    #     agent_responses = state.agent_responses.copy()
-    #     agent_responses["sales_agent"] = {
-    #         "response": "感谢您的咨询！我很乐意为您推荐合适的美容产品。请告诉我您具体的需求？",
-    #         "fallback": True,
-    #         "timestamp": state.timestamp
-    #     }
-    #     return {"agent_responses": agent_responses}
-
-    # def _memory_fallback(self, state: WorkflowExecutionModel, error: Optional[Exception]) -> dict:
-    #     """记忆管理降级处理"""
-    #     return {
-    #         "memory_update": {
-    #             "status": StatusConstants.FAILED,
-    #             "message": "记忆系统暂时不可用",
-    #             "fallback": True
-    #         }
-    #     }

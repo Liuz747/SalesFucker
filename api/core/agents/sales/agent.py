@@ -8,7 +8,7 @@ Sales Agent - 简化版（使用智能匹配提示词 + 记忆系统）
 - 接收 matched_prompt（情感驱动的提示词）
 - 集成记忆上下文
 - 生成个性化销售回复
-- 记忆存储由工作流层级统一处理
+- 智能体自主管理记忆存储
 """
 
 from typing import Dict, Any, Tuple
@@ -19,6 +19,7 @@ from libs.types import Message
 from infra.runtimes.entities import CompletionsRequest
 from utils import get_current_datetime
 from config import mas_config
+from core.memory import StorageManager
 
 
 class SalesAgent(BaseAgent):
@@ -28,13 +29,14 @@ class SalesAgent(BaseAgent):
     设计理念：
     - 使用 SentimentAgent 匹配的提示词，而不是重新生成
     - 集成记忆系统提供上下文连贯性
-    - 极简架构：接收→处理→生成，记忆存储由工作流统一处理
+    - 极简架构：接收→处理→生成，自主管理记忆存储
     """
 
     def __init__(self):
         super().__init__()
 
-        # 移除独立的 StorageManager，记忆管理由工作流层级处理
+        # 记忆管理
+        self.memory_manager = StorageManager()
         self.llm_provider = mas_config.DEFAULT_LLM_PROVIDER
         self.llm_model = "openai/gpt-5-mini"
 
@@ -46,7 +48,7 @@ class SalesAgent(BaseAgent):
         1. 读取 SentimentAgent 输出的 matched_prompt 和 memory_context
         2. 构建增强的 LLM 提示词（包含历史记忆）
         3. 生成个性化销售回复
-        4. 记忆存储由工作流层级统一处理
+        4. 存储助手回复到记忆
 
         参数:
             state: 包含 matched_prompt, memory_context, customer_input 等
@@ -63,6 +65,9 @@ class SalesAgent(BaseAgent):
             customer_input = state.get("customer_input", "")
             matched_prompt = state.get("matched_prompt", {})
             memory_context = state.get("memory_context", {})
+            
+            tenant_id = state.get("tenant_id")
+            thread_id = state.get("thread_id")
 
             self.logger.info(f"接收数据 - 输入长度: {len(customer_input)}, 匹配提示词: {matched_prompt.get('matched_key', 'unknown')}")
             self.logger.info(f"记忆上下文 - 短期: {len(memory_context.get('short_term', []))} 条, 长期: {len(memory_context.get('long_term', []))} 条")
@@ -71,6 +76,18 @@ class SalesAgent(BaseAgent):
             sales_response, token_info = await self._generate_response_with_memory(
                 customer_input, matched_prompt, memory_context
             )
+
+            # 存储助手回复到记忆
+            if sales_response and tenant_id and thread_id:
+                try:
+                    await self.memory_manager.save_assistant_message(
+                        tenant_id=tenant_id,
+                        thread_id=thread_id,
+                        message=sales_response,
+                    )
+                    self.logger.debug("助手回复已保存到记忆")
+                except Exception as e:
+                    self.logger.error(f"保存助手回复失败: {e}")
 
             # 更新状态
             updated_state = self._update_state(state, sales_response, token_info)
@@ -185,8 +202,10 @@ class SalesAgent(BaseAgent):
         if short_term and len(short_term) > 2:  # 有足够的对话历史
             recent_exchanges = []
             for msg in short_term[-4:]:  # 最近 4 条消息
-                role = msg.get("role", "")
-                content = str(msg.get("content", ""))[:80]  # 限制长度
+                # 兼容 Message 对象和 dict
+                role = msg.get("role") if isinstance(msg, dict) else getattr(msg, "role", "")
+                content = str(msg.get("content", "") if isinstance(msg, dict) else getattr(msg, "content", ""))[:80]  # 限制长度
+                
                 if role == "user":
                     recent_exchanges.append(f"客户: {content}")
                 elif role == "assistant":
@@ -262,8 +281,7 @@ class SalesAgent(BaseAgent):
                 "tone": "友好",
                 "strategy": "测试"
             }
-            test_memory = {"short_term": [], "long_term": []}
-
+            
             # 模拟生成回复（通过 fallback）
             response = self._get_fallback_response(test_prompt)
 
@@ -271,7 +289,7 @@ class SalesAgent(BaseAgent):
                 "status": "healthy",
                 "llm_provider": self.llm_provider,
                 "llm_model": self.llm_model,
-                "memory_manager": "workflow_level",  # 更新为工作流级别
+                "memory_manager": "agent_internal", 
                 "test_response_length": len(response)
             }
         except Exception as e:
