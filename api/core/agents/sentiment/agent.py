@@ -20,6 +20,7 @@ from .sentiment_analyzer import SentimentAnalyzer
 from .sales_prompt_generator import SalesPromptGenerator
 from .prompt_matcher import PromptMatcher
 from utils import get_current_datetime
+from utils.token_manager import TokenManager
 from config import mas_config
 from core.memory import StorageManager
 from libs.types import Message
@@ -257,25 +258,39 @@ class SentimentAnalysisAgent(BaseAgent):
         Returns:
             dict: 更新后的状态
         """
-        # 提取token信息
-        sentiment_tokens = {
-            "tokens_used": sentiment_result.get("tokens_used", 0),
-            "total_tokens": sentiment_result.get("total_tokens", 0)
+        # 使用TokenManager创建标准化的Agent响应数据
+        current_time = get_current_datetime()
+        agent_response_data = TokenManager.extract_agent_token_info(
+            agent_id=self.agent_id,
+            agent_type="sentiment",
+            llm_response=None,  # token信息已在sentiment_result中
+            response_content=str(sentiment_result),
+            timestamp=current_time
+        )
+
+        # 更新token信息，使用sentiment_result中的实际数据
+        token_info = {
+            "input_tokens": sentiment_result.get("input_tokens", 0),
+            "output_tokens": sentiment_result.get("output_tokens", 0),
+            "total_tokens": sentiment_result.get("total_tokens", sentiment_result.get("tokens_used", 0))
         }
+        agent_response_data["token_usage"] = token_info
+        agent_response_data["tokens_used"] = token_info["total_tokens"]
 
         # LangGraph节点间传递
         state["processed_text"] = processed_text
         state["matched_prompt"] = matched_prompt  # SalesAgent 将使用matched_prompt 作为优化输入
         state["journey_stage"] = journey_stage    # 旅程阶段
 
-        # 保留原有的 sentiment_analysis
+        # 保留原有的 sentiment_analysis，添加标准化token信息
         state["sentiment_analysis"] = {
             **sentiment_result,
             "journey_stage": journey_stage,        #  添加旅程信息
             "processed_input": processed_text,
             "multimodal_context": multimodal_context,
             "agent_id": self.agent_id,
-            **sentiment_tokens
+            "token_usage": token_info,             # 标准化的token信息
+            "tokens_used": token_info["total_tokens"]  # 向后兼容
         }
 
         # 备份存储在 values 结构中（用于统计和调试）
@@ -285,12 +300,15 @@ class SentimentAnalysisAgent(BaseAgent):
             state["values"]["agent_responses"] = {}
 
         agent_data = {
+            "agent_type": "sentiment",
             "sentiment_analysis": sentiment_result,
             "matched_prompt": matched_prompt,
             "journey_stage": journey_stage,
             "processed_input": processed_text,
-            "timestamp": get_current_datetime(),
-            **sentiment_tokens
+            "timestamp": current_time,
+            "token_usage": token_info,             # 标准化的token信息
+            "tokens_used": token_info["total_tokens"],  # 向后兼容
+            "response_length": len(str(sentiment_result))
         }
 
         state["values"]["agent_responses"][self.agent_id] = agent_data

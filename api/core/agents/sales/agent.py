@@ -17,6 +17,7 @@ from ..base import BaseAgent
 from libs.types import Message
 from infra.runtimes.entities import CompletionsRequest
 from utils import get_current_datetime
+from utils.token_manager import TokenManager
 from config import mas_config
 from core.memory import StorageManager
 
@@ -108,7 +109,7 @@ class SalesAgent(BaseAgent):
 
         except Exception as e:
             self.logger.error(f"销售代理处理失败: {e}", exc_info=True)
-            return self._create_error_state(state, str(e))
+            raise e
 
     def _input_to_text(self, content) -> str:
         """将输入转换为文本（参照 Chat Agent）"""
@@ -226,19 +227,19 @@ class SalesAgent(BaseAgent):
         return enhanced_prompt
 
     def _extract_token_info(self, llm_response) -> dict:
-        """提取 token 使用信息"""
+        """提取 token 使用信息 - 使用统一的TokenManager"""
         try:
-            if llm_response and hasattr(llm_response, 'usage') and isinstance(llm_response.usage, dict):
-                usage = llm_response.usage
-                return {
-                    "tokens_used": usage.get("input_tokens", 0) + usage.get("output_tokens", 0),
-                    "input_tokens": usage.get("input_tokens", 0),
-                    "output_tokens": usage.get("output_tokens", 0)
-                }
+            token_usage = TokenManager.extract_tokens(llm_response)
+            return {
+                "tokens_used": token_usage.total_tokens,
+                "input_tokens": token_usage.input_tokens,
+                "output_tokens": token_usage.output_tokens,
+                "total_tokens": token_usage.total_tokens
+            }
         except Exception as e:
             self.logger.warning(f"Token 信息提取失败: {e}")
 
-        return {"tokens_used": 0}
+        return {"tokens_used": 0, "input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
 
     def _get_fallback_response(self, matched_prompt: dict) -> str:
         """获取兜底回复"""
@@ -252,21 +253,34 @@ class SalesAgent(BaseAgent):
             return "感谢您的咨询。我是您的专业美容顾问，很乐意为您提供个性化的产品建议和美容方案。"
 
     def _update_state(self, state: dict, sales_response: str, token_info: dict) -> dict:
-        """更新对话状态"""
+        """更新对话状态 - 使用统一的TokenManager格式"""
+        current_time = get_current_datetime()
+
         # 主要状态（LangGraph 传递）
         state["sales_response"] = sales_response
         state["output"] = sales_response  # 作为最终输出
+        state["total_tokens"] = token_info.get("total_tokens", 0)  # 更新WorkflowExecutionModel的total_tokens字段
 
-        # 备份到 values 结构
+        # 备份到 values 结构，使用标准化的token信息
         if state.get("values") is None:
             state["values"] = {}
         if state["values"].get("agent_responses") is None:
             state["values"]["agent_responses"] = {}
 
+        # 创建标准化的token信息结构
+        token_usage = {
+            "input_tokens": token_info.get("input_tokens", 0),
+            "output_tokens": token_info.get("output_tokens", 0),
+            "total_tokens": token_info.get("total_tokens", token_info.get("tokens_used", 0))
+        }
+
         state["values"]["agent_responses"][self.agent_id] = {
+            "agent_type": "sales",
             "sales_response": sales_response,
-            "tokens_used": token_info.get("tokens_used", 0),
-            "timestamp": get_current_datetime(),
+            "response": sales_response,  # 标准化的响应字段
+            "token_usage": token_usage,  # 标准化的token信息
+            "tokens_used": token_usage["total_tokens"],  # 向后兼容
+            "timestamp": current_time,
             "response_length": len(sales_response)
         }
 
@@ -274,4 +288,5 @@ class SalesAgent(BaseAgent):
         state.setdefault("active_agents", []).append(self.agent_id)
 
         self.logger.info(f"状态更新完成 - 最终输出内容: {sales_response[:100]}...")
+        self.logger.info(f"Sales Agent Token统计 - Input: {token_usage['input_tokens']}, Output: {token_usage['output_tokens']}, Total: {token_usage['total_tokens']}")
         return state

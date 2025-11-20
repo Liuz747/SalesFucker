@@ -18,6 +18,7 @@ from uuid import uuid4
 
 from libs.types import Message
 from utils import LoggerMixin
+from utils.token_manager import TokenManager
 from infra.runtimes.entities import CompletionsRequest
 
 
@@ -47,7 +48,9 @@ class LLMSentimentAnalyzer(SentimentAnalysisStrategy):
                 "urgency": "medium",
                 "confidence": 0.0,
                 "tokens_used": 0,
-                "total_tokens": 0
+                "total_tokens": 0,
+                "input_tokens": 0,
+                "output_tokens": 0
             }
 
         try:
@@ -71,22 +74,18 @@ class LLMSentimentAnalyzer(SentimentAnalysisStrategy):
                 else str(llm_response.content)
             )
 
-            # 提取token信息
-            tokens_used = 0
-            total_tokens = 0
-            if llm_response and hasattr(llm_response, 'usage') and isinstance(llm_response.usage, dict):
-                input_tokens = llm_response.usage.get('input_tokens', 0)
-                output_tokens = llm_response.usage.get('output_tokens', 0)
-                total_tokens = input_tokens + output_tokens
-                tokens_used = total_tokens
+            # 使用统一的Token管理器提取token信息
+            token_usage = TokenManager.extract_tokens(llm_response)
 
             # 解析并验证结果
             result = self._parse_llm_response(raw_response)
             validated_result = self._validate_and_normalize(result)
 
-            # 添加token信息
-            validated_result["tokens_used"] = tokens_used
-            validated_result["total_tokens"] = total_tokens
+            # 添加标准化的token信息
+            validated_result["tokens_used"] = token_usage.total_tokens
+            validated_result["total_tokens"] = token_usage.total_tokens
+            validated_result["input_tokens"] = token_usage.input_tokens
+            validated_result["output_tokens"] = token_usage.output_tokens
 
             return validated_result
 
@@ -98,6 +97,8 @@ class LLMSentimentAnalyzer(SentimentAnalysisStrategy):
                 "confidence": 0.0,
                 "tokens_used": 0,
                 "total_tokens": 0,
+                "input_tokens": 0,
+                "output_tokens": 0,
                 "error": str(e)
             }
 
