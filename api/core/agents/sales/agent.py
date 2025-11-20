@@ -65,7 +65,9 @@ class SalesAgent(BaseAgent):
 
             # 读取 SentimentAgent 传递的数据
             customer_input = state.get("customer_input", "")
-            matched_prompt = state.get("matched_prompt", {})
+            # 从values字段中读取matched_prompt (兼容ChatWorkflow)
+            values = state.get("values", {})
+            matched_prompt = values.get("matched_prompt", {}) or state.get("matched_prompt", {})
 
             tenant_id = state.get("tenant_id")
             thread_id = state.get("thread_id")

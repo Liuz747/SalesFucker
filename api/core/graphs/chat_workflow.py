@@ -142,6 +142,14 @@ class ChatWorkflow(BaseWorkflow):
                     if hasattr(state, key) and key not in ["values", "agent_responses"]:
                         setattr(state, key, value)
 
+                # 确保自定义字段在agent间传递 (通过values字段)
+                if state.values is None:
+                    state.values = {}
+                custom_fields = ["matched_prompt", "journey_stage", "sentiment_analysis"]
+                for field in custom_fields:
+                    if field in result_state:
+                        state.values[field] = result_state[field]
+
             return state
 
         except Exception as e:

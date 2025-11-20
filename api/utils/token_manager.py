@@ -77,11 +77,7 @@ class TokenManager:
         """
         从LLM响应中提取Token使用信息
 
-        兼容不同LLM提供商的响应格式：
-        - OpenAI: response.usage
-        - Anthropic: response.usage
-        - 其他提供商: 统一的usage字典格式
-
+        兼容不同LLM提供商的响应格式
         参数:
             llm_response: LLM的响应对象
 

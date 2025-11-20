@@ -316,8 +316,7 @@ class SentimentAnalysisAgent(BaseAgent):
         # 更新活跃智能体列表
         state.setdefault("active_agents", []).append(self.agent_id)
 
-        self.logger.info(f"增强版状态管理完成 - 新增字段: matched_prompt, journey_stage")
-        self.logger.info(f"状态传递完成 -> SalesAgent 可访问: state['matched_prompt']")
+        self.logger.info(f"sentiment agent 新增字段: matched_prompt, journey_stage")
 
         return state
 
