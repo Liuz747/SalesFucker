@@ -6,8 +6,11 @@ from urllib.parse import urlparse
 from dashscope.audio.asr import Transcription
 
 from config import mas_config
-from core.entities import WorkflowExecutionModel
-from libs.types.content_params import InputContent, InputContentParams, InputType
+from libs.types.content_params import (
+    InputContent,
+    InputContentParams,
+    InputType
+)
 from schemas.exceptions import (
     ASRConfigurationException,
     ASRUrlValidationException,
@@ -132,24 +135,6 @@ class AudioService:
             logger.error(f"[ASR] 转录过程中发生异常 - tenant={tenant_id}: {e}", exc_info=True)
             raise ASRTranscriptionException(f"未知异常: {str(e)}")
 
-    # --------------------------
-    # 2) Text to Speech (TTS)
-    # --------------------------
-    async def synthesize_to_url(
-        self,
-        text: str,
-        tenant_id: str,
-        voice: Optional[str] = None
-    ) -> str:
-        logger.info(f"[TTS] tenant={tenant_id}, len(text)={len(text)}")
-
-        # TODO: real TTS provider + storage upload
-        audio_url = (
-            f"https://cdn.example.com/tts/{tenant_id}/"
-            f"audio_{hash(text) % 999999}.wav"
-        )
-        return audio_url
-
     # ----------------------------------------------------------
     # 3) Preprocessing: convert input_audio → transcript (text)
     # ----------------------------------------------------------
@@ -194,42 +179,3 @@ class AudioService:
 
         return normalized
 
-    # ----------------------------------------------------------
-    # 4) Postprocessing: TTS final output if applicable
-    # ----------------------------------------------------------
-    async def enrich_output(
-        self,
-        result: WorkflowExecutionModel,
-        tenant_id: str
-    ) -> WorkflowExecutionModel:
-        """
-        Adds audio output via TTS if the agent requested it
-        (or if you want to force audio output)
-        """
-        if not result.output:
-            return result
-
-        # Skip if agent tool already inserted audio_url
-        if result.output_audio_url:
-            return result
-
-        # Default: generate TTS for final output
-        audio_url = await self.synthesize_to_url(
-            text=result.output,
-            tenant_id=tenant_id
-        )
-        result.output_audio_url = audio_url
-        return result
-
-    # ----------------------------------------------------------
-    # 5) Tool Adapter for LangGraph
-    # ----------------------------------------------------------
-    async def tts_tool(self, text: str, tenant_id: str) -> dict:
-        """
-        Tool interface used in LangGraph agent nodes.
-        """
-        audio_url = await self.synthesize_to_url(
-            text=text,
-            tenant_id=tenant_id
-        )
-        return {"audio_url": audio_url}

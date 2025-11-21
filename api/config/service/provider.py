@@ -44,6 +44,11 @@ class LLMConfig(BaseSettings):
         default="",
     )
 
+    MINIMAX_API_KEY: str = Field(
+        description="MiniMax API 密钥，用于访问 TTS 语音合成服务",
+        default="",
+    )
+
     # 多LLM 系统配置
     DEFAULT_LLM_PROVIDER: str = Field(
         description="默认 LLM 提供商",

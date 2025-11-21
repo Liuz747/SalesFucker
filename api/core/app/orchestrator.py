@@ -9,21 +9,25 @@
 - 模块间协调和错误处理
 - 多租户工作流隔离
 - 多模态输入处理支持
+- 多模态输出生成（TTS等）
 """
 
+import aiohttp
 from langfuse import observe, get_client
 
+from config import mas_config
 from core.entities import WorkflowExecutionModel
+from libs.types import OutputContent, OutputType
 from models import WorkflowRun
-from ..graphs import ChatWorkflow, TestWorkflow, SentimentChatWorkflow
-from .workflow_builder import WorkflowBuilder
-from .state_manager import StateManager
 from utils import (
     get_component_logger,
     get_current_datetime,
     get_processing_time,
     flush_traces
 )
+from ..graphs import ChatWorkflow, TestWorkflow, SentimentChatWorkflow
+from .state_manager import StateManager
+from .workflow_builder import WorkflowBuilder
 
 logger = get_component_logger(__name__)
 
@@ -119,9 +123,116 @@ class Orchestrator:
             flush_traces()
 
             # 构建执行结果模型（元数据 + 会话结果）
-            return WorkflowExecutionModel(**result)
+            execution_result = WorkflowExecutionModel(**result)
+
+            # 添加多模态输出
+            execution_result = await self._enrich_output(execution_result, workflow.assistant_id)
+
+            return execution_result
 
         except Exception as e:
             logger.error(f"对话处理失败: {e}", exc_info=True)
             # 返回统一错误状态
             raise
+
+    async def _enrich_output(
+        self,
+        result: WorkflowExecutionModel,
+        assistant_id: str
+    ) -> WorkflowExecutionModel:
+        """
+        为工作流结果添加多模态输出
+
+        Agent节点可通过设置 result.actions 来请求特定类型的多模态输出
+        例如: result.actions = [OutputType.AUDIO, OutputType.IMAGE]
+
+        Args:
+            result: 工作流执行结果
+            assistant_id: 数字员工ID
+
+        Returns:
+            enriched WorkflowExecutionModel with multimodal_outputs
+        """
+        if not result.actions:
+            return result
+
+        result.multimodal_outputs = []
+
+        for action in result.actions:
+            match action:
+                case OutputType.AUDIO:
+                    await self._generate_audio_output(result, assistant_id)
+                case OutputType.IMAGE:
+                    pass
+                case OutputType.VIDEO:
+                    pass
+
+        return result
+
+    async def _generate_audio_output(
+        self,
+        result: WorkflowExecutionModel,
+        assistant_id: str
+    ):
+        """生成TTS音频输出"""
+        try:
+            # 调用MiniMax TTS API
+            api_key = mas_config.MINIMAX_API_KEY
+            if not api_key:
+                raise ValueError("MiniMax API密钥未配置")
+            
+            url = "https://api.minimaxi.com/v1/t2a_v2"
+
+            payload = {
+                "model": "speech-2.6-hd",
+                "text": result.output,
+                "stream": False,
+                "voice_setting": {
+                    "voice_id": "male-qn-qingse",
+                    "speed": 1,
+                    "vol": 1,
+                    "pitch": 0
+                },
+                "audio_setting": {
+                    "sample_rate": 32000,
+                    "bitrate": 128000,
+                    "format": "mp3",
+                    "channel": 1
+                },
+                "language_boost": "auto",
+                "output_format": "url"
+            }
+
+            headers = {
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {api_key}"
+            }
+
+            async with aiohttp.ClientSession() as session:
+                async with session.post(url, headers=headers, json=payload, timeout=aiohttp.ClientTimeout(total=30)) as response:
+                    if response.status != 200:
+                        error_text = await response.text()
+                        raise Exception(f"MiniMax TTS API错误: {response.status} - {error_text}")
+
+                    # MiniMax返回音频的链接
+                    response_data = await response.json()
+                    audio_url = response_data.get("data", {}).get("audio", "")
+            
+            if audio_url:
+                # 处理URL编码问题：将\u0026转换为&
+                audio_url = audio_url.replace("\\u0026", "&")
+
+                result.multimodal_outputs.append(
+                    OutputContent(
+                        type=OutputType.AUDIO,
+                        url=audio_url,
+                        metadata={
+                            "format": "mp3",
+                            "provider": "minimax",
+                            "text_length": len(result.output),
+                        }
+                    )
+                )
+                logger.info(f"[TTS] 添加音频输出成功")
+        except Exception as e:
+            logger.error(f"[TTS] 生成音频失败: {e}", exc_info=True)

@@ -98,7 +98,7 @@ async def create_run(
         logger.info(f"运行处理完成 - 线程: {thread_id}, 执行: {workflow_id}, 耗时: {processing_time:.2f}ms")
 
         # 返回标准化响应
-        return {
+        response = {
             "run_id": workflow_id,
             "thread_id": thread_id,
             "status": "completed",
@@ -111,6 +111,19 @@ async def create_run(
                 "assistant_id": result.assistant_id
             }
         }
+
+        # 添加多模态输出（如果存在）
+        if result.multimodal_outputs:
+            response["multimodal_outputs"] = [
+                {
+                    "type": output.type,
+                    "url": output.url,
+                    "metadata": output.metadata
+                }
+                for output in result.multimodal_outputs
+            ]
+
+        return response
 
     except HTTPException:
         raise
