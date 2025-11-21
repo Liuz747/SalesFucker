@@ -213,6 +213,7 @@ class WorkflowExecutionModel(BaseModel):
             "thread_id": state.get("thread_id"),
             "tenant_id": state.get("tenant_id"),
             "input": state.get("input"),
+            "output": state.get("output"),  # 添加output字段提取
             "total_tokens": state.get("total_tokens"),
             "error_message": state.get("error_message"),
             "exception_count": state.get("exception_count", 0),

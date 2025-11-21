@@ -311,8 +311,13 @@ class ChatWorkflow(BaseWorkflow):
                     "started_at": state_dict.get("started_at", "")
                 }
 
-                # 初始化状态收集器
-                values_update = state_dict.get("values", {})
+                # 初始化状态收集器 - 确保总是字典类型
+                values_update = state_dict.get("values") or {}
+                if values_update is None:
+                    values_update = {}
+                elif not isinstance(values_update, dict):
+                    values_update = {"original_values": str(values_update)}
+
                 values_update.update({
                     "parallel_execution": parallel_context,
                     "agent_responses": {}  # 初始化agent响应收集器

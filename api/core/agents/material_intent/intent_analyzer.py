@@ -11,7 +11,9 @@ Material Intent Analyzer - 素材意向分析器
 """
 
 from typing import Dict, Any, List
+import uuid
 from infra.runtimes import CompletionsRequest, LLMResponse
+from libs.types import Message
 
 
 class MaterialIntentAnalyzer:
@@ -36,7 +38,8 @@ class MaterialIntentAnalyzer:
         self.invoke_llm = invoke_llm_fn
 
         # 素材意向分析提示词
-        self.analysis_prompt = """你是一个专业的客户素材需求分析专家，专门分析美妆/医美行业客户对各种类型素材的需求意向。
+        self.analysis_prompt = """
+        你是一个专业的客户素材需求分析专家，专门分析美妆/医美行业客户对各种类型素材的需求意向。
 
 请基于提供的用户对话内容，分析用户是否需要发送任何类型的素材，包括但不限于产品图片、视频、价格信息、技术参数等。
 
@@ -67,9 +70,9 @@ class MaterialIntentAnalyzer:
 ## 评估维度：
 
 ### 1. 紧急程度 (Urgency Level)
-- high: 用户明确要求立即发送或很急切
-- medium: 用户表示有兴趣但不是很急
-- low: 只是随口询问或无明显需求
+- high: 用户心情很愉悦
+- medium: 用户正常聊天
+- low: 用户负面意向，如拒绝、不感兴趣、不需要等
 
 ### 2. 优先级评分 (Priority Score)
 - 0.8-1.0: 高优先级（应立即处理）
@@ -149,21 +152,19 @@ class MaterialIntentAnalyzer:
             # 构建分析文本
             analysis_text = self._build_analysis_text(analysis_context)
 
-            # 构建LLM请求
+            # 构建LLM请求 - 仿照sales agent简化写法
+            messages = [
+                Message(role="system", content=self.analysis_prompt),
+                Message(role="user", content=f"请分析以下对话中的素材发送意向：\n\n{analysis_text}")
+            ]
+
             request = CompletionsRequest(
+                id=uuid.uuid4(),
+                provider=self.llm_provider,  # 添加provider配置
                 model=self.llm_model,
-                messages=[
-                    {
-                        "role": "system",
-                        "content": self.analysis_prompt
-                    },
-                    {
-                        "role": "user",
-                        "content": f"请分析以下对话中的素材发送意向：\n\n{analysis_text}"
-                    }
-                ],
-                temperature=0.1,  # 使用较低温度保证一致性
-                max_tokens=1000   # 增加token限制以处理复杂的素材类型分析
+                messages=messages,
+                temperature=0.1,
+                max_tokens=1000
             )
 
             # 调用LLM
@@ -245,7 +246,7 @@ class MaterialIntentAnalyzer:
 
     def _parse_llm_response(self, response: LLMResponse) -> Dict[str, Any]:
         """
-        解析LLM响应
+        解析LLM响应 - 增强版本，更好的错误处理和调试信息
 
         Args:
             response: LLM响应对象
@@ -254,54 +255,82 @@ class MaterialIntentAnalyzer:
             Dict: 解析后的结果
         """
         try:
-            content = response.choices[0].message.content.strip()
+            # 修复：直接访问 LLMResponse 的 content 属性
+            content = response.content.strip() if isinstance(response.content, str) else str(response.content).strip()
 
             # 尝试解析JSON
             import json
             import re
 
-            # 提取JSON部分
+            # 提取JSON部分 - 支持多种格式
             json_match = re.search(r'```json\s*(.*?)\s*```', content, re.DOTALL)
             if json_match:
                 json_content = json_match.group(1)
             else:
-                json_content = content
+                # 尝试直接查找JSON对象
+                json_match = re.search(r'\{.*\}', content, re.DOTALL)
+                if json_match:
+                    json_content = json_match.group(0)
+                else:
+                    json_content = content
 
             # 解析JSON
             result = json.loads(json_content)
 
-            # 确保包含token信息
-            if "input_tokens" not in result:
-                result["input_tokens"] = getattr(response, "prompt_tokens", 0)
-            if "output_tokens" not in result:
-                result["output_tokens"] = getattr(response, "completion_tokens", 0)
+            # 修复：正确获取 token 信息从 LLMResponse.usage 字典
+            if hasattr(response, 'usage') and isinstance(response.usage, dict):
+                result["input_tokens"] = response.usage.get("input_tokens", 0)
+                result["output_tokens"] = response.usage.get("output_tokens", 0)
+            else:
+                result["input_tokens"] = 0
+                result["output_tokens"] = 0
+
             if "total_tokens" not in result:
                 result["total_tokens"] = result.get("input_tokens", 0) + result.get("output_tokens", 0)
 
-            # 验证必要字段
+            # 验证必要字段 - 使用更宽松的验证和自动填充
             required_fields = ["urgency_level", "material_types", "priority_score", "confidence", "recommendation"]
+            missing_fields = []
+
             for field in required_fields:
                 if field not in result:
-                    raise ValueError(f"Missing required field: {field}")
+                    missing_fields.append(field)
+                    # 自动填充缺失字段而不是抛出异常
+                    if field == "urgency_level":
+                        result[field] = "medium"  # 默认中等紧急程度
+                    elif field == "material_types":
+                        result[field] = []
+                    elif field == "priority_score":
+                        result[field] = 0.5
+                    elif field == "confidence":
+                        result[field] = 0.5
+                    elif field == "recommendation":
+                        result[field] = "wait_for_confirmation"
 
-            # 验证数值范围
+            # 如果有缺失字段，添加到分析摘要中
+            if missing_fields:
+                if "analysis_summary" not in result:
+                    result["analysis_summary"] = ""
+                result["analysis_summary"] = f"自动填充缺失字段: {', '.join(missing_fields)}. " + result.get("analysis_summary", "")
+
+            # 验证数值范围 - 自动修正而不是报错
             if not (0.0 <= result["priority_score"] <= 1.0):
                 result["priority_score"] = max(0.0, min(1.0, result["priority_score"]))
 
             if not (0.0 <= result["confidence"] <= 1.0):
                 result["confidence"] = max(0.0, min(1.0, result["confidence"]))
 
-            # 验证urgency_level
+            # 验证urgency_level - 自动修正
             valid_urgency = ["high", "medium", "low"]
             if result["urgency_level"] not in valid_urgency:
-                result["urgency_level"] = "low"
+                result["urgency_level"] = "medium"
 
-            # 验证recommendation
+            # 验证recommendation - 自动修正
             valid_recommendations = ["send_immediately", "send_soon", "wait_for_confirmation", "no_material"]
             if result["recommendation"] not in valid_recommendations:
-                result["recommendation"] = "no_material"
+                result["recommendation"] = "wait_for_confirmation"
 
-            # 验证material_types结构
+            # 验证material_types结构 - 修复不完整的数据
             if isinstance(result["material_types"], list):
                 for material_type in result["material_types"]:
                     if isinstance(material_type, dict):
@@ -318,35 +347,52 @@ class MaterialIntentAnalyzer:
                         if not (0.0 <= material_type["priority"] <= 1.0):
                             material_type["priority"] = max(0.0, min(1.0, material_type["priority"]))
 
+            # 确保有specific_requests字段
+            if "specific_requests" not in result:
+                result["specific_requests"] = []
+
             return result
 
         except json.JSONDecodeError as e:
-            # JSON解析失败，返回默认值
+            # 修复：JSON解析失败时正确获取 token 信息
+            input_tokens = 0
+            output_tokens = 0
+            if hasattr(response, 'usage') and isinstance(response.usage, dict):
+                input_tokens = response.usage.get("input_tokens", 0)
+                output_tokens = response.usage.get("output_tokens", 0)
+
             return {
-                "urgency_level": "low",
+                "urgency_level": "medium",  # 改为默认中等而不是low
                 "material_types": [],
-                "priority_score": 0.0,
+                "priority_score": 0.5,     # 改为中等
                 "confidence": 0.0,
                 "specific_requests": [],
-                "recommendation": "no_material",
-                "analysis_summary": f"JSON解析失败: {str(e)}",
-                "input_tokens": getattr(response, "prompt_tokens", 0),
-                "output_tokens": getattr(response, "completion_tokens", 0),
-                "total_tokens": getattr(response, "prompt_tokens", 0) + getattr(response, "completion_tokens", 0),
+                "recommendation": "wait_for_confirmation",  # 改为等待确认而不是直接拒绝
+                "analysis_summary": f"JSON解析失败，但从响应中提取了token信息: {str(e)}",
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "total_tokens": input_tokens + output_tokens,
                 "parse_error": str(e)
             }
         except Exception as e:
-            # 其他错误
+            # 其他错误 - 同样提供更好的默认值
+            # 尝试获取token信息
+            input_tokens = 0
+            output_tokens = 0
+            if hasattr(response, 'usage') and isinstance(response.usage, dict):
+                input_tokens = response.usage.get("input_tokens", 0)
+                output_tokens = response.usage.get("output_tokens", 0)
+
             return {
-                "urgency_level": "low",
+                "urgency_level": "medium",
                 "material_types": [],
-                "priority_score": 0.0,
+                "priority_score": 0.5,
                 "confidence": 0.0,
                 "specific_requests": [],
-                "recommendation": "no_material",
-                "analysis_summary": f"响应解析失败: {str(e)}",
-                "input_tokens": 0,
-                "output_tokens": 0,
-                "total_tokens": 0,
+                "recommendation": "wait_for_confirmation",
+                "analysis_summary": f"响应解析失败，使用默认值: {str(e)}",
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "total_tokens": input_tokens + output_tokens,
                 "error": str(e)
             }

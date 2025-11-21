@@ -39,7 +39,8 @@ class AppointmentIntentAgent(BaseAgent):
     def __init__(self):
         super().__init__()
         self.llm_provider = mas_config.DEFAULT_LLM_PROVIDER
-        self.llm_model = "openai/gpt-4o-mini"  # 使用高效的模型进行意图分析
+        # 仿照sales agent，使用相同的OpenRouter模型
+        self.llm_model = "openai/gpt-4o-mini"
 
         self.memory_manager = StorageManager()
 
@@ -102,7 +103,7 @@ class AppointmentIntentAgent(BaseAgent):
 
             self.logger.info(f"邀约意向分析结果 - 意向强度: {intent_result.get('intent_strength', 0)}, "
                            f"时间窗口: {intent_result.get('time_window', 'unknown')}, "
-                           f"tokens_used: {intent_result.get('tokens_used', 0)}")
+                           f"tokens_used: {intent_result.get('total_tokens', 0)}")
 
             # 步骤3: 更新对话状态
             updated_state = self._update_state_with_intent(

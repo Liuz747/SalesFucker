@@ -158,27 +158,43 @@ class TokenManager:
         返回:
             WorkflowTokenSummary: 工作流级别的Token使用汇总
         """
+        # 添加调试日志
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"开始聚合Token数据，agent数量: {len(agent_responses)}")
+
         agent_summaries = []
 
         for agent_id, response_data in agent_responses.items():
+            logger.info(f"处理Agent: {agent_id}, 数据结构: {list(response_data.keys()) if isinstance(response_data, dict) else type(response_data)}")
+
             if not isinstance(response_data, dict):
+                logger.warning(f"Agent {agent_id} 响应数据不是字典类型，跳过")
                 continue
 
-            # 提取Token信息
+            # 提取Token信息 - 扩展检查逻辑
             token_usage_data = response_data.get('token_usage', {})
-            if not token_usage_data and 'tokens_used' in response_data:
-                # 向后兼容：如果没有token_usage但有tokens_used
-                token_usage_data = {
-                    "input_tokens": 0,
-                    "output_tokens": 0,
-                    "total_tokens": response_data.get("tokens_used", 0)
-                }
+
+            # 如果没有token_usage，尝试其他字段
+            if not token_usage_data:
+                if 'tokens_used' in response_data:
+                    # 向后兼容：如果没有token_usage但有tokens_used
+                    token_usage_data = {
+                        "input_tokens": response_data.get("input_tokens", 0),
+                        "output_tokens": response_data.get("output_tokens", 0),
+                        "total_tokens": response_data.get("tokens_used", 0)
+                    }
+                    logger.info(f"Agent {agent_id} 使用向后兼容模式，tokens_used: {response_data.get('tokens_used', 0)}")
+                else:
+                    logger.warning(f"Agent {agent_id} 没有找到token相关字段，可用字段: {list(response_data.keys())}")
 
             token_usage = TokenUsage(
                 input_tokens=token_usage_data.get("input_tokens", 0),
                 output_tokens=token_usage_data.get("output_tokens", 0),
                 total_tokens=token_usage_data.get("total_tokens", 0)
             )
+
+            logger.info(f"Agent {agent_id} Token使用: input={token_usage.input_tokens}, output={token_usage.output_tokens}, total={token_usage.total_tokens}")
 
             agent_summary = AgentTokenSummary(
                 agent_id=agent_id,
@@ -190,7 +206,10 @@ class TokenManager:
 
             agent_summaries.append(agent_summary)
 
-        return WorkflowTokenSummary.from_agent_summaries(agent_summaries)
+        result = WorkflowTokenSummary.from_agent_summaries(agent_summaries)
+        logger.info(f"Token聚合完成，总计: {result.total_tokens} tokens")
+
+        return result
 
     @staticmethod
     def update_workflow_state_with_tokens(state: Dict[str, Any],

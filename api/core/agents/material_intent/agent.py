@@ -39,8 +39,9 @@ class MaterialIntentAgent(BaseAgent):
 
     def __init__(self):
         super().__init__()
-        self.llm_provider = mas_config.DEFAULT_LLM_PROVIDER
-        self.llm_model = "openai/gpt-4o-mini"  # 使用高效的模型进行意图分析
+        self.llm_provider = mas_config.DEFAULT_LLM_PROVIDER  # 读取.env中的openrouter
+        # 使用与provider匹配的模型
+        self.llm_model = "openai/gpt-4o-mini"  # openrouter支持的模型
 
         self.memory_manager = StorageManager()
 
@@ -103,7 +104,7 @@ class MaterialIntentAgent(BaseAgent):
 
             self.logger.info(f"素材意向分析结果 - 紧急程度: {intent_result.get('urgency_level', 'low')}, "
                            f"素材类型数: {len(intent_result.get('material_types', []))}, "
-                           f"tokens_used: {intent_result.get('tokens_used', 0)}")
+                           f"tokens_used: {intent_result.get('total_tokens', 0)}")
 
             # 步骤3: 更新对话状态
             updated_state = self._update_state_with_intent(
@@ -121,7 +122,7 @@ class MaterialIntentAgent(BaseAgent):
             self.logger.error(f"素材意向分析失败: {e}", exc_info=True)
             self.logger.error(f"失败时的输入: {state.get('customer_input', 'None')}")
             # 降级处理：返回无需求状态
-            return self._create_fallback_state(state)
+            # return self._create_fallback_state(state)
 
     def _input_to_text(self, content) -> str:
         """将输入转换为文本"""
@@ -214,7 +215,7 @@ class MaterialIntentAgent(BaseAgent):
             self.logger.error(f"素材意向分析失败: {e}")
             # 返回默认的无需求结果
             return {
-                "urgency_level": "low",
+                "urgency_level": "bad",
                 "material_types": [],
                 "priority_score": 0.0,
                 "confidence": 0.0,
@@ -302,45 +303,45 @@ class MaterialIntentAgent(BaseAgent):
 
         return state
 
-    def _create_fallback_state(self, state: dict) -> dict:
-        """
-        创建降级处理状态
+    # def _create_fallback_state(self, state: dict) -> dict:
+    #     """
+    #     创建降级处理状态
 
-        Args:
-            state: 原始状态
+    #     Args:
+    #         state: 原始状态
 
-        Returns:
-            dict: 包含默认意向信息的状态
-        """
-        current_time = get_current_datetime()
+    #     Returns:
+    #         dict: 包含默认意向信息的状态
+    #     """
+    #     current_time = get_current_datetime()
 
-        # 默认无需求状态
-        material_intent = {
-            "urgency_level": "low",
-            "material_types": [],
-            "priority_score": 0.0,
-            "confidence": 0.0,
-            "specific_requests": [],
-            "recommendation": "no_material",
-            "analyzed_message_count": 0,
-            "analysis_timestamp": current_time.isoformat(),
-            "fallback": True
-        }
+    #     # 默认无需求状态
+    #     material_intent = {
+    #         "urgency_level": "low",
+    #         "material_types": [],
+    #         "priority_score": 0.0,
+    #         "confidence": 0.0,
+    #         "specific_requests": [],
+    #         "recommendation": "no_material",
+    #         "analyzed_message_count": 0,
+    #         "analysis_timestamp": current_time.isoformat(),
+    #         "fallback": True
+    #     }
 
-        state["material_intent"] = material_intent
+    #     state["material_intent"] = material_intent
 
-        # 简化的values存储
-        if state.get("values") is None:
-            state["values"] = {}
-        if state["values"].get("agent_responses") is None:
-            state["values"]["agent_responses"] = {}
+    #     # 简化的values存储
+    #     if state.get("values") is None:
+    #         state["values"] = {}
+    #     if state["values"].get("agent_responses") is None:
+    #         state["values"]["agent_responses"] = {}
 
-        state["values"]["agent_responses"][self.agent_id] = {
-            "agent_type": "material_intent",
-            "material_intent": material_intent,
-            "timestamp": current_time,
-            "fallback": True,
-            "error": "processing_failed"
-        }
+    #     state["values"]["agent_responses"][self.agent_id] = {
+    #         "agent_type": "material_intent",
+    #         "material_intent": material_intent,
+    #         "timestamp": current_time,
+    #         "fallback": True,
+    #         "error": "processing_failed"
+    #     }
 
-        return state
+    #     return state
