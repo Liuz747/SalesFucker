@@ -15,7 +15,7 @@ from uuid import UUID, uuid4
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 
 from models import ThreadStatus, WorkflowRun
-from services import ThreadService
+from services import ThreadService, AudioService
 from schemas.conversation_schema import MessageCreateRequest
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms
 from ..wraps import (
@@ -78,6 +78,9 @@ async def create_run(
                 detail="租户ID不匹配，无法访问此线程"
             )
 
+        # 标准化输入（处理音频转录）
+        normalized_input = await AudioService.normalize_input(request.input, str(thread_id))
+
         # 创建工作流执行模型
         start_time = get_current_datetime()
         workflow_id = uuid4()
@@ -87,7 +90,7 @@ async def create_run(
             thread_id=thread_id,
             assistant_id=request.assistant_id,
             tenant_id=tenant.tenant_id,
-            input=request.input
+            input=normalized_input
         )
 
         # 使用编排器处理消息
@@ -179,6 +182,9 @@ async def create_background_run(
                 detail="租户ID不匹配，无法访问此线程"
             )
 
+        # 标准化输入（处理音频转录）
+        normalized_input = await AudioService.normalize_input(request.input, str(thread_id))
+
         # 生成运行ID
         run_id = uuid4()
         created_at = get_current_datetime()
@@ -192,7 +198,7 @@ async def create_background_run(
             orchestrator=orchestrator,
             run_id=run_id,
             thread_id=thread_id,
-            input=request.input,
+            input=normalized_input,
             assistant_id=request.assistant_id,
             tenant_id=tenant.tenant_id
         )
@@ -248,7 +254,7 @@ async def get_run_status(
             "status": thread.status,
             "created_at": thread.created_at,
             "updated_at": thread.updated_at,
-            "run_id": run_id,  # 保持向后兼容性
+            "run_id": run_id,
             "metadata": thread.metadata.model_dump()
         }
     

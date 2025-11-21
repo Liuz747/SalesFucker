@@ -49,6 +49,11 @@ class LLMConfig(BaseSettings):
         default="",
     )
 
+    MINIMAX_VOICE_ID: str = Field(
+        description="MiniMax 语音 ID，用于访问 TTS 语音合成服务",
+        default="qianyu_test",
+    )
+
     # 多LLM 系统配置
     DEFAULT_LLM_PROVIDER: str = Field(
         description="默认 LLM 提供商",

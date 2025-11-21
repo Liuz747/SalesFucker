@@ -9,10 +9,12 @@
 - 更多服务将在此处导入...
 """
 
+from .audio_service import AudioService
 from .tenant_service import TenantService
 from .thread_service import ThreadService
 
 __all__ = [
+    "AudioService",
     "TenantService",
     "ThreadService",
 ]

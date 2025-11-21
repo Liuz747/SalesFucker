@@ -30,38 +30,40 @@ class AudioService:
 
     Provides:
     - STT: speech-to-text (audio URL → transcript)
-    - TTS: text-to-speech (text → audio URL)
     - input normalization for controller
-    - output postprocessing for workflow result
-    - LangGraph tool adapter
     """
 
-    def __init__(self):
-        """初始化音频服务，配置Dashscope API"""
-        self.api_key = mas_config.DASHSCOPE_API_KEY
-        if not self.api_key:
+    @classmethod
+    def _verify_api_key(cls):
+        """验证API密钥"""
+        api_key = mas_config.DASHSCOPE_API_KEY
+        if not api_key:
             raise ASRConfigurationException()
 
-    # --------------------------
-    # 1) Speech to Text (STT)
-    # --------------------------
+    @classmethod
     async def transcribe_async(
-        self,
+        cls,
         audio_url: str,
-        tenant_id: str,
-        language_hints: Optional[list[str]] = ['zh', 'en']
+        thread_id: str,
+        language_hints: Optional[list[str]] = None
     ) -> str:
         """
         使用Paraformer进行语音转文字
 
         Args:
             audio_url: 音频文件的公网可访问URL
-            tenant_id: 租户ID，用于日志记录
+            thread_id: 线程ID，用于日志记录
             language_hints: 语言提示，默认支持'zh', 'en'
 
         Returns:
             转录后的文本内容
         """
+        if language_hints is None:
+            language_hints = ['zh', 'en']
+
+        # 验证API密钥
+        cls._verify_api_key()
+
         logger.info(f"[ASR] 开始转录")
 
         try:
@@ -73,7 +75,7 @@ class AudioService:
             # 提交ASR任务（异步调用）
             logger.debug(f"[ASR] 提交转录任务")
             task_response = Transcription.async_call(
-                model='paraformer-v2',  # 使用最新的v2模型
+                model='paraformer-v2',
                 file_urls=[audio_url],
                 language_hints=language_hints
             )
@@ -82,8 +84,8 @@ class AudioService:
             logger.debug(f"[ASR] 任务已提交 - task_id: {task_id}")
 
             # 轮询等待结果
-            max_wait_time = 300  # 最大等待5分钟
-            poll_interval = 2    # 每2秒查询一次
+            max_wait_time = 300
+            poll_interval = 2
             elapsed_time = 0
 
             while elapsed_time < max_wait_time:
@@ -120,7 +122,7 @@ class AudioService:
                             if t.get("text")
                         ).strip()
 
-                        logger.info(f"[ASR] 转录完成 - tenant={tenant_id}, 耗时: {elapsed_time}秒")
+                        logger.info(f"[ASR] 转录完成 - thread={thread_id}, 耗时: {elapsed_time}秒")
                         return all_text
                     except Exception as e:
                         logger.error(f"[ASR] 获取转录结果失败: {e}", exc_info=True)
@@ -132,32 +134,28 @@ class AudioService:
             # 超时处理
             raise ASRTimeoutException(task_id, elapsed_time)
         except Exception as e:
-            logger.error(f"[ASR] 转录过程中发生异常 - tenant={tenant_id}: {e}", exc_info=True)
+            logger.error(f"[ASR] 转录过程中发生异常 - thread={thread_id}: {e}", exc_info=True)
             raise ASRTranscriptionException(f"未知异常: {str(e)}")
 
-    # ----------------------------------------------------------
-    # 3) Preprocessing: convert input_audio → transcript (text)
-    # ----------------------------------------------------------
+    @classmethod
     async def normalize_input(
-        self,
+        cls,
         raw_input: InputContentParams,
-        tenant_id: str
+        thread_id: str
     ) -> InputContentParams:
         """
-        标准化输入内容，为音频添加转录文本同时保留原始音频
+        标准化输入内容，为音频添加转录文本
 
         对于音频类型的输入，会调用ASR服务进行转录，然后将转录文本作为新的文本内容
         添加到输入列表中，同时保留原始音频内容以供后续处理使用。
 
         Args:
             raw_input: 原始输入内容参数（字符串或内容列表）
-            tenant_id: 租户标识符
+            thread_id: 线程标识符
 
         Returns:
             标准化后的输入内容，包含原始项目和音频转录文本
         """
-
-        # Simple case: raw string
         if isinstance(raw_input, str):
             return raw_input
 
@@ -165,16 +163,12 @@ class AudioService:
 
         for item in raw_input:
             if item.type == InputType.AUDIO:
-                transcript = await self.transcribe_async(
+                transcript = await cls.transcribe_async(
                     audio_url=item.content,
-                    tenant_id=tenant_id
+                    thread_id=thread_id
                 )
-
                 normalized.append(
-                    InputContent(
-                        type=InputType.TEXT,
-                        content=transcript
-                    )
+                    InputContent(type=InputType.TEXT, content=transcript)
                 )
 
         return normalized

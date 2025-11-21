@@ -19,6 +19,7 @@ from config import mas_config
 from core.entities import WorkflowExecutionModel
 from libs.types import OutputContent, OutputType
 from models import WorkflowRun
+from services.assistant_service import AssistantService
 from utils import (
     get_component_logger,
     get_current_datetime,
@@ -53,7 +54,7 @@ class Orchestrator:
         self.state_manager = StateManager()
 
         # 构建工作流图
-        self.workflow_builder = WorkflowBuilder(SentimentChatWorkflow)
+        self.workflow_builder = WorkflowBuilder(TestWorkflow)
         self.graph = self.workflow_builder.build_graph()
 
         logger.info("多智能体编排器初始化完成")
@@ -180,7 +181,19 @@ class Orchestrator:
             api_key = mas_config.MINIMAX_API_KEY
             if not api_key:
                 raise ValueError("MiniMax API密钥未配置")
-            
+
+            # 获取voice_id
+            voice_id = mas_config.MINIMAX_VOICE_ID
+            try:
+                assistant_model = await AssistantService().get_assistant_by_id(assistant_id)
+                if assistant_model and hasattr(assistant_model, 'voice_id') and assistant_model.voice_id:
+                    voice_id = assistant_model.voice_id
+                    logger.info(f"[TTS] 使用助手配置的voice_id: {voice_id}")
+            except Exception as e:
+                logger.warning(f"[TTS] 获取助手voice_id失败，使用默认值: {e}")
+
+            logger.info(f"[TTS] 最终使用voice_id: {voice_id}")
+
             url = "https://api.minimaxi.com/v1/t2a_v2"
 
             payload = {
@@ -188,7 +201,7 @@ class Orchestrator:
                 "text": result.output,
                 "stream": False,
                 "voice_setting": {
-                    "voice_id": "male-qn-qingse",
+                    "voice_id": voice_id,
                     "speed": 1,
                     "vol": 1,
                     "pitch": 0
