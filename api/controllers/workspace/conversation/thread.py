@@ -27,6 +27,7 @@ from services import ThreadService
 from schemas.conversation_schema import ThreadCreateRequest
 from ..wraps import validate_and_get_tenant
 from .workflow import router as workflow_router
+from .report import router as report_router
 
 
 logger = get_component_logger(__name__, "ConversationRouter")
@@ -35,6 +36,7 @@ logger = get_component_logger(__name__, "ConversationRouter")
 router = APIRouter()
 
 router.include_router(workflow_router, prefix="/{thread_id}/runs", tags=["workflows"])
+router.include_router(report_router, tags=["reports"])
 
 @router.post("")
 async def create_thread(
