@@ -245,18 +245,35 @@ class ChatWorkflow(BaseWorkflow):
                 if "material_intent" in result_state:
                     update_dict["material_intent"] = result_state["material_intent"]
 
-            # 统一处理agent_responses收集器 - 确保从字典状态中获取
-            if isinstance(state, dict):
-                values_update = state.get("values", {})
+            elif node_name == AgentNodes.SALES_NODE:
+                if "sales_response" in result_state:
+                    update_dict["sales_response"] = result_state["sales_response"]
+                if "output" in result_state:
+                    update_dict["output"] = result_state["output"]
+                if "total_tokens" in result_state:
+                    update_dict["total_tokens"] = result_state["total_tokens"]
+
+            # 统一处理agent_responses收集器 - 直接使用agent返回的values
+            # 这里的关键是：agent已经将自己的结果正确写入了values['agent_responses']中
+            # 我们只需要确保这个values字段被包含在返回的更新字典中，不要覆盖它
+            if isinstance(result_state, dict) and "values" in result_state:
+                update_dict["values"] = result_state["values"]
             else:
-                values_update = {}
-
-            if "agent_responses" not in values_update:
-                values_update["agent_responses"] = {}
-
-            # 合并agent响应
-            values_update["agent_responses"].update({node_name: result_state})
-            update_dict["values"] = values_update
+                # 只有当agent没有返回values时（异常情况），才尝试手动构造
+                if isinstance(state, dict):
+                    values_update = state.get("values", {}).copy()
+                else:
+                    values_update = {}
+                
+                if "agent_responses" not in values_update:
+                    values_update["agent_responses"] = {}
+                
+                # 只有当result_state看起来不像完整状态时才添加
+                # 避免将整个状态树作为agent响应
+                is_full_state = "workflow_id" in result_state or "thread_id" in result_state
+                if not is_full_state:
+                    values_update["agent_responses"][node_name] = result_state
+                    update_dict["values"] = values_update
 
             # 更新活跃agents列表
             if "active_agents" in result_state:

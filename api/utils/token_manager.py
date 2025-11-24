@@ -185,6 +185,14 @@ class TokenManager:
                         "total_tokens": response_data.get("tokens_used", 0)
                     }
                     logger.info(f"Agent {agent_id} 使用向后兼容模式，tokens_used: {response_data.get('tokens_used', 0)}")
+                elif 'total_tokens' in response_data:
+                    # 再次兼容：直接查找total_tokens
+                    token_usage_data = {
+                        "input_tokens": 0,
+                        "output_tokens": 0,
+                        "total_tokens": response_data.get("total_tokens", 0)
+                    }
+                    logger.info(f"Agent {agent_id} 使用total_tokens字段: {response_data.get('total_tokens', 0)}")
                 else:
                     logger.warning(f"Agent {agent_id} 没有找到token相关字段，可用字段: {list(response_data.keys())}")
 
