@@ -14,6 +14,8 @@ from .tenant_service import TenantService
 from .thread_service import ThreadService
 from .workflow_service import WorkflowService
 from .report_service import ReportService
+from .label_service import LabelService
+from .profile_service import ProfileService
 
 __all__ = [
     "AudioService",
@@ -21,4 +23,6 @@ __all__ = [
     "ThreadService",
     "WorkflowService"
     "ReportService",
+    "LabelService",
+    "ProfileService",
 ]

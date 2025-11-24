@@ -8,7 +8,7 @@
 """
 
 from uuid import UUID, uuid4
-from typing import Optional
+from typing import Optional, List, Dict, Any
 
 from core.memory import StorageManager
 from infra.runtimes import LLMClient, CompletionsRequest
@@ -62,11 +62,10 @@ class ReportService:
             请直接输出报告内容，保持格式清晰。
             """
             
-            # 构建 LLM 消息
+            # 4. 调用 LLM
             llm_messages = [Message(role="system", content=system_prompt)]
             llm_messages.extend(short_term_messages)
 
-            # 4. 调用 LLM
             llm_client = LLMClient()
             request = CompletionsRequest(
                 id=str(uuid4()),
@@ -84,4 +83,3 @@ class ReportService:
         except Exception as e:
             logger.error(f"报告生成失败: {e}", exc_info=True)
             raise e
-
