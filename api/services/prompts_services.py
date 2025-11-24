@@ -12,8 +12,6 @@
 """
 import asyncio
 import time
-import uuid
-import re
 from typing import Optional, Dict, Any, List
 from datetime import datetime
 
@@ -22,9 +20,9 @@ from models.prompts import PromptsModel, PromptsOrmModel
 from repositories.assistant_repo import AssistantRepository
 from repositories.prompts_repo import PromptsRepository
 from schemas.prompts_schema import (
-    PromptCreateRequest, PromptUpdateRequest, PromptTestRequest,
-    PromptLibrarySearchRequest, PromptConfigResponse, PromptTestResponse,
-    PromptLibraryResponse, PromptValidationResponse,
+    PromptCreateRequest, PromptUpdateRequest,
+    PromptLibrarySearchRequest,
+    PromptLibraryResponse,
     AssistantPromptConfig, PromptLibraryItem,
     PromptCategory, PromptType, PromptLanguage
 )
@@ -156,8 +154,7 @@ class PromptService:
                             return None
                         else:
                             asyncio.create_task(
-                                PromptsRepository.update_prompts_latest_version_cache(assistant_id,
-                                                                                      prompts_orm.version))
+                                PromptsRepository.update_prompts_latest_version_cache(assistant_id, prompts_orm.version))
                             asyncio.create_task(PromptsRepository.update_prompts_cache(prompts_orm.to_model()))
                             return prompts_orm.to_model()
 
@@ -315,144 +312,6 @@ class PromptService:
             return prompts_model
         except Exception as e:
             self.logger.error(f"助理提示词配置更新失败: {e}")
-            raise
-
-    async def test_assistant_prompts(
-            self,
-            assistant_id: str,
-            request: PromptTestRequest
-    ) -> PromptTestResponse:
-        """
-        测试助理提示词效果
-        
-        参数:
-            assistant_id: 助理ID
-            request: 测试请求
-            
-        返回:
-            PromptTestResponse: 测试结果
-        """
-        try:
-            test_id = str(uuid.uuid4())
-
-            # 模拟测试过程
-            test_results = []
-            total_score = 0
-
-            for i, scenario in enumerate(request.test_scenarios):
-                # 模拟LLM调用和响应生成
-                test_result = await self._simulate_prompt_test(
-                    request.prompt_config, scenario, request.llm_provider, request.model_name
-                )
-                test_results.append({
-                    "scenario_id": i + 1,
-                    "input": scenario["input"],
-                    "context": scenario.get("context", {}),
-                    "generated_response": test_result["response"],
-                    "score": test_result["score"],
-                    "metrics": test_result["metrics"],
-                    "issues": test_result["issues"]
-                })
-                total_score += test_result["score"]
-
-            overall_score = total_score / len(request.test_scenarios) if request.test_scenarios else 0
-
-            # 生成优化建议
-            recommendations = await self._generate_recommendations(test_results, request.prompt_config)
-
-            # 计算性能指标
-            performance_metrics = {
-                "average_response_length": sum(len(r["generated_response"]) for r in test_results) / len(test_results),
-                "consistency_score": self._calculate_consistency_score(test_results),
-                "safety_score": self._calculate_safety_score(test_results),
-                "relevance_score": self._calculate_relevance_score(test_results)
-            }
-
-            self.logger.info(f"助理提示词测试完成: {assistant_id}, 总体评分: {overall_score:.2f}")
-
-            return PromptTestResponse(
-                success=True,
-                message="提示词测试完成",
-                data={},
-                test_id=test_id,
-                test_results=test_results,
-                overall_score=overall_score,
-                recommendations=recommendations,
-                performance_metrics=performance_metrics
-            )
-
-        except Exception as e:
-            self.logger.error(f"助理提示词测试失败: {e}")
-            raise
-
-    async def validate_assistant_prompts(
-            self,
-            assistant_id: str,
-            prompt_config: AssistantPromptConfig
-    ) -> PromptValidationResponse:
-        """
-        验证助理提示词配置
-        
-        参数:
-            assistant_id: 助理ID
-            tenant_id: 租户ID
-            prompt_config: 提示词配置
-            
-        返回:
-            PromptValidationResponse: 验证结果
-        """
-        try:
-            validation_results = {}
-            suggestions = []
-            is_valid = True
-
-            # 1. 基础格式验证
-            format_validation = await self._validate_prompt_format(prompt_config)
-            validation_results["format"] = format_validation
-            if not format_validation["valid"]:
-                is_valid = False
-                suggestions.extend(format_validation["suggestions"])
-
-            # 2. 安全性验证
-            safety_validation = await self._validate_prompt_safety(prompt_config)
-            validation_results["safety"] = safety_validation
-            if not safety_validation["valid"]:
-                is_valid = False
-                suggestions.extend(safety_validation["suggestions"])
-
-            # 3. 合规性验证
-            compliance_validation = await self._validate_prompt_compliance(prompt_config)
-            validation_results["compliance"] = compliance_validation
-            if not compliance_validation["valid"]:
-                is_valid = False
-                suggestions.extend(compliance_validation["suggestions"])
-
-            # 4. 效果预估
-            performance_validation = await self._validate_prompt_performance(prompt_config)
-            validation_results["performance"] = performance_validation
-            suggestions.extend(performance_validation["suggestions"])
-
-            # 计算预估性能指标
-            estimated_performance = {
-                "clarity_score": performance_validation.get("clarity_score", 0.8),
-                "consistency_score": performance_validation.get("consistency_score", 0.7),
-                "effectiveness_score": performance_validation.get("effectiveness_score", 0.75)
-            }
-
-            self.logger.info(f"助理提示词验证完成: {assistant_id}, 有效性: {is_valid}")
-
-            return PromptValidationResponse(
-                success=True,
-                message="提示词验证完成",
-                data={},
-                is_valid=is_valid,
-                validation_results=validation_results,
-                suggestions=suggestions,
-                estimated_performance=estimated_performance
-            )
-
-        except Exception as e:
-            self.logger.error(f"助理提示词验证失败: {e}")
             raise
 
     async def get_prompt_library(self, request: PromptLibrarySearchRequest) -> PromptLibraryResponse:
@@ -665,199 +524,6 @@ class PromptService:
         for keyword in dangerous_keywords:
             if keyword in config.personality_prompt.lower():
                 raise ValueError(f"提示词包含危险关键词: {keyword}")
-
-    async def _simulate_prompt_test(
-            self,
-            config: AssistantPromptConfig,
-            scenario: Dict[str, Any],
-            llm_provider: Optional[str] = None,
-            model_name: Optional[str] = None
-    ) -> Dict[str, Any]:
-        """模拟提示词测试"""
-        # 模拟LLM响应生成
-        response_templates = [
-            "您好！很高兴为您服务。根据您的需求，我推荐...",
-            "感谢您的咨询！基于我的专业知识，我建议...",
-            "了解了您的情况，我认为最适合您的是...",
-        ]
-
-        import random
-        simulated_response = random.choice(response_templates) + scenario["input"][:50] + "的专业建议。"
-
-        # 模拟评分
-        score = random.uniform(0.7, 0.95)
-
-        # 模拟指标
-        metrics = {
-            "response_time": random.uniform(0.5, 2.0),
-            "token_count": len(simulated_response.split()),
-            "safety_score": random.uniform(0.8, 1.0),
-            "relevance_score": random.uniform(0.7, 0.9)
-        }
-
-        # 模拟问题检测
-        issues = []
-        if score < 0.8:
-            issues.append("响应相关性需要提升")
-        if len(simulated_response) < 50:
-            issues.append("响应过于简短")
-
-        return {
-            "response": simulated_response,
-            "score": score,
-            "metrics": metrics,
-            "issues": issues
-        }
-
-    async def _generate_recommendations(
-            self,
-            test_results: List[Dict[str, Any]],
-            config: AssistantPromptConfig
-    ) -> List[str]:
-        """生成优化建议"""
-        recommendations = []
-
-        avg_score = sum(r["score"] for r in test_results) / len(test_results)
-
-        if avg_score < 0.8:
-            recommendations.append("建议优化个性化提示词，提高响应质量")
-
-        avg_length = sum(len(r["generated_response"]) for r in test_results) / len(test_results)
-        if avg_length < 100:
-            recommendations.append("响应长度偏短，建议增加更详细的说明")
-        elif avg_length > 500:
-            recommendations.append("响应长度偏长，建议简化表达")
-
-        # 检查安全性
-        safety_issues = sum(1 for r in test_results if "safety" in str(r.get("issues", [])))
-        if safety_issues > 0:
-            recommendations.append("检测到安全性问题，建议加强安全指导原则")
-
-        if not recommendations:
-            recommendations.append("提示词配置良好，可以考虑进行A/B测试进一步优化")
-
-        return recommendations
-
-    def _calculate_consistency_score(self, test_results: List[Dict[str, Any]]) -> float:
-        """计算一致性评分"""
-        scores = [r["score"] for r in test_results]
-        if not scores:
-            return 0.0
-
-        # 计算标准差，标准差越小一致性越高
-        import statistics
-        std_dev = statistics.stdev(scores) if len(scores) > 1 else 0
-        consistency_score = max(0, 1 - std_dev)
-        return round(consistency_score, 2)
-
-    def _calculate_safety_score(self, test_results: List[Dict[str, Any]]) -> float:
-        """计算安全性评分"""
-        total_safety = sum(r["metrics"].get("safety_score", 0.8) for r in test_results)
-        return round(total_safety / len(test_results), 2) if test_results else 0.8
-
-    def _calculate_relevance_score(self, test_results: List[Dict[str, Any]]) -> float:
-        """计算相关性评分"""
-        total_relevance = sum(r["metrics"].get("relevance_score", 0.7) for r in test_results)
-        return round(total_relevance / len(test_results), 2) if test_results else 0.7
-
-    async def _validate_prompt_format(self, config: AssistantPromptConfig) -> Dict[str, Any]:
-        """验证提示词格式"""
-        issues = []
-
-        if not config.personality_prompt.strip():
-            issues.append("个性化提示词不能为空")
-
-        if len(config.personality_prompt) < 50:
-            issues.append("个性化提示词过短，建议至少50个字符")
-
-        # 检查是否包含基本要素
-        required_elements = ["身份", "角色", "目标"]
-        for element in required_elements:
-            if element not in config.personality_prompt:
-                issues.append(f"建议在提示词中明确{element}定义")
-
-        return {
-            "valid": len(issues) == 0,
-            "issues": issues,
-            "suggestions": issues
-        }
-
-    async def _validate_prompt_safety(self, config: AssistantPromptConfig) -> Dict[str, Any]:
-        """验证提示词安全性"""
-        issues = []
-
-        # 检查禁止词汇
-        dangerous_patterns = [
-            r"ignore.*instructions?",
-            r"forget.*context",
-            r"system.*override",
-            r"jailbreak",
-            r"bypass.*safety"
-        ]
-
-        text_to_check = config.personality_prompt.lower()
-        for pattern in dangerous_patterns:
-            if re.search(pattern, text_to_check):
-                issues.append(f"检测到潜在安全风险模式: {pattern}")
-
-        return {
-            "valid": len(issues) == 0,
-            "issues": issues,
-            "suggestions": [f"建议移除或修改: {issue}" for issue in issues]
-        }
-
-    async def _validate_prompt_compliance(self, config: AssistantPromptConfig) -> Dict[str, Any]:
-        """验证提示词合规性"""
-        issues = []
-        suggestions = []
-
-        # 检查是否包含合规指导
-        if not config.safety_guidelines:
-            issues.append("缺少安全指导原则")
-            suggestions.append("建议添加安全指导原则")
-
-        if not config.forbidden_topics:
-            suggestions.append("建议添加禁止讨论的话题列表")
-
-        # 检查品牌合规性
-        if not config.brand_voice:
-            suggestions.append("建议添加品牌声音定义")
-
-        return {
-            "valid": len(issues) == 0,
-            "issues": issues,
-            "suggestions": suggestions
-        }
-
-    async def _validate_prompt_performance(self, config: AssistantPromptConfig) -> Dict[str, Any]:
-        """验证提示词性能预估"""
-        suggestions = []
-
-        # 分析提示词结构
-        clarity_score = 0.8  # 模拟评分
-        if len(config.personality_prompt.split('.')) < 3:
-            suggestions.append("建议增加更多具体的行为指导")
-            clarity_score -= 0.1
-
-        consistency_score = 0.7
-        if config.greeting_prompt and config.closing_prompt:
-            consistency_score += 0.1
-
-        effectiveness_score = 0.75
-        if config.product_recommendation_prompt:
-            effectiveness_score += 0.1
-        if config.objection_handling_prompt:
-            effectiveness_score += 0.1
-
-        if not suggestions:
-            suggestions.append("提示词结构良好，建议通过实际测试验证效果")
-
-        return {
-            "clarity_score": min(1.0, clarity_score),
-            "consistency_score": min(1.0, consistency_score),
-            "effectiveness_score": min(1.0, effectiveness_score),
-            "suggestions": suggestions
-        }
 
     def _initialize_prompt_library(self):
         """初始化提示词库"""

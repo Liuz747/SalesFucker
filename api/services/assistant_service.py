@@ -14,8 +14,7 @@ AI员工处理器
 import asyncio
 import time
 import uuid
-from typing import Optional, Dict, Any, List
-from datetime import datetime
+from typing import Optional, Dict, Any
 
 from fastapi import HTTPException
 
@@ -26,13 +25,13 @@ from repositories.prompts_repo import PromptsRepository
 from repositories.tenant_repo import TenantRepository
 from schemas.exceptions import TenantNotFoundException, AssistantConflictException, AssistantNotFoundException
 from schemas.assistants_schema import (
-    AssistantCreateRequest, AssistantUpdateRequest, AssistantConfigRequest,
-    AssistantListRequest, AssistantListResponse,
-    AssistantStatsResponse, AssistantOperationResponse,
-    AssistantStatus, PersonalityType, ExpertiseLevel
+    AssistantCreateRequest,
+    AssistantUpdateRequest,
+    AssistantListRequest,
+    AssistantListResponse,
+    AssistantStatus
 )
 from models.assistant import AssistantModel
-
 from repositories.assistant_repo import AssistantRepository
 from services.prompts_services import PromptService
 from utils import get_component_logger, get_current_datetime
@@ -95,12 +94,12 @@ class AssistantService:
                     assistant_status="inactive",
                     personality_type=request.personality_type,
                     expertise_level=request.expertise_level,
-                    sales_style=request.sales_style or self._get_default_sales_style(request.personality_type),
-                    voice_tone=request.voice_tone or self._get_default_voice_tone(request.personality_type),
+                    sales_style=request.sales_style,
+                    voice_tone=request.voice_tone,
                     specializations=request.specializations or [],
-                    working_hours=request.working_hours or self._get_default_working_hours(),
+                    working_hours=request.working_hours,
                     max_concurrent_customers=request.max_concurrent_customers,
-                    permissions=request.permissions or self._get_default_permissions(request.expertise_level),
+                    permissions=request.permissions,
                     profile=request.profile or {},
                     created_at=now,
                     updated_at=now,
@@ -484,149 +483,6 @@ class AssistantService:
             self.logger.error(f"助理更新失败: {e}")
             raise
 
-    async def configure_assistant(
-            self,
-            assistant_id: str,
-            tenant_id: str,
-            request: AssistantConfigRequest
-    ) -> AssistantOperationResponse:
-        """
-        配置助理设置
-        
-        参数:
-            assistant_id: 助理ID
-            tenant_id: 租户ID
-            request: 配置请求
-            
-        返回:
-            AssistantOperationResponse: 操作结果
-        """
-        try:
-            assistant_key = f"{tenant_id}:{assistant_id}"
-            assistant = self._assistants_store.get(assistant_key)
-
-            if not assistant:
-                return AssistantOperationResponse(
-                    # success=False,
-                    # message="助理不存在",
-                    # data={},
-                    # assistant_id=assistant_id,
-                    # operation="configure",
-                    # result_data={"error": "助理不存在"}
-                )
-
-            # 应用配置更新
-            config_type = request.config_type
-            config_data = request.config_data
-
-            if config_type in assistant:
-                if request.merge_mode:
-                    # 合并模式
-                    if isinstance(assistant[config_type], dict):
-                        assistant[config_type] = {**assistant[config_type], **config_data}
-                    elif isinstance(assistant[config_type], list):
-                        assistant[config_type] = list(set(assistant[config_type] + config_data))
-                    else:
-                        assistant[config_type] = config_data
-                else:
-                    # 替换模式
-                    assistant[config_type] = config_data
-            else:
-                assistant[config_type] = config_data
-
-            # 更新时间戳
-            assistant["updated_at"] = datetime.utcnow()
-            self._assistants_store[assistant_key] = assistant
-
-            self.logger.info(f"助理配置成功: {assistant_id}, 配置类型: {config_type}")
-
-            return AssistantOperationResponse(
-                # success=True,
-                # message="助理配置成功",
-                # data={},
-                # assistant_id=assistant_id,
-                # operation="configure",
-                # result_data={"config_type": config_type, "updated": True}
-            )
-
-        except Exception as e:
-            self.logger.error(f"助理配置失败: {e}")
-            raise
-
-    async def get_assistant_stats(
-            self,
-            assistant_id: str,
-            tenant_id: str,
-            days: int = 30,
-            include_trends: bool = True,
-            include_devices: bool = True
-    ) -> Optional[AssistantStatsResponse]:
-        """
-        获取助理统计信息
-        
-        参数:
-            assistant_id: 助理ID
-            tenant_id: 租户ID
-            days: 统计天数
-            include_trends: 是否包含趋势数据
-            include_devices: 是否包含设备统计
-            
-        返回:
-            Optional[AssistantStatsResponse]: 统计信息
-        """
-        try:
-            assistant_key = f"{tenant_id}:{assistant_id}"
-            assistant = self._assistants_store.get(assistant_key)
-
-            if not assistant:
-                return None
-
-            stats = self._assistant_stats.get(assistant_key, {})
-
-            # 生成模拟统计数据
-            trends_data = {}
-            if include_trends:
-                trends_data = {
-                    "conversations": [10, 15, 12, 18, 20, 16, 22],
-                    "satisfaction": [4.2, 4.3, 4.1, 4.4, 4.5, 4.3, 4.6],
-                    "response_time": [2.1, 1.8, 2.3, 1.9, 1.7, 2.0, 1.6]
-                }
-
-            device_usage = {}
-            if include_devices:
-                device_usage = stats.get("device_usage", {})
-
-            self.logger.info(f"助理统计查询成功: {assistant_id}")
-
-            return AssistantStatsResponse(
-                success=True,
-                message="助理统计查询成功",
-                data={},
-                assistant_id=assistant_id,
-                total_conversations=stats.get("total_conversations", 0),
-                total_customers=stats.get("total_customers", 0),
-                active_conversations=stats.get("current_customers", 0),
-                average_response_time=2.1,
-                customer_satisfaction=stats.get("average_rating", 4.5),
-                conversion_rate=0.15,
-                activity_by_hour=stats.get("activity_by_hour", {}),
-                activity_by_day={},
-                device_usage=device_usage,
-                trends=trends_data
-            )
-
-        except Exception as e:
-            self.logger.error(f"助理统计查询失败: {e}")
-            raise
-
-    async def activate_assistant(self, assistant_id: str, tenant_id: str) -> AssistantOperationResponse:
-        """激活助理"""
-        return await self._change_assistant_status(assistant_id, tenant_id, AssistantStatus.ACTIVE, "activate")
-
-    async def deactivate_assistant(self, assistant_id: str, tenant_id: str) -> AssistantOperationResponse:
-        """停用助理"""
-        return await self._change_assistant_status(assistant_id, tenant_id, AssistantStatus.INACTIVE, "deactivate")
-
     async def delete_assistant(self, assistant_id: str, force: bool = False) -> bool:
         """
         删除助理
@@ -658,205 +514,3 @@ class AssistantService:
         except Exception as e:
             self.logger.error(f"助理删除失败: {e}")
             raise
-
-    async def _change_assistant_status(
-            self,
-            assistant_id: str,
-            tenant_id: str,
-            new_status: AssistantStatus,
-            operation: str
-    ) -> AssistantOperationResponse:
-        """改变助理状态的通用方法"""
-        try:
-            # assistant_key = f"{tenant_id}:{assistant_id}"
-            # assistant = self._assistants_store.get(assistant_key)
-
-            assistant = await AssistantService.get_assistant_by_id(assistant_id)
-
-            if not assistant:
-                r = AssistantOperationResponse()
-                r.assistant_id = assistant_id
-                r.operation = operation,
-                r.success = True,
-                r.result_data = {"error": "助理不存在"}
-                return AssistantOperationResponse(
-                    success=False,
-                    message="助理不存在",
-                    data=r,
-                )
-
-            # assistant.previous_status = assistant["status"]
-            # assistant["status"] = new_status
-            # assistant["updated_at"] = datetime.utcnow()
-
-            previous_status = new_status
-            assistant.assistant_status = new_status
-            assistant.updated_at = datetime.utcnow()
-
-            if new_status == AssistantStatus.ACTIVE:
-                # assistant["last_active_at"] = datetime.utcnow()
-                assistant.last_active_at = datetime.utcnow()
-
-            r = await AssistantService.save(assistant)
-
-            # self._assistants_store[assistant_key] = assistant
-            if r is True:
-                self.logger.info(f"助理状态变更成功: {assistant_id}, {previous_status} -> {new_status}")
-                r = AssistantOperationResponse(assistant_id=assistant_id, operation=operation, success=True, )
-                r.assistant_id = assistant_id
-                r.operation = operation
-                r.success = True
-                r.previous_status = new_status
-                r.new_status = new_status
-                r.result_data = {"status_changed": True}
-                return AssistantOperationResponse(
-                    success=True,
-                    message=f"助理{operation}成功",
-                    data=r,
-                )
-
-
-        except Exception as e:
-            self.logger.error(f"助理状态变更失败: {e}")
-            raise
-
-    def _get_default_sales_style(self, personality_type: PersonalityType) -> Dict[str, Any]:
-        """获取默认销售风格配置"""
-        styles = {
-            PersonalityType.PROFESSIONAL: {
-                "approach": "consultative",
-                "communication_style": "formal",
-                "sales_techniques": ["needs_analysis", "solution_selling"]
-            },
-            PersonalityType.FRIENDLY: {
-                "approach": "relationship_building",
-                "communication_style": "casual",
-                "sales_techniques": ["rapport_building", "storytelling"]
-            },
-            PersonalityType.CONSULTATIVE: {
-                "approach": "advisory",
-                "communication_style": "educational",
-                "sales_techniques": ["expert_positioning", "problem_solving"]
-            },
-            PersonalityType.ENTHUSIASTIC: {
-                "approach": "energetic",
-                "communication_style": "passionate",
-                "sales_techniques": ["excitement_building", "urgency_creation"]
-            },
-            PersonalityType.GENTLE: {
-                "approach": "supportive",
-                "communication_style": "caring",
-                "sales_techniques": ["trust_building", "gentle_guidance"]
-            }
-        }
-        return styles.get(personality_type, styles[PersonalityType.PROFESSIONAL])
-
-    def _get_default_voice_tone(self, personality_type: PersonalityType) -> Dict[str, Any]:
-        """获取默认语音语调配置"""
-        tones = {
-            PersonalityType.PROFESSIONAL: {
-                "tone": "confident",
-                "pace": "moderate",
-                "volume": "normal",
-                "pitch": "medium"
-            },
-            PersonalityType.FRIENDLY: {
-                "tone": "warm",
-                "pace": "relaxed",
-                "volume": "normal",
-                "pitch": "slightly_higher"
-            },
-            PersonalityType.CONSULTATIVE: {
-                "tone": "authoritative",
-                "pace": "deliberate",
-                "volume": "clear",
-                "pitch": "medium"
-            },
-            PersonalityType.ENTHUSIASTIC: {
-                "tone": "excited",
-                "pace": "quick",
-                "volume": "slightly_louder",
-                "pitch": "higher"
-            },
-            PersonalityType.GENTLE: {
-                "tone": "soothing",
-                "pace": "slow",
-                "volume": "soft",
-                "pitch": "lower"
-            }
-        }
-        return tones.get(personality_type, tones[PersonalityType.PROFESSIONAL])
-
-    def _get_default_working_hours(self) -> Dict[str, Any]:
-        """获取默认工作时间配置"""
-        return {
-            "timezone": "UTC",
-            "schedule": {
-                "monday": {"start": "09:00", "end": "18:00"},
-                "tuesday": {"start": "09:00", "end": "18:00"},
-                "wednesday": {"start": "09:00", "end": "18:00"},
-                "thursday": {"start": "09:00", "end": "18:00"},
-                "friday": {"start": "09:00", "end": "18:00"},
-                "saturday": {"start": "10:00", "end": "16:00"},
-                "sunday": {"start": "10:00", "end": "16:00"}
-            },
-            "breaks": [
-                {"start": "12:00", "end": "13:00", "name": "午休"}
-            ]
-        }
-
-    def _get_default_permissions(self, expertise_level: ExpertiseLevel) -> List[str]:
-        """根据专业等级获取默认权限"""
-        base_permissions = ["view_products", "chat_with_customers", "access_basic_analytics"]
-
-        if expertise_level in [ExpertiseLevel.INTERMEDIATE, ExpertiseLevel.SENIOR, ExpertiseLevel.EXPERT]:
-            base_permissions.extend(["create_promotions", "access_customer_history"])
-
-        if expertise_level in [ExpertiseLevel.SENIOR, ExpertiseLevel.EXPERT]:
-            base_permissions.extend(["manage_inventory", "access_advanced_analytics", "train_junior_staff"])
-
-        if expertise_level == ExpertiseLevel.EXPERT:
-            base_permissions.extend(["system_configuration", "manage_team", "access_all_data"])
-
-        return base_permissions
-
-    async def get_assistant_with_prompt_config(
-            self,
-            assistant_id: str,
-            tenant_id: str
-    ) -> Optional[Dict[str, Any]]:
-        """
-        获取助理信息及其提示词配置
-        
-        参数:
-            assistant_id: 助理ID
-            tenant_id: 租户ID
-            
-        返回:
-            Optional[Dict[str, Any]]: 包含提示词配置的助理信息
-        """
-        try:
-            # 获取基础助理信息
-            assistant = await self.get_assistant_details(assistant_id, tenant_id)
-            if not assistant:
-                return None
-
-            # 获取提示词配置
-            try:
-                prompt_config = await self.prompt_handler.get_assistant_prompts(
-                    assistant_id, tenant_id
-                )
-                if prompt_config:
-                    assistant_data = assistant.dict() if hasattr(assistant, 'dict') else assistant
-                    assistant_data["prompt_config"] = prompt_config.config.dict() if hasattr(prompt_config.config,
-                                                                                             'dict') else prompt_config.config
-                    return assistant_data
-            except Exception as e:
-                self.logger.warning(f"获取助理 {assistant_id} 提示词配置失败: {e}")
-
-            # 返回不含提示词配置的助理信息
-            return assistant.dict() if hasattr(assistant, 'dict') else assistant
-
-        except Exception as e:
-            self.logger.error(f"获取助理详细信息失败: {e}")
-            return None
