@@ -77,7 +77,7 @@ async def generate_thread_profile(
     """
     生成结构化用户画像 (Profile)
     
-    返回JSON对象，包含年龄、肤质、预算等结构化字段。
+    返回包含 profile_result, profile_tokens, error_message 的 JSON 对象。
     """
     try:
         profile = await ProfileService.generate_user_profile(
@@ -85,10 +85,7 @@ async def generate_thread_profile(
             thread_id=thread_id
         )
         
-        return {
-            "thread_id": thread_id,
-            "profile": profile
-        }
+        return profile
 
     except Exception as e:
         logger.error(f"API生成画像失败: {e}", exc_info=True)

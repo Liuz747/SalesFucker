@@ -41,21 +41,50 @@ class ProfileService:
             
             # 2. 构建 Prompt
             system_prompt = f"""
-            你是一个CRM数据录入专员。请根据对话历史和长期记忆，构建该用户的结构化画像信息。
+            你是专业的用户画像分析专家。请基于上述聊天记录进行用户画像分析。
             
             [长期记忆]
             {long_term_context}
             
-            请提取以下字段，如果信息未知则填 null 或 "未知"：
-            - name: 用户称呼
-            - age_group: 预估年龄段
-            - skin_type: 肤质（如果是美妆相关）
-            - concerns: 主要关注点/困扰 (数组)
-            - budget: 预算偏好 (高/中/低)
-            - purchase_intent: 购买意向 (高/中/低)
-            - preferences: 个人偏好描述
-            
-            请仅返回标准的 JSON 对象字符串，不要包含 markdown 格式。
+            **重要：你必须严格按照JSON格式返回分析结果，不要包含任何其他文本或格式标记。**
+
+            **分析指导：通过用户的表达方式、语言习惯、关注点等信息，进行专业的用户画像分析。**
+
+            分析要点：
+
+            - 基本信息：从对话内容分析用户的基本特征
+
+            - 性格特征：分析用户的表达方式和沟通风格
+
+            - 消费行为：了解用户的消费偏好和能力
+
+            - 业务需求：分析用户对业务的需求
+
+            - 客户状态：评估用户的服务满意度和购买意向
+
+            - 对话质量：评估本次对话信息的丰富程度
+
+            请严格按照以下分析返回分析结果：
+
+            "用户基本信息摘要（从对话时间、表达方式、关注点等推断年龄段、职业类型、地区等）",
+
+            "性格特征摘要（从对话方式、情绪表达、语言风格等分析性格类型、价值观等）", 
+
+            "消费行为摘要（从工作状态、对话时间、表达方式等推断消费能力、消费偏好等）",
+
+            "业务需求摘要（从对话中的业务话题、关注点、询问方式等分析需求）",
+
+            "客户状态摘要（从对话态度、服务满意度、互动方式等判断客户阶段、购买意向、流失风险等）",
+
+            "综合以上分析，形成用户的整体画像描述"
+
+            输出要求：
+
+            1. 必须返回有效的JSON格式
+
+            2. 基于对话内容进行专业分析
+
+            3. 严格按照上述JSON格式输出
             """
             
             # 3. 调用 LLM
@@ -78,7 +107,34 @@ class ProfileService:
             # 4. 解析结果
             # 清理可能存在的 markdown 代码块标记
             content = content.replace("```json", "").replace("```", "").strip()
-            return json.loads(content)
+            profile_data = json.loads(content)
+            
+            # 提取画像结果
+            profile_result = profile_data.get("综合以上分析，形成用户的整体画像描述")
+            if not profile_result:
+                # 如果没有找到对应的 key，尝试将整个 JSON 转为字符串
+                 profile_result = json.dumps(profile_data, ensure_ascii=False)
+            
+            # 计算总token
+            total_tokens = 0
+            if response.usage:
+                # 兼容 usage 是字典或对象的不同情况
+                if isinstance(response.usage, dict):
+                    total_tokens = response.usage.get("input_tokens", 0) + response.usage.get("output_tokens", 0)
+                else:
+                    # 尝试直接访问属性或转为字典
+                    try:
+                         total_tokens = getattr(response.usage, "total_tokens", 0)
+                         if total_tokens == 0:
+                             total_tokens = getattr(response.usage, "input_tokens", 0) + getattr(response.usage, "output_tokens", 0)
+                    except AttributeError:
+                        pass
+
+            return {
+                "profile_result": profile_result,
+                "profile_tokens": total_tokens,
+                "error_message": None
+            }
 
         except Exception as e:
             logger.error(f"画像生成失败: {e}", exc_info=True)
