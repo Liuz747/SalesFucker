@@ -55,39 +55,27 @@ class AssistantRepository:
             raise
 
     @staticmethod
-    async def insert_assistant(assistantData: AssistantModel, session: AsyncSession) -> bool:
+    async def insert_assistant(assistant_data: AssistantModel, session: AsyncSession) -> Optional[AssistantOrmModel]:
         """
-        保存助理配置（创建或更新）
-        
+        创建新助理
+
         参数:
-            config: 助理配置
-            
+            assistant_data: 助理业务模型
+            session: 数据库会话
+
         返回:
-            bool: 是否保存成功
+            AssistantOrmModel
         """
-
         try:
-            # 查找现有助理
-            # assistantData.updated_at = get_current_datetime()
-            # stmt = select(AssistantOrmModel).where(AssistantOrmModel.assistant_id == assistantData.assistant_id)
-            #
-            # result = await session.execute(stmt)
-            # existing_assistant = result.scalar_one_or_none()
-            #
-            # if existing_assistant:
-            #     # 更新现有助理
-            #     existing_assistant.update_from_business_mode_assistant(assistantData)
-            #     logger.debug(f"更新助理: {assistantData.assistant_id}")
-            # else:
-            #     # 创建新租户
-            new_assistant = AssistantOrmModel.to_orm_model(assistantData)
+            new_assistant = AssistantOrmModel.to_orm_model(assistant_data)
             session.add(new_assistant)
-            logger.debug(f"创建助理: {assistantData.assistant_id}")
-
-            return True
+            await session.flush()
+            await session.refresh(new_assistant)
+            logger.debug(f"创建助理: {new_assistant.assistant_id}")
+            return new_assistant
 
         except Exception as e:
-            logger.error(f"保存租户配置失败: {assistantData.assistant_id}, 错误: {e}")
+            logger.error(f"保存助理配置失败, 错误: {e}")
             raise
 
     @staticmethod

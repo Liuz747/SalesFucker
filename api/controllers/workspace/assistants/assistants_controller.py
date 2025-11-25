@@ -30,18 +30,18 @@ router = APIRouter()
 async def create_assistant(request: AssistantCreateRequest):
     """
     创建新的AI员工
-    
+
     创建一个新的AI员工，包括个性配置、专业领域设置和权限分配。
+    return:
+        AssistantModel
     """
     try:
-        logger.info(f"创建助理请求: tenant={request.tenant_id}, assistant={request.assistant_id}")
+        logger.info(f"创建助理请求: tenant={request.tenant_id}")
 
         assistant_service = AssistantService()
-        result = await assistant_service.create_assistant(
-            request
-        )
+        result = await assistant_service.create_assistant(request)
 
-        logger.info(f"助理创建成功: {request.assistant_id}")
+        logger.info(f"助理创建成功: {result.assistant_id}")
         return result
 
     except ValueError as e:
@@ -145,7 +145,7 @@ async def get_assistant(assistant_id: UUID):
 
 
 @router.put("/{assistant_id}", response_model=AssistantModel)
-async def update_assistant(assistant_id: str, request: AssistantUpdateRequest):
+async def update_assistant(assistant_id: UUID, request: AssistantUpdateRequest):
     """
     更新助理信息
     
@@ -181,7 +181,7 @@ async def update_assistant(assistant_id: str, request: AssistantUpdateRequest):
 
 @router.delete("/{assistant_id}", response_model=AssistantDeleteResponse)
 async def delete_assistant(
-    assistant_id: str,
+    assistant_id: UUID,
     force: bool = Query(False, description="是否强制删除（即使有活跃对话）")
 ):
     """

@@ -16,7 +16,6 @@ from pydantic import BaseModel, Field
 from sqlalchemy import Column, String, Boolean, DateTime, Uuid, func, Index, JSONB
 
 from .base import Base
-from .prompts import PromptsModel
 
 
 class AssistantModel(BaseModel):
@@ -27,12 +26,12 @@ class AssistantModel(BaseModel):
     用于业务逻辑处理和API响应。
     """
     # 基本信息
-    assistant_id: UUID = Field(description="助理 ID")
+    assistant_id: Optional[UUID] = Field(default=None, description="助理 ID（由数据库自动生成）")
     tenant_id: str = Field(description="租户 ID")
     assistant_name: str = Field(description="助理名称")
     nickname: Optional[str] = Field(default=None, description="助理昵称")
     address: Optional[str] = Field(default=None, description="助理地址")
-    sex: Optional[str] = Field(default=None, description="助理性别")
+    assistant_sex: Optional[str] = Field(default=None, description="助理性别")
     assistant_status: str = Field(description="助理状态枚举")
     personality: str = Field(description="助理 个性类型")
     occupation: str = Field(description="数字员工职业")
@@ -44,8 +43,6 @@ class AssistantModel(BaseModel):
     created_at: datetime = Field(description="创建时间")
     updated_at: datetime = Field(description="最后一次更新时间")
     last_active_at: Optional[datetime] = Field(description="")
-
-    prompts_model_list: Optional[PromptsModel] = Field(default=None, description="所属提示词")
 
 
 class AssistantOrmModel(Base):
@@ -63,8 +60,6 @@ class AssistantOrmModel(Base):
     assistant_name = Column(String(100), nullable=False)
     nickname = Column(String(100))
     address = Column(String(500))
-    sex = Column(String(32))
-
     assistant_status = Column(String(32), nullable=False)
     assistant_sex = Column(String(32))
     assistant_personality = Column(String(500), nullable=False)
@@ -106,7 +101,7 @@ class AssistantOrmModel(Base):
             assistant_name=model.assistant_name,
             nickname=model.nickname,
             address=model.address,
-            sex=model.sex,
+            assistant_sex=model.assistant_sex,
             assistant_status=model.assistant_status,
             assistant_personality=model.personality,
             assistant_occupation=model.occupation,
@@ -138,7 +133,7 @@ class AssistantOrmModel(Base):
             assistant_name=self.assistant_name,
             nickname=self.nickname,
             address=self.address,
-            sex=self.sex,
+            assistant_sex=self.assistant_sex,
             assistant_status=self.assistant_status,
             personality=self.assistant_personality,
             occupation=self.assistant_occupation,

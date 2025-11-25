@@ -92,14 +92,6 @@ class TenantIdRequiredException(TenantValidationException):
         super().__init__(detail="请求必须包含租户ID，请在请求头中添加 X-Tenant-ID")
 
 
-class TenantNotFoundException(TenantValidationException):
-    error_code = 1000007
-    detail = "TENANT_NOT_FOUND"
-
-    def __init__(self, tenant_id: str):
-        super().__init__(detail=f"租户 {tenant_id} 不存在")
-
-
 class TenantDisabledException(TenantValidationException):
     error_code = 1000008
     detail = "TENANT_DISABLED"
@@ -133,7 +125,7 @@ class AssistantException(WorkspaceException):
 class AssistantNotFoundException(AssistantException):
     error_code = 1100001
     detail = "ASSISTANT_NOT_FOUND"
-    status_code = 404
+    http_status_code = 404
 
     def __init__(self, assistant_id: str):
         super().__init__(detail=f"AI助手 {assistant_id} 不存在")
@@ -142,7 +134,7 @@ class AssistantNotFoundException(AssistantException):
 class AssistantUnavailableException(AssistantException):
     error_code = 1100002
     detail = "ASSISTANT_UNAVAILABLE"
-    status_code = 503
+    http_status_code = 503
 
     def __init__(self, assistant_id: str):
         super().__init__(detail=f"AI助手 {assistant_id} 暂时不可用")
@@ -151,7 +143,7 @@ class AssistantUnavailableException(AssistantException):
 class AssistantConflictException(AssistantException):
     error_code = 1100003
     detail = "Assistant_Conflict"
-    status_code = 503
+    http_status_code = 503
 
     def __init__(self, assistant_id: str):
         super().__init__(detail=f"AI助手 {assistant_id} 已存在")
@@ -232,26 +224,6 @@ class WorkflowExecutionException(WorkflowException):
         if reason:
             detail += f": {reason}"
         super().__init__(detail=detail)
-
-
-class AssistantException(WorkspaceException):
-    error_code = "ASSISTANT_ERROR"
-
-
-class AssistantNotFoundException(AssistantException):
-    error_code = "ASSISTANT_NOT_FOUND"
-    http_status_code = 404
-
-    def __init__(self, assistant_id: str):
-        super().__init__(detail=f"AI助手 {assistant_id} 不存在")
-
-
-class AssistantUnavailableException(AssistantException):
-    error_code = "ASSISTANT_UNAVAILABLE"
-    http_status_code = 503
-
-    def __init__(self, assistant_id: str):
-        super().__init__(detail=f"AI助手 {assistant_id} 暂时不可用")
 
 
 class AuthenticationException(BaseHTTPException):
