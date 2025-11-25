@@ -13,8 +13,10 @@ from typing import Optional, Any, Self
 from uuid import UUID
 
 from pydantic import BaseModel, Field
-from sqlalchemy import Column, String, Boolean, DateTime, Uuid, func, Index, JSONB
+from sqlalchemy import Column, String, Boolean, DateTime, Uuid, func, Index, Enum
+from sqlalchemy.dialects.postgresql import JSONB
 
+from libs.types import AccountStatus
 from .base import Base
 
 
@@ -31,8 +33,8 @@ class AssistantModel(BaseModel):
     assistant_name: str = Field(description="助理名称")
     nickname: Optional[str] = Field(default=None, description="助理昵称")
     address: Optional[str] = Field(default=None, description="助理地址")
-    assistant_sex: Optional[str] = Field(default=None, description="助理性别")
-    assistant_status: str = Field(description="助理状态枚举")
+    sex: Optional[str] = Field(default=None, description="助理性别")
+    status: AccountStatus = Field(default=AccountStatus.ACTIVE, description="助理状态枚举")
     personality: str = Field(description="助理 个性类型")
     occupation: str = Field(description="数字员工职业")
     industry: str = Field(description="专业领域列表（如：护肤、彩妆、香水等）")
@@ -60,14 +62,14 @@ class AssistantOrmModel(Base):
     assistant_name = Column(String(100), nullable=False)
     nickname = Column(String(100))
     address = Column(String(500))
-    assistant_status = Column(String(32), nullable=False)
-    assistant_sex = Column(String(32))
-    assistant_personality = Column(String(500), nullable=False)
-    assistant_occupation = Column(String(100), nullable=False)
-    assistant_voice_id = Column(String(50), nullable=False)
+    sex = Column(String(32))
+    status = Column(Enum(AccountStatus, name='account_status'), nullable=False, default=AccountStatus.ACTIVE)
+    personality = Column(String(500), nullable=False)
+    occupation = Column(String(100), nullable=False)
+    voice_id = Column(String(50), nullable=False)
     voice_file = Column(String(500))
-    assistant_industry = Column(String(100), nullable=False)
-    assistant_profile = Column(JSONB, nullable=False)
+    industry = Column(String(100), nullable=False)
+    profile = Column(JSONB, nullable=False)
 
     # 状态信息
     is_active = Column(Boolean, nullable=False, default=True)
@@ -78,7 +80,7 @@ class AssistantOrmModel(Base):
     # 数据库索引优化
     __table_args__ = (
         Index('idx_assistant_is_active', 'is_active'),
-        Index('idx_assistant_status', 'assistant_status'),
+        Index('idx_assistant_status', 'status'),
         Index('idx_assistant_updated', 'updated_at'),
     )
 
@@ -96,19 +98,19 @@ class AssistantOrmModel(Base):
             AssistantOrmModel: 数据库模型实例
         """
         return cls(
-            tenant_id=model.tenant_id,
             assistant_id=model.assistant_id,
+            tenant_id=model.tenant_id,
             assistant_name=model.assistant_name,
             nickname=model.nickname,
             address=model.address,
-            assistant_sex=model.assistant_sex,
-            assistant_status=model.assistant_status,
-            assistant_personality=model.personality,
-            assistant_occupation=model.occupation,
-            assistant_voice_id=model.voice_id,
+            sex=model.sex,
+            status=model.status,
+            personality=model.personality,
+            occupation=model.occupation,
+            voice_id=model.voice_id,
             voice_file=model.voice_file,
-            assistant_industry=model.industry,
-            assistant_profile=model.profile,
+            industry=model.industry,
+            profile=model.profile,
 
             # 状态信息
             is_active=model.is_active,
@@ -128,19 +130,19 @@ class AssistantOrmModel(Base):
             AssistantModel: 业务模型实例
         """
         return AssistantModel(
-            tenant_id=self.tenant_id,
             assistant_id=self.assistant_id,
+            tenant_id=self.tenant_id,
             assistant_name=self.assistant_name,
             nickname=self.nickname,
             address=self.address,
-            assistant_sex=self.assistant_sex,
-            assistant_status=self.assistant_status,
-            personality=self.assistant_personality,
-            occupation=self.assistant_occupation,
-            voice_id=self.assistant_voice_id,
+            sex=self.sex,
+            status=self.status,
+            personality=self.personality,
+            occupation=self.occupation,
+            voice_id=self.voice_id,
             voice_file=self.voice_file,
-            industry=self.assistant_industry,
-            profile=self.assistant_profile,
+            industry=self.industry,
+            profile=self.profile,
 
             # 状态信息
             is_active=self.is_active,

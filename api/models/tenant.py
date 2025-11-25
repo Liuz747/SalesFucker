@@ -32,7 +32,7 @@ class TenantOrm(Base):
     # 基本信息
     tenant_id = Column(String(64), primary_key=True)
     tenant_name = Column(String(255), nullable=False)
-    status = Column(Enum(AccountStatus, name='tenant_status'), nullable=False, default=AccountStatus.ACTIVE)
+    status = Column(Enum(AccountStatus, name='account_status'), nullable=False, default=AccountStatus.ACTIVE)
 
     # 业务信息
     industry = Column(String(64))
@@ -78,7 +78,7 @@ class TenantModel(BaseModel):
     # 基本信息
     tenant_id: str = Field(description="租户标识符")
     tenant_name: str = Field(description="租户名称")
-    status: AccountStatus = Field(default=AccountStatus.ACTIVE, description="状态：1-活跃，0-禁用")
+    status: AccountStatus = Field(default=AccountStatus.ACTIVE, description="状态")
 
     # 业务信息
     industry: str = Field(default=1, description="行业类型：1-美容诊所，2-化妆品公司等")

@@ -61,9 +61,9 @@ class AssistantService:
                     assistant_name=request.assistant_name,
                     nickname=request.nickname,
                     address=request.address,
-                    assistant_sex=request.assistant_sex,
+                    sex=request.sex,
                     tenant_id=request.tenant_id,
-                    assistant_status="inactive",
+                    status="inactive",
                     personality=request.personality,
                     occupation=request.occupation,
                     voice_id=request.voice_id,
@@ -163,27 +163,10 @@ class AssistantService:
                 if not assistant_orm:
                     raise AssistantNotFoundException(assistant_id)
 
-                # 更新字段
-                if request.assistant_name is not None:
-                    assistant_orm.assistant_name = request.assistant_name
-                if request.nickname is not None:
-                    assistant_orm.nickname = request.nickname
-                if request.address is not None:
-                    assistant_orm.address = request.address
-                if request.assistant_sex is not None:
-                    assistant_orm.assistant_sex = request.assistant_sex
-                if request.personality is not None:
-                    assistant_orm.assistant_personality = request.personality
-                if request.occupation is not None:
-                    assistant_orm.assistant_occupation = request.occupation
-                if request.voice_id is not None:
-                    assistant_orm.assistant_voice_id = request.voice_id
-                if request.voice_file is not None:
-                    assistant_orm.voice_file = request.voice_file
-                if request.industry is not None:
-                    assistant_orm.assistant_industry = request.industry
-                if request.profile is not None:
-                    assistant_orm.assistant_profile = request.profile
+                # 仅更新用户提供的字段
+                update_data = request.model_dump(exclude_unset=True)
+                for field, value in update_data.items():
+                    setattr(assistant_orm, field, value)
 
                 assistant_orm.updated_at = get_current_datetime()
 
