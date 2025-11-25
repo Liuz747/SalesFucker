@@ -52,8 +52,8 @@ CREATE TABLE assistant (
     assistant_status varchar(100) NOT NULL,
     assistant_sex varchar(100) NULL, -- todo 应该是 not null
     assistant_phone varchar(100) NULL, -- todo 应该是 not null
-    assistant_personality_type  varchar(100) NOT NULL, -- "助理个性类型"
-    assistant_expertise_level varchar(100) NOT NULL, -- "专业等级"
+    assistant_personality  varchar(100) NOT NULL, -- "助理个性类型"
+    assistant_occupation varchar(100) NOT NULL, -- "专业等级"
     assistant_sales_style jsonb NOT NULL , -- 销售风格
     assistant_voice_tone jsonb NOT NULL , -- 语音语调配置
     assistant_specializations jsonb NOT NULL ,    -- 专业领域列表

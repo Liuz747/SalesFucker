@@ -92,20 +92,15 @@ class AssistantService:
                     assistant_name=request.assistant_name,
                     tenant_id=request.tenant_id,
                     assistant_status="inactive",
-                    personality_type=request.personality_type,
-                    expertise_level=request.expertise_level,
-                    sales_style=request.sales_style,
-                    voice_tone=request.voice_tone,
-                    specializations=request.specializations or [],
-                    working_hours=request.working_hours,
-                    max_concurrent_customers=request.max_concurrent_customers,
-                    permissions=request.permissions,
+                    personality=request.personality,
+                    occupation=request.occupation,
+                    voice_id=request.voice_id,
+                    industry=request.industry,
                     profile=request.profile or {},
                     created_at=now,
                     updated_at=now,
                     is_active=True,
-                    last_active_at=None,
-                    registered_devices=[]
+                    last_active_at=None
                 )
 
                 # 存储助理数据
@@ -127,7 +122,7 @@ class AssistantService:
                         promptsModel = PromptsModel(
                             tenant_id=request.tenant_id,
                             assistant_id=assistant_model.assistant_id,
-                            personality_prompt=request.personality_type,
+                            personality_prompt=request.personality,
                             greeting_prompt=request.prompt_config.greeting_prompt,
                             product_recommendation_prompt=request.prompt_config.product_recommendation_prompt,
                             objection_handling_prompt=request.prompt_config.objection_handling_prompt,
@@ -208,16 +203,16 @@ class AssistantService:
                     continue
 
                 # 个性类型筛选
-                if request.personality_type and assistant["personality_type"] != request.personality_type:
+                if request.personality and assistant["personality"] != request.personality:
                     continue
 
                 # 专业等级筛选
-                if request.expertise_level and assistant["expertise_level"] != request.expertise_level:
+                if request.occupation and assistant["occupation"] != request.occupation:
                     continue
 
                 # 专业领域筛选
-                if request.specialization:
-                    if request.specialization not in assistant["specializations"]:
+                if request.industry:
+                    if request.industry not in assistant["industry"]:
                         continue
 
                 # 搜索筛选
@@ -240,10 +235,10 @@ class AssistantService:
                 filtered_assistants.sort(key=lambda x: x["created_at"], reverse=reverse)
             elif request.sort_by == "assistant_name":
                 filtered_assistants.sort(key=lambda x: x["assistant_name"], reverse=reverse)
-            elif request.sort_by == "expertise_level":
+            elif request.sort_by == "occupation":
                 level_order = {"junior": 1, "intermediate": 2, "senior": 3, "expert": 4}
                 filtered_assistants.sort(
-                    key=lambda x: level_order.get(x["expertise_level"], 0),
+                    key=lambda x: level_order.get(x["occupation"], 0),
                     reverse=reverse
                 )
 
@@ -259,7 +254,7 @@ class AssistantService:
 
             for assistant in tenant_assistants.values():
                 status = assistant["status"]
-                expertise = assistant["expertise_level"]
+                expertise = assistant["occupation"]
                 status_distribution[status] = status_distribution.get(status, 0) + 1
                 expertise_distribution[expertise] = expertise_distribution.get(expertise, 0) + 1
 
@@ -365,30 +360,18 @@ class AssistantService:
                 if request.assistant_name is not None:
                     # update_fields["assistant_name"] = request.assistant_name
                     assistant_orm.assistant_name = request.assistant_name
-                if request.personality_type is not None:
-                    # update_fields["personality_type"] = request.personality_type
-                    assistant_orm.assistant_personality_type = request.personality_type
-                if request.expertise_level is not None:
-                    # update_fields["expertise_level"] = request.expertise_level
-                    assistant_orm.assistant_expertise_level = request.expertise_level
-                if request.sales_style is not None:
-                    # update_fields["sales_style"] = {**assistant["sales_style"], **request.sales_style}
-                    assistant_orm.assistant_sales_style = request.sales_style
-                if request.voice_tone is not None:
-                    # update_fields["voice_tone"] = {**assistant["voice_tone"], **request.voice_tone}
-                    assistant_orm.assistant_voice_tone = request.voice_tone
-                if request.specializations is not None:
-                    # update_fields["specializations"] = request.specializations
-                    assistant_orm.assistant_specializations = request.specializations
-                if request.working_hours is not None:
-                    # update_fields["working_hours"] = {**assistant["working_hours"], **request.working_hours}
-                    assistant_orm.assistant_working_hours = request.working_hours
-                if request.max_concurrent_customers is not None:
-                    # update_fields["max_concurrent_customers"] = request.max_concurrent_customers
-                    assistant_orm.assistant_max_concurrent_customers = request.max_concurrent_customers
-                if request.permissions is not None:
-                    # update_fields["permissions"] = request.permissions
-                    assistant_orm.assistant_permissions = request.permissions
+                if request.personality is not None:
+                    # update_fields["personality"] = request.personality
+                    assistant_orm.assistant_personality = request.personality
+                if request.occupation is not None:
+                    # update_fields["occupation"] = request.occupation
+                    assistant_orm.assistant_occupation = request.occupation
+                if request.voice_id is not None:
+                    # update_fields["voice_id"] = {**assistant["voice_id"], **request.voice_id}
+                    assistant_orm.assistant_voice_id = request.voice_id
+                if request.industry is not None:
+                    # update_fields["industry"] = request.industry
+                    assistant_orm.assistant_industry = request.industry
                 if request.profile is not None:
                     # update_fields["profile"] = {**assistant["profile"], **request.profile}
                     assistant_orm.assistant_profile = request.profile
@@ -414,7 +397,7 @@ class AssistantService:
                             promptsModel = PromptsModel(
                                 tenant_id=assistant_orm.tenant_id,
                                 assistant_id=assistant_id,
-                                personality_prompt=request.personality_type,
+                                personality_prompt=request.personality,
                                 greeting_prompt=request.prompt_config.greeting_prompt,
                                 product_recommendation_prompt=request.prompt_config.product_recommendation_prompt,
                                 objection_handling_prompt=request.prompt_config.objection_handling_prompt,
