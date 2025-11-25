@@ -13,11 +13,7 @@
 - enums.py: 枚举相关的所有模型
 """
 
-from .enums import (
-    ThreadStatus,
-    TenantRole,
-    TenantStatus
-)
+from .enums import ThreadStatus, TenantRole
 from .tenant import (
     TenantOrm,
     TenantModel
@@ -34,7 +30,6 @@ from .workflow import (
 __all__ = [
     # Enums
     "TenantRole",
-    "TenantStatus",
     "ThreadStatus",
 
     # Tenant

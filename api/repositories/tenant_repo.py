@@ -16,7 +16,8 @@ from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import mas_config
-from models import TenantOrm, TenantModel, TenantStatus
+from libs.types import AccountStatus
+from models import TenantOrm, TenantModel
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "TenantRepository")
@@ -83,7 +84,7 @@ class TenantRepository:
                 return None
 
             tenant.is_active = False
-            tenant.status = TenantStatus.CLOSED
+            tenant.status = AccountStatus.CLOSED
             tenant.updated_at = func.now()
             logger.debug(f"删除租户: {tenant_id}")
 

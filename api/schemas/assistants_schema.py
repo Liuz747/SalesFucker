@@ -11,22 +11,12 @@ AI员工管理相关数据模型
 - AssistantListResponse: 助理列表响应
 """
 
-from datetime import datetime
-from enum import StrEnum
 from typing import Any, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from libs.types import AccountStatus
 from .prompts_schema import AssistantPromptConfig
-
-
-class AssistantStatus(StrEnum):
-    """助理状态枚举"""
-
-    ACTIVE = "active"
-    INACTIVE = "inactive"
-    SUSPENDED = "suspended"
-    TRAINING = "training"
 
 
 class AssistantCreateRequest(BaseModel):
@@ -80,39 +70,10 @@ class AssistantUpdateRequest(BaseModel):
     voice_file: Optional[str] = Field(None, description="语音文件URL链接", max_length=1024)
     industry: Optional[str] = Field(None, description="数字员工所在行业（如：护肤、彩妆、香水等）")
     profile: Optional[dict[str, Any]] = Field(None, description="助理个人资料信息")
-    status: Optional[AssistantStatus] = Field(None, description="助理状态")
+    status: Optional[AccountStatus] = Field(None, description="助理状态")
 
 
 # 响应模型
-class AssistantResponse(BaseModel):
-    """
-    AI员工响应模型
-    """
-
-    assistant_id: str = Field(description="助理ID")
-    assistant_name: str = Field(description="助理姓名")
-    tenant_id: str = Field(description="租户ID")
-    nickname: Optional[str] = Field(None, description="数字员工昵称")
-
-    # 基本信息
-    status: AssistantStatus = Field(description="助理状态")
-    sex: Optional[str] = Field(None, description="数字员工性别")
-    address: Optional[str] = Field(None, description="数字员工公司地址")
-    personality: str = Field(description="个性类型")
-    occupation: str = Field(description="数字员工职业")
-
-    # 配置信息
-    voice_id: str = Field(description="语音语调配置")
-    voice_file: Optional[str] = Field(None, description="语音文件URL链接")
-    profile: Optional[dict[str, Any]] = Field(None, description="个人资料信息")
-    industry: str = Field(description="数字员工所处行业")
-
-    # 时间信息
-    created_at: datetime = Field(description="创建时间")
-    updated_at: datetime = Field(description="更新时间")
-    last_active_at: Optional[datetime] = Field(None, description="最后活跃时间")
-
-
 class AssistantDeleteResponse(BaseModel):
     """
     删除助理响应模型

@@ -9,13 +9,6 @@ class TenantRole(StrEnum):
     EDITOR = "editor"        # 编辑者
 
 
-class TenantStatus(StrEnum):
-    """租户状态枚举"""
-    ACTIVE = "ACTIVE"          # 活跃
-    BANNED = "BANNED"          # 禁用
-    CLOSED = "CLOSED"          # 关闭
-
-
 class ThreadStatus(StrEnum):
     """对话状态枚举"""
     IDLE = "IDLE"
