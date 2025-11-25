@@ -12,8 +12,6 @@ class BaseTenant(BaseModel):
     status: TenantStatus = Field(default=TenantStatus.ACTIVE, description="租户状态")
 
 
-
-
 class FeatureFlags(BaseModel):
     """
     功能开关配置模型

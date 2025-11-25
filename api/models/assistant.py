@@ -10,10 +10,10 @@
 
 from datetime import datetime
 from typing import Optional, Any, Self
+from uuid import UUID
 
 from pydantic import BaseModel, Field
-from sqlalchemy import Column, String, Boolean, DateTime, Uuid, func, Index
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Column, String, Boolean, DateTime, Uuid, func, Index, JSONB
 
 from .base import Base
 from .prompts import PromptsModel
@@ -27,8 +27,8 @@ class AssistantModel(BaseModel):
     用于业务逻辑处理和API响应。
     """
     # 基本信息
+    assistant_id: UUID = Field(description="助理 ID")
     tenant_id: str = Field(description="租户 ID")
-    assistant_id: str = Field(description="助理 ID")
     assistant_name: str = Field(description="助理名称")
     nickname: Optional[str] = Field(default=None, description="助理昵称")
     address: Optional[str] = Field(default=None, description="助理地址")
@@ -88,7 +88,7 @@ class AssistantOrmModel(Base):
     )
 
     @classmethod
-    def from_business_model(cls, model: AssistantModel) -> Self:
+    def to_orm_model(cls, model: AssistantModel) -> Self:
         """
         从业务模型创建数据库模型
 

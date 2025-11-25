@@ -13,27 +13,21 @@ AI员工处理器
 
 import asyncio
 import time
+from typing import Optional, Any
 import uuid
-from typing import Optional, Dict, Any
 
 from fastapi import HTTPException
 
 from infra.cache import get_redis_client
 from infra.db import database_session
+from models.assistant import AssistantModel
 from models.prompts import PromptsModel
+from repositories.assistant_repo import AssistantRepository
 from repositories.prompts_repo import PromptsRepository
 from repositories.tenant_repo import TenantRepository
-from schemas.exceptions import TenantNotFoundException, AssistantConflictException, AssistantNotFoundException
-from schemas.assistants_schema import (
-    AssistantCreateRequest,
-    AssistantUpdateRequest,
-    AssistantListRequest,
-    AssistantListResponse,
-    AssistantStatus
-)
-from models.assistant import AssistantModel
-from repositories.assistant_repo import AssistantRepository
 from services.prompts_services import PromptService
+from schemas.exceptions import TenantNotFoundException, AssistantConflictException, AssistantNotFoundException
+from schemas.assistants_schema import AssistantCreateRequest, AssistantUpdateRequest
 from utils import get_component_logger, get_current_datetime
 
 logger = get_component_logger(__name__, "AssistantService")
@@ -51,8 +45,8 @@ class AssistantService:
         self.logger = get_component_logger(__name__)
 
         # 模拟数据存储（实际应用中应该使用数据库）
-        self._assistants_store: Dict[str, Dict[str, Any]] = {}
-        self._assistant_stats: Dict[str, Dict[str, Any]] = {}
+        self._assistants_store: dict[str, dict[str, Any]] = {}
+        self._assistant_stats: dict[str, dict[str, Any]] = {}
 
         # 初始化提示词处理器
         self.prompt_handler = PromptService()
@@ -181,117 +175,6 @@ class AssistantService:
             # total_conversations=0,
             # average_rating=0.0
         )
-
-    async def list_assistants(self, request: AssistantListRequest) -> AssistantListResponse:
-        """
-        获取助理列表
-        
-        参数:
-            request: 列表查询请求
-            
-        返回:
-            AssistantListResponse: 助理列表
-        """
-        try:
-            # 筛选租户助理
-            tenant_assistants = {
-                k: v for k, v in self._assistants_store.items()
-                if v["tenant_id"] == request.tenant_id
-            }
-
-            # 应用筛选条件
-            filtered_assistants = []
-            for key, assistant in tenant_assistants.items():
-                # 状态筛选
-                if request.status and assistant["status"] != request.status:
-                    continue
-
-                # 个性类型筛选
-                if request.personality and assistant["personality"] != request.personality:
-                    continue
-
-                # 专业等级筛选
-                if request.occupation and assistant["occupation"] != request.occupation:
-                    continue
-
-                # 专业领域筛选
-                if request.industry:
-                    if request.industry not in assistant["industry"]:
-                        continue
-
-                # 搜索筛选
-                if request.search:
-                    search_text = request.search.lower()
-                    if not (search_text in assistant["assistant_name"].lower() or
-                            search_text in assistant["assistant_id"].lower()):
-                        continue
-
-                # 添加统计信息
-                if request.include_stats:
-                    stats = self._assistant_stats.get(key, {})
-                    assistant = {**assistant, **stats}
-
-                filtered_assistants.append(assistant)
-
-            # 排序
-            reverse = request.sort_order == "desc"
-            if request.sort_by == "created_at":
-                filtered_assistants.sort(key=lambda x: x["created_at"], reverse=reverse)
-            elif request.sort_by == "assistant_name":
-                filtered_assistants.sort(key=lambda x: x["assistant_name"], reverse=reverse)
-            elif request.sort_by == "occupation":
-                level_order = {"junior": 1, "intermediate": 2, "senior": 3, "expert": 4}
-                filtered_assistants.sort(
-                    key=lambda x: level_order.get(x["occupation"], 0),
-                    reverse=reverse
-                )
-
-            # 分页
-            total_count = len(filtered_assistants)
-            start_idx = (request.page - 1) * request.page_size
-            end_idx = start_idx + request.page_size
-            paginated_assistants = filtered_assistants[start_idx:end_idx]
-
-            # 计算统计信息
-            status_distribution = {}
-            expertise_distribution = {}
-
-            for assistant in tenant_assistants.values():
-                status = assistant["status"]
-                expertise = assistant["occupation"]
-                status_distribution[status] = status_distribution.get(status, 0) + 1
-                expertise_distribution[expertise] = expertise_distribution.get(expertise, 0) + 1
-
-            active_count = status_distribution.get(AssistantStatus.ACTIVE, 0)
-
-            self.logger.info(f"助理列表查询成功: 返回{len(paginated_assistants)}/{total_count}条记录")
-
-            return AssistantListResponse(
-                success=True,
-                message="助理列表查询成功",
-                data=paginated_assistants,
-                assistants=paginated_assistants,
-                total_assistants=len(tenant_assistants),
-                active_assistants=active_count,
-                status_distribution=status_distribution,
-                expertise_distribution=expertise_distribution,
-                filter_summary={
-                    "total": total_count,
-                    "filtered": len(filtered_assistants)
-                },
-
-                # todo 不确定分页信息使用哪些属性，先按照程序能运行写了
-                total=total_count,
-                page=request.page,
-                page_size=request.page_size,
-                pages=(total_count + request.page_size - 1) // request.page_size,
-
-                pagination={}
-            )
-
-        except Exception as e:
-            self.logger.error(f"助理列表查询失败: {e}")
-            raise
 
     async def get_assistant_by_id(
             self,

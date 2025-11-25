@@ -17,9 +17,7 @@ from fastapi import APIRouter, HTTPException, Query, status
 from typing import Optional
 
 from schemas.exceptions import AssistantNotFoundException
-from schemas.assistants_schema import (
-    AssistantCreateRequest, AssistantUpdateRequest, AssistantOperationResponse, AssistantDeleteResponse
-)
+from schemas.assistants_schema import AssistantCreateRequest, AssistantUpdateRequest, AssistantDeleteResponse
 from schemas.tmp_schema import SimpleResponse
 from services.assistant_service import AssistantService
 from utils import get_component_logger

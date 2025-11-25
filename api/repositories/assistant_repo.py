@@ -80,7 +80,7 @@ class AssistantRepository:
             #     logger.debug(f"更新助理: {assistantData.assistant_id}")
             # else:
             #     # 创建新租户
-            new_assistant = AssistantOrmModel.from_business_model(assistantData)
+            new_assistant = AssistantOrmModel.to_orm_model(assistantData)
             session.add(new_assistant)
             logger.debug(f"创建助理: {assistantData.assistant_id}")
 
