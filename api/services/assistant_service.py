@@ -90,11 +90,15 @@ class AssistantService:
                 assistant_model = AssistantModel(
                     assistant_id=request.assistant_id,
                     assistant_name=request.assistant_name,
+                    nickname=request.nickname,
+                    address=request.address,
+                    sex=request.sex,
                     tenant_id=request.tenant_id,
                     assistant_status="inactive",
                     personality=request.personality,
                     occupation=request.occupation,
                     voice_id=request.voice_id,
+                    voice_file=request.voice_file,
                     industry=request.industry,
                     profile=request.profile or {},
                     created_at=now,
@@ -360,6 +364,12 @@ class AssistantService:
                 if request.assistant_name is not None:
                     # update_fields["assistant_name"] = request.assistant_name
                     assistant_orm.assistant_name = request.assistant_name
+                if request.nickname is not None:
+                    assistant_orm.nickname = request.nickname
+                if request.address is not None:
+                    assistant_orm.address = request.address
+                if request.sex is not None:
+                    assistant_orm.sex = request.sex
                 if request.personality is not None:
                     # update_fields["personality"] = request.personality
                     assistant_orm.assistant_personality = request.personality
@@ -369,6 +379,8 @@ class AssistantService:
                 if request.voice_id is not None:
                     # update_fields["voice_id"] = {**assistant["voice_id"], **request.voice_id}
                     assistant_orm.assistant_voice_id = request.voice_id
+                if request.voice_file is not None:
+                    assistant_orm.voice_file = request.voice_file
                 if request.industry is not None:
                     # update_fields["industry"] = request.industry
                     assistant_orm.assistant_industry = request.industry

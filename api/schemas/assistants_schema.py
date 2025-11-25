@@ -58,17 +58,21 @@ class AssistantCreateRequest(BaseModel):
     assistant_id: str = Field(
         description="助理唯一标识符", min_length=1, max_length=100
     )
+    nickname: Optional[str] = Field(None, description="助理昵称", max_length=100)
+    address: Optional[str] = Field(None, description="助理地址", max_length=500)
+    sex: Optional[str] = Field(None, description="助理性别", max_length=32)
     # 助理配置
     personality: PersonalityType = Field(
         default=PersonalityType.PROFESSIONAL,
         description="助理个性类型（可选，优先使用 prompt_config）",
     )
     occupation: ExpertiseLevel = Field(default=ExpertiseLevel.INTERMEDIATE, description="数字员工职业")
-    # 提示词配置（新的核心配置）
+    # 提示词配置
     prompt_config: Optional[AssistantPromptConfig] = Field(
         None, description="智能体提示词配置 - 定义个性、行为和交互方式"
     )
     voice_id: str = Field(description="语音克隆配置，使用MiniMax模型")
+    voice_file: Optional[str] = Field(None, description="语音文件URL链接", max_length=1024)
     # 专业领域
     industry: str = Field(description="数字员工所处的行业（如：护肤、彩妆、香水等）")
 
@@ -99,6 +103,9 @@ class AssistantUpdateRequest(BaseModel):
     assistant_name: Optional[str] = Field(
         None, description="助理姓名", min_length=1, max_length=100
     )
+    nickname: Optional[str] = Field(None, description="助理昵称", max_length=100)
+    address: Optional[str] = Field(None, description="助理地址", max_length=500)
+    sex: Optional[str] = Field(None, description="助理性别", max_length=32)
 
     personality: Optional[PersonalityType] = Field(
         None, description="助理个性类型"
@@ -112,6 +119,7 @@ class AssistantUpdateRequest(BaseModel):
     )
 
     voice_id: Optional[str] = Field(None, description="语音克隆配置")
+    voice_file: Optional[str] = Field(None, description="语音文件URL链接", max_length=1024)
 
     industry: Optional[str] = Field(None, description="数字员工所在行业（如：护肤、彩妆、香水等）")
 

@@ -4,9 +4,9 @@
 该模块包含对话业务领域的所有模型，包括Pydantic业务模型和SQLAlchemy ORM模型。
 """
 
-from uuid import UUID
 from datetime import datetime
 from typing import Optional, Self
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 from sqlalchemy import Column, DateTime, Enum, String, Uuid, func
