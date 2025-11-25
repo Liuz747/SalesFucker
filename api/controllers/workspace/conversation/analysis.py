@@ -30,15 +30,13 @@ async def generate_thread_report(
     根据对话历史生成用户分析报告
     """
     try:
-        report_content = await ReportService.generate_user_analysis(
+        # ReportService 现在返回包含 report_result, report_tokens, error_message 的字典
+        result = await ReportService.generate_user_analysis(
             tenant_id=tenant.tenant_id,
             thread_id=thread_id
         )
         
-        return {
-            "thread_id": thread_id,
-            "report": report_content
-        }
+        return result
 
     except Exception as e:
         logger.error(f"API生成报告失败: {e}", exc_info=True)
@@ -90,4 +88,3 @@ async def generate_thread_profile(
     except Exception as e:
         logger.error(f"API生成画像失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-
