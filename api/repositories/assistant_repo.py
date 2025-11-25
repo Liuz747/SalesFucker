@@ -10,16 +10,18 @@
 - 数据库健康检查
 - 高效查询和索引优化
 """
+
 import asyncio
+from typing import Optional
+from uuid import UUID
 
 import msgpack
 from redis import Redis, RedisError
-from typing import Optional
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import mas_config
-from infra.cache import get_redis_client
+from libs.factory import infra_registry
 from models.assistant import AssistantModel, AssistantOrmModel
 from utils import get_component_logger, get_current_datetime
 
@@ -35,7 +37,7 @@ class AssistantRepository:
     """
 
     @staticmethod
-    async def get_assistant_by_id(assistant_id: str, session: AsyncSession) -> Optional[AssistantOrmModel]:
+    async def get_assistant_by_id(assistant_id: UUID, session: AsyncSession) -> Optional[AssistantOrmModel]:
         """
         根据ID获取租户配置
 
@@ -90,7 +92,7 @@ class AssistantRepository:
             raise
 
     @staticmethod
-    async def delete(assistant_id: str, session: AsyncSession) -> bool:
+    async def delete(assistant_id: UUID, session: AsyncSession) -> bool:
         """
         删除租户（软删除）
 
@@ -125,7 +127,7 @@ class AssistantRepository:
     async def update_assistant_cache(assistant_model: AssistantModel, redis_client: Redis):
         """更新数字员工缓存"""
         try:
-            redis_key = f"assistant:{assistant_model.assistant_id}"
+            redis_key = f"assistant:{str(assistant_model.assistant_id)}"
             tenant_data = assistant_model.model_dump(mode='json')
 
             await redis_client.setex(
@@ -146,7 +148,7 @@ class AssistantRepository:
         """获取数字员工缓存"""
         try:
             if not redis_client:
-                redis_client = await get_redis_client()
+                redis_client = infra_registry.get_cached_clients().redis
             asyncio.create_task(AssistantRepository.update_assistant_cache(
                 assistant_model,
                 redis_client
@@ -155,10 +157,10 @@ class AssistantRepository:
             raise
 
     @staticmethod
-    async def get_assistant_cache(assistant_id: str, redis_client: Redis) -> Optional[AssistantModel]:
+    async def get_assistant_cache(assistant_id: UUID, redis_client: Redis) -> Optional[AssistantModel]:
         """获取数字员工缓存"""
         try:
-            redis_key = f"assistant:{assistant_id}"
+            redis_key = f"assistant:{str(assistant_id)}"
             assistant_data = await redis_client.get(redis_key)
 
             if assistant_data:

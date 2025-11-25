@@ -125,7 +125,7 @@ class ThreadRepository:
     async def update_thread_cache(thread_model: Thread, redis_client: Redis):
         """更新线程缓存"""
         try:
-            redis_key = f"thread:{thread_model.thread_id}"
+            redis_key = f"thread:{str(thread_model.thread_id)}"
             thread_data = thread_model.model_dump(mode='json')
 
             await redis_client.setex(

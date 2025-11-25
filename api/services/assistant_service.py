@@ -15,9 +15,10 @@ import asyncio
 from typing import Optional
 from uuid import UUID
 
-from infra.cache import get_redis_client
 from infra.db import database_session
-from models.assistant import AssistantModel
+from libs.types import AccountStatus
+from libs.factory import infra_registry
+from models import AssistantModel
 from repositories.assistant_repo import AssistantRepository
 from repositories.tenant_repo import TenantRepository
 from schemas.exceptions import TenantNotFoundException, AssistantNotFoundException
@@ -63,7 +64,7 @@ class AssistantService:
                     address=request.address,
                     sex=request.sex,
                     tenant_id=request.tenant_id,
-                    status="inactive",
+                    status=AccountStatus.ACTIVE,
                     personality=request.personality,
                     occupation=request.occupation,
                     voice_id=request.voice_id,
@@ -86,7 +87,7 @@ class AssistantService:
                 logger.info(f"助理创建成功: {created_assistant.assistant_id}")
 
                 # 5. 异步更新缓存
-                redis_client = await get_redis_client()
+                redis_client = infra_registry.get_cached_clients().redis
                 asyncio.create_task(AssistantRepository.update_assistant_cache(
                     created_assistant,
                     redis_client
@@ -121,7 +122,7 @@ class AssistantService:
             Optional[AssistantResponse]: 助理信息
         """
         if use_cache:
-            redis_client = await get_redis_client()
+            redis_client = infra_registry.get_cached_clients().redis
             assistant_model = await AssistantRepository.get_assistant_cache(assistant_id, redis_client)
             if assistant_model:
                 return assistant_model
@@ -167,8 +168,6 @@ class AssistantService:
                 update_data = request.model_dump(exclude_unset=True)
                 for field, value in update_data.items():
                     setattr(assistant_orm, field, value)
-
-                assistant_orm.updated_at = get_current_datetime()
 
                 await AssistantRepository.update_assistant(assistant_orm, session)
                 logger.info(f"助理更新成功: {assistant_id}")
