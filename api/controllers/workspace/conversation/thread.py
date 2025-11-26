@@ -24,8 +24,8 @@ from libs.factory import infra_registry
 from utils import get_component_logger
 from models import Thread, ThreadStatus, TenantModel
 from services import ThreadService
-from schemas.conversation_schema import ThreadCreateRequest, ThreadMetadata
-from ..wraps import validate_and_get_tenant_id
+from schemas.conversation_schema import ThreadCreateRequest
+from ..wraps import validate_and_get_tenant
 from .workflow import router as workflow_router
 
 
@@ -39,7 +39,7 @@ router.include_router(workflow_router, prefix="/{thread_id}/runs", tags=["workfl
 @router.post("")
 async def create_thread(
     request: ThreadCreateRequest,
-    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant_id)]
+    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)]
 ):
     """
     创建新的对话线程
@@ -54,10 +54,8 @@ async def create_thread(
         # 创建业务模型对象
         thread = Thread(
             thread_id=thread_id,
-            status=ThreadStatus.IDLE,
-            metadata=ThreadMetadata(
-                tenant_id=tenant.tenant_id
-            )
+            tenant_id=tenant.tenant_id,
+            status=ThreadStatus.IDLE
         )
         
         thread_id = await ThreadService.create_thread(thread)
@@ -93,7 +91,7 @@ async def create_thread(
 @router.get("/{thread_id}")
 async def get_thread(
     thread_id: UUID,
-    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant_id)]
+    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)]
 ):
     """
     获取线程详情
@@ -110,7 +108,7 @@ async def get_thread(
                 detail=f"线程不存在: {thread_id}"
             )
         
-        if thread.metadata.tenant_id != tenant.tenant_id:
+        if thread.tenant_id != tenant.tenant_id:
             raise HTTPException(
                 status_code=403, 
                 detail="租户ID不匹配，无法访问此线程"
@@ -119,7 +117,7 @@ async def get_thread(
         return {
             "thread_id": thread.thread_id,
             "metadata": {
-                "tenant_id": thread.metadata.tenant_id,
+                "tenant_id": thread.tenant_id,
                 "assistant_id": thread.assistant_id
             },
             "status": thread.status,

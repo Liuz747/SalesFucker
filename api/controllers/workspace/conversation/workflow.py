@@ -14,12 +14,13 @@ from typing import Annotated
 from uuid import UUID, uuid4
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 
-from models import ThreadStatus, WorkflowRun
+from models import ThreadStatus, WorkflowRun, Thread
 from services import ThreadService, AudioService
 from schemas.conversation_schema import MessageCreateRequest
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms
 from ..wraps import (
-    validate_and_get_tenant_id,
+    validate_and_get_tenant,
+    validate_workflow_permissions,
     get_orchestrator,
     TenantModel,
     Orchestrator
@@ -34,9 +35,8 @@ router = APIRouter()
 
 @router.post("/wait")
 async def create_run(
-    thread_id: UUID,
     request: MessageCreateRequest,
-    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant_id)],
+    thread: Annotated[Thread, Depends(validate_workflow_permissions)],
     orchestrator: Annotated[Orchestrator, Depends(get_orchestrator)]
 ):
     """
@@ -49,15 +49,7 @@ async def create_run(
     - 多模态: {"input": [{"type": "text", "content": "分析这个"}, {"type": "image_url", "content": "https://..."}]}
     """
     try:
-        logger.info(f"开始运行处理 - 线程: {thread_id}, 租户: {tenant.tenant_id}")
-
-        thread = await ThreadService.get_thread(thread_id)
-
-        if not thread:
-            raise HTTPException(
-                status_code=404,
-                detail=f"线程不存在: {thread_id}"
-            )
+        logger.info(f"开始运行处理 - 线程: {thread.thread_id}")
 
         match thread.status:
             case ThreadStatus.IDLE:
@@ -71,15 +63,8 @@ async def create_run(
                     detail=f"线程状态无效，无法处理运行请求。当前状态: {thread.status}，需要状态: {ThreadStatus.ACTIVE}"
                 )
 
-        # 验证线程租户ID匹配
-        if thread.metadata.tenant_id != tenant.tenant_id:
-            raise HTTPException(
-                status_code=403,
-                detail="租户ID不匹配，无法访问此线程"
-            )
-
         # 标准化输入（处理音频转录）
-        normalized_input = await AudioService.normalize_input(request.input, str(thread_id))
+        normalized_input = await AudioService.normalize_input(request.input, str(thread.thread_id))
 
         # 创建工作流执行模型
         start_time = get_current_datetime()
@@ -87,9 +72,9 @@ async def create_run(
 
         workflow = WorkflowRun(
             workflow_id=workflow_id,
-            thread_id=thread_id,
+            thread_id=thread.thread_id,
             assistant_id=request.assistant_id,
-            tenant_id=tenant.tenant_id,
+            tenant_id=thread.tenant_id,
             input=normalized_input
         )
 
@@ -98,12 +83,12 @@ async def create_run(
 
         processing_time = get_processing_time_ms(start_time)
 
-        logger.info(f"运行处理完成 - 线程: {thread_id}, 执行: {workflow_id}, 耗时: {processing_time:.2f}ms")
+        logger.info(f"运行处理完成 - 线程: {thread.thread_id}, 执行: {workflow_id}, 耗时: {processing_time:.2f}ms")
 
         # 返回标准化响应
         response = {
             "run_id": workflow_id,
-            "thread_id": thread_id,
+            "thread_id": result.thread_id,
             "status": "completed",
             "response": result.output,
             "total_tokens": result.total_tokens,
@@ -131,16 +116,15 @@ async def create_run(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"运行处理失败 - 线程: {thread_id}: {e}", exc_info=True)
+        logger.error(f"运行处理失败 - 线程: {thread.thread_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"运行处理失败: {str(e)}")
 
 
 @router.post("/async")
 async def create_background_run(
-    thread_id: UUID,
     request: MessageCreateRequest,
     background_tasks: BackgroundTasks,
-    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant_id)],
+    thread: Annotated[Thread, Depends(validate_workflow_permissions)],
     orchestrator: Annotated[Orchestrator, Depends(get_orchestrator)]
 ):
     """
@@ -153,15 +137,7 @@ async def create_background_run(
     - 多模态: {"input": [{"type": "text", "content": "分析这个"}, {"type": "image_url", "content": "https://..."}]}
     """
     try:
-        logger.info(f"开始后台运行处理 - 线程: {thread_id}, 租户: {tenant.tenant_id}")
-
-        thread = await ThreadService.get_thread(thread_id)
-
-        if not thread:
-            raise HTTPException(
-                status_code=404,
-                detail=f"线程不存在: {thread_id}"
-            )
+        logger.info(f"开始后台运行处理 - 线程: {thread.thread_id}")
 
         match thread.status:
             case ThreadStatus.IDLE:
@@ -175,15 +151,8 @@ async def create_background_run(
                     detail=f"线程状态无效，无法处理运行请求。当前状态: {thread.status}，需要状态: {ThreadStatus.ACTIVE}"
                 )
 
-        # 验证线程租户ID匹配
-        if thread.metadata.tenant_id != tenant.tenant_id:
-            raise HTTPException(
-                status_code=403,
-                detail="租户ID不匹配，无法访问此线程"
-            )
-
         # 标准化输入（处理音频转录）
-        normalized_input = await AudioService.normalize_input(request.input, str(thread_id))
+        normalized_input = await AudioService.normalize_input(request.input, str(thread.thread_id))
 
         # 生成运行ID
         run_id = uuid4()
@@ -197,28 +166,28 @@ async def create_background_run(
             processor.process_workflow_background,
             orchestrator=orchestrator,
             run_id=run_id,
-            thread_id=thread_id,
-            input=normalized_input,
+            thread_id=thread.thread_id,
             assistant_id=request.assistant_id,
-            tenant_id=tenant.tenant_id
+            tenant_id=thread.tenant_id,
+            input=normalized_input
         )
 
-        logger.info(f"后台运行已创建 - 线程: {thread_id}, 运行: {run_id}")
+        logger.info(f"后台运行已创建 - 线程: {thread.thread_id}, 运行: {run_id}")
 
         # 立即返回响应
         return {
             "run_id": run_id,
-            "thread_id": thread_id,
+            "thread_id": thread.thread_id,
+            "tenant_id": thread.tenant_id,
             "assistant_id": request.assistant_id,
             "status": "started",
-            "created_at": created_at,
-            "metadata": request.metadata.model_dump() if request.metadata else {}
+            "created_at": created_at
         }
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"后台运行创建失败 - 线程: {thread_id}: {e}", exc_info=True)
+        logger.error(f"后台运行创建失败 - 线程: {thread.thread_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"后台运行创建失败: {str(e)}")
 
 
@@ -226,7 +195,7 @@ async def create_background_run(
 async def get_run_status(
     thread_id: UUID,
     run_id: UUID,
-    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant_id)]
+    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)]
 ):
     """
     获取后台运行状态
@@ -242,7 +211,7 @@ async def get_run_status(
                 detail=f"线程不存在: {thread_id}"
             )
         
-        if thread.metadata.tenant_id != tenant.tenant_id:
+        if thread.tenant_id != tenant.tenant_id:
             raise HTTPException(
                 status_code=403,
                 detail="租户ID不匹配，无法访问此线程"
@@ -250,12 +219,13 @@ async def get_run_status(
 
         # 返回线程状态信息
         return {
+            "run_id": run_id,
             "thread_id": thread.thread_id,
+            "tenant_id": thread.tenant_id,
+            "assistant_id": thread.assistant_id,
             "status": thread.status,
             "created_at": thread.created_at,
-            "updated_at": thread.updated_at,
-            "run_id": run_id,
-            "metadata": thread.metadata.model_dump()
+            "updated_at": thread.updated_at
         }
     
     except HTTPException:
