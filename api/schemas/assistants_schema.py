@@ -12,7 +12,7 @@ AI员工管理相关数据模型
 
 from typing import Any, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 from libs.types import AccountStatus
 
@@ -27,19 +27,11 @@ class AssistantCreateRequest(BaseModel):
     nickname: Optional[str] = Field(None, description="助理昵称", max_length=100)
     address: Optional[str] = Field(None, description="助理地址", max_length=500)
     sex: Optional[str] = Field(None, description="助理性别", max_length=32)
-
-    # 助理配置
     personality: str = Field(description="助理个性类型")
     occupation: str = Field(description="数字员工职业")
-
-    # 语音配置
-    voice_id: str = Field(description="语音克隆配置，使用MiniMax模型")
+    voice_id: Optional[str] = Field(None, description="语音克隆配置，使用MiniMax模型")
     voice_file: Optional[str] = Field(None, description="语音文件URL链接", max_length=1024)
-
-    # 专业领域
-    industry: str = Field(description="数字员工所处的行业（如：护肤、彩妆、香水等）")
-
-    # 个人资料
+    industry: str = Field(description="数字员工所处的行业信息")
     profile: Optional[dict[str, Any]] = Field(None, description="助理个人资料信息")
 
     @field_validator("assistant_name")
@@ -48,6 +40,13 @@ class AssistantCreateRequest(BaseModel):
         if not v or not v.strip():
             raise ValueError("助理姓名不能为空")
         return v.strip()
+
+    @model_validator(mode='after')
+    def validate_voice_config(self):
+        """验证语音配置：voice_id 和 voice_file 至少需要提供一个"""
+        if self.voice_id is None and self.voice_file is None:
+            raise ValueError("voice_id 和 voice_file 至少需要提供一个")
+        return self
 
 
 class AssistantUpdateRequest(BaseModel):
@@ -60,18 +59,10 @@ class AssistantUpdateRequest(BaseModel):
     sex: Optional[str] = Field(None, description="助理性别", max_length=32)
     personality: Optional[str] = Field(None, description="助理个性类型")
     occupation: Optional[str] = Field(None, description="数字员工职业")
-
-    # 语音配置
     voice_id: Optional[str] = Field(None, description="语音克隆配置")
     voice_file: Optional[str] = Field(None, description="语音文件URL链接", max_length=1024)
-
-    # 专业领域
-    industry: Optional[str] = Field(None, description="数字员工所在行业（如：护肤、彩妆、香水等）")
-
-    # 个人资料
+    industry: Optional[str] = Field(None, description="数字员工所在行业信息")
     profile: Optional[dict[str, Any]] = Field(None, description="助理个人资料信息")
-
-    # 状态
     status: Optional[AccountStatus] = Field(None, description="助理状态")
 
 

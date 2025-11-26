@@ -11,19 +11,17 @@
 - 高效查询和索引优化
 """
 
-import asyncio
 from typing import Optional
 from uuid import UUID
 
 import msgpack
 from redis import Redis, RedisError
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import mas_config
-from libs.factory import infra_registry
 from models.assistant import AssistantModel, AssistantOrmModel
-from utils import get_component_logger, get_current_datetime
+from utils import get_component_logger
 
 logger = get_component_logger(__name__, "AssistantService")
 
@@ -37,18 +35,26 @@ class AssistantRepository:
     """
 
     @staticmethod
-    async def get_assistant_by_id(assistant_id: UUID, session: AsyncSession) -> Optional[AssistantOrmModel]:
+    async def get_assistant_by_id(
+        assistant_id: UUID,
+        session: AsyncSession,
+        include_inactive: bool = False
+    ) -> Optional[AssistantOrmModel]:
         """
-        根据ID获取租户配置
+        根据ID获取助理配置
 
         参数:
-            tenant_id: 租户ID
+            assistant_id: 助理ID
+            session: 数据库会话
+            include_inactive: 是否包含已删除（is_active=False）的助理
 
         返回:
-            TenantConfig: 租户配置，不存在则返回None
+            AssistantOrmModel: 助理配置，不存在则返回None
         """
         try:
             stmt = select(AssistantOrmModel).where(AssistantOrmModel.assistant_id == assistant_id)
+            if not include_inactive:
+                stmt = stmt.where(AssistantOrmModel.is_active == True)
             result = await session.execute(stmt)
             return result.scalar_one_or_none()
 
@@ -81,12 +87,14 @@ class AssistantRepository:
             raise
 
     @staticmethod
-    async def update_assistant(assistant: AssistantOrmModel, session: AsyncSession) -> Optional[AssistantOrmModel]:
+    async def update_assistant(assistant: AssistantOrmModel, session: AsyncSession) -> AssistantOrmModel:
         """更新租户数据库模型"""
         try:
-            assistant.updated_at = get_current_datetime()
-            await session.merge(assistant)
-            return assistant
+            assistant.updated_at = func.now()
+            merged_assistant = await session.merge(assistant)
+            await session.flush()
+            await session.refresh(merged_assistant)
+            return merged_assistant
         except Exception as e:
             logger.error(f"更新数字员工失败: {assistant.assistant_name}, 错误: {e}")
             raise
@@ -107,7 +115,7 @@ class AssistantRepository:
             stmt = (
                 update(AssistantOrmModel)
                 .where(AssistantOrmModel.assistant_id == assistant_id)
-                .values(is_active=False, updated_at=get_current_datetime())
+                .values(is_active=False, updated_at=func.now())
             )
             result = await session.execute(stmt)
             await session.commit()
@@ -128,12 +136,12 @@ class AssistantRepository:
         """更新数字员工缓存"""
         try:
             redis_key = f"assistant:{str(assistant_model.assistant_id)}"
-            tenant_data = assistant_model.model_dump(mode='json')
+            assistant_data = assistant_model.model_dump(mode='json')
 
             await redis_client.setex(
                 redis_key,
                 mas_config.REDIS_TTL,
-                msgpack.packb(tenant_data),
+                msgpack.packb(assistant_data),
             )
             logger.debug(f"更新租户缓存: {assistant_model.assistant_id}")
         except RedisError as e:
@@ -141,19 +149,6 @@ class AssistantRepository:
             raise
         except Exception as e:
             logger.error(f"更新租户缓存失败: {assistant_model.assistant_id}, 错误: {e}")
-            raise
-
-    @staticmethod
-    async def update_assistant_cache_4_task(assistant_model: AssistantModel, redis_client: Redis = None):
-        """获取数字员工缓存"""
-        try:
-            if not redis_client:
-                redis_client = infra_registry.get_cached_clients().redis
-            asyncio.create_task(AssistantRepository.update_assistant_cache(
-                assistant_model,
-                redis_client
-            ))
-        except Exception as e:
             raise
 
     @staticmethod
@@ -172,4 +167,19 @@ class AssistantRepository:
             raise
         except Exception as e:
             logger.error(f"获取数字员工缓存失败: {assistant_id}, 错误: {e}")
+            raise
+
+    @staticmethod
+    async def delete_assistant_cache(assistant_id: UUID, redis_client: Redis) -> bool:
+        """删除数字员工缓存"""
+        try:
+            redis_key = f"assistant:{str(assistant_id)}"
+            result = await redis_client.delete(redis_key)
+            logger.debug(f"删除助理缓存: {assistant_id}, 结果: {result}")
+            return result > 0
+        except RedisError as e:
+            logger.error(f"redis 命令执行失败: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"删除数字员工缓存失败: {assistant_id}, 错误: {e}")
             raise

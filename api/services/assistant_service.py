@@ -23,7 +23,7 @@ from repositories.assistant_repo import AssistantRepository
 from repositories.tenant_repo import TenantRepository
 from schemas.exceptions import TenantNotFoundException, AssistantNotFoundException
 from schemas.assistants_schema import AssistantCreateRequest, AssistantUpdateRequest
-from utils import get_component_logger, get_current_datetime
+from utils import get_component_logger
 
 logger = get_component_logger(__name__, "AssistantService")
 
@@ -35,11 +35,8 @@ class AssistantService:
     处理AI员工相关的业务逻辑，包括CRUD操作、配置管理和统计分析。
     """
 
-    def __init__(self):
-        """初始化助理处理器"""
-        logger.info("AI员工处理器初始化完成")
-
-    async def create_assistant(self, request: AssistantCreateRequest) -> AssistantModel:
+    @staticmethod
+    async def create_assistant(request: AssistantCreateRequest) -> AssistantModel:
         """
         创建新的AI员工
 
@@ -57,7 +54,6 @@ class AssistantService:
                     raise TenantNotFoundException(tenant_id=request.tenant_id)
 
                 # 2. 创建助理数据
-                now = get_current_datetime()
                 assistant_model = AssistantModel(
                     assistant_name=request.assistant_name,
                     nickname=request.nickname,
@@ -71,8 +67,6 @@ class AssistantService:
                     voice_file=request.voice_file,
                     industry=request.industry,
                     profile=request.profile or {},
-                    created_at=now,
-                    updated_at=now,
                     is_active=True,
                     last_active_at=None
                 )
@@ -82,18 +76,18 @@ class AssistantService:
                 if not assistant_orm:
                     raise Exception("AssistantRepository.insert_assistant failed")
 
-                # 4. 获取数据库生成的 assistant_id 并转换为业务模型
-                created_assistant = assistant_orm.to_business_model()
-                logger.info(f"助理创建成功: {created_assistant.assistant_id}")
+            # 4. 获取数据库生成的 assistant_id 并转换为业务模型
+            created_assistant = assistant_orm.to_business_model()
+            logger.info(f"助理创建成功: {created_assistant.assistant_id}")
 
-                # 5. 异步更新缓存
-                redis_client = infra_registry.get_cached_clients().redis
-                asyncio.create_task(AssistantRepository.update_assistant_cache(
-                    created_assistant,
-                    redis_client
-                ))
+            # 5. 异步更新缓存
+            redis_client = infra_registry.get_cached_clients().redis
+            asyncio.create_task(AssistantRepository.update_assistant_cache(
+                created_assistant,
+                redis_client
+            ))
 
-                return created_assistant
+            return created_assistant
 
         except TenantNotFoundException:
             raise
@@ -101,52 +95,46 @@ class AssistantService:
             logger.error(f"助理创建失败: {e}")
             raise
 
+    @staticmethod
     async def get_assistant_by_id(
-            self,
-            assistant_id: UUID,
-            use_cache: bool = True
-            # tenant_id: str,
-            # include_stats: bool = False,
-            # include_config: bool = True
+        assistant_id: UUID,
+        use_cache: bool = True
     ) -> Optional[AssistantModel]:
         """
         获取助理详细信息
         
         参数:
             assistant_id: 助理ID
-            tenant_id: 租户ID
-            include_stats: 是否包含统计信息
-            include_config: 是否包含配置信息
+            use_cache: 是否使用缓存
             
         返回:
             Optional[AssistantResponse]: 助理信息
         """
+        redis_client = infra_registry.get_cached_clients().redis
         if use_cache:
-            redis_client = infra_registry.get_cached_clients().redis
             assistant_model = await AssistantRepository.get_assistant_cache(assistant_id, redis_client)
             if assistant_model:
                 return assistant_model
+            logger.info("缓存失效，数据回源")
 
         try:
-            if use_cache:
-                logger.info("缓存失效，数据回源")
             async with database_session() as session:
                 assistant_orm = await AssistantRepository.get_assistant_by_id(assistant_id, session)
                 if not assistant_orm:
                     raise AssistantNotFoundException(assistant_id)
 
-                logger.info(f"助理详情查询成功: {assistant_id}")
                 assistant_model = assistant_orm.to_business_model()
-                await AssistantRepository.update_assistant_cache_4_task(assistant_model)
-                return assistant_model
+            logger.info(f"助理详情查询成功: {assistant_id}")
+            asyncio.create_task(AssistantRepository.update_assistant_cache(assistant_model, redis_client))
+            return assistant_model
         except Exception as e:
             logger.error(f"助理详情查询失败: {e}")
             raise
 
+    @staticmethod
     async def update_assistant(
-            self,
-            assistant_id: UUID,
-            request: AssistantUpdateRequest
+        assistant_id: UUID,
+        request: AssistantUpdateRequest
     ) -> Optional[AssistantModel]:
         """
         更新助理信息
@@ -169,14 +157,14 @@ class AssistantService:
                 for field, value in update_data.items():
                     setattr(assistant_orm, field, value)
 
-                await AssistantRepository.update_assistant(assistant_orm, session)
+                # 使用返回的已刷新ORM对象，避免会话分离问题
+                assistant_orm = await AssistantRepository.update_assistant(assistant_orm, session)
                 logger.info(f"助理更新成功: {assistant_id}")
+                assistant_model = assistant_orm.to_business_model()
 
             # 更新缓存数据
-            async with database_session() as session:
-                assistant_orm = await AssistantRepository.get_assistant_by_id(assistant_id, session)
-                assistant_model = assistant_orm.to_business_model()
-                await AssistantRepository.update_assistant_cache_4_task(assistant_model)
+            redis_client = infra_registry.get_cached_clients().redis
+            asyncio.create_task(AssistantRepository.update_assistant_cache(assistant_model, redis_client))
 
             return assistant_model
 
@@ -186,7 +174,8 @@ class AssistantService:
             logger.error(f"助理更新失败: {e}")
             raise
 
-    async def delete_assistant(self, assistant_id: UUID, force: bool = False) -> bool:
+    @staticmethod
+    async def delete_assistant(assistant_id: UUID, force: bool = False) -> bool:
         """
         删除助理
 
@@ -212,8 +201,12 @@ class AssistantService:
                 if not flag:
                     raise Exception("删除失败，请咨询管理员")
 
-                logger.info(f"助理删除成功: {assistant_id}")
-                return True
+            # 删除缓存
+            redis_client = infra_registry.get_cached_clients().redis
+            asyncio.create_task(AssistantRepository.delete_assistant_cache(assistant_id, redis_client))
+
+            logger.info(f"助理删除成功: {assistant_id}")
+            return True
 
         except ValueError:
             raise

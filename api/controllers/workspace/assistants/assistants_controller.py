@@ -38,8 +38,7 @@ async def create_assistant(request: AssistantCreateRequest):
     try:
         logger.info(f"创建助理请求: tenant={request.tenant_id}")
 
-        assistant_service = AssistantService()
-        result = await assistant_service.create_assistant(request)
+        result = await AssistantService.create_assistant(request)
 
         logger.info(f"助理创建成功: {result.assistant_id}")
         return result
@@ -122,10 +121,7 @@ async def get_assistant(assistant_id: UUID):
     try:
         logger.info(f"查询助理详情: assistant={assistant_id}")
 
-        assistant_service = AssistantService()
-        result = await assistant_service.get_assistant_by_id(
-            assistant_id
-        )
+        result = await AssistantService.get_assistant_by_id(assistant_id)
 
         if not result:
             logger.warning(f"助理不存在: {assistant_id}")
@@ -154,10 +150,7 @@ async def update_assistant(assistant_id: UUID, request: AssistantUpdateRequest):
     try:
         logger.info(f"更新助理请求: assistant={assistant_id}")
 
-        assistant_service = AssistantService()
-        result = await assistant_service.update_assistant(
-            assistant_id,  request
-        )
+        result = await AssistantService.update_assistant(assistant_id, request)
 
         if not result:
             raise AssistantNotFoundException(assistant_id)
@@ -192,20 +185,10 @@ async def delete_assistant(
     try:
         logger.info(f"删除助理请求: assistant={assistant_id}, force={force}")
 
-        assistant_service = AssistantService()
-        is_delete = await assistant_service.delete_assistant(assistant_id, force)
-
-        # if not result:
-        #     logger.warning(f"助理删除失败: {assistant_id}")
-        #     raise HTTPException(
-        #         status_code=status.HTTP_400_BAD_REQUEST,
-        #         detail=result.result_data.get("error", "助理删除失败")
-        #     )
+        is_delete = await AssistantService.delete_assistant(assistant_id, force)
 
         logger.info(f"助理删除成功: {assistant_id}")
-        return AssistantDeleteResponse(
-            is_delete=is_delete
-        )
+        return AssistantDeleteResponse(is_delete=is_delete)
     except Exception as e:
         logger.error(f"助理删除失败: {e}")
         raise HTTPException(

@@ -39,12 +39,12 @@ class AssistantModel(BaseModel):
     occupation: str = Field(description="数字员工职业")
     industry: str = Field(description="专业领域列表（如：护肤、彩妆、香水等）")
     profile: dict[str, Any] = Field(default_factory=dict, description="助理个人资料信息")
-    voice_id: str = Field(description="语音克隆配置，使用MiniMax模型")
+    voice_id: Optional[str] = Field(default=None, description="语音克隆配置，使用MiniMax模型")
     voice_file: Optional[str] = Field(default=None, description="语音文件URL链接")
     is_active: Optional[bool] = Field(default=None, description="数字员工是否激活")
-    created_at: datetime = Field(description="创建时间")
-    updated_at: datetime = Field(description="最后一次更新时间")
-    last_active_at: Optional[datetime] = Field(description="")
+    created_at: Optional[datetime] = Field(default=None, description="创建时间")
+    updated_at: Optional[datetime] = Field(default=None, description="最后一次更新时间")
+    last_active_at: Optional[datetime] = Field(default=None, description="最后活跃时间")
 
 
 class AssistantOrmModel(Base):
@@ -66,7 +66,7 @@ class AssistantOrmModel(Base):
     status = Column(Enum(AccountStatus, name='account_status'), nullable=False, default=AccountStatus.ACTIVE)
     personality = Column(String(500), nullable=False)
     occupation = Column(String(100), nullable=False)
-    voice_id = Column(String(50), nullable=False)
+    voice_id = Column(String(50))
     voice_file = Column(String(500))
     industry = Column(String(100), nullable=False)
     profile = Column(JSONB, nullable=False)

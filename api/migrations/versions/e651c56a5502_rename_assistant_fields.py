@@ -27,10 +27,10 @@ def upgrade() -> None:
     sa.Column('nickname', sa.String(length=100), nullable=True),
     sa.Column('address', sa.String(length=500), nullable=True),
     sa.Column('sex', sa.String(length=32), nullable=True),
-    sa.Column('status', sa.Enum('ACTIVE', 'BANNED', 'CLOSED', name='account_status'), nullable=False),
+    sa.Column('status', sa.Enum('ACTIVE', 'BANNED', 'CLOSED', name='account_status', create_type=False), nullable=False),
     sa.Column('personality', sa.String(length=500), nullable=False),
     sa.Column('occupation', sa.String(length=100), nullable=False),
-    sa.Column('voice_id', sa.String(length=50), nullable=False),
+    sa.Column('voice_id', sa.String(length=50), nullable=True),
     sa.Column('voice_file', sa.String(length=500), nullable=True),
     sa.Column('industry', sa.String(length=100), nullable=False),
     sa.Column('profile', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
@@ -44,10 +44,11 @@ def upgrade() -> None:
     op.create_index('idx_assistant_status', 'assistant', ['status'], unique=False)
     op.create_index('idx_assistant_updated', 'assistant', ['updated_at'], unique=False)
     op.create_index(op.f('ix_assistant_tenant_id'), 'assistant', ['tenant_id'], unique=False)
-    op.alter_column('tenants', 'status',
-               existing_type=postgresql.ENUM('ACTIVE', 'BANNED', 'CLOSED', name='tenant_status'),
-               type_=sa.Enum('ACTIVE', 'BANNED', 'CLOSED', name='account_status'),
-               existing_nullable=False)
+
+    # 更新 tenants 表的 status 列使用新的枚举类型
+    op.execute("ALTER TABLE tenants ALTER COLUMN status TYPE account_status USING status::text::account_status")
+    op.execute("DROP TYPE IF EXISTS tenant_status")
+
     op.alter_column('workflows', 'tenant_id',
                existing_type=sa.VARCHAR(length=255),
                type_=sa.String(length=64),
