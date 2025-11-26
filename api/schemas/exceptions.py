@@ -85,7 +85,7 @@ class TenantValidationException(BaseHTTPException):
 
 class TenantIdRequiredException(TenantValidationException):
     error_code = 1000006
-    detail = "TENANT_ID_REQUIRED"
+    error_message = "TENANT_ID_REQUIRED"
     http_status_code = 400
 
     def __init__(self):
@@ -94,7 +94,7 @@ class TenantIdRequiredException(TenantValidationException):
 
 class TenantDisabledException(TenantValidationException):
     error_code = 1000008
-    detail = "TENANT_DISABLED"
+    error_message = "TENANT_DISABLED"
 
     def __init__(self, tenant_id: str):
         super().__init__(detail=f"租户 {tenant_id} 已被禁用")
@@ -102,7 +102,7 @@ class TenantDisabledException(TenantValidationException):
 
 class TenantAccessDeniedException(TenantValidationException):
     error_code = 1000009
-    detail = "TENANT_ACCESS_DENIED"
+    error_message = "TENANT_ACCESS_DENIED"
 
     def __init__(self, tenant_id: str, resource: str):
         super().__init__(detail=f"租户 {tenant_id} 无权访问 {resource}")
@@ -119,12 +119,12 @@ class TenantAlreadyExistsException(TenantManagementException):
 
 class AssistantException(WorkspaceException):
     error_code = 1100000
-    detail = "ASSISTANT_ERROR"
+    error_message = "ASSISTANT_ERROR"
 
 
 class AssistantNotFoundException(AssistantException):
     error_code = 1100001
-    detail = "ASSISTANT_NOT_FOUND"
+    error_message = "ASSISTANT_NOT_FOUND"
     http_status_code = 404
 
     def __init__(self, assistant_id: str):
@@ -133,7 +133,7 @@ class AssistantNotFoundException(AssistantException):
 
 class AssistantUnavailableException(AssistantException):
     error_code = 1100002
-    detail = "ASSISTANT_UNAVAILABLE"
+    error_message = "ASSISTANT_UNAVAILABLE"
     http_status_code = 503
 
     def __init__(self, assistant_id: str):
@@ -142,7 +142,7 @@ class AssistantUnavailableException(AssistantException):
 
 class AssistantConflictException(AssistantException):
     error_code = 1100003
-    detail = "Assistant_Conflict"
+    error_message = "Assistant_Conflict"
     http_status_code = 503
 
     def __init__(self, assistant_id: str):
@@ -151,12 +151,12 @@ class AssistantConflictException(AssistantException):
 
 class ThreadException(WorkspaceException):
     error_code = 1300001
-    detail = "THREAD_ERROR"
+    error_message = "THREAD_ERROR"
 
 
 class ThreadNotFoundException(ThreadException):
     error_code = 1300002
-    detail = "THREAD_NOT_FOUND"
+    error_message = "THREAD_NOT_FOUND"
     http_status_code = 404
 
     def __init__(self, thread_id: UUID | str):
@@ -165,7 +165,7 @@ class ThreadNotFoundException(ThreadException):
 
 class ThreadCreationException(ThreadException):
     error_code = 1300003
-    detail = "THREAD_CREATION_FAILED"
+    error_message = "THREAD_CREATION_FAILED"
     http_status_code = 500
 
     def __init__(self, reason: str = ""):
@@ -177,7 +177,7 @@ class ThreadCreationException(ThreadException):
 
 class ThreadAccessDeniedException(ThreadException):
     error_code = 1300004
-    detail = "THREAD_ACCESS_DENIED"
+    error_message = "THREAD_ACCESS_DENIED"
     http_status_code = 403
 
     def __init__(self, thread_id: UUID | str, tenant_id: str):
@@ -186,12 +186,12 @@ class ThreadAccessDeniedException(ThreadException):
 
 class ConversationException(WorkspaceException):
     error_code = 1400001
-    detail = "CONVERSATION_ERROR"
+    error_message = "CONVERSATION_ERROR"
 
 
 class ConversationProcessingException(ConversationException):
     error_code = 1400002
-    detail = "CONVERSATION_PROCESSING_FAILED"
+    error_message = "CONVERSATION_PROCESSING_FAILED"
     http_status_code = 500
 
     def __init__(self, reason: str = ""):
@@ -203,7 +203,7 @@ class ConversationProcessingException(ConversationException):
 
 class MessageValidationException(ConversationException):
     error_code = 1400003
-    detail = "MESSAGE_VALIDATION_ERROR"
+    error_message = "MESSAGE_VALIDATION_ERROR"
 
     def __init__(self, message: str):
         super().__init__(detail=f"消息验证失败: {message}")
@@ -211,13 +211,13 @@ class MessageValidationException(ConversationException):
 
 class WorkflowException(WorkspaceException):
     error_code = 1400004
-    detail = "WORKFLOW_ERROR"
+    error_message = "WORKFLOW_ERROR"
     http_status_code = 500
 
 
 class WorkflowExecutionException(WorkflowException):
     error_code = 1400005
-    detail = "WORKFLOW_EXECUTION_FAILED"
+    error_message = "WORKFLOW_EXECUTION_FAILED"
 
     def __init__(self, workflow_type: str, reason: str = ""):
         detail = f"{workflow_type} 工作流执行失败"
@@ -275,7 +275,7 @@ class InsufficientScopeException(AuthorizationException):
 
 class DatabaseConnectionException(BaseHTTPException):
     error_code = 100001
-    detail = "DATABASE_CONNECTION_ERROR"
+    error_message = "DATABASE_CONNECTION_ERROR"
     http_status_code = 503
 
     def __init__(self, operation: str = ""):

@@ -46,7 +46,13 @@ async def create_assistant(
     try:
         logger.info(f"创建助理请求: tenant={tenant.tenant_id}")
 
-        # TODO: 添加更多tenant 和 Header 验证
+        # 验证租户ID匹配
+        if request.tenant_id != tenant.tenant_id:
+            raise HTTPException(
+                status_code=403,
+                detail="租户ID不匹配，无法访问"
+            )
+
         result = await AssistantService.create_assistant(request)
 
         logger.info(f"助理创建成功: {result.assistant_id}")
@@ -58,6 +64,8 @@ async def create_assistant(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
+    except HTTPException as e:
+        raise
     except Exception as e:
         logger.error(f"助理创建失败: {e}")
         raise HTTPException(
@@ -163,6 +171,13 @@ async def update_assistant(
     try:
         logger.info(f"更新助理请求: assistant={assistant_id}")
 
+        # 验证租户ID匹配
+        if request.tenant_id != tenant.tenant_id:
+            raise HTTPException(
+                status_code=403,
+                detail="租户ID不匹配，无法访问"
+            )
+
         result = await AssistantService.update_assistant(assistant_id, request)
 
         if not result:
@@ -177,6 +192,8 @@ async def update_assistant(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
+    except HTTPException as e:
+        raise
     except Exception as e:
         logger.error(f"助理更新失败: {e}")
         raise HTTPException(

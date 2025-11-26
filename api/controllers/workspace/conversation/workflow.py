@@ -14,15 +14,13 @@ from typing import Annotated
 from uuid import UUID, uuid4
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 
-from models import ThreadStatus, WorkflowRun, Thread
-from services import ThreadService, AudioService
+from models import ThreadStatus, WorkflowRun, TenantModel
 from schemas.conversation_schema import MessageCreateRequest
+from services import ThreadService, AudioService, WorkflowService
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms
 from ..wraps import (
     validate_and_get_tenant,
-    validate_workflow_permissions,
     get_orchestrator,
-    TenantModel,
     Orchestrator
 )
 from .background_process import BackgroundWorkflowProcessor
@@ -35,8 +33,9 @@ router = APIRouter()
 
 @router.post("/wait")
 async def create_run(
+    thread_id: UUID,
     request: MessageCreateRequest,
-    thread: Annotated[Thread, Depends(validate_workflow_permissions)],
+    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)],
     orchestrator: Annotated[Orchestrator, Depends(get_orchestrator)]
 ):
     """
@@ -49,6 +48,14 @@ async def create_run(
     - 多模态: {"input": [{"type": "text", "content": "分析这个"}, {"type": "image_url", "content": "https://..."}]}
     """
     try:
+        # 验证工作流权限（线程、租户、助理）
+        thread = await WorkflowService.verify_workflow_permissions(
+            tenant_id=tenant.tenant_id,
+            assistant_id=request.assistant_id,
+            thread_id=thread_id,
+            use_cache=True
+        )
+
         logger.info(f"开始运行处理 - 线程: {thread.thread_id}")
 
         match thread.status:
@@ -60,7 +67,7 @@ async def create_run(
             case _:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"线程状态无效，无法处理运行请求。当前状态: {thread.status}，需要状态: {ThreadStatus.ACTIVE}"
+                    detail=f"线程状态无效，无法处理运行请求。当前状态: {thread.status}"
                 )
 
         # 标准化输入（处理音频转录）
@@ -122,9 +129,10 @@ async def create_run(
 
 @router.post("/async")
 async def create_background_run(
+    thread_id: UUID,
     request: MessageCreateRequest,
     background_tasks: BackgroundTasks,
-    thread: Annotated[Thread, Depends(validate_workflow_permissions)],
+    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)],
     orchestrator: Annotated[Orchestrator, Depends(get_orchestrator)]
 ):
     """
@@ -137,6 +145,14 @@ async def create_background_run(
     - 多模态: {"input": [{"type": "text", "content": "分析这个"}, {"type": "image_url", "content": "https://..."}]}
     """
     try:
+        # 验证工作流权限（线程、租户、助理）
+        thread = await WorkflowService.verify_workflow_permissions(
+            tenant_id=tenant.tenant_id,
+            assistant_id=request.assistant_id,
+            thread_id=thread_id,
+            use_cache=True
+        )
+
         logger.info(f"开始后台运行处理 - 线程: {thread.thread_id}")
 
         match thread.status:

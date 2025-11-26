@@ -12,9 +12,11 @@
 from .audio_service import AudioService
 from .tenant_service import TenantService
 from .thread_service import ThreadService
+from .workflow_service import WorkflowService
 
 __all__ = [
     "AudioService",
     "TenantService",
     "ThreadService",
+    "WorkflowService"
 ]

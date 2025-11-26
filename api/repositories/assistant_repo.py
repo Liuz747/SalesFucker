@@ -1,12 +1,12 @@
 """
-租户数据库操作层
+数字员工数据库操作层
 
-该模块提供纯粹的租户数据库CRUD操作，不包含业务逻辑。
+该模块提供纯粹的数字员工数据库CRUD操作，不包含业务逻辑。
 遵循Repository模式，专注于数据持久化和查询操作。
 
 核心功能:
-- 租户配置的数据库CRUD操作
-- 租户访问记录更新
+- 数字员工配置的数据库CRUD操作
+- 数字员工访问记录更新
 - 数据库健康检查
 - 高效查询和索引优化
 """
@@ -28,7 +28,7 @@ logger = get_component_logger(__name__, "AssistantService")
 
 class AssistantRepository:
     """
-    租户数据库操作仓库
+    数字员工数据库操作仓库
     
     提供纯粹的数据库操作
     所有方法都是静态的，不维护状态。
@@ -88,7 +88,7 @@ class AssistantRepository:
 
     @staticmethod
     async def update_assistant(assistant: AssistantOrmModel, session: AsyncSession) -> AssistantOrmModel:
-        """更新租户数据库模型"""
+        """更新数字员工数据库模型"""
         try:
             assistant.updated_at = func.now()
             merged_assistant = await session.merge(assistant)
@@ -102,10 +102,10 @@ class AssistantRepository:
     @staticmethod
     async def delete(assistant_id: UUID, session: AsyncSession) -> bool:
         """
-        删除租户（软删除）
+        删除数字员工（软删除）
 
         参数:
-            tenant_id: 租户ID
+            assistant_id: 数字员工ID
 
         返回:
             bool: 是否删除成功
@@ -122,13 +122,13 @@ class AssistantRepository:
 
             flag = result.rowcount > 0
             if flag:
-                logger.info(f"软删除租户: assistant_id={assistant_id}")
+                logger.info(f"软删除数字员工: assistant_id={assistant_id}")
             else:
-                logger.warning(f"租户不存在，无法删除: assistant_id={assistant_id}")
+                logger.warning(f"数字员工不存在，无法删除: assistant_id={assistant_id}")
 
             return flag
         except Exception as e:
-            logger.error(f"删除租户失败: assistant_id={assistant_id}, 错误: {e}")
+            logger.error(f"删除数字员工失败: assistant_id={assistant_id}, 错误: {e}")
             raise
 
     @staticmethod
@@ -143,12 +143,12 @@ class AssistantRepository:
                 mas_config.REDIS_TTL,
                 msgpack.packb(assistant_data),
             )
-            logger.debug(f"更新租户缓存: {assistant_model.assistant_id}")
+            logger.debug(f"更新数字员工缓存: {assistant_model.assistant_id}")
         except RedisError as e:
             logger.error(f"redis 命令执行失败: {e}")
             raise
         except Exception as e:
-            logger.error(f"更新租户缓存失败: {assistant_model.assistant_id}, 错误: {e}")
+            logger.error(f"更新数字员工缓存失败: {assistant_model.assistant_id}, 错误: {e}")
             raise
 
     @staticmethod

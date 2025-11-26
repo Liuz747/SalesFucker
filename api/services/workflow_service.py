@@ -7,10 +7,11 @@ from uuid import UUID
 
 from fastapi import HTTPException
 
+from libs.types import AccountStatus
 from models import Thread
-from services.thread_service import ThreadService
-from services.assistant_service import AssistantService
 from utils import get_component_logger
+from .assistant_service import AssistantService
+from .thread_service import ThreadService
 
 logger = get_component_logger(__name__, "WorkflowService")
 
@@ -23,8 +24,8 @@ class WorkflowService:
     @staticmethod
     async def verify_workflow_permissions(
         tenant_id: str,
-        thread_id: UUID,
         assistant_id: UUID,
+        thread_id: UUID,
         use_cache: bool = True
     ) -> Thread:
         """
@@ -73,16 +74,16 @@ class WorkflowService:
                     detail=f"助理不存在: {assistant_id}"
                 )
 
-            # 3. 验证线程数字员工租户ID匹配
+            # 3. 验证线程、助理、租户ID三者匹配
             if not assistant.tenant_id == thread.tenant_id == tenant_id:
-                logger.warning(f"租户不匹配: thread_id={thread_id}")
+                logger.warning(f"租户、数字员工、线程不匹配: thread_id={thread_id}")
                 raise HTTPException(
                     status_code=403,
                     detail="租户ID不匹配，无法访问此线程"
                 )
 
-            # 验证助理状态
-            if not assistant.is_active:
+            # 4. 验证助理状态
+            if assistant.status != AccountStatus.ACTIVE:
                 logger.warning(f"助理已被禁用: assistant_id={assistant_id}")
                 raise HTTPException(
                     status_code=400,
