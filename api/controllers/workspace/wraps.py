@@ -16,6 +16,7 @@ from uuid import UUID
 from fastapi import HTTPException, Request, Path, Depends, Body
 
 from core.app.orchestrator import Orchestrator
+from libs.types import AccountStatus
 from models import Thread, TenantModel
 from services.tenant_service import TenantService
 from services.thread_service import ThreadService
@@ -51,7 +52,7 @@ async def validate_and_get_tenant(request: Request) -> Optional[TenantModel]:
                 }
             )
         
-        if not tenant.is_active:
+        if not tenant.status == AccountStatus.ACTIVE:
             raise HTTPException(
                 status_code=403,
                 detail={

@@ -11,14 +11,18 @@ AI员工管理API端点
 - DELETE /v1/assistants/{assistant_id} - 删除助理（软删除）
 """
 
+from typing import Annotated
 from uuid import UUID
-from fastapi import APIRouter, HTTPException, Query, status
 
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+
+from models import TenantModel
 from models.assistant import AssistantModel
 from schemas.assistants_schema import AssistantCreateRequest, AssistantUpdateRequest, AssistantDeleteResponse
 from schemas.exceptions import AssistantNotFoundException
 from services.assistant_service import AssistantService
 from utils import get_component_logger
+from ..wraps import validate_and_get_tenant
 
 logger = get_component_logger(__name__)
 
@@ -27,17 +31,22 @@ logger = get_component_logger(__name__)
 router = APIRouter()
 
 @router.post("/", response_model=AssistantModel, status_code=status.HTTP_201_CREATED)
-async def create_assistant(request: AssistantCreateRequest):
+async def create_assistant(
+    request: AssistantCreateRequest,
+    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)]
+):
     """
     创建新的AI员工
 
     创建一个新的AI员工，包括个性配置、专业领域设置和权限分配。
+
     return:
         AssistantModel
     """
     try:
-        logger.info(f"创建助理请求: tenant={request.tenant_id}")
+        logger.info(f"创建助理请求: tenant={tenant.tenant_id}")
 
+        # TODO: 添加更多tenant 和 Header 验证
         result = await AssistantService.create_assistant(request)
 
         logger.info(f"助理创建成功: {result.assistant_id}")
@@ -141,7 +150,11 @@ async def get_assistant(assistant_id: UUID):
 
 
 @router.put("/{assistant_id}", response_model=AssistantModel)
-async def update_assistant(assistant_id: UUID, request: AssistantUpdateRequest):
+async def update_assistant(
+    assistant_id: UUID,
+    request: AssistantUpdateRequest,
+    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)]
+):
     """
     更新助理信息
     
@@ -175,6 +188,7 @@ async def update_assistant(assistant_id: UUID, request: AssistantUpdateRequest):
 @router.delete("/{assistant_id}", response_model=AssistantDeleteResponse)
 async def delete_assistant(
     assistant_id: UUID,
+    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)],
     force: bool = Query(False, description="是否强制删除（即使有活跃对话）")
 ):
     """

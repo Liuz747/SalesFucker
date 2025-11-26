@@ -52,9 +52,11 @@ class TenantRepository:
         """更新租户数据库模型"""
         try:
             tenant.updated_at = func.now()
-            tenant = await session.merge(tenant)
-            logger.debug(f"更新租户: {tenant.tenant_id}")
-            return tenant
+            merged_tenant = await session.merge(tenant)
+            await session.flush()
+            await session.refresh(merged_tenant)
+            logger.debug(f"更新租户: {merged_tenant.tenant_id}")
+            return merged_tenant
         except Exception as e:
             logger.error(f"更新租户数据库模型失败: {tenant.tenant_id}, 错误: {e}")
             raise
@@ -86,6 +88,8 @@ class TenantRepository:
             tenant.is_active = False
             tenant.status = AccountStatus.CLOSED
             tenant.updated_at = func.now()
+            await session.flush()
+            await session.refresh(tenant)
             logger.debug(f"删除租户: {tenant_id}")
 
             return tenant
