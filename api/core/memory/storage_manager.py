@@ -17,6 +17,7 @@ from uuid import UUID
 
 from config import mas_config
 from libs.types import MessageParams, Message
+from libs.types.memory import MemoryType
 from utils import get_component_logger, get_current_datetime
 from .conversation_store import ConversationStore
 from .elasticsearch_index import ElasticsearchIndex
@@ -115,6 +116,80 @@ class StorageManager:
             metadata=metadata
         )
 
+    async def add_offline_report(
+        self,
+        tenant_id: str,
+        thread_id: UUID,
+        content: str,
+        tags: Optional[list[str]] = None,
+        metadata: Optional[dict[str, Any]] = None
+    ) -> str:
+        """
+        存储用户线下报告到长期记忆
+
+        Args:
+            tenant_id: 租户标识
+            thread_id: 对话线程ID
+            content: 线下报告内容
+            tags: 可选的标签列表
+            metadata: 可选的元数据字典
+
+        Returns:
+            str: 存储的记录ID
+        """
+        # 默认标签
+        report_tags = ["offline_report"]
+        if tags:
+            report_tags.extend(tags)
+
+        return await self.elasticsearch_index.store_memory(
+            tenant_id=tenant_id,
+            thread_id=thread_id,
+            content=content,
+            memory_type=MemoryType.OFFLINE_REPORT,
+            tags=report_tags,
+            metadata=metadata,
+            importance_score=1.0,  # 线下报告通常很重要
+            expires_at=None        # 永久保存
+        )
+
+    async def add_moments_interaction(
+        self,
+        tenant_id: str,
+        thread_id: UUID,
+        content: str,
+        tags: Optional[list[str]] = None,
+        metadata: Optional[dict[str, Any]] = None
+    ) -> str:
+        """
+        存储朋友圈互动记录到长期记忆
+
+        Args:
+            tenant_id: 租户标识
+            thread_id: 对话线程ID
+            content: 互动内容
+            tags: 可选的标签列表
+            metadata: 可选的元数据字典
+
+        Returns:
+            str: 存储的记录ID
+        """
+        # 默认标签
+        interaction_tags = ["moments_interaction"]
+        if tags:
+            interaction_tags.extend(tags)
+
+        return await self.elasticsearch_index.store_memory(
+            tenant_id=tenant_id,
+            thread_id=thread_id,
+            content=content,
+            memory_type=MemoryType.MOMENTS_INTERACTION,
+            tags=interaction_tags,
+            metadata=metadata,
+            importance_score=0.8,  # 互动记录相对重要
+            expires_at=None        # 永久保存
+        )
+
     async def save_assistant_message(self, tenant_id: str, thread_id: UUID, message: str):
         """
         存储助手消息到短期记忆并检查是否需要摘要转换
@@ -167,7 +242,7 @@ class StorageManager:
                 tenant_id=tenant_id,
                 thread_id=thread_id,
                 content=summary_content,
-                memory_type="long_term",
+                memory_type=MemoryType.LONG_TERM,
                 expires_at=get_current_datetime() + timedelta(days=mas_config.ES_MEMORY_TTL_DAYS),
                 tags=["conversation_summary"]
             )

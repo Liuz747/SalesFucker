@@ -9,13 +9,14 @@ Hybrid Memory System - Elasticsearch索引管理
 - 时间范围查询和TTL管理
 """
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any, Optional, Union
 from uuid import UUID
 
 from elasticsearch import AsyncElasticsearch, NotFoundError
 
 from config import mas_config
 from libs.factory import infra_registry
+from libs.types.memory import MemoryType
 from utils import get_component_logger, to_isoformat
 
 logger = get_component_logger(__name__)
@@ -44,29 +45,31 @@ class ElasticsearchIndex:
         return self._es_client
 
     # --------------------------------------------------------------------
-    # Insert summary entry
+    # Unified Memory Storage
     # --------------------------------------------------------------------
-    async def store_summary(
+    async def store_memory(
         self,
         tenant_id: str,
         thread_id: UUID,
         content: str,
-        memory_type: str = "long_term",
+        memory_type: Union[MemoryType, str],
         expires_at: Optional[datetime] = None,
         tags: Optional[list[str]] = None,
         metadata: Optional[dict[str, Any]] = None,
+        importance_score: Optional[float] = None,
     ) -> str:
         """
-        向Elasticsearch插入摘要文档
+        统一的记忆存储方法
 
         Args:
             tenant_id: 租户ID
             thread_id: 对话线程ID
             content: 记忆内容
-            memory_type: 记忆类型，默认为"long_term"
+            memory_type: 记忆类型 (MemoryType enum or str)
             expires_at: 过期时间（可选）
             tags: 标签列表（可选）
             metadata: 元数据字典（可选）
+            importance_score: 重要性评分（可选）
 
         Returns:
             str: 文档ID
@@ -81,7 +84,7 @@ class ElasticsearchIndex:
             "expires_at": to_isoformat(expires_at) if expires_at else None,
             "tags": tags or [],
             "entities": {},
-            "importance_score": None,
+            "importance_score": importance_score,
             "access_count": 0,
             "metadata": metadata or {},
         }
@@ -89,12 +92,38 @@ class ElasticsearchIndex:
         try:
             result = await self.client.index(index=self.index_name, document=doc)
             doc_id = result["_id"]
-            logger.debug(f"[ElasticsearchIndex] Created summary doc: {doc_id}")
+            logger.debug(f"[ElasticsearchIndex] Created memory doc ({memory_type}): {doc_id}")
             return doc_id
 
         except Exception as e:
-            logger.exception(f"[ElasticsearchIndex] Failed to store summary: {e}")
+            logger.exception(f"[ElasticsearchIndex] Failed to store memory ({memory_type}): {e}")
             raise
+
+    # --------------------------------------------------------------------
+    # Legacy / Convenience Wrappers
+    # --------------------------------------------------------------------
+    async def store_summary(
+        self,
+        tenant_id: str,
+        thread_id: UUID,
+        content: str,
+        memory_type: str = MemoryType.LONG_TERM,
+        expires_at: Optional[datetime] = None,
+        tags: Optional[list[str]] = None,
+        metadata: Optional[dict[str, Any]] = None,
+    ) -> str:
+        """
+        向Elasticsearch插入摘要文档 (Wrapper for store_memory)
+        """
+        return await self.store_memory(
+            tenant_id=tenant_id,
+            thread_id=thread_id,
+            content=content,
+            memory_type=memory_type,
+            expires_at=expires_at,
+            tags=tags,
+            metadata=metadata,
+        )
 
     async def store_episodic_memory(
         self,
@@ -105,43 +134,18 @@ class ElasticsearchIndex:
         metadata: Optional[dict[str, Any]] = None,
     ) -> str:
         """
-        向Elasticsearch插入短记忆文档
-
-        Args:
-            tenant_id: 租户ID
-            thread_id: 对话线程ID
-            content: 记忆内容
-            tags: 标签列表（可选）
-            metadata: 元数据字典（可选）
-
-        Returns:
-            str: 文档ID
+        向Elasticsearch插入短记忆文档 (Wrapper for store_memory)
         """
-
-        doc = {
-            "tenant_id": tenant_id,
-            "thread_id": str(thread_id),
-            "content": content,
-            "memory_type": "episodic",
-            "created_at": to_isoformat(),
-            "tags": tags or [],
-            "entities": {},
-            "metadata": metadata or {},
-            "access_count": 0,
-            "importance_score": 0.9,
-            "last_accessed_at": None,
-            "expires_at": None,
-        }
-
-        try:
-            result = await self.client.index(index=self.index_name, document=doc)
-            doc_id = result["_id"]
-            logger.debug(f"[ElasticsearchIndex] Created episodic summary doc: {doc_id}")
-            return doc_id
-
-        except Exception as e:
-            logger.exception(f"[ElasticsearchIndex] Failed to store summary: {e}")
-            raise
+        return await self.store_memory(
+            tenant_id=tenant_id,
+            thread_id=thread_id,
+            content=content,
+            memory_type=MemoryType.EPISODIC,
+            tags=tags,
+            metadata=metadata,
+            importance_score=0.9,
+            expires_at=None
+        )
 
     # --------------------------------------------------------------------
     # 按 thread 获取摘要列表
@@ -151,7 +155,7 @@ class ElasticsearchIndex:
         tenant_id: str,
         thread_id: UUID,
         limit: int = 20,
-        memory_type: str = "long_term",
+        memory_type: str = MemoryType.LONG_TERM,
     ) -> list[dict]:
         """
         获取指定对话线程的所有摘要
