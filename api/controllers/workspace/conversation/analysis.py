@@ -50,22 +50,23 @@ async def generate_thread_labels(
     """
     生成用户标签 (Labels)
     
-    返回示例: ["价格敏感", "油性皮肤", "急需"]
+    返回包含 label_result, label_tokens, error_message 的 JSON 对象。
     """
     try:
-        labels = await LabelService.generate_user_labels(
+        result = await LabelService.generate_user_labels(
             tenant_id=tenant.tenant_id,
             thread_id=thread_id
         )
         
-        return {
-            "thread_id": thread_id,
-            "labels": labels
-        }
+        return result
 
     except Exception as e:
         logger.error(f"API生成标签失败: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        return {
+            "label_result": [],
+            "label_tokens": 0,
+            "error_message": str(e)
+        }
 
 @router.post("/{thread_id}/profile")
 async def generate_thread_profile(
