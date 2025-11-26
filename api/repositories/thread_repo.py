@@ -60,6 +60,9 @@ class ThreadRepository:
         """创建线程数据库模型"""
         try:
             session.add(thread)
+            # 刷新以获取数据库生成的值（如 thread_id, created_at, updated_at）
+            await session.flush()
+            await session.refresh(thread)
             return thread
         except Exception as e:
             logger.error(f"创建线程数据库模型失败: {thread.thread_id}, 错误: {e}")
@@ -71,7 +74,11 @@ class ThreadRepository:
         try:
             thread.updated_at = func.now()
             logger.debug(f"更新线程: {thread.thread_id}")
-            return await session.merge(thread)
+            merged_thread = await session.merge(thread)
+            # 刷新以获取数据库生成的值（如 updated_at）
+            await session.flush()
+            await session.refresh(merged_thread)
+            return merged_thread
         except Exception as e:
             logger.error(f"更新线程数据库模型失败: {thread.thread_id}, 错误: {e}")
             raise
@@ -118,7 +125,7 @@ class ThreadRepository:
     async def update_thread_cache(thread_model: Thread, redis_client: Redis):
         """更新线程缓存"""
         try:
-            redis_key = f"thread:{thread_model.thread_id}"
+            redis_key = f"thread:{str(thread_model.thread_id)}"
             thread_data = thread_model.model_dump(mode='json')
 
             await redis_client.setex(

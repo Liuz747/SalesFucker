@@ -1,5 +1,5 @@
 from enum import StrEnum
-from typing import Sequence, TypeAlias
+from typing import Any, Optional, Sequence, TypeAlias
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -11,6 +11,15 @@ class InputType(StrEnum):
     IMAGE = "input_image"
     VIDEO = "input_video"
     FILES = "input_files"
+
+
+class OutputType(StrEnum):
+    """输出类型枚举"""
+    TEXT = "text"
+    AUDIO = "output_audio"
+    IMAGE = "output_image"
+    VIDEO = "output_video"
+    FILE = "output_file"
 
 
 class InputContent(BaseModel):
@@ -30,4 +39,24 @@ class InputContent(BaseModel):
         return v
 
 
+class OutputContent(BaseModel):
+    """通用输出内容模型（支持多模态输出）"""
+
+    type: OutputType = Field(description="输出内容类型")
+    url: str = Field(description="生成内容的URL")
+    metadata: Optional[dict[str, Any]] = Field(
+        default=None,
+        description="内容元数据（格式、时长、尺寸、语言等）"
+    )
+
+    @field_validator('url')
+    @classmethod
+    def validate_url(cls, v: str) -> str:
+        """验证URL格式"""
+        if not v.startswith(('http://', 'https://')):
+            raise ValueError(f"无效的URL格式: {v}")
+        return v
+
+
 InputContentParams: TypeAlias = str | Sequence[InputContent]
+OutputContentParams: TypeAlias = Sequence[OutputContent]

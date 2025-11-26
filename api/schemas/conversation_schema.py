@@ -35,9 +35,9 @@ class ThreadCreateRequest(BaseModel):
 class MessageCreateRequest(BaseModel):
     """消息创建请求模型"""
 
+    tenant_id: str = Field(description="租户标识符")
     assistant_id: UUID = Field(description="助手标识符")
     input: InputContentParams = Field(description="纯文本输入或多模态内容列表")
-    metadata: Optional[ThreadMetadata] = Field(None, description="线程元数据")
 
 
 class CallbackPayload(BaseModel):

@@ -10,6 +10,7 @@
 
 from fastapi import APIRouter
 
+from libs.types import AccountStatus
 from schemas.tenant_schema import (
     TenantSyncRequest,
     TenantSyncResponse,
@@ -146,6 +147,7 @@ async def delete_tenant(tenant_id: str):
 
         return TenantDeleteResponse(
             tenant_id=tenant_id,
+            status=AccountStatus.CLOSED,
             message="租户删除成功"
         )
 

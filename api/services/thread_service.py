@@ -38,8 +38,6 @@ class ThreadService:
         
         参数:
             thread: 线程业务模型
-        
-        性能目标: < 5ms 响应时间
         """
         try:
             thread_orm = thread.to_orm()

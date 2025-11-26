@@ -6,24 +6,23 @@ AI员工管理API端点
 
 主要端点:
 - POST /v1/assistants - 创建助理
-- GET /v1/assistants - 获取助理列表  
 - GET /v1/assistants/{assistant_id} - 获取助理详情
 - PUT /v1/assistants/{assistant_id} - 更新助理
-- POST /v1/assistants/{assistant_id}/config - 配置助理
-- GET /v1/assistants/{assistant_id}/stats - 获取助理统计
+- DELETE /v1/assistants/{assistant_id} - 删除助理（软删除）
 """
 
-from fastapi import APIRouter, HTTPException, Query, status
-from typing import Optional
+from typing import Annotated
+from uuid import UUID
 
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+
+from models import TenantModel
+from models.assistant import AssistantModel
+from schemas.assistants_schema import AssistantCreateRequest, AssistantUpdateRequest, AssistantDeleteResponse
 from schemas.exceptions import AssistantNotFoundException
-from schemas.assistants_schema import (
-    AssistantCreateRequest, AssistantUpdateRequest, AssistantOperationResponse, AssistantDeleteResponse
-)
-from schemas.tmp_schema import SimpleResponse
 from services.assistant_service import AssistantService
 from utils import get_component_logger
-from models.assistant import AssistantModel
+from ..wraps import validate_and_get_tenant
 
 logger = get_component_logger(__name__)
 
@@ -32,21 +31,31 @@ logger = get_component_logger(__name__)
 router = APIRouter()
 
 @router.post("/", response_model=AssistantModel, status_code=status.HTTP_201_CREATED)
-async def create_assistant(request: AssistantCreateRequest) -> AssistantModel:
+async def create_assistant(
+    request: AssistantCreateRequest,
+    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)]
+):
     """
     创建新的AI员工
-    
+
     创建一个新的AI员工，包括个性配置、专业领域设置和权限分配。
+
+    return:
+        AssistantModel
     """
     try:
-        logger.info(f"创建助理请求: tenant={request.tenant_id}, assistant={request.assistant_id}")
+        logger.info(f"创建助理请求: tenant={tenant.tenant_id}")
 
-        assistant_service = AssistantService()
-        result = await assistant_service.create_assistant(
-            request
-        )
+        # 验证租户ID匹配
+        if request.tenant_id != tenant.tenant_id:
+            raise HTTPException(
+                status_code=403,
+                detail="租户ID不匹配，无法访问"
+            )
 
-        logger.info(f"助理创建成功: {request.assistant_id}")
+        result = await AssistantService.create_assistant(request)
+
+        logger.info(f"助理创建成功: {result.assistant_id}")
         return result
 
     except ValueError as e:
@@ -55,6 +64,8 @@ async def create_assistant(request: AssistantCreateRequest) -> AssistantModel:
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
+    except HTTPException as e:
+        raise
     except Exception as e:
         logger.error(f"助理创建失败: {e}")
         raise HTTPException(
@@ -68,9 +79,9 @@ async def create_assistant(request: AssistantCreateRequest) -> AssistantModel:
 async def list_assistants(
         tenant_id: str = Query(..., description="租户标识符"),
         status: Optional[AssistantStatus] = Query(None, description="助理状态筛选"),
-        personality_type: Optional[str] = Query(None, description="个性类型筛选"),
-        expertise_level: Optional[str] = Query(None, description="专业等级筛选"),
-        specialization: Optional[str] = Query(None, description="专业领域筛选"),
+        personality: Optional[str] = Query(None, description="个性类型筛选"),
+        occupation: Optional[str] = Query(None, description="数字员工职业"),
+        industry: Optional[str] = Query(None, description="专业领域筛选"),
         search: Optional[str] = Query(None, description="搜索关键词"),
         sort_by: str = Query("created_at", description="排序字段"),
         sort_order: str = Query("desc", description="排序方向"),
@@ -91,9 +102,9 @@ async def list_assistants(
         list_request = AssistantListRequest(
             tenant_id=tenant_id,
             status=status,
-            personality_type=personality_type,
-            expertise_level=expertise_level,
-            specialization=specialization,
+            personality=personality,
+            occupation=occupation,
+            industry=industry,
             search=search,
             sort_by=sort_by,
             sort_order=sort_order,
@@ -117,33 +128,24 @@ async def list_assistants(
 """
 
 
-@router.get("/{assistant_id}", response_model=Optional[SimpleResponse[AssistantModel]])
-async def get_assistant(
-    assistant_id: str,
-) -> Optional[SimpleResponse[AssistantModel]]:
+@router.get("/{assistant_id}", response_model=AssistantModel)
+async def get_assistant(assistant_id: UUID):
     """
     获取助理详细信息
     
-    根据助理ID获取完整的助理信息，包括配置和可选的统计数据。
+    根据助理ID获取完整的助理信息。
     """
     try:
         logger.info(f"查询助理详情: assistant={assistant_id}")
 
-        assistant_service = AssistantService()
-        result = await assistant_service.get_assistant_by_id(
-            assistant_id
-        )
+        result = await AssistantService.get_assistant_by_id(assistant_id)
 
         if not result:
             logger.warning(f"助理不存在: {assistant_id}")
             raise AssistantNotFoundException(assistant_id)
 
         logger.info(f"助理详情查询成功: {assistant_id} {type(result)}")
-        return SimpleResponse[AssistantModel](
-            code=0,
-            message="success",
-            data=result,
-        )
+        return result
 
     except AssistantNotFoundException:
         raise
@@ -155,11 +157,12 @@ async def get_assistant(
         )
 
 
-@router.put("/{assistant_id}", response_model=SimpleResponse[AssistantModel])
+@router.put("/{assistant_id}", response_model=AssistantModel)
 async def update_assistant(
-    assistant_id: str,
-    request: AssistantUpdateRequest = None
-) -> Optional[SimpleResponse[AssistantModel]]:
+    assistant_id: UUID,
+    request: AssistantUpdateRequest,
+    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)]
+):
     """
     更新助理信息
     
@@ -168,22 +171,20 @@ async def update_assistant(
     try:
         logger.info(f"更新助理请求: assistant={assistant_id}")
 
-        assistant_service = AssistantService()
-        result = await assistant_service.update_assistant(
-            assistant_id,  request
-        )
+        # 验证租户ID匹配
+        if request.tenant_id != tenant.tenant_id:
+            raise HTTPException(
+                status_code=403,
+                detail="租户ID不匹配，无法访问"
+            )
+
+        result = await AssistantService.update_assistant(assistant_id, request)
 
         if not result:
             raise AssistantNotFoundException(assistant_id)
         logger.info(f"助理更新成功: {assistant_id}")
-        return SimpleResponse[AssistantModel](
-            content=0,
-            message="success",
-            data=result
-        )
+        return result
     except AssistantNotFoundException:
-        raise
-    except HTTPException:
         raise
     except ValueError as e:
         logger.warning(f"助理更新参数错误: {e}")
@@ -191,6 +192,8 @@ async def update_assistant(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(e)
         )
+    except HTTPException as e:
+        raise
     except Exception as e:
         logger.error(f"助理更新失败: {e}")
         raise HTTPException(
@@ -201,10 +204,10 @@ async def update_assistant(
 
 @router.delete("/{assistant_id}", response_model=AssistantDeleteResponse)
 async def delete_assistant(
-        assistant_id: str,
-        # tenant_id: str = Query(..., description="租户标识符"),
-        force: bool = Query(False, description="是否强制删除（即使有活跃对话）")
-) -> AssistantDeleteResponse:
+    assistant_id: UUID,
+    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)],
+    force: bool = Query(False, description="是否强制删除（即使有活跃对话）")
+):
     """
     删除助理
     
@@ -213,23 +216,10 @@ async def delete_assistant(
     try:
         logger.info(f"删除助理请求: assistant={assistant_id}, force={force}")
 
-        assistant_service = AssistantService()
-        is_delete = await assistant_service.delete_assistant(assistant_id, force)
-
-        # if not result:
-        #     logger.warning(f"助理删除失败: {assistant_id}")
-        #     raise HTTPException(
-        #         status_code=status.HTTP_400_BAD_REQUEST,
-        #         detail=result.result_data.get("error", "助理删除失败")
-        #     )
+        is_delete = await AssistantService.delete_assistant(assistant_id, force)
 
         logger.info(f"助理删除成功: {assistant_id}")
-        return AssistantDeleteResponse(
-            is_delete=is_delete
-        )
-
-    except HTTPException:
-        raise
+        return AssistantDeleteResponse(is_delete=is_delete)
     except Exception as e:
         logger.error(f"助理删除失败: {e}")
         raise HTTPException(

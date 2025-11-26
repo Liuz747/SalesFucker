@@ -60,7 +60,7 @@ class PromptsModel(BaseModel):
 
     brand_voice: Optional[str] = Field(default=None, description="品牌声音定义 - 品牌特色和价值观")
     product_knowledge: Optional[str] = Field(default=None, description="产品知识要点 - 重点产品信息和卖点")
-    version: int = Field(default="1758731200000", description="配置版本")
+    version: int = Field(default=1758731200000, description="配置版本")
     is_enable: Optional[bool] = Field(default=None, description="提示词是否启用")
     is_active: Optional[bool] = Field(default=None, description="数据是否软删")
     created_at: datetime = Field(description="创建时间")

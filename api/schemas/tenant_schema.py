@@ -2,16 +2,14 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from models.enums import TenantStatus
+from libs.types import AccountStatus
 from schemas.responses import BaseResponse
 
 
 class BaseTenant(BaseModel):
     tenant_id: str = Field(description="租户ID")
     tenant_name: Optional[str] = Field(None, description="租户名称")
-    status: TenantStatus = Field(default=TenantStatus.ACTIVE, description="租户状态")
-
-
+    status: AccountStatus = Field(default=AccountStatus.ACTIVE, description="租户状态")
 
 
 class FeatureFlags(BaseModel):
@@ -34,7 +32,7 @@ class TenantSyncRequest(BaseTenant):
 
 class TenantUpdateRequest(BaseModel):
     features: Optional[FeatureFlags] = Field(None, description="功能列表")
-    status: Optional[TenantStatus] = Field(None, description="租户状态")
+    status: Optional[AccountStatus] = Field(None, description="租户状态")
 
 
 class TenantSyncResponse(BaseResponse, BaseTenant):

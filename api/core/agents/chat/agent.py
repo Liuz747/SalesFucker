@@ -5,7 +5,7 @@ from langfuse import observe
 from core.entities import WorkflowExecutionModel
 from core.memory import StorageManager
 from infra.runtimes import CompletionsRequest
-from libs.types import Message
+from libs.types import Message, InputContent, InputType, OutputType
 from utils import get_current_datetime, get_processing_time_ms
 from ..base import BaseAgent
 
@@ -58,6 +58,10 @@ class ChatAgent(BaseAgent):
                 messages=[Message(role="user", content=state.input)],
             )
 
+            # 检测多模态输入
+            input_types = self._detect_input_types(state.input)
+            has_audio_input = InputType.AUDIO in input_types
+
             # 准备聊天提示词
             user_text = self._input_to_text(state.input)
 
@@ -67,7 +71,12 @@ class ChatAgent(BaseAgent):
                 query_text=user_text,
             )
 
-            system_prompt = self._build_system_prompt(self.chat_prompt, long_term_memories)
+            # 构建系统提示词（包含多模态信息）
+            system_prompt = self._build_system_prompt(
+                self.chat_prompt,
+                long_term_memories,
+                input_types
+            )
             llm_messages = [Message(role="system", content=system_prompt)]
             llm_messages.extend(short_term_messages)
 
@@ -103,13 +112,20 @@ class ChatAgent(BaseAgent):
 
             self.logger.info(f"ChatAgent处理完成，耗时: {processing_time:.2f}ms")
             self.logger.info(f"ChatAgent处理完成，返回值: {updated_value}")
-            
-            # 返回状态更新字典
-            return {
+
+            # 构建返回状态
+            result = {
                 "output": chat_response.content,
                 "finished_at": get_current_datetime(),
                 "values": updated_value
             }
+
+            # 如果用户输入包含音频，自动请求TTS输出
+            if has_audio_input:
+                result["actions"] = [OutputType.AUDIO]
+                self.logger.info("检测到音频输入，已请求TTS输出")
+
+            return result
 
         except Exception as e:
             self.logger.error(f"ChatAgent处理失败: {e}", exc_info=True)
@@ -141,19 +157,69 @@ class ChatAgent(BaseAgent):
             return "\n".join(parts)
         return str(content)
 
-    def _build_system_prompt(self, base_prompt: str, summaries: list[dict]) -> str:
-        if not summaries:
-            return base_prompt
+    def _detect_input_types(self, content) -> set[InputType]:
+        """
+        检测输入内容的类型
 
-        lines: list[str] = []
-        for idx, summary in enumerate(summaries, 1):
-            content = summary.get("content") or ""
-            tags = summary.get("tags") or []
-            tag_display = (
-                f" (标签: {', '.join(str(tag) for tag in tags)})"
-                if tags
-                else ""
-            )
-            lines.append(f"{idx}. {content}{tag_display}")
+        Args:
+            content: 输入内容（字符串或InputContent列表）
 
-        return f"{base_prompt}\n\n以下长期记忆可帮助回答用户问题：\n" + "\n".join(lines)
+        Returns:
+            set[InputType]: 检测到的输入类型集合
+        """
+        if isinstance(content, str):
+            return {InputType.TEXT}
+        if isinstance(content, Sequence):
+            return {
+                item.type if isinstance(item, InputContent) else InputType.TEXT
+                for item in content
+            }
+        return {InputType.TEXT}
+
+    def _build_system_prompt(
+        self,
+        base_prompt: str,
+        summaries: list[dict],
+        input_types: set[InputType] | None = None
+    ) -> str:
+        """
+        构建系统提示词
+
+        Args:
+            base_prompt: 基础提示词
+            summaries: 长期记忆摘要列表
+            input_types: 输入类型集合（用于多模态提示）
+
+        Returns:
+            str: 完整的系统提示词
+        """
+        prompt_parts = [base_prompt]
+
+        # 添加多模态输入信息
+        if input_types and len(input_types) > 1:
+            type_names = {
+                InputType.AUDIO: "音频",
+                InputType.IMAGE: "图像",
+                InputType.VIDEO: "视频",
+                InputType.FILES: "文件"
+            }
+            detected = [type_names[t] for t in input_types if t in type_names]
+            if detected:
+                prompt_parts.append(f"\n注意：用户输入包含多模态内容：{', '.join(detected)}。")
+
+        # 添加长期记忆
+        if summaries:
+            lines: list[str] = []
+            for idx, summary in enumerate(summaries, 1):
+                content = summary.get("content") or ""
+                tags = summary.get("tags") or []
+                tag_display = (
+                    f" (标签: {', '.join(str(tag) for tag in tags)})"
+                    if tags
+                    else ""
+                )
+                lines.append(f"{idx}. {content}{tag_display}")
+
+            prompt_parts.append("\n以下长期记忆可帮助回答用户问题：\n" + "\n".join(lines))
+
+        return "".join(prompt_parts)

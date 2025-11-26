@@ -7,46 +7,14 @@ AI员工管理相关数据模型
 核心模型:
 - AssistantCreateRequest: 创建助理请求
 - AssistantUpdateRequest: 更新助理请求
-- AssistantConfigRequest: 助理配置请求
-- AssistantResponse: 助理响应
-- AssistantListResponse: 助理列表响应
+- AssistantDeleteResponse: 删除助理响应
 """
 
-from datetime import datetime
-from enum import Enum
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
-from .prompts_schema import AssistantPromptConfig
-
-
-class AssistantStatus(str, Enum):
-    """助理状态枚举"""
-
-    ACTIVE = "active"
-    INACTIVE = "inactive"
-    SUSPENDED = "suspended"
-    TRAINING = "training"
-
-
-class PersonalityType(str, Enum):
-    """助理个性类型枚举"""
-
-    PROFESSIONAL = "professional"  # 专业型
-    FRIENDLY = "friendly"  # 友好型
-    CONSULTATIVE = "consultative"  # 咨询型
-    ENTHUSIASTIC = "enthusiastic"  # 热情型
-    GENTLE = "gentle"  # 温和型
-
-
-class ExpertiseLevel(str, Enum):
-    """专业等级枚举"""
-
-    JUNIOR = "junior"  # 初级
-    INTERMEDIATE = "intermediate"  # 中级
-    SENIOR = "senior"  # 高级
-    EXPERT = "expert"  # 专家
+from libs.types import AccountStatus
 
 
 class AssistantCreateRequest(BaseModel):
@@ -56,54 +24,15 @@ class AssistantCreateRequest(BaseModel):
 
     tenant_id: str = Field(description="租户标识符", min_length=1, max_length=100)
     assistant_name: str = Field(description="助理姓名", min_length=1, max_length=100)
-    assistant_id: str = Field(
-        description="助理唯一标识符", min_length=1, max_length=100
-    )
-    # 助理配置
-    personality_type: PersonalityType = Field(
-        default=PersonalityType.PROFESSIONAL,
-        description="助理个性类型（可选，优先使用 prompt_config）",
-    )
-    expertise_level: ExpertiseLevel = Field(
-        default=ExpertiseLevel.INTERMEDIATE, description="专业等级"
-    )
-    # 提示词配置（新的核心配置）
-    prompt_config: Optional[AssistantPromptConfig] = Field(
-        None, description="智能体提示词配置 - 定义个性、行为和交互方式"
-    )
-    # 销售配置（保持向后兼容）
-    sales_style: Dict[str, Any] = Field(
-        default_factory=dict, description="销售风格配置（可选，建议使用prompt_config）"
-    )
-    voice_tone: Dict[str, Any] = Field(
-        default_factory=dict, description="语音语调配置（可选，建议使用prompt_config）"
-    )
-    # 专业领域
-    specializations: List[str] = Field(
-        default_factory=list, description="专业领域列表（如：护肤、彩妆、香水等）"
-    )
-    # 工作配置
-    working_hours: Dict[str, Any] = Field(
-        default_factory=dict, description="工作时间配置"
-    )
-    max_concurrent_customers: int = Field(
-        default=10, description="最大并发客户数", ge=1, le=100
-    )
-
-    # 权限配置
-    permissions: List[str] = Field(default_factory=list, description="助理权限列表")
-
-    # 个人资料
-    profile: Optional[Dict[str, Any]] = Field(None, description="助理个人资料信息")
-
-    @field_validator("assistant_id")
-    def validate_assistant_id(cls, v):
-        """验证助理ID格式"""
-        if not v or not v.strip():
-            raise ValueError("助理ID不能为空")
-        if " " in v:
-            raise ValueError("助理ID不能包含空格")
-        return v.strip().lower()
+    nickname: Optional[str] = Field(None, description="助理昵称", max_length=100)
+    address: Optional[str] = Field(None, description="助理地址", max_length=500)
+    sex: Optional[str] = Field(None, description="助理性别", max_length=32)
+    personality: str = Field(description="助理个性类型")
+    occupation: str = Field(description="数字员工职业")
+    voice_id: Optional[str] = Field(None, description="语音克隆配置，使用MiniMax模型")
+    voice_file: Optional[str] = Field(None, description="语音文件URL链接", max_length=1024)
+    industry: str = Field(description="数字员工所处的行业信息")
+    profile: Optional[dict[str, Any]] = Field(None, description="助理个人资料信息")
 
     @field_validator("assistant_name")
     def validate_assistant_name(cls, v):
@@ -112,217 +41,34 @@ class AssistantCreateRequest(BaseModel):
             raise ValueError("助理姓名不能为空")
         return v.strip()
 
+    @model_validator(mode='after')
+    def validate_voice_config(self):
+        """验证语音配置：voice_id 和 voice_file 至少需要提供一个"""
+        if self.voice_id is None and self.voice_file is None:
+            raise ValueError("voice_id 和 voice_file 至少需要提供一个")
+        return self
+
 
 class AssistantUpdateRequest(BaseModel):
     """
     更新AI员工请求模型
     """
-    assistant_name: Optional[str] = Field(
-        None, description="助理姓名", min_length=1, max_length=100
-    )
 
-    personality_type: Optional[PersonalityType] = Field(
-        None, description="助理个性类型"
-    )
-
-    expertise_level: Optional[ExpertiseLevel] = Field(None, description="专业等级")
-
-    # 提示词配置更新
-    prompt_config: Optional[AssistantPromptConfig] = Field(
-        None, description="智能体提示词配置更新"
-    )
-
-    sales_style: Optional[Dict[str, Any]] = Field(None, description="销售风格配置")
-
-    voice_tone: Optional[Dict[str, Any]] = Field(None, description="语音语调配置")
-
-    specializations: Optional[List[str]] = Field(None, description="专业领域列表")
-
-    working_hours: Optional[Dict[str, Any]] = Field(None, description="工作时间配置")
-
-    max_concurrent_customers: Optional[int] = Field(
-        None, description="最大并发客户数", ge=1, le=100
-    )
-
-    permissions: Optional[List[str]] = Field(None, description="助理权限列表")
-
-    profile: Optional[Dict[str, Any]] = Field(None, description="助理个人资料信息")
-
-    status: Optional[AssistantStatus] = Field(None, description="助理状态")
-
-
-class AssistantConfigRequest(BaseModel):
-    """
-    助理配置请求模型
-    """
-
-    tenant_id: str = Field(description="租户标识符", min_length=1, max_length=100)
-
-    config_type: str = Field(
-        description="配置类型",
-        pattern="^(sales_style|voice_tone|working_hours|permissions|specializations)$",
-    )
-
-    config_data: Dict[str, Any] = Field(description="配置数据")
-
-    merge_mode: bool = Field(
-        default=True, description="是否合并模式（True=合并，False=替换）"
-    )
-
-
-class AssistantListRequest(BaseModel):
-    """
-    助理列表查询请求模型
-    """
-
-    tenant_id: str = Field(description="租户ID")
-
-    # 筛选条件
-    status: Optional[AssistantStatus] = Field(None, description="助理状态")
-    personality_type: Optional[PersonalityType] = Field(None, description="个性类型")
-    expertise_level: Optional[ExpertiseLevel] = Field(None, description="专业等级")
-    specialization: Optional[str] = Field(None, description="专业领域筛选")
-
-    # 搜索
-    search: Optional[str] = Field(
-        None, description="搜索关键词（姓名、ID）", max_length=100
-    )
-
-    # 排序
-    sort_by: str = Field(
-        default="created_at",
-        description="排序字段",
-        pattern="^(created_at|assistant_name|expertise_level|status)$",
-    )
-
-    sort_order: str = Field(
-        default="desc", description="排序方向", pattern="^(asc|desc)$"
-    )
-
-    # 分页参数继承自BaseRequest
-    include_stats: bool = Field(False, description="是否包含统计信息")
-    include_config: bool = Field(False, description="是否包含详细配置")
+    tenant_id: str = Field(description="租户标识符")
+    assistant_name: Optional[str] = Field(None, description="助理姓名", min_length=1, max_length=100)
+    nickname: Optional[str] = Field(None, description="助理昵称", max_length=100)
+    address: Optional[str] = Field(None, description="助理地址", max_length=500)
+    sex: Optional[str] = Field(None, description="助理性别", max_length=32)
+    personality: Optional[str] = Field(None, description="助理个性类型")
+    occupation: Optional[str] = Field(None, description="数字员工职业")
+    voice_id: Optional[str] = Field(None, description="语音克隆配置")
+    voice_file: Optional[str] = Field(None, description="语音文件URL链接", max_length=1024)
+    industry: Optional[str] = Field(None, description="数字员工所在行业信息")
+    profile: Optional[dict[str, Any]] = Field(None, description="助理个人资料信息")
+    status: Optional[AccountStatus] = Field(None, description="助理状态")
 
 
 # 响应模型
-
-
-class AssistantResponse(BaseModel):
-    """
-    AI员工响应模型
-    """
-
-    assistant_id: str = Field(description="助理ID")
-    assistant_name: str = Field(description="助理姓名")
-    tenant_id: str = Field(description="租户ID")
-
-    # 基本信息
-    status: AssistantStatus = Field(description="助理状态")
-    personality_type: PersonalityType = Field(description="个性类型")
-    expertise_level: ExpertiseLevel = Field(description="专业等级")
-
-    # 配置信息
-    sales_style: Dict[str, Any] = Field(
-        default_factory=dict, description="销售风格配置"
-    )
-
-    voice_tone: Dict[str, Any] = Field(default_factory=dict, description="语音语调配置")
-
-    specializations: List[str] = Field(default_factory=list, description="专业领域列表")
-
-    working_hours: Dict[str, Any] = Field(
-        default_factory=dict, description="工作时间配置"
-    )
-
-    max_concurrent_customers: int = Field(description="最大并发客户数")
-
-    permissions: List[str] = Field(default_factory=list, description="助理权限列表")
-
-    # 统计信息
-    current_customers: Optional[int] = Field(None, description="当前服务客户数")
-    total_conversations: Optional[int] = Field(None, description="总对话数")
-    average_rating: Optional[float] = Field(None, description="平均评分")
-
-    # 时间信息
-    created_at: datetime = Field(description="创建时间")
-    updated_at: datetime = Field(description="更新时间")
-    last_active_at: Optional[datetime] = Field(None, description="最后活跃时间")
-
-    # 设备信息
-    registered_devices: Optional[List[str]] = Field(
-        None, description="已注册设备ID列表"
-    )
-
-
-class AssistantListResponse(BaseModel):
-    """
-    助理列表响应模型
-    """
-
-    assistants: List[Dict[str, Any]] = Field(description="助理列表")
-
-    # 聚合统计
-    total_assistants: int = Field(description="总助理数")
-    active_assistants: int = Field(description="活跃助理数")
-
-    # 统计摘要
-    status_distribution: Dict[str, int] = Field(description="状态分布")
-    expertise_distribution: Dict[str, int] = Field(description="专业等级分布")
-
-    # 过滤统计
-    filter_summary: Dict[str, int] = Field(description="过滤条件统计")
-
-
-class AssistantStatsResponse(BaseModel):
-    """
-    助理统计响应模型
-    """
-
-    assistant_id: str = Field(description="助理ID")
-
-    # 基础统计
-    total_conversations: int = Field(description="总对话数")
-    total_customers: int = Field(description="总客户数")
-    active_conversations: int = Field(description="活跃对话数")
-
-    # 性能指标
-    average_response_time: float = Field(description="平均响应时间（秒）")
-    customer_satisfaction: float = Field(description="客户满意度")
-    conversion_rate: float = Field(description="转化率")
-
-    # 时间分布
-    activity_by_hour: Dict[str, int] = Field(description="按小时活动分布")
-    activity_by_day: Dict[str, int] = Field(description="按日活动分布")
-
-    # 设备统计
-    device_usage: Dict[str, Dict[str, Any]] = Field(description="设备使用统计")
-
-    # 趋势数据
-    trends: Dict[str, List[float]] = Field(description="趋势数据")
-
-
-class AssistantOperationResponse(BaseModel):
-    """
-    助理操作响应模型
-    """
-
-    assistant_id: str = Field(description="助理ID")
-    operation: str = Field(description="执行的操作")
-    success: bool = Field(description="操作是否成功")
-
-    # 操作结果
-    result_data: Optional[Dict[str, Any]] = Field(None, description="操作结果数据")
-
-    # 状态变更
-    previous_status: Optional[str] = Field(None, description="操作前状态")
-    new_status: Optional[str] = Field(None, description="操作后状态")
-
-    # 影响统计
-    affected_conversations: Optional[int] = Field(None, description="受影响的对话数")
-
-    affected_devices: Optional[int] = Field(None, description="受影响的设备数")
-
-
 class AssistantDeleteResponse(BaseModel):
     """
     删除助理响应模型

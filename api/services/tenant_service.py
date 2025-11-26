@@ -18,7 +18,7 @@ from sqlalchemy.exc import IntegrityError
 
 from infra.db import database_session
 from infra.cache import get_redis_client
-from repositories.tenant_repo import TenantRepository, TenantModel, TenantStatus
+from repositories.tenant_repo import TenantRepository, TenantModel, AccountStatus
 from schemas.exceptions import TenantNotFoundException, TenantAlreadyExistsException
 from utils import get_component_logger
 
@@ -107,7 +107,7 @@ class TenantService:
     async def update_tenant(
         tenant_id: str,
         features: Optional[dict[str, bool]] = None,
-        tenant_status: Optional[TenantStatus] = None
+        tenant_status: Optional[AccountStatus] = None
     ) -> TenantModel:
         """更新租户"""
         try:
