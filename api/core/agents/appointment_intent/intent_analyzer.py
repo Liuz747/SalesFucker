@@ -38,7 +38,8 @@ class AppointmentIntentAnalyzer:
         self.invoke_llm = invoke_llm_fn
 
         # 邀约意向分析提示词
-        self.analysis_prompt = """你是一个专业的客户邀约意向分析专家，专门分析美妆/医美行业客户的到店意向。
+        self.analysis_prompt = """
+        你是一个专业的客户邀约意向分析专家，专门客户的的到店意向。
 
 请基于提供的用户对话内容，分析用户是否有到店咨询或体验的意向。
 

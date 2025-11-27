@@ -15,6 +15,8 @@ from langgraph.graph import StateGraph, START, END
 from core.agents.base import BaseAgent
 from core.entities import WorkflowExecutionModel, WorkflowState
 from utils import get_component_logger
+from utils.llm_debug_wrapper import LLMDebugWrapper
+from config import mas_config
 from libs.constants import AgentNodes
 from .base_workflow import BaseWorkflow
 
@@ -61,8 +63,22 @@ class ChatWorkflow(BaseWorkflow):
         """
         self.agents = agents
         self.enable_parallel = ENABLE_PARALLEL_EXECUTION
+        
+        # 自动根据全局日志级别决定是否启用LLM调试日志
+        # 当日志级别为DEBUG时，自动包装LLM客户端以记录详细的输入输出
+        if mas_config.LOG_LEVEL.upper() == "DEBUG":
+            self._enable_debug_logging()
 
         logger.info(f"ChatWorkflow初始化完成，并行执行模式: {self.enable_parallel}")
+
+    def _enable_debug_logging(self):
+        """为所有agent启用调试日志记录"""
+        for name, agent in self.agents.items():
+            if hasattr(agent, 'llm_client') and agent.llm_client:
+                # 避免重复包装
+                if not isinstance(agent.llm_client, LLMDebugWrapper):
+                    agent.llm_client = LLMDebugWrapper(agent.llm_client, name, logger)
+                    logger.debug(f"已为节点 {name} 启用LLM调试日志")
 
     def build_graph(self):
         """
