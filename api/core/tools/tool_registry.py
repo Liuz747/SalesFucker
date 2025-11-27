@@ -1,18 +1,33 @@
 from collections.abc import Callable
 
 from .entities import ToolArgument, ToolDefinition
-from .rag_retrieve import rag_retrieve
+# from .rag_retrieve import rag_retrieve
 from .search_context import search_context
-from .trigger_workflow import trigger_workflow
+from .store_episodic import store_episodic
+# from .trigger_workflow import trigger_workflow
 
 
 long_term_memory_tool = ToolDefinition(
     name="long_term_memory_retrieve",
-    description="Retrieve semantically similar documents or memories from vector database.",
+    description="在长期记忆（Elasticsearch）中按关键字搜索摘要。",
     arguments=[
-        ToolArgument("tenant_id", "string", "Tenant identifier for isolation."),
-        ToolArgument("query", "string", "The user query or embedding text."),
-        ToolArgument("top_k", "integer", "Number of top similar memories to return."),
+        ToolArgument("tenant_id", "string", "租户ID，用于隔离存储和检索数据"),
+        ToolArgument("thread_id", "UUID", "线程ID，用于限定搜索范围"),
+        ToolArgument("query", "string", "查询内容"),
+        ToolArgument("limit", "integer", "最多返回条数，默认5（可选）")
+    ],
+)
+
+
+store_episodic_memory_tool = ToolDefinition(
+    name="store_episodic_memory",
+    description="存储情景记忆（事实、个人偏好或用户特定事件）到长期记忆系统。",
+    arguments=[
+        ToolArgument("tenant_id", "string", "租户ID，用于数据隔离"),
+        ToolArgument("thread_id", "UUID", "线程ID，用于关联对话上下文"),
+        ToolArgument("content", "string", "要存储的记忆内容"),
+        ToolArgument("tags", "array", "标签列表，用于分类和检索（可选）"),
+        ToolArgument("metadata", "object", "元数据字典，存储额外信息（可选）")
     ],
 )
 
@@ -42,8 +57,9 @@ trigger_workflow_tool = ToolDefinition(
 # Dictionary mapping tool names to their handler functions
 TOOL_HANDLERS: dict[str, Callable] = {
     "long_term_memory_retrieve": search_context,
-    "rag_retrieve_context": rag_retrieve,
-    "trigger_temporal_workflow": trigger_workflow,
+    "store_episodic_memory": store_episodic,
+    # "rag_retrieve_context": rag_retrieve,
+    # "trigger_temporal_workflow": trigger_workflow,
 }
 
 
@@ -60,6 +76,6 @@ def get_handler(tool_name: str) -> Callable:
         ValueError: 如果工具名称在注册表中未找到。
     """
     if tool_name not in TOOL_HANDLERS:
-        raise ValueError(f"Unknown tool: {tool_name}")
+        raise ValueError(f"未知工具: {tool_name}")
 
     return TOOL_HANDLERS[tool_name]

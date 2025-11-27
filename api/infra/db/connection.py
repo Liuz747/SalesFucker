@@ -77,17 +77,6 @@ async def get_session_factory() -> async_sessionmaker[AsyncSession]:
     return _session_factory
 
 
-async def get_session() -> AsyncSession:
-    """
-    获取数据库会话实例（FastAPI依赖）
-    
-    返回:
-        AsyncSession: 数据库会话
-    """
-    session_factory = await get_session_factory()
-    return session_factory()
-
-
 @asynccontextmanager
 async def database_session() -> AsyncGenerator[AsyncSession, None]:
     """
