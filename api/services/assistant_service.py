@@ -12,7 +12,6 @@ AI员工处理器
 """
 
 import asyncio
-from typing import Optional
 from uuid import UUID
 
 from infra.db import database_session
@@ -99,7 +98,7 @@ class AssistantService:
     async def get_assistant_by_id(
         assistant_id: UUID,
         use_cache: bool = True
-    ) -> Optional[AssistantModel]:
+    ) -> AssistantModel:
         """
         获取助理详细信息
         
@@ -108,7 +107,7 @@ class AssistantService:
             use_cache: 是否使用缓存
             
         返回:
-            Optional[AssistantResponse]: 助理信息
+            AssistantResponse: 助理信息
         """
         redis_client = infra_registry.get_cached_clients().redis
         if use_cache:
@@ -135,7 +134,7 @@ class AssistantService:
     async def update_assistant(
         assistant_id: UUID,
         request: AssistantUpdateRequest
-    ) -> Optional[AssistantModel]:
+    ) -> AssistantModel:
         """
         更新助理信息
 
@@ -144,7 +143,7 @@ class AssistantService:
             request: 更新请求
 
         返回:
-            Optional[AssistantModel]: 更新后的助理信息
+            AssistantModel: 更新后的助理信息
         """
         try:
             async with database_session() as session:

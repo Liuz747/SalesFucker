@@ -140,10 +140,6 @@ async def get_assistant(assistant_id: UUID):
 
         result = await AssistantService.get_assistant_by_id(assistant_id)
 
-        if not result:
-            logger.warning(f"助理不存在: {assistant_id}")
-            raise AssistantNotFoundException(assistant_id)
-
         logger.info(f"助理详情查询成功: {assistant_id} {type(result)}")
         return result
 

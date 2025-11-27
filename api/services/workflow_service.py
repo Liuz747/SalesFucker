@@ -67,13 +67,6 @@ class WorkflowService:
                 use_cache=use_cache
             )
 
-            if not assistant:
-                logger.warning(f"助理不存在: assistant_id={assistant_id}")
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"助理不存在: {assistant_id}"
-                )
-
             # 3. 验证线程、助理、租户ID三者匹配
             if not assistant.tenant_id == thread.tenant_id == tenant_id:
                 logger.warning(f"租户、数字员工、线程不匹配: thread_id={thread_id}")
