@@ -1,4 +1,5 @@
 """
+from ..wraps import validate_and_get_tenant_id, TenantModel
 社交媒体公域导流接口
 
 该模块负责HTTP层调用，具体业务逻辑委托给服务层实现。
@@ -32,6 +33,7 @@ from services.moments_service import (
     MomentsServiceError,
 )
 from utils import get_component_logger
+from ..wraps import validate_and_get_tenant_id, TenantModel
 
 
 logger = get_component_logger(__name__, "SocialMediaPublicTraffic")
@@ -189,13 +191,14 @@ async def reload_prompt(
 async def analyze_moments(
     request: MomentsAnalysisRequest,
     service: Annotated[MomentsAnalysisService, Depends()],
+    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant_id)]
 ):
     """分析朋友圈内容并生成互动建议"""
     try:
         logger.info(f"收到朋友圈分析请求，包含 {len(request.task_list)} 条内容")
 
         # 调用朋友圈分析服务
-        result = await service.analyze_moments(request)
+        result = await service.analyze_moments(request, tenant.tenant_id)
 
         logger.info(f"朋友圈分析成功完成，返回 {len(result.tasks)} 条互动建议")
         return result

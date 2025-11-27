@@ -302,6 +302,37 @@ class StorageManager:
             long_term_summaries: list[dict] = []
             return short_term_messages, long_term_summaries
 
+    async def get_external_context(
+        self,
+        tenant_id: str,
+        thread_id: UUID,
+        limit: int = 5,
+        memory_types: Optional[list[str]] = None,
+    ) -> list[dict]:
+        """
+        获取外部活动上下文（如朋友圈、线下活动等）
+        这些记忆不需要语义搜索，而是按时间倒序获取最近的记录
+
+        Args:
+            tenant_id: 租户标识
+            thread_id: 对话线程ID
+            limit: 限制数量
+            memory_types: 记忆类型列表
+
+        Returns:
+            list[dict]: 记忆列表
+        """
+        try:
+            return await self.elasticsearch_index.get_recent_memories(
+                tenant_id=tenant_id,
+                thread_id=thread_id,
+                limit=limit,
+                memory_types=memory_types
+            )
+        except Exception as e:
+            logger.error(f"Failed to retrieve external context for thread {thread_id}: {e}")
+            return []
+
     async def cleanup_expired_memories(self):
         """清理过期的记忆条目"""
         try:

@@ -24,6 +24,7 @@ from utils.token_manager import TokenManager
 from config import mas_config
 from core.memory import StorageManager
 from libs.types import Message
+from libs.types.memory import MemoryType
 
 
 class SentimentAnalysisAgent(BaseAgent):
@@ -100,19 +101,24 @@ class SentimentAnalysisAgent(BaseAgent):
 
             self.logger.debug(f"customer_input内容: {str(customer_input)[:100]}...")
 
-            # 步骤1: 存储用户输入到记忆
+            # 步骤1: 处理多模态输入 (优先处理，将图片转为文字)
+            processed_text, multimodal_context = await self._process_input(customer_input)
+            self.logger.info(f"多模态输入处理完成 - 输入消息条数: {len(processed_text)}, context类型: {multimodal_context.get('type')}")
+
+            # 步骤2: 存储用户输入到记忆 (存储处理后的文字描述，确保记忆包含图片语义)
+            # 注意：这里我们将处理后的 processed_text 存入记忆，而不是原始的 customer_input
+            # 这样后续检索时，图片内容就是可被搜索和理解的文本形式
             await self.memory_manager.store_messages(
                 tenant_id=tenant_id,
                 thread_id=thread_id,
-                messages=[Message(role="user", content=customer_input)],
+                messages=[Message(role="user", content=processed_text)],
             )
             
-            # 步骤2: 检索记忆上下文
-            user_text = self._input_to_text(customer_input)
+            # 步骤3: 检索记忆上下文 (使用处理后的文本进行检索)
             short_term_messages, long_term_memories = await self.memory_manager.retrieve_context(
                 tenant_id=tenant_id,
                 thread_id=thread_id,
-                query_text=user_text,
+                query_text=processed_text,
             )
             
             memory_context = {
@@ -121,10 +127,6 @@ class SentimentAnalysisAgent(BaseAgent):
             }
             
             self.logger.info(f"记忆检索完成 - 短期消息数: {len(memory_context['short_term'])}, 长期摘要数: {len(memory_context['long_term'])}")
-
-            # 步骤3: 处理多模态输入
-            processed_text, multimodal_context = await self._process_input(customer_input)
-            self.logger.info(f"多模态输入处理完成 - 输入消息条数: {len(processed_text)}, context类型: {multimodal_context.get('type')}")
 
             # 步骤4: 执行情感分析（使用短期消息历史+当前输入）
             sentiment_result = await self._analyze_sentiment_with_history(processed_text, multimodal_context, memory_context['short_term'])
@@ -140,6 +142,40 @@ class SentimentAnalysisAgent(BaseAgent):
             matched_prompt = self._match_prompt(sentiment_result.get('score', 0.5), journey_stage)
             self.logger.info(f"提示词匹配完成 - matched_key: {matched_prompt['matched_key']}, tone: {matched_prompt['tone']}")
             self.logger.debug(f"matched_prompt内容: {matched_prompt['system_prompt'][:150]}..." if len(matched_prompt['system_prompt']) > 150 else f"matched_prompt内容: {matched_prompt['system_prompt']}")
+
+            # 步骤6.5: 根据情感分注入近期外部活动记忆 (如朋友圈互动)
+            # 只有情感积极（> 0.5）时才提及，避免在严肃或消极对话中闲聊
+            sentiment_score = sentiment_result.get('score', 0.5)
+            if sentiment_score > 0.5:
+                try:
+                    external_memories = await self.memory_manager.get_external_context(
+                        tenant_id=tenant_id,
+                        thread_id=thread_id,
+                        limit=3, # 最近3条
+                        memory_types=[MemoryType.MOMENTS_INTERACTION] # 未来可添加 MemoryType.OFFLINE_REPORT 等
+                    )
+                    
+                    if external_memories:
+                        self.logger.info(f"发现 {len(external_memories)} 条外部活动记忆，注入上下文")
+                        
+                        # 格式化外部记忆
+                        memory_texts = []
+                        for mem in external_memories:
+                             # 简单处理时间
+                            created_at = mem.get('created_at', '')[:10] 
+                            content = mem.get('content', '')
+                            memory_texts.append(f"- [{created_at}] {content}")
+                        
+                        external_context_str = "\n".join(memory_texts)
+                        
+                        # 注入到 matched_prompt 的 system_prompt 中
+                        # SalesAgent 会直接使用这个 system_prompt
+                        additional_prompt = f"\n\n【用户近期动态（可适当寒暄提及）】\n{external_context_str}\n"
+                        matched_prompt["system_prompt"] += additional_prompt
+                        
+                except Exception as e:
+                    self.logger.warning(f"获取外部记忆失败，跳过注入: {e}")
+
 
             # 步骤7: 更新对话状态
             updated_state = self._update_state_enhanced(

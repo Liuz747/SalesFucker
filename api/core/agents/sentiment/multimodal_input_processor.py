@@ -12,7 +12,9 @@
 """
 
 from typing import Dict, Any, Union, List, Tuple, Sequence
-from libs.types import InputContentParams, InputContent, InputType
+from uuid import uuid4
+from libs.types import InputContentParams, InputContent, InputType, Message
+from infra.runtimes import LLMClient, CompletionsRequest
 from utils import LoggerMixin
 
 
@@ -27,6 +29,7 @@ class MultimodalInputProcessor(LoggerMixin):
         super().__init__()
         self.tenant_id = tenant_id
         self.config = config or {}
+        self.llm_client = LLMClient()
 
     async def process_input(self, customer_input: InputContentParams) -> Tuple[str, Dict[str, Any]]:
         """
@@ -132,21 +135,68 @@ class MultimodalInputProcessor(LoggerMixin):
         """
         使用LLM提取多模态内容的文字描述
 
-        这里应该调用LLM来理解多模态内容并生成文字
-        暂时返回简化的结果，后续可以集成实际的LLM调用
+        使用LLM直接理解多模态内容并转换为文字描述
         """
-        # TODO: 这里应该调用实际的LLM接口
-        # 例如：result = await self.invoke_llm(messages, "请将这些多模态内容转换为文字描述")
+        try:
+            # 1. 转换回 InputContent 列表
+            content_list = []
+            for msg in messages:
+                if msg["type"] == "text":
+                    content_list.append(InputContent(type=InputType.TEXT, content=msg["text"]))
+                elif msg["type"] == "image_url":
+                    # 确保提取 URL 字符串
+                    url_data = msg["image_url"]
+                    url = url_data["url"] if isinstance(url_data, dict) else url_data
+                    content_list.append(InputContent(type=InputType.IMAGE, content=url))
+            
+            if not content_list:
+                return ""
 
-        # 暂时的简化处理
-        text_parts = []
-        for msg in messages:
-            if msg["type"] == "text":
-                text_parts.append(msg["text"])
-            elif msg["type"] == "image_url":
-                text_parts.append(f"[图片内容: {msg['image_url']['url']}]")
+            # 2. 构建系统提示词
+            system_prompt = (
+                "你是一个专业的视觉分析助手。请详细描述用户发送的内容。"
+                "如果是图片，请描述图片中的主体、场景、细节以及可能包含的情感或文字信息。"
+                "如果是文本，请保持原意。"
+                "如果是图文混合，请综合理解并生成连贯的描述。"
+                "输出应为纯文本段落，不要包含Markdown格式或其他无关内容。"
+            )
 
-        return " ".join(text_parts) if text_parts else "多模态内容待处理"
+            # 3. 构建 LLM 请求消息
+            llm_messages = [
+                Message(role="system", content=system_prompt),
+                Message(role="user", content=content_list)
+            ]
+
+            # 4. 发送请求
+            request = CompletionsRequest(
+                id=uuid4(),
+                model="openai/gpt-4o",  # 使用支持视觉的模型
+                provider="openrouter",
+                temperature=0.5,
+                messages=llm_messages
+            )
+
+            self.logger.info(f"调用多模态LLM进行图片分析: {len(content_list)}个内容项")
+            response = await self.llm_client.completions(request)
+            
+            # 5. 处理响应
+            content = response.content
+            result_text = content.get("content", "") if isinstance(content, dict) else str(content)
+            
+            self.logger.info(f"图片分析完成，描述长度: {len(result_text)}")
+            return result_text
+
+        except Exception as e:
+            self.logger.error(f"LLM提取多模态文字失败: {e}", exc_info=True)
+            # 降级处理：简单拼接
+            text_parts = []
+            for msg in messages:
+                if msg["type"] == "text":
+                    text_parts.append(msg["text"])
+                elif msg["type"] == "image_url":
+                    url = msg["image_url"]["url"]
+                    text_parts.append(f"[图片: {url}]")
+            return " ".join(text_parts)
 
     def _extract_fallback_text(self, input_sequence: Sequence[InputContent]) -> str:
         """降级文本提取"""

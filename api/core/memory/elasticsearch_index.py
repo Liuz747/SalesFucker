@@ -204,15 +204,6 @@ class ElasticsearchIndex:
     ) -> list[dict]:
         """
         使用全文匹配和租户/线程过滤器进行关键词搜索
-
-        Args:
-            tenant_id: 租户ID
-            query_text: 搜索查询文本
-            thread_id: 对话线程ID
-            limit: 返回结果数量限制，默认5
-
-        Returns:
-            list[dict]: 搜索结果列表，按创建时间降序排列
         """
         filters = [{"term": {"tenant_id": tenant_id}}]
         if thread_id:
@@ -237,6 +228,54 @@ class ElasticsearchIndex:
         except Exception as e:
             logger.exception(f"[ElasticsearchIndex] Search failed: {e}")
             return []
+
+    async def get_recent_memories(
+        self,
+        tenant_id: str,
+        thread_id: UUID,
+        limit: int = 10,
+        memory_types: Optional[list[str]] = None,
+    ) -> list[dict]:
+        """
+        获取最近的记忆（无需关键词匹配，按时间倒序）
+        用于检索最近的活动记录（如朋友圈互动、线下报告等）
+
+        Args:
+            tenant_id: 租户ID
+            thread_id: 线程ID
+            limit: 限制数量
+            memory_types: 记忆类型列表
+
+        Returns:
+            list[dict]: 记忆列表
+        """
+        filters = [
+            {"term": {"tenant_id": tenant_id}},
+            {"term": {"thread_id": str(thread_id)}}
+        ]
+
+        if memory_types:
+            filters.append({"terms": {"memory_type": memory_types}})
+
+        query = {
+            "bool": {
+                "filter": filters
+            }
+        }
+
+        try:
+            res = await self.client.search(
+                index=self.index_name,
+                query=query,
+                sort=[{"created_at": {"order": "desc"}}],
+                size=limit,
+            )
+            return [{"id": hit["_id"], **hit["_source"]} for hit in res["hits"]["hits"]]
+
+        except Exception as e:
+            logger.exception(f"[ElasticsearchIndex] Get recent memories failed: {e}")
+            return []
+
 
     # --------------------------------------------------------------------
     # Update access metadata
