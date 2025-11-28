@@ -7,8 +7,7 @@ Material Intent Analysis Agent - 素材发送意向分析智能体
 - 基于近3轮对话分析素材需求意向
 - 多类型素材需求识别（图片、价格、技术参数等）
 - 紧急程度和优先级判断
-- 为sales agent提供素材发送洞察
-- 智能记忆管理和检索
+- 为sales agent提供对应素材提示词，以衔接回复
 """
 
 from typing import Dict, Any, List
@@ -296,7 +295,11 @@ class MaterialIntentAgent(BaseAgent):
         state["values"]["agent_responses"][self.agent_id] = agent_data
 
         # 更新活跃智能体列表
-        state.setdefault("active_agents", []).append(self.agent_id)
+        active_agents = state.get("active_agents")
+        if active_agents is None:
+            active_agents = []
+        active_agents.append(self.agent_id)
+        state["active_agents"] = active_agents
 
         self.logger.info(f"material intent 字段已添加: urgency={material_intent['urgency_level']}, "
                         f"types={len(material_intent['material_types'])}")

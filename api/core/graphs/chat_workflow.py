@@ -36,7 +36,6 @@ class ChatWorkflow(BaseWorkflow):
     - 状态安全合并：使用LangGraph Reducer机制避免并发更新冲突
     - 智能状态管理：每个agent写入专用字段，通过Reducer合并最终状态
     - 错误隔离：单个并行节点失败不影响其他节点和整体流程
-    - 性能优化：并行处理减少总体响应时间60-70%
 
     工作流程（并行模式）：
     START → parallel_coordinator → [并行节点组] → result_aggregator → sales_agent → END
@@ -86,7 +85,7 @@ class ChatWorkflow(BaseWorkflow):
 
         使用LangGraph编译时状态定义，确保Reducer函数正确应用。
         """
-        from core.entities import WorkflowState, merge_agent_results
+        from core.entities import WorkflowState
 
         # 使用编译时状态定义构建图
         graph = StateGraph(WorkflowState)
@@ -217,12 +216,9 @@ class ChatWorkflow(BaseWorkflow):
 
         try:
             # 关键修复：确保传递给agents的是字典状态
-            if hasattr(state, 'to_workflow_state'):
-                # 如果是WorkflowExecutionModel，转换为字典
-                agent_state = state.to_workflow_state()
-            elif hasattr(state, 'model_dump'):
+            if hasattr(state, 'model_dump'):
                 # 如果是Pydantic模型，转换为字典
-                agent_state = state.model_dump()
+                agent_state = state.model_dump(mode='json')
             elif isinstance(state, dict):
                 # 如果已经是字典，直接使用
                 agent_state = state.copy()
@@ -325,10 +321,8 @@ class ChatWorkflow(BaseWorkflow):
 
             try:
                 # 确保状态是字典类型
-                if hasattr(state, 'to_workflow_state'):
-                    state_dict = state.to_workflow_state()
-                elif hasattr(state, 'model_dump'):
-                    state_dict = state.model_dump()
+                if hasattr(state, 'model_dump'):
+                    state_dict = state.model_dump(mode='json')
                 else:
                     state_dict = state if isinstance(state, dict) else {"state": str(state)}
 
@@ -378,10 +372,8 @@ class ChatWorkflow(BaseWorkflow):
 
             try:
                 # 确保状态是字典类型
-                if hasattr(state, 'to_workflow_state'):
-                    state_dict = state.to_workflow_state()
-                elif hasattr(state, 'model_dump'):
-                    state_dict = state.model_dump()
+                if hasattr(state, 'model_dump'):
+                    state_dict = state.model_dump(mode='json')
                 else:
                     state_dict = state if isinstance(state, dict) else {"state": str(state)}
 
