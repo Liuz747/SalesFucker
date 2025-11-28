@@ -282,7 +282,7 @@ class MomentsAnalysisService:
                 memory_content = " | ".join(content_parts)
 
                 # 存储到记忆
-                await self.storage_manager.store_memory(
+                await self.storage_manager.add_episodic_memory(
                     tenant_id=tenant_id,
                     thread_id=uuid4() if not moment.thread_id else moment.thread_id, # thread_id should be UUID
                     content=memory_content,

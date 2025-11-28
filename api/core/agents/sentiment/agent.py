@@ -147,6 +147,7 @@ class SentimentAnalysisAgent(BaseAgent):
                     external_memories = await self.memory_manager.get_external_context(
                         tenant_id=tenant_id,
                         thread_id=thread_id,
+                        query_text=processed_text,
                         limit=3, # 最近3条
                         memory_types=[MemoryType.MOMENTS_INTERACTION] # 未来可添加 MemoryType.OFFLINE_REPORT 等
                     )

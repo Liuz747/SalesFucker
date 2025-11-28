@@ -240,6 +240,7 @@ class StorageManager:
         self,
         tenant_id: str,
         thread_id: UUID,
+        query_text: str,
         limit: int = 5,
         memory_types: Optional[MemoryType] = None,
     ) -> list[dict]:
@@ -260,6 +261,7 @@ class StorageManager:
             return await self.elasticsearch_index.search(
                 tenant_id=tenant_id,
                 thread_id=thread_id,
+                query_text=query_text,
                 limit=limit,
                 memory_types=memory_types
             )
