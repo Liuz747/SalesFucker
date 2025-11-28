@@ -21,10 +21,10 @@ from fastapi import APIRouter, HTTPException, Depends
 from config import mas_config
 from core.tasks.workflows import GreetingWorkflow
 from libs.factory import infra_registry
-from utils import get_component_logger
 from models import Thread, ThreadStatus, TenantModel
-from services import ThreadService
 from schemas.conversation_schema import ThreadCreateRequest
+from services import ThreadService
+from utils import get_component_logger
 from ..wraps import validate_and_get_tenant
 from .workflow import router as workflow_router
 from .analysis import router as analysis_router
@@ -36,7 +36,7 @@ logger = get_component_logger(__name__, "ConversationRouter")
 router = APIRouter()
 
 router.include_router(workflow_router, prefix="/{thread_id}/runs", tags=["workflows"])
-router.include_router(analysis_router, tags=["analysis"])
+router.include_router(analysis_router, prefix="/{thread_id}", tags=["analysis"])
 
 @router.post("")
 async def create_thread(

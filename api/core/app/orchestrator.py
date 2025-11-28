@@ -13,6 +13,7 @@
 """
 
 from uuid import UUID
+
 from langfuse import observe, get_client
 
 from core.entities import WorkflowExecutionModel

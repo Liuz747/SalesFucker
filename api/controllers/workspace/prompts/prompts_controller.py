@@ -19,10 +19,7 @@ from typing import List, Optional
 
 from models.prompts import PromptsModel
 from schemas.prompts_schema import (
-    PromptCreateRequest, PromptUpdateRequest, PromptTestRequest,
-    PromptLibrarySearchRequest, PromptConfigResponse, PromptTestResponse,
-    PromptLibraryResponse, PromptValidationResponse,
-    AssistantPromptConfig, PromptCategory, PromptType, PromptLanguage
+    PromptCreateRequest, PromptUpdateRequest, PromptConfigResponse, AssistantPromptConfig
 )
 from services.prompts_services import PromptService
 from utils import get_component_logger

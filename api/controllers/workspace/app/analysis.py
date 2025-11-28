@@ -21,7 +21,7 @@ logger = get_component_logger(__name__, "AnalysisRouter")
 
 router = APIRouter()
 
-@router.post("/{thread_id}/report")
+@router.post("/report")
 async def generate_thread_report(
     thread_id: UUID,
     tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)]
@@ -42,7 +42,7 @@ async def generate_thread_report(
         logger.error(f"API生成报告失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.post("/{thread_id}/label")
+@router.post("/label")
 async def generate_thread_labels(
     thread_id: UUID,
     tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)]
@@ -68,7 +68,7 @@ async def generate_thread_labels(
             "error_message": str(e)
         }
 
-@router.post("/{thread_id}/profile")
+@router.post("/profile")
 async def generate_thread_profile(
     thread_id: UUID,
     tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)]
