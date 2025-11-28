@@ -14,7 +14,7 @@ from fastapi import APIRouter, HTTPException, Depends
 
 from models import TenantModel
 from services import ReportService, LabelService, ProfileService
-from ..wraps import validate_and_get_tenant_id
+from ..wraps import validate_and_get_tenant
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "AnalysisRouter")
@@ -24,7 +24,7 @@ router = APIRouter()
 @router.post("/{thread_id}/report")
 async def generate_thread_report(
     thread_id: UUID,
-    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant_id)]
+    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)]
 ):
     """
     根据对话历史生成用户分析报告
@@ -45,7 +45,7 @@ async def generate_thread_report(
 @router.post("/{thread_id}/label")
 async def generate_thread_labels(
     thread_id: UUID,
-    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant_id)]
+    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)]
 ):
     """
     生成用户标签 (Labels)
@@ -71,7 +71,7 @@ async def generate_thread_labels(
 @router.post("/{thread_id}/profile")
 async def generate_thread_profile(
     thread_id: UUID,
-    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant_id)]
+    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)]
 ):
     """
     生成结构化用户画像 (Profile)
