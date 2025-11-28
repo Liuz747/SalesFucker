@@ -6,9 +6,8 @@
 
 from collections.abc import Mapping
 from datetime import datetime
-from typing import Annotated, Any, Optional
+from typing import Annotated, Any, Optional, TypedDict
 from uuid import UUID
-from typing_extensions import TypedDict
 import operator
 
 from pydantic import BaseModel, Field
@@ -144,7 +143,6 @@ class WorkflowExecutionModel(BaseModel):
 
     input: InputContentParams = Field(description="输入内容")
     output: Optional[str] = Field(default=None, description="文本输出内容")
-    values: Optional[Mapping[str, Any]] = Field(default=None, description="工作流节点交互的状态")
 
     # 多模态输出 - 支持音频、图像、视频等
     multimodal_outputs: Optional[OutputContentParams] = Field(
@@ -163,96 +161,15 @@ class WorkflowExecutionModel(BaseModel):
     started_at: datetime = Field(default_factory=get_current_datetime, description="开始时间")
     finished_at: Optional[datetime] = Field(default=None, description="结束时间")
 
-    def to_workflow_state(self) -> dict:
-        """
-        转换为LangGraph状态类型（字典）
+    sentiment_analysis: Annotated[Optional[dict], safe_merge_dict] = Field(default=None)
+    appointment_intent: Annotated[Optional[dict], safe_merge_dict] = Field(default=None)
+    material_intent: Annotated[Optional[dict], safe_merge_dict] = Field(default=None)
 
-        确保在LangGraph中能正确处理并发状态更新，解决Pydantic模型与LangGraph不匹配的问题。
-        """
-        return {
-            # 基础字段
-            "workflow_id": str(self.workflow_id),
-            "thread_id": str(self.thread_id),
-            "tenant_id": self.tenant_id,
-            "input": self.input,
+    values: Annotated[Optional[dict], merge_agent_results] = Field(default=None, description="工作流节点交互的状态")
 
-            # 并行节点专用字段 - 使用Reducer避免并发冲突
-            "sentiment_analysis": self.sentiment_analysis,
-            "appointment_intent": self.appointment_intent,
-            "material_intent": self.material_intent,
+    active_agents: Annotated[Optional[list], merge_list] = Field(default=None)
 
-            # 统一的状态收集器
-            "values": dict(self.values) if self.values else None,
+    model_config = {
+        "arbitrary_types_allowed": True
+    }
 
-            # 全局状态字段
-            "journey_stage": self.journey_stage,
-            "matched_prompt": self.matched_prompt,
-
-            # 元数据字段
-            "total_tokens": self.total_tokens,
-            "error_message": self.error_message,
-            "exception_count": self.exception_count,
-            "started_at": self.started_at.isoformat(),
-            "finished_at": self.finished_at.isoformat() if self.finished_at else None,
-
-            # 并行执行控制
-            "parallel_execution": self.parallel_execution,
-            "active_agents": self.active_agents or []
-        }
-
-    @classmethod
-    def from_workflow_state(cls, state: dict) -> "WorkflowExecutionModel":
-        """
-        从LangGraph状态创建执行模型实例
-
-        支持从并发更新的状态中恢复数据，将字典状态转换回Pydantic模型。
-        """
-        # 处理基本字段
-        basic_fields = {
-            "workflow_id": state.get("workflow_id"),
-            "thread_id": state.get("thread_id"),
-            "tenant_id": state.get("tenant_id"),
-            "input": state.get("input"),
-            "output": state.get("output"),  # 添加output字段提取
-            "total_tokens": state.get("total_tokens"),
-            "error_message": state.get("error_message"),
-            "exception_count": state.get("exception_count", 0),
-            "parallel_execution": state.get("parallel_execution"),
-            "active_agents": state.get("active_agents")
-        }
-
-        # 处理时间字段
-        if state.get("started_at"):
-            basic_fields["started_at"] = datetime.fromisoformat(state["started_at"])
-        if state.get("finished_at"):
-            basic_fields["finished_at"] = datetime.fromisoformat(state["finished_at"])
-
-        # 处理并行节点字段 - 这些字段已经通过Reducer合并
-        parallel_fields = {
-            "sentiment_analysis": state.get("sentiment_analysis"),
-            "appointment_intent": state.get("appointment_intent"),
-            "material_intent": state.get("material_intent"),
-            "journey_stage": state.get("journey_stage"),
-            "matched_prompt": state.get("matched_prompt"),
-            "values": state.get("values")
-        }
-
-        # 合并所有字段
-        all_fields = {**basic_fields, **parallel_fields}
-
-        # 过滤None值并转换UUID字符串为UUID对象
-        filtered_fields = {}
-        for k, v in all_fields.items():
-            if v is not None:
-                if k in ["workflow_id", "thread_id", "assistant_id"] and isinstance(v, str):
-                    # 转换字符串UUID为UUID对象
-                    try:
-                        from uuid import UUID
-                        filtered_fields[k] = UUID(v)
-                    except ValueError:
-                        # 如果转换失败，保持原值
-                        filtered_fields[k] = v
-                else:
-                    filtered_fields[k] = v
-
-        return cls(**filtered_fields)

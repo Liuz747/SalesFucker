@@ -293,7 +293,11 @@ class AppointmentIntentAgent(BaseAgent):
         state["values"]["agent_responses"][self.agent_id] = agent_data
 
         # 更新活跃智能体列表
-        state.setdefault("active_agents", []).append(self.agent_id)
+        active_agents = state.get("active_agents")
+        if active_agents is None:
+            active_agents = []
+        active_agents.append(self.agent_id)
+        state["active_agents"] = active_agents
 
         self.logger.info(f"appointment intent 字段已添加: strength={appointment_intent['intent_strength']}, "
                         f"window={appointment_intent['time_window']}")

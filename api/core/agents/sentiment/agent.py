@@ -1,17 +1,17 @@
 """
-Sentiment Analysis Agent - 简化协调版
+Sentiment Analysis Agent
 
-专注于协调各个专业组件，提供清晰的情感分析服务。
-Agent 本身只负责流程控制和状态管理，具体业务逻辑委托给专门组件。
+负责对话过程中的情感分析、意图识别和流程控制。
 
 核心职责:
-- 组件协调和流程控制
-- 状态管理和错误处理
-- 组件生命周期管理
-- 对外接口统一
+- 多模态输入处理与标准化
+- 基于历史上下文的情感分析
+- 客户旅程阶段判定
+- 销售策略提示词匹配
+- 状态管理与记忆更新
 """
 
-from typing import Dict, Any, Sequence
+from typing import Sequence
 from langfuse import observe
 
 from ..base import BaseAgent
@@ -23,25 +23,21 @@ from utils import get_current_datetime
 from utils.token_manager import TokenManager
 from config import mas_config
 from core.memory import StorageManager
-from libs.types import Message
+from libs.types import Message, InputContentParams
 from libs.types.memory import MemoryType
-
+from core.entities import WorkflowExecutionModel
 
 class SentimentAnalysisAgent(BaseAgent):
     """
-    情感分析智能体 - 简化协调版
-
-    作为多模态情感分析的主入口，协调：
-    - 多模态输入处理
-    - 情感分析
-    - 销售提示词生成
-
-    设计原则：
-    - 单一职责：只负责协调，不处理具体业务逻辑
-    - 依赖注入：组件可替换，便于测试
-    - 错误隔离：组件失败不影响整体流程
-    - 状态清晰：明确的状态管理和更新
-    - 记忆服务：智能体内部自主管理
+    情感分析智能体
+    
+    作为对话系统的核心协调组件，负责：
+    1. 处理多模态输入（文本/图片）
+    2. 分析用户情感与意图
+    3. 确定客户旅程阶段
+    4. 匹配最佳销售策略提示词
+    
+    该智能体维护对话状态，并为下游的 SalesAgent 准备必要的上下文信息。
     """
 
     def __init__(self):
@@ -71,35 +67,35 @@ class SentimentAnalysisAgent(BaseAgent):
         self.prompt_generator = SalesPromptGenerator()
 
     @observe(name="sentiment-analysis", as_type="generation")
-    async def process_conversation(self, state: dict) -> dict:
+    async def process_conversation(self, state: WorkflowExecutionModel) -> dict:
         """
-        处理对话状态中的情感分析（增强版：集成记忆和智能提示词匹配）
-
+        处理对话状态中的情感分析流程
+        
         工作流程：
-        1. 存储用户输入到记忆
-        2. 检索记忆上下文
-        3. 多模态输入处理
-        4. 情感分析
-        5. 旅程阶段判断（写死规则）
-        6. 提示词智能匹配
-        7. 状态更新
-
-        参数:
-            state: 当前对话状态，包含 customer_input, tenant_id, thread_id
-
-        返回:
-            dict: 更新后的对话状态，包含 matched_prompt 和 memory_context
+        1. 处理多模态输入并存储到记忆
+        2. 检索相关记忆上下文
+        3. 执行基于历史的情感分析
+        4. 判定客户旅程阶段
+        5. 匹配销售策略提示词
+        6. 注入外部动态信息（如朋友圈互动）
+        7. 更新对话状态
+        
+        Args:
+            state: 当前工作流执行状态
+            
+        Returns:
+            dict: 更新后的状态增量，包含 sentiment_analysis, matched_prompt 等
         """
         start_time = get_current_datetime()
 
         try:
             self.logger.info("=== Sentiment Agent ===")
 
-            customer_input = state.get("customer_input", "")
+            customer_input = state.get("input")
             tenant_id = state.get("tenant_id")
-            thread_id = state.get("thread_id")
+            thread_id = str(state.get("thread_id"))
 
-            self.logger.debug(f"customer_input内容: {str(customer_input)[:100]}...")
+            self.logger.debug(f"input内容: {str(customer_input)[:100]}...")
 
             # 步骤1: 处理多模态输入 (优先处理，将图片转为文字)
             processed_text, multimodal_context = await self._process_input(customer_input)
@@ -128,13 +124,13 @@ class SentimentAnalysisAgent(BaseAgent):
             
             self.logger.info(f"记忆检索完成 - 短期消息数: {len(memory_context['short_term'])}, 长期摘要数: {len(memory_context['long_term'])}")
 
-            # 步骤4: 执行情感分析（使用短期消息历史+当前输入）
+            # 步骤4: 执行情感分析（结合短期消息历史）
             sentiment_result = await self._analyze_sentiment_with_history(processed_text, multimodal_context, memory_context['short_term'])
             self.logger.info(f"情感分析结果 - sentiment: {sentiment_result.get('sentiment')}, score: {sentiment_result.get('score')}, urgency: {sentiment_result.get('urgency')}")
             self.logger.info(f"情感分析token统计 - tokens_used: {sentiment_result.get('tokens_used', 0)}")
             self.logger.info(f"情感分析上下文 - 使用历史消息数: {len(memory_context['short_term'])}")
 
-            # 步骤5: 判断客户旅程阶段 按轮次的规则-待修改
+            # 步骤5: 判断客户旅程阶段
             journey_stage = self._determine_journey_stage(memory_context['short_term'])
             self.logger.info(f"旅程阶段判断: {journey_stage} (基于对话轮次: {len(memory_context['short_term'])})")
 
@@ -143,8 +139,8 @@ class SentimentAnalysisAgent(BaseAgent):
             self.logger.info(f"提示词匹配完成 - matched_key: {matched_prompt['matched_key']}, tone: {matched_prompt['tone']}")
             self.logger.debug(f"matched_prompt内容: {matched_prompt['system_prompt'][:150]}..." if len(matched_prompt['system_prompt']) > 150 else f"matched_prompt内容: {matched_prompt['system_prompt']}")
 
-            # 步骤6.5: 根据情感分注入近期外部活动记忆 (如朋友圈互动)
-            # 只有情感积极（> 0.5）时才提及，避免在严肃或消极对话中闲聊
+            # 步骤6.5: 注入外部活动记忆 (如朋友圈互动)
+            # 仅在情感积极（> 0.5）时注入，增强互动性
             sentiment_score = sentiment_result.get('score', 0.5)
             if sentiment_score > 0.5:
                 try:
@@ -170,28 +166,65 @@ class SentimentAnalysisAgent(BaseAgent):
                         
                         # 注入到 matched_prompt 的 system_prompt 中
                         # SalesAgent 会直接使用这个 system_prompt
-                        additional_prompt = f"\n\n【用户近期动态（可适当寒暄提及）】\n{external_context_str}\n"
+                        additional_prompt = f"\n【用户近期动态（可适当寒暄提及）】\n{external_context_str}\n"
                         matched_prompt["system_prompt"] += additional_prompt
                         
                 except Exception as e:
                     self.logger.warning(f"获取外部记忆失败，跳过注入: {e}")
 
 
-            # 步骤7: 更新对话状态
-            updated_state = self._update_state_enhanced(
-                state, processed_text, sentiment_result, matched_prompt,
-                multimodal_context, memory_context, journey_stage
-            )
+            # 步骤7: 更新对话状态 - 使用Reducer模式返回增量更新
+            
+            # 使用TokenManager创建标准化的Agent响应数据
+            current_time = get_current_datetime()
+            
+            # 更新token信息，使用sentiment_result中的实际数据
+            token_info = {
+                "input_tokens": sentiment_result.get("input_tokens", 0),
+                "output_tokens": sentiment_result.get("output_tokens", 0),
+                "total_tokens": sentiment_result.get("total_tokens", sentiment_result.get("tokens_used", 0))
+            }
 
-            processing_time = (get_current_datetime() - start_time).total_seconds()
-            self.logger.info(f"情感分析完成: 耗时{processing_time:.2f}s, 情感={sentiment_result.get('sentiment')}, 旅程={journey_stage}")
-            self.logger.info("=== Sentiment Agent 处理完成 ===")
+            agent_data = {
+                "agent_type": "sentiment",
+                "sentiment_analysis": sentiment_result,
+                "matched_prompt": matched_prompt,
+                "journey_stage": journey_stage,
+                "processed_input": processed_text,
+                "timestamp": current_time,
+                "token_usage": token_info,             # 标准化的token信息
+                "tokens_used": token_info["total_tokens"],  # 向后兼容
+                "response_length": len(str(sentiment_result))
+            }
+            
+            # 构造 sentiment_analysis 更新对象
+            sentiment_analysis_update = {
+                **sentiment_result,
+                "journey_stage": journey_stage,        #  添加旅程信息
+                "processed_input": processed_text,
+                "multimodal_context": multimodal_context,
+                "agent_id": self.agent_id,
+                "token_usage": token_info,             # 标准化的token信息
+                "tokens_used": token_info["total_tokens"]  # 向后兼容
+            }
+            
+            # 构造返回的增量状态
+            return {
+                "sentiment_analysis": sentiment_analysis_update,
+                "matched_prompt": matched_prompt,
+                "journey_stage": journey_stage,
+                "values": {"agent_responses": {self.agent_id: agent_data}},
+                "active_agents": [self.agent_id]
+            }
 
-            return updated_state
+            # self.logger.info(f"情感分析完成: 耗时{processing_time:.2f}s, 情感={sentiment_result.get('sentiment')}, 旅程={journey_stage}")
+            # self.logger.info("=== Sentiment Agent 处理完成 ===")
 
         except Exception as e:
             self.logger.error(f"情感分析处理失败: {e}", exc_info=True)
-            self.logger.error(f"失败时的输入: {state.get('customer_input', 'None')}")
+            # 失败时的输入处理可能需要调整
+            input_content = state.get("input") if isinstance(state, dict) else getattr(state, "input", "unknown")
+            self.logger.error(f"失败时的输入: {str(input_content)[:100]}")
             raise e
 
     def _input_to_text(self, content) -> str:
@@ -208,7 +241,9 @@ class SentimentAnalysisAgent(BaseAgent):
 
     def _determine_journey_stage(self, short_term_messages: list) -> str:
         """
-        新增：判断客户旅程阶段（写死规则，简单可靠）
+        判断客户旅程阶段
+        
+        基于对话轮次进行简单规则判断。
 
         Args:
             short_term_messages: 短期记忆消息列表
@@ -229,7 +264,7 @@ class SentimentAnalysisAgent(BaseAgent):
                     if hasattr(msg, "role") and msg.role == "user"
                 )
 
-            # 写死的简单规则
+            # 简单的规则判定
             if user_message_count <= 2:
                 return "awareness"      # 前1-2轮：认知阶段
             elif user_message_count <= 5:
@@ -243,7 +278,7 @@ class SentimentAnalysisAgent(BaseAgent):
 
     def _match_prompt(self, sentiment_score: float, journey_stage: str) -> dict:
         """
-        新增：智能匹配提示词
+        根据情感和旅程阶段匹配提示词
 
         Args:
             sentiment_score: 情感分数 0.0-1.0
@@ -280,7 +315,7 @@ class SentimentAnalysisAgent(BaseAgent):
         journey_stage: str
     ) -> dict:
         """
-        状态更新（添加 matched_prompt 和 memory_context）
+        构建更新后的状态对象
 
         Args:
             state: 原始状态
@@ -351,16 +386,22 @@ class SentimentAnalysisAgent(BaseAgent):
         state["values"]["agent_responses"][self.agent_id] = agent_data
 
         # 更新活跃智能体列表
-        state.setdefault("active_agents", []).append(self.agent_id)
+        active_agents = state.get("active_agents")
+        if active_agents is None:
+            active_agents = []
+        active_agents.append(self.agent_id)
+        state["active_agents"] = active_agents
 
         self.logger.info(f"sentiment agent 新增字段: matched_prompt, journey_stage")
 
         return state
 
-    async def _process_input(self, customer_input) -> tuple[str, dict]:
+    async def _process_input(self, customer_input: InputContentParams) -> tuple[str, dict]:
         """处理多模态输入"""
         try:
-            return await self.input_processor.process_input(customer_input)
+            # 简单的适配逻辑
+            input_data = customer_input
+            return await self.input_processor.process_input(input_data)
         except Exception as e:
             self.logger.error(f"输入处理失败: {e}")
             # 降级处理：将输入转为字符串

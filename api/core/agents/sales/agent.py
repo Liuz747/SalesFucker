@@ -1,13 +1,13 @@
 """
-Sales Agent - 仅仅负责输出最终回复
+Sales Agent
 
-基于 SentimentAgent 输出的 matched_prompt，结合记忆上下文生成个性化回复。
+负责生成最终的销售话术回复。
 
 核心职责:
-- 接收 matched_prompt（情感驱动的提示词）
-- 集成记忆上下文
-- 生成个性化销售回复
-- 智能体自主管理记忆存储
+- 接收 SentimentAgent 提供的策略提示词
+- 检索并整合记忆上下文
+- 生成符合人设和策略的个性化回复
+- 自动管理助手回复的存储
 """
 
 from typing import Tuple
@@ -20,16 +20,15 @@ from utils import get_current_datetime
 from utils.token_manager import TokenManager
 from config import mas_config
 from core.memory import StorageManager
+from core.entities import WorkflowExecutionModel
 
 
 class SalesAgent(BaseAgent):
     """
-    销售智能体 - 简化版
-
-    设计理念：
-    - 使用 SentimentAgent 匹配的提示词，而不是重新生成
-    - 集成记忆系统提供上下文连贯性
-    - 极简架构：接收→处理→生成，自主管理记忆存储
+    销售回复生成智能体
+    
+    专注于执行销售策略，生成最终回复。它利用 SentimentAgent 确定的策略方向，
+    结合历史记忆，生成连贯、得体的对话内容。
     """
 
     def __init__(self):
@@ -43,34 +42,38 @@ class SalesAgent(BaseAgent):
         self.logger.info(f"最终回复llm: {self.llm_provider}/{self.llm_model}")
 
 
-    async def process_conversation(self, state: dict) -> dict:
+    async def process_conversation(self, state: WorkflowExecutionModel) -> dict:
         """
+        处理对话状态，生成销售回复
+        
         工作流程：
-        1. 读取 SentimentAgent 输出的 matched_prompt
-        2. 主动检索记忆上下文（长期记忆 + 短期记忆）
-        3. 构建增强的 LLM 提示词（包含历史记忆）
-        4. 生成个性化销售回复
-        5. 存储助手回复到记忆
-
-        参数:
-            state: 包含 matched_prompt, customer_input, tenant_id, thread_id 等
-
-        返回:
-            dict: 更新后的对话状态，包含 sales_response
+        1. 获取 SentimentAgent 确定的策略提示词
+        2. 检索记忆上下文（长期+短期）
+        3. 构建包含上下文的 LLM 提示词
+        4. 生成回复
+        5. 存储回复并更新状态
+        
+        Args:
+            state: 当前工作流执行状态
+            
+        Returns:
+            dict: 状态更新增量，包含 sales_response
         """
         start_time = get_current_datetime()
 
         try:
             self.logger.info("=== Sales Agent 开始处理 ===")
 
-            # 读取 SentimentAgent 传递的数据
-            customer_input = state.get("customer_input", "")
-            # 从values字段中读取matched_prompt (兼容ChatWorkflow)
-            values = state.get("values", {})
-            matched_prompt = values.get("matched_prompt", {}) or state.get("matched_prompt", {})
 
+            customer_input = state.get("input")
             tenant_id = state.get("tenant_id")
-            thread_id = state.get("thread_id")
+            thread_id = str(state.get("thread_id"))
+
+            matched_prompt = state.get("matched_prompt")
+            current_total_tokens = state.get("total_tokens", 0) or 0
+
+            if not matched_prompt:
+                matched_prompt = {}
 
             self.logger.info(f"sales agent 匹配提示词: {matched_prompt.get('matched_key', 'unknown')}")
 
@@ -85,7 +88,7 @@ class SalesAgent(BaseAgent):
 
             # 生成个性化回复（基于匹配的提示词 + 记忆）
             sales_response, token_info = await self.__generate_final_response(
-                customer_input, matched_prompt, short_term_messages, long_term_memories
+                user_text, matched_prompt, short_term_messages, long_term_memories
             )
 
             # 存储助手回复到记忆
@@ -100,14 +103,34 @@ class SalesAgent(BaseAgent):
                 except Exception as e:
                     self.logger.error(f"保存助手回复失败: {e}")
 
-            # 更新状态
-            updated_state = self._update_state(state, sales_response, token_info)
+            # 更新状态 - 返回增量字典
+            
+            token_usage = {
+                "input_tokens": token_info.get("input_tokens", 0),
+                "output_tokens": token_info.get("output_tokens", 0),
+                "total_tokens": token_info.get("total_tokens", 0)
+            }
+
+            agent_data = {
+                "agent_type": "sales",
+                "sales_response": sales_response,
+                "response": sales_response,  # 标准化的响应字段
+                "token_usage": token_usage,  # 标准化的token信息
+                "tokens_used": token_usage["total_tokens"],  # 向后兼容
+                "timestamp": get_current_datetime(),
+                "response_length": len(sales_response)
+            }
 
             processing_time = (get_current_datetime() - start_time).total_seconds()
             self.logger.info(f"最终回复生成完成: 耗时{processing_time:.2f}s, 长度={len(sales_response)}, tokens={token_info.get('tokens_used', 0)}")
             self.logger.info("=== Sales Agent 处理完成 ===")
 
-            return updated_state
+            return {
+                "output": sales_response, # 更新最终输出
+                "total_tokens": current_total_tokens + token_usage["total_tokens"],
+                "values": {"agent_responses": {self.agent_id: agent_data}},
+                "active_agents": [self.agent_id]
+            }
 
         except Exception as e:
             self.logger.error(f"销售代理处理失败: {e}", exc_info=True)
@@ -254,41 +277,3 @@ class SalesAgent(BaseAgent):
         else:
             return "感谢您的咨询。我是您的专业美容顾问，很乐意为您提供个性化的产品建议和美容方案。"
 
-    def _update_state(self, state: dict, sales_response: str, token_info: dict) -> dict:
-        """更新对话状态 - 使用统一的TokenManager格式"""
-        current_time = get_current_datetime()
-
-        # 主要状态（LangGraph 传递）
-        state["sales_response"] = sales_response
-        state["output"] = sales_response  # 作为最终输出
-        state["total_tokens"] = token_info.get("total_tokens", 0)  # 更新WorkflowExecutionModel的total_tokens字段
-
-        # 备份到 values 结构，使用标准化的token信息
-        if state.get("values") is None:
-            state["values"] = {}
-        if state["values"].get("agent_responses") is None:
-            state["values"]["agent_responses"] = {}
-
-        # 创建标准化的token信息结构
-        token_usage = {
-            "input_tokens": token_info.get("input_tokens", 0),
-            "output_tokens": token_info.get("output_tokens", 0),
-            "total_tokens": token_info.get("total_tokens", token_info.get("tokens_used", 0))
-        }
-
-        state["values"]["agent_responses"][self.agent_id] = {
-            "agent_type": "sales",
-            "sales_response": sales_response,
-            "response": sales_response,  # 标准化的响应字段
-            "token_usage": token_usage,  # 标准化的token信息
-            "tokens_used": token_usage["total_tokens"],  # 向后兼容
-            "timestamp": current_time,
-            "response_length": len(sales_response)
-        }
-
-        # 更新活跃代理列表
-        state.setdefault("active_agents", []).append(self.agent_id)
-
-        self.logger.info(f"状态更新完成 - 最终输出内容: {sales_response[:100]}...")
-        self.logger.info(f"Sales Agent Token统计 - Input: {token_usage['input_tokens']}, Output: {token_usage['output_tokens']}, Total: {token_usage['total_tokens']}")
-        return state
