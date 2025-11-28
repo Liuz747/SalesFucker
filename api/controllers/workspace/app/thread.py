@@ -118,10 +118,8 @@ async def get_thread(
 
         return {
             "thread_id": thread.thread_id,
-            "metadata": {
-                "tenant_id": thread.tenant_id,
-                "assistant_id": thread.assistant_id
-            },
+            "tenant_id": thread.tenant_id,
+            "assistant_id": thread.assistant_id,
             "status": thread.status,
             "created_at": thread.created_at,
             "updated_at": thread.updated_at

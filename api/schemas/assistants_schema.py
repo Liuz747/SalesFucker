@@ -32,7 +32,7 @@ class AssistantCreateRequest(BaseModel):
     voice_id: Optional[str] = Field(None, description="语音克隆配置，使用MiniMax模型")
     voice_file: Optional[str] = Field(None, description="语音文件URL链接", max_length=1024)
     industry: str = Field(description="数字员工所处的行业信息")
-    profile: Optional[dict[str, Any]] = Field(None, description="助理个人资料信息")
+    profile: dict[str, Any] = Field(description="助理个人资料信息")
 
     @field_validator("assistant_name")
     def validate_assistant_name(cls, v):

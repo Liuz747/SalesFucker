@@ -99,12 +99,7 @@ async def create_run(
             "status": "completed",
             "response": result.output,
             "total_tokens": result.total_tokens,
-            "created_at": start_time,
             "processing_time": processing_time,
-            "metadata": {
-                "tenant_id": result.tenant_id,
-                "assistant_id": result.assistant_id
-            }
         }
 
         # 添加多模态输出（如果存在）
@@ -194,8 +189,6 @@ async def create_background_run(
         return {
             "run_id": run_id,
             "thread_id": thread.thread_id,
-            "tenant_id": thread.tenant_id,
-            "assistant_id": request.assistant_id,
             "status": "started",
             "created_at": created_at
         }
@@ -237,8 +230,6 @@ async def get_run_status(
         return {
             "run_id": run_id,
             "thread_id": thread.thread_id,
-            "tenant_id": thread.tenant_id,
-            "assistant_id": thread.assistant_id,
             "status": thread.status,
             "created_at": thread.created_at,
             "updated_at": thread.updated_at
