@@ -27,7 +27,10 @@ async def get_temporal_client() -> Client:
 
     try:
         # 创建Temporal客户端
-        temporal_client = await Client.connect(mas_config.temporal_url)
+        temporal_client = await Client.connect(
+            mas_config.temporal_url,
+            namespace=mas_config.TEMPORAL_NAMESPACE
+        )
         return temporal_client
     except Exception as e:
         raise ConnectionError(e)
