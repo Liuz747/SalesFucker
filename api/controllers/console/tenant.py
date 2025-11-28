@@ -49,7 +49,7 @@ async def sync_tenant(request: TenantSyncRequest):
             area_id=request.area_id,
             creator=request.creator,
             company_size=request.company_size,
-            features=request.features.model_dump(exclude_none=True) or {}
+            features=request.features.model_dump(exclude_none=True) if request.features else {}
         )
         tenant_model = await TenantService.create_tenant(tenant)
 
