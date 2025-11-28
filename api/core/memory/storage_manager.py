@@ -11,13 +11,12 @@ Storage Manager
 """
 
 import asyncio
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any, Optional
 from uuid import UUID
 
 from config import mas_config
-from libs.types import MessageParams, Message
-from libs.types.memory import MemoryType
+from libs.types import MemoryType, MessageParams, Message
 from utils import get_component_logger, get_current_datetime
 from .conversation_store import ConversationStore
 from .elasticsearch_index import ElasticsearchIndex
@@ -90,104 +89,39 @@ class StorageManager:
         self,
         tenant_id: str,
         thread_id: UUID,
+        memory_type: MemoryType,
         content: str,
         tags: Optional[list[str]] = None,
-        metadata: Optional[dict[str, Any]] = None
+        metadata: Optional[dict[str, Any]] = None,
+        importance_score: Optional[float] = None,
+        expires_at: Optional[datetime] = None
     ) -> str:
         """
-        存储临时（非对话）记忆到长期记忆
+        存储非对话记忆到长期记忆
 
         Args:
             tenant_id: 租户标识
             thread_id: 对话线程ID
+            memory_type: 存储的记忆类型
             content: 要存储的临时记忆内容
             tags: 可选的标签列表
+            importance_score: 可选的记忆重要性分数
+            expires_at: 可选的过期时间
             metadata: 可选的元数据字典
 
         Returns:
             str: 存储的临时记忆的ID
         """
 
-        return await self.elasticsearch_index.store_episodic_memory(
+        return await self.elasticsearch_index.store_summary(
             tenant_id=tenant_id,
             thread_id=thread_id,
             content=content,
+            memory_type=memory_type,
+            expires_at=expires_at,
             tags=tags,
+            importance_score=importance_score,
             metadata=metadata
-        )
-
-    async def add_offline_report(
-        self,
-        tenant_id: str,
-        thread_id: UUID,
-        content: str,
-        tags: Optional[list[str]] = None,
-        metadata: Optional[dict[str, Any]] = None
-    ) -> str:
-        """
-        存储用户线下报告到长期记忆
-
-        Args:
-            tenant_id: 租户标识
-            thread_id: 对话线程ID
-            content: 线下报告内容
-            tags: 可选的标签列表
-            metadata: 可选的元数据字典
-
-        Returns:
-            str: 存储的记录ID
-        """
-        # 默认标签
-        report_tags = ["offline_report"]
-        if tags:
-            report_tags.extend(tags)
-
-        return await self.elasticsearch_index.store_memory(
-            tenant_id=tenant_id,
-            thread_id=thread_id,
-            content=content,
-            memory_type=MemoryType.OFFLINE_REPORT,
-            tags=report_tags,
-            metadata=metadata,
-            importance_score=1.0,  # 线下报告通常很重要
-            expires_at=None        # 永久保存
-        )
-
-    async def add_moments_interaction(
-        self,
-        tenant_id: str,
-        thread_id: UUID,
-        content: str,
-        tags: Optional[list[str]] = None,
-        metadata: Optional[dict[str, Any]] = None
-    ) -> str:
-        """
-        存储朋友圈互动记录到长期记忆
-
-        Args:
-            tenant_id: 租户标识
-            thread_id: 对话线程ID
-            content: 互动内容
-            tags: 可选的标签列表
-            metadata: 可选的元数据字典
-
-        Returns:
-            str: 存储的记录ID
-        """
-        # 默认标签
-        interaction_tags = ["moments_interaction"]
-        if tags:
-            interaction_tags.extend(tags)
-
-        return await self.elasticsearch_index.store_memory(
-            tenant_id=tenant_id,
-            thread_id=thread_id,
-            content=content,
-            memory_type=MemoryType.MOMENTS_INTERACTION,
-            tags=interaction_tags,
-            metadata=metadata,
-            importance_score=0.8,  # 互动记录相对重要
-            expires_at=None        # 永久保存
         )
 
     async def save_assistant_message(self, tenant_id: str, thread_id: UUID, message: str):
@@ -307,10 +241,10 @@ class StorageManager:
         tenant_id: str,
         thread_id: UUID,
         limit: int = 5,
-        memory_types: Optional[list[str]] = None,
+        memory_types: Optional[MemoryType] = None,
     ) -> list[dict]:
         """
-        获取外部活动上下文（如朋友圈、线下活动等）
+        获取非对话活动上下文（如朋友圈、线下活动等）
         这些记忆不需要语义搜索，而是按时间倒序获取最近的记录
 
         Args:
@@ -323,7 +257,7 @@ class StorageManager:
             list[dict]: 记忆列表
         """
         try:
-            return await self.elasticsearch_index.get_recent_memories(
+            return await self.elasticsearch_index.search(
                 tenant_id=tenant_id,
                 thread_id=thread_id,
                 limit=limit,

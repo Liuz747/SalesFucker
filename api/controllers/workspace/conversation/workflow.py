@@ -77,9 +77,6 @@ async def create_run(
         start_time = get_current_datetime()
         workflow_id = uuid4()
 
-        # 如果请求中没有提供assistant_id，自动生成一个
-        assistant_id = request.assistant_id or uuid4()
-
         workflow = WorkflowRun(
             workflow_id=workflow_id,
             thread_id=thread.thread_id,
@@ -92,20 +89,6 @@ async def create_run(
         result = await orchestrator.process_conversation(workflow)
 
         processing_time = get_processing_time_ms(start_time)
-        
-        # 确保从result中正确提取response
-        # 如果result.output为空，尝试从result.values中获取
-        final_response = result.output
-        if not final_response and result.values:
-            # 尝试从agent_responses中获取SalesAgent的响应
-            agent_responses = result.values.get("agent_responses", {})
-            if "sales_agent" in agent_responses:
-                sales_data = agent_responses["sales_agent"]
-                final_response = sales_data.get("sales_response") or sales_data.get("response")
-            
-            # 如果还没找到，尝试直接查找values中的sales_response
-            if not final_response:
-                final_response = result.values.get("sales_response")
 
         logger.info(f"运行处理完成 - 线程: {thread.thread_id}, 执行: {workflow_id}, 耗时: {processing_time:.2f}ms")
 
@@ -114,7 +97,7 @@ async def create_run(
             "run_id": workflow_id,
             "thread_id": result.thread_id,
             "status": "completed",
-            "response": final_response,
+            "response": result.output,
             "total_tokens": result.total_tokens,
             "created_at": start_time,
             "processing_time": processing_time,
@@ -190,9 +173,6 @@ async def create_background_run(
         # 生成运行ID
         run_id = uuid4()
         created_at = get_current_datetime()
-
-        # 如果请求中没有提供assistant_id，自动生成一个
-        assistant_id = request.assistant_id or uuid4()
 
         # 获取后台处理器
         processor = BackgroundWorkflowProcessor()

@@ -8,15 +8,16 @@ Hybrid Memory System - Elasticsearch索引管理
 - 多租户数据隔离
 - 时间范围查询和TTL管理
 """
+
 from datetime import datetime
-from typing import Any, Optional, Union
+from typing import Any, Optional
 from uuid import UUID
 
 from elasticsearch import AsyncElasticsearch, NotFoundError
 
 from config import mas_config
 from libs.factory import infra_registry
-from libs.types.memory import MemoryType
+from libs.types import MemoryType
 from utils import get_component_logger, to_isoformat
 
 logger = get_component_logger(__name__)
@@ -45,27 +46,27 @@ class ElasticsearchIndex:
         return self._es_client
 
     # --------------------------------------------------------------------
-    # Unified Memory Storage
+    # Insert summary entry
     # --------------------------------------------------------------------
-    async def store_memory(
+    async def store_summary(
         self,
         tenant_id: str,
         thread_id: UUID,
         content: str,
-        memory_type: Union[MemoryType, str],
+        memory_type: MemoryType,
         expires_at: Optional[datetime] = None,
         tags: Optional[list[str]] = None,
         metadata: Optional[dict[str, Any]] = None,
         importance_score: Optional[float] = None,
     ) -> str:
         """
-        统一的记忆存储方法
+        向Elasticsearch插入摘要文档
 
         Args:
             tenant_id: 租户ID
             thread_id: 对话线程ID
             content: 记忆内容
-            memory_type: 记忆类型 (MemoryType enum or str)
+            memory_type: 记忆类型 (MemoryType enum)
             expires_at: 过期时间（可选）
             tags: 标签列表（可选）
             metadata: 元数据字典（可选）
@@ -100,54 +101,6 @@ class ElasticsearchIndex:
             raise
 
     # --------------------------------------------------------------------
-    # Legacy / Convenience Wrappers
-    # --------------------------------------------------------------------
-    async def store_summary(
-        self,
-        tenant_id: str,
-        thread_id: UUID,
-        content: str,
-        memory_type: str = MemoryType.LONG_TERM,
-        expires_at: Optional[datetime] = None,
-        tags: Optional[list[str]] = None,
-        metadata: Optional[dict[str, Any]] = None,
-    ) -> str:
-        """
-        向Elasticsearch插入摘要文档 (Wrapper for store_memory)
-        """
-        return await self.store_memory(
-            tenant_id=tenant_id,
-            thread_id=thread_id,
-            content=content,
-            memory_type=memory_type,
-            expires_at=expires_at,
-            tags=tags,
-            metadata=metadata,
-        )
-
-    async def store_episodic_memory(
-        self,
-        tenant_id: str,
-        thread_id: UUID,
-        content: str,
-        tags: Optional[list[str]] = None,
-        metadata: Optional[dict[str, Any]] = None,
-    ) -> str:
-        """
-        向Elasticsearch插入短记忆文档 (Wrapper for store_memory)
-        """
-        return await self.store_memory(
-            tenant_id=tenant_id,
-            thread_id=thread_id,
-            content=content,
-            memory_type=MemoryType.EPISODIC,
-            tags=tags,
-            metadata=metadata,
-            importance_score=0.9,
-            expires_at=None
-        )
-
-    # --------------------------------------------------------------------
     # 按 thread 获取摘要列表
     # --------------------------------------------------------------------
     async def get_thread_summaries(
@@ -155,7 +108,7 @@ class ElasticsearchIndex:
         tenant_id: str,
         thread_id: UUID,
         limit: int = 20,
-        memory_type: str = MemoryType.LONG_TERM,
+        memory_type: MemoryType = MemoryType.LONG_TERM,
     ) -> list[dict]:
         """
         获取指定对话线程的所有摘要
@@ -201,13 +154,27 @@ class ElasticsearchIndex:
         query_text: str,
         thread_id: Optional[UUID] = None,
         limit: int = 5,
+        memory_types: Optional[list[str]] = None,
     ) -> list[dict]:
         """
         使用全文匹配和租户/线程过滤器进行关键词搜索
+
+        Args:
+            tenant_id: 租户ID
+            query_text: 搜索查询文本
+            thread_id: 对话线程ID
+            limit: 返回结果数量限制，默认5
+            memory_types: 记忆类型列表
+
+        Returns:
+            list[dict]: 搜索结果列表，按创建时间降序排列
         """
         filters = [{"term": {"tenant_id": tenant_id}}]
         if thread_id:
             filters.append({"term": {"thread_id": str(thread_id)}})
+
+        if memory_types:
+            filters.append({"terms": {"memory_type": memory_types}})
 
         query = {
             "bool": {
@@ -227,53 +194,6 @@ class ElasticsearchIndex:
 
         except Exception as e:
             logger.exception(f"[ElasticsearchIndex] Search failed: {e}")
-            return []
-
-    async def get_recent_memories(
-        self,
-        tenant_id: str,
-        thread_id: UUID,
-        limit: int = 10,
-        memory_types: Optional[list[str]] = None,
-    ) -> list[dict]:
-        """
-        获取最近的记忆（无需关键词匹配，按时间倒序）
-        用于检索最近的活动记录（如朋友圈互动、线下报告等）
-
-        Args:
-            tenant_id: 租户ID
-            thread_id: 线程ID
-            limit: 限制数量
-            memory_types: 记忆类型列表
-
-        Returns:
-            list[dict]: 记忆列表
-        """
-        filters = [
-            {"term": {"tenant_id": tenant_id}},
-            {"term": {"thread_id": str(thread_id)}}
-        ]
-
-        if memory_types:
-            filters.append({"terms": {"memory_type": memory_types}})
-
-        query = {
-            "bool": {
-                "filter": filters
-            }
-        }
-
-        try:
-            res = await self.client.search(
-                index=self.index_name,
-                query=query,
-                sort=[{"created_at": {"order": "desc"}}],
-                size=limit,
-            )
-            return [{"id": hit["_id"], **hit["_source"]} for hit in res["hits"]["hits"]]
-
-        except Exception as e:
-            logger.exception(f"[ElasticsearchIndex] Get recent memories failed: {e}")
             return []
 
 

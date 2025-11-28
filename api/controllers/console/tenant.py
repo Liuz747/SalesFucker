@@ -48,8 +48,7 @@ async def sync_tenant(request: TenantSyncRequest):
             industry=request.industry,
             area_id=request.area_id,
             creator=request.creator,
-            company_size=request.company_size,
-            features=request.features.model_dump(exclude_none=True) if request.features else {}
+            company_size=request.company_size
         )
         tenant_model = await TenantService.create_tenant(tenant)
 
@@ -62,8 +61,7 @@ async def sync_tenant(request: TenantSyncRequest):
         return TenantSyncResponse(
             tenant_id=tenant.tenant_id,
             tenant_name=tenant.tenant_name,
-            message="租户同步成功",
-            features=tenant_model.features
+            message="租户同步成功"
         )
 
     except TenantAlreadyExistsException:
@@ -121,8 +119,7 @@ async def update_tenant(
             tenant_id=tenant_id,
             tenant_name=tenant_model.tenant_name,
             status=tenant_model.status,
-            message="租户更新成功",
-            features=tenant_model.features
+            message="租户更新成功"
         )
 
     except ValueError as e:
