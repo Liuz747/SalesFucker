@@ -56,9 +56,6 @@ class TenantOrm(Base):
     editor = Column(Integer)
     is_active = Column(Boolean, nullable=False, default=True)
 
-    # 扩展配置（新增JSONB字段用于存储复杂配置）
-    features = Column(JSONB, default=dict)
-
     # 数据库索引优化
     __table_args__ = (
         Index('idx_tenant_status', 'status'),
@@ -94,12 +91,6 @@ class TenantModel(BaseModel):
     created_at: Optional[datetime] = Field(None, description="创建时间")
     updated_at: Optional[datetime] = Field(None, description="最后更新时间")
 
-    # 业务配置
-    features: dict[str, bool] = Field(
-        default_factory=dict,
-        description="功能开关配置"
-    )
-
     @classmethod
     def to_model(cls, tenant_orm: TenantOrm) -> Self:
         return cls(
@@ -115,8 +106,7 @@ class TenantModel(BaseModel):
             editor=tenant_orm.editor,
             is_active=tenant_orm.is_active,
             created_at=tenant_orm.created_at,
-            updated_at=tenant_orm.updated_at,
-            features=tenant_orm.features or {},
+            updated_at=tenant_orm.updated_at
         )
 
     def to_orm(self) -> TenantOrm:
@@ -133,6 +123,5 @@ class TenantModel(BaseModel):
             editor=self.editor,
             is_active=self.is_active,
             created_at=self.created_at,
-            updated_at=self.updated_at,
-            features=self.features,
+            updated_at=self.updated_at
         )

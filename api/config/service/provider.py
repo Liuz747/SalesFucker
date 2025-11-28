@@ -54,6 +54,11 @@ class LLMConfig(BaseSettings):
         default="qianyu_test",
     )
 
+    ZENMUX_API_KEY: str = Field(
+        description="Zenmux API 密钥，用于访问 Zenmux 系列模型",
+        default="",
+    )
+
     # 多LLM 系统配置
     DEFAULT_LLM_PROVIDER: str = Field(
         description="默认 LLM 提供商",

@@ -106,7 +106,6 @@ class TenantService:
     @staticmethod
     async def update_tenant(
         tenant_id: str,
-        features: Optional[dict[str, bool]] = None,
         tenant_status: Optional[AccountStatus] = None
     ) -> TenantModel:
         """更新租户"""
@@ -116,7 +115,6 @@ class TenantService:
                 if not tenant_orm:
                     raise TenantNotFoundException(tenant_id)
 
-                tenant_orm.features = features or tenant_orm.features
                 tenant_orm.status = tenant_status or tenant_orm.status
                 updated_tenant_orm = await TenantRepository.update_tenant(tenant_orm, session)
 

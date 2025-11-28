@@ -118,6 +118,7 @@ class MomentData(BaseModel):
     """朋友圈内容模型"""
 
     id: str = Field(description="朋友圈ID")
+    thread_id: Optional[str] = Field(None, description="关联的Thread ID，用于记忆存储")
     moment_content: Optional[str] = Field(None, description="朋友圈文案内容")
     url_list: Optional[Sequence[str]] = Field(default_factory=list, description="朋友圈图片URL列表")
 

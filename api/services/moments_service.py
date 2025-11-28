@@ -17,10 +17,13 @@ from infra.cache import get_redis_client
 from infra.runtimes import LLMClient, CompletionsRequest
 from libs.types import MethodType, Message
 from libs.types.content_params import InputContent, InputType
+from libs.types.memory import MemoryType
 from schemas.social_media_schema import (
     MomentsAnalysisRequest,
     MomentsAnalysisResponse,
+    SocialMediaActionType,
 )
+from core.memory import StorageManager
 from utils import get_component_logger, load_yaml_file
 
 
@@ -40,6 +43,8 @@ class MomentsAnalysisService:
 
         self.client = LLMClient()
         self.config_path = str(config_path)
+        self.storage_manager = StorageManager()
+
 
     async def invoke_llm_multimodal(
         self,
@@ -166,7 +171,7 @@ class MomentsAnalysisService:
             f"- 对于图片内容，请结合视觉信息进行综合判断"
         )
 
-    async def analyze_moments(self, request: MomentsAnalysisRequest) -> MomentsAnalysisResponse:
+    async def analyze_moments(self, request: MomentsAnalysisRequest, tenant_id: str) -> MomentsAnalysisResponse:
         """分析朋友圈内容并生成互动建议"""
         try:
             # 加载系统提示词
@@ -208,6 +213,9 @@ class MomentsAnalysisService:
             if tasks_count != len(request.task_list):
                 logger.warning(f"返回任务数量({tasks_count})与输入数量({len(request.task_list)})不匹配")
 
+            # 存储互动记录到记忆
+            await self._store_moments_memories(request, result, tenant_id)
+
             # 直接返回结果
             return result
 
@@ -233,3 +241,57 @@ class MomentsAnalysisService:
 
         await redis_client.set(cache_key, prompt, ex=mas_config.REDIS_TTL)
         logger.info(f"朋友圈提示词重载成功: {method}")
+
+    async def _store_moments_memories(
+        self,
+        request: MomentsAnalysisRequest,
+        result: MomentsAnalysisResponse,
+        tenant_id: str
+    ):
+        """存储朋友圈互动记录到记忆"""
+        try:
+            # 建立 id 到 moment 的映射
+            moment_map = {m.id: m for m in request.task_list}
+
+            for task_result in result.tasks:
+                moment = moment_map.get(task_result.id)
+                if not moment or not moment.thread_id:
+                    continue
+
+                # 仅当有互动行为（点赞或评论）时存储
+                if not task_result.actions:
+                    continue
+
+                # 构建记忆内容
+                content_parts = []
+                if moment.moment_content:
+                    content_parts.append(f"用户发布朋友圈: {moment.moment_content}")
+                
+                if moment.url_list:
+                    content_parts.append(f"[包含{len(moment.url_list)}张图片]")
+                
+                interaction_parts = []
+                if SocialMediaActionType.LIKE in task_result.actions: # 假设 1 是点赞
+                    interaction_parts.append("我点赞了")
+                if SocialMediaActionType.COMMENT in task_result.actions and task_result.message: # 假设 2 是评论
+                    interaction_parts.append(f"我评论: {task_result.message}")
+                
+                if interaction_parts:
+                    content_parts.append(f"交互记录: {', '.join(interaction_parts)}")
+
+                memory_content = " | ".join(content_parts)
+
+                # 存储到记忆
+                await self.storage_manager.store_memory(
+                    tenant_id=tenant_id,
+                    thread_id=uuid4() if not moment.thread_id else moment.thread_id, # thread_id should be UUID
+                    content=memory_content,
+                    memory_type=MemoryType.MOMENTS_INTERACTION,
+                    tags=["moments", "interaction"]
+                )
+                logger.debug(f"朋友圈互动记忆已存储: {moment.id} -> {moment.thread_id}")
+
+        except Exception as e:
+            logger.error(f"存储朋友圈记忆失败: {e}", exc_info=True)
+            # 不抛出异常，以免影响主流程
+

@@ -27,16 +27,14 @@ class TenantSyncRequest(BaseTenant):
     area_id: Optional[str] = Field(description="地区ID")
     creator: Optional[int] = Field(description="创建者ID")
     company_size: Optional[int] = Field(default=1, description="公司规模：1-小型，2-中型，3-大型")
-    features: Optional[FeatureFlags] = Field(default=None, description="启用的功能")
 
 
 class TenantUpdateRequest(BaseModel):
-    features: Optional[FeatureFlags] = Field(None, description="功能列表")
     status: Optional[AccountStatus] = Field(None, description="租户状态")
 
 
 class TenantSyncResponse(BaseResponse, BaseTenant):
-    features: Optional[FeatureFlags] = Field(None, description="启用的功能")
+    pass
 
 
 class TenantStatusResponse(BaseResponse, BaseTenant):
@@ -45,4 +43,3 @@ class TenantStatusResponse(BaseResponse, BaseTenant):
 
 class TenantDeleteResponse(BaseResponse, BaseTenant):
     pass
-    # is_active: bool = Field(description="是否删除成功")

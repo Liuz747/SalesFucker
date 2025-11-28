@@ -11,12 +11,12 @@ Storage Manager
 """
 
 import asyncio
-from datetime import timedelta
+from datetime import datetime, timedelta
 from typing import Any, Optional
 from uuid import UUID
 
 from config import mas_config
-from libs.types import MessageParams, Message
+from libs.types import MemoryType, MessageParams, Message
 from utils import get_component_logger, get_current_datetime
 from .conversation_store import ConversationStore
 from .elasticsearch_index import ElasticsearchIndex
@@ -89,29 +89,38 @@ class StorageManager:
         self,
         tenant_id: str,
         thread_id: UUID,
+        memory_type: MemoryType,
         content: str,
         tags: Optional[list[str]] = None,
-        metadata: Optional[dict[str, Any]] = None
+        metadata: Optional[dict[str, Any]] = None,
+        importance_score: Optional[float] = None,
+        expires_at: Optional[datetime] = None
     ) -> str:
         """
-        存储临时（非对话）记忆到长期记忆
+        存储非对话记忆到长期记忆
 
         Args:
             tenant_id: 租户标识
             thread_id: 对话线程ID
+            memory_type: 存储的记忆类型
             content: 要存储的临时记忆内容
             tags: 可选的标签列表
+            importance_score: 可选的记忆重要性分数
+            expires_at: 可选的过期时间
             metadata: 可选的元数据字典
 
         Returns:
             str: 存储的临时记忆的ID
         """
 
-        return await self.elasticsearch_index.store_episodic_memory(
+        return await self.elasticsearch_index.store_summary(
             tenant_id=tenant_id,
             thread_id=thread_id,
             content=content,
+            memory_type=memory_type,
+            expires_at=expires_at,
             tags=tags,
+            importance_score=importance_score,
             metadata=metadata
         )
 
@@ -167,7 +176,7 @@ class StorageManager:
                 tenant_id=tenant_id,
                 thread_id=thread_id,
                 content=summary_content,
-                memory_type="long_term",
+                memory_type=MemoryType.LONG_TERM,
                 expires_at=get_current_datetime() + timedelta(days=mas_config.ES_MEMORY_TTL_DAYS),
                 tags=["conversation_summary"]
             )
@@ -226,6 +235,37 @@ class StorageManager:
             short_term_messages: MessageParams = []
             long_term_summaries: list[dict] = []
             return short_term_messages, long_term_summaries
+
+    async def get_external_context(
+        self,
+        tenant_id: str,
+        thread_id: UUID,
+        limit: int = 5,
+        memory_types: Optional[MemoryType] = None,
+    ) -> list[dict]:
+        """
+        获取非对话活动上下文（如朋友圈、线下活动等）
+        这些记忆不需要语义搜索，而是按时间倒序获取最近的记录
+
+        Args:
+            tenant_id: 租户标识
+            thread_id: 对话线程ID
+            limit: 限制数量
+            memory_types: 记忆类型列表
+
+        Returns:
+            list[dict]: 记忆列表
+        """
+        try:
+            return await self.elasticsearch_index.search(
+                tenant_id=tenant_id,
+                thread_id=thread_id,
+                limit=limit,
+                memory_types=memory_types
+            )
+        except Exception as e:
+            logger.error(f"Failed to retrieve external context for thread {thread_id}: {e}")
+            return []
 
     async def cleanup_expired_memories(self):
         """清理过期的记忆条目"""

@@ -11,10 +11,11 @@
 """
 
 from core.agents.base import BaseAgent
-from core.agents.compliance import ComplianceAgent
 from core.agents.sales import SalesAgent
 from core.agents.sentiment import SentimentAnalysisAgent
 from core.agents.chat.agent import ChatAgent
+from core.agents.appointment_intent import AppointmentIntentAgent
+from core.agents.material_intent import MaterialIntentAgent
 from libs.constants import AgentNodes
 from utils import get_component_logger
 
@@ -23,9 +24,10 @@ logger = get_component_logger(__name__)
 
 # 工作流节点名 -> 智能体类 映射
 AGENT_NODE_MAPPING = {
-    AgentNodes.COMPLIANCE_NODE: ComplianceAgent,
     AgentNodes.SENTIMENT_NODE: SentimentAnalysisAgent,
     AgentNodes.SALES_NODE: SalesAgent,
+    AgentNodes.APPOINTMENT_INTENT_NODE: AppointmentIntentAgent,
+    AgentNodes.MATERIAL_INTENT_NODE: MaterialIntentAgent,
     "chat_agent": ChatAgent,
 }
 
@@ -41,15 +43,9 @@ def create_agents_set() -> dict[str, BaseAgent]:
 
     # 基于工作流节点名创建智能体集合
     for node_name, agent_class in AGENT_NODE_MAPPING.items():
-        try:
-            agent = agent_class()
-            # 使用工作流节点名称作为智能体ID与键，便于工作流直接查找
-            agent.agent_id = node_name
-            agents[node_name] = agent
-
-        except Exception as e:
-            # 如果某个智能体创建失败，记录错误但继续创建其他智能体
-            logger.error(f"创建智能体 {node_name} 失败: {e}")
-            continue
+        agent = agent_class()
+        # 使用工作流节点名称作为智能体ID与键，便于工作流直接查找
+        agent.agent_id = node_name
+        agents[node_name] = agent
 
     return agents

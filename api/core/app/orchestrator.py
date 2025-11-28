@@ -53,10 +53,8 @@ class Orchestrator:
         self.state_manager = StateManager()
 
         # 构建工作流图
-        self.workflow_builder = WorkflowBuilder(TestWorkflow)
+        self.workflow_builder = WorkflowBuilder(ChatWorkflow)
         self.graph = self.workflow_builder.build_graph()
-
-        logger.info("多智能体编排器初始化完成")
 
     @observe(name="multi-agent-conversation", as_type="span")
     async def process_conversation(self, workflow: WorkflowRun) -> WorkflowExecutionModel:

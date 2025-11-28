@@ -1,31 +1,22 @@
 """
-销售智能体模块
+Sales Agent Module - 简化架构（智能匹配提示词 + 记忆系统）
 
-该模块包含销售智能体的所有组件，采用模块化设计。
-遵循trunk-based development最佳实践，将功能分散到专注的小模块中。
+基于 SentimentAgent 输出的 matched_prompt，结合记忆上下文生成个性化销售回复。
+移除复杂的产品推荐逻辑，专注于核心对话生成。
 
-模块组织:
-- conversation_templates.py: 对话模板管理
-- sales_strategies.py: 销售策略和客户细分
-- need_assessment.py: 客户需求分析
-- ../sales.py: 轻量级核心智能体
+核心组件:
+- SalesAgent: 主协调器（简化版）
+
+设计理念:
+- 极简主义架构
+- 情感驱动交互
+- 记忆驱动个性化
+- 配置驱动提示词
 """
 
 from .agent import SalesAgent
-from .sales_strategies import get_sales_strategies, analyze_customer_segment, CustomerSegment
-# Need assessment now handled by enhanced IntentAnalysisAgent with LLM field extraction
 
-# 公开接口
 __all__ = [
-    # 核心智能体
-    "SalesAgent",
-    
-    # 模板和响应管理 (now LLM-powered)
-    
-    # 策略管理
-    "get_sales_strategies",
-    "analyze_customer_segment",
-    "CustomerSegment"
-    
-    # 需求分析现在由增强的IntentAnalysisAgent处理
-] 
+    # 主要智能体
+    "SalesAgent"
+]
