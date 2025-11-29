@@ -11,6 +11,7 @@
 from fastapi import APIRouter
 
 from libs.types import AccountStatus
+from models import TenantModel
 from schemas.tenant_schema import (
     TenantSyncRequest,
     TenantSyncResponse,
@@ -18,14 +19,12 @@ from schemas.tenant_schema import (
     TenantUpdateRequest,
     TenantDeleteResponse
 )
-
 from schemas.exceptions import (
     TenantManagementException,
     TenantNotFoundException,
     TenantSyncException,
     TenantAlreadyExistsException
 )
-from models import TenantModel
 from services import TenantService
 from utils import get_component_logger
 
@@ -45,10 +44,9 @@ async def sync_tenant(request: TenantSyncRequest):
         tenant = TenantModel(
             tenant_id=request.tenant_id,
             tenant_name=request.tenant_name,
+            status=request.status,
             industry=request.industry,
-            area_id=request.area_id,
-            creator=request.creator,
-            company_size=request.company_size
+            creator=request.creator
         )
         tenant_model = await TenantService.create_tenant(tenant)
 

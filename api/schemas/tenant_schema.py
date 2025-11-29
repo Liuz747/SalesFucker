@@ -13,10 +13,8 @@ class BaseTenant(BaseModel):
 
 
 class TenantSyncRequest(BaseTenant):
-    industry: Optional[str] = Field(description="行业类型：1-美容诊所，2-化妆品公司等")
-    area_id: Optional[str] = Field(description="地区ID")
+    industry: Optional[str] = Field(description="行业类型")
     creator: Optional[int] = Field(description="创建者ID")
-    company_size: Optional[int] = Field(default=1, description="公司规模：1-小型，2-中型，3-大型")
 
 
 class TenantUpdateRequest(BaseModel):
