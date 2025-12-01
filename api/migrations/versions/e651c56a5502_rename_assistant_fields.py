@@ -30,7 +30,7 @@ def upgrade() -> None:
     sa.Column('status', sa.Enum('ACTIVE', 'BANNED', 'CLOSED', name='account_status', create_type=False), nullable=False),
     sa.Column('personality', sa.String(length=500), nullable=False),
     sa.Column('occupation', sa.String(length=100), nullable=False),
-    sa.Column('voice_id', sa.String(length=50), nullable=True),
+    sa.Column('voice_id', sa.String(length=100), nullable=True),
     sa.Column('voice_file', sa.String(length=500), nullable=True),
     sa.Column('industry', sa.String(length=100), nullable=False),
     sa.Column('profile', postgresql.JSONB(astext_type=sa.Text()), nullable=False),

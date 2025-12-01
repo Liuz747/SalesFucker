@@ -54,10 +54,10 @@ class ElasticsearchIndex:
         thread_id: UUID,
         content: str,
         memory_type: MemoryType,
-        expires_at: Optional[datetime] = None,
+        importance_score: Optional[float] = None,
         tags: Optional[list[str]] = None,
         metadata: Optional[dict[str, Any]] = None,
-        importance_score: Optional[float] = None,
+        expires_at: Optional[datetime] = None,
     ) -> str:
         """
         向Elasticsearch插入摘要文档

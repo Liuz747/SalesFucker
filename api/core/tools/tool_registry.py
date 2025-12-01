@@ -2,8 +2,8 @@ from collections.abc import Callable
 
 from .entities import ToolArgument, ToolDefinition
 # from .rag_retrieve import rag_retrieve
-from .search_context import search_context
-from .store_episodic import store_episodic
+from .search_context import search_conversation_context
+from .store_episodic import store_episodic_memory
 # from .trigger_workflow import trigger_workflow
 
 
@@ -26,6 +26,7 @@ store_episodic_memory_tool = ToolDefinition(
         ToolArgument("tenant_id", "string", "租户ID，用于数据隔离"),
         ToolArgument("thread_id", "UUID", "线程ID，用于关联对话上下文"),
         ToolArgument("content", "string", "要存储的记忆内容"),
+        ToolArgument("importance_score", "float", "记忆的相对重要程度，范围0-1"),
         ToolArgument("tags", "array", "标签列表，用于分类和检索（可选）"),
         ToolArgument("metadata", "object", "元数据字典，存储额外信息（可选）")
     ],
@@ -56,8 +57,8 @@ trigger_workflow_tool = ToolDefinition(
 
 # Dictionary mapping tool names to their handler functions
 TOOL_HANDLERS: dict[str, Callable] = {
-    "long_term_memory_retrieve": search_context,
-    "store_episodic_memory": store_episodic,
+    "long_term_memory_retrieve": search_conversation_context,
+    "store_episodic_memory": store_episodic_memory,
     # "rag_retrieve_context": rag_retrieve,
     # "trigger_temporal_workflow": trigger_workflow,
 }

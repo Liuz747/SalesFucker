@@ -13,7 +13,7 @@ from utils import get_component_logger
 logger = get_component_logger(__name__)
 
 
-async def search_context(
+async def search_conversation_context(
     tenant_id: str,
     thread_id: UUID,
     query: str,

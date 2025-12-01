@@ -4,19 +4,21 @@
 存储情景记忆（事实、个人偏好或用户特定事件）到长期记忆。
 """
 
-from typing import Any
+from typing import Any, Optional
 from uuid import UUID
 
-from core.memory import StorageManager
+from core.memory import ElasticsearchIndex
+from libs.types import MemoryType
 from utils import get_component_logger
 
 logger = get_component_logger(__name__)
 
 
-async def store_episodic(
+async def store_episodic_memory(
     tenant_id: str,
     thread_id: UUID,
     content: str,
+    importance_score: Optional[float] = None,
     tags: list[str] = None,
     metadata: dict[str, Any] = None
 ) -> dict[str, Any]:
@@ -29,6 +31,7 @@ async def store_episodic(
         tenant_id: 租户标识符，用于数据隔离
         thread_id: 线程ID，用于关联对话上下文
         content: 要存储的记忆内容
+        importance_score: 可选的记忆重要性分数，用于排序和检索
         tags: 可选的标签列表，用于分类和检索
         metadata: 可选的元数据字典，存储额外信息
 
@@ -42,13 +45,15 @@ async def store_episodic(
         logger.info(f"开始存储情景记忆 - 租户: {tenant_id}, 线程: {thread_id}")
 
         # 初始化存储管理器
-        storage_manager = StorageManager()
+        es_index = ElasticsearchIndex()
 
         # 执行存储
-        doc_id = await storage_manager.add_episodic_memory(
+        doc_id = await es_index.store_summary(
             tenant_id=tenant_id,
             thread_id=thread_id,
             content=content,
+            memory_type=MemoryType.EPISODIC,
+            importance_score=importance_score,
             tags=tags,
             metadata=metadata
         )

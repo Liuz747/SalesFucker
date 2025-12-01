@@ -10,16 +10,15 @@ Material Intent Analysis Agent - 素材发送意向分析智能体
 - 为sales agent提供对应素材提示词，以衔接回复
 """
 
-from typing import Dict, Any, List
+from typing import List
 from langfuse import observe
 
-from ..base import BaseAgent
-from .intent_analyzer import MaterialIntentAnalyzer
-from utils import get_current_datetime
-from utils.token_manager import TokenManager
 from config import mas_config
 from core.memory import StorageManager
-from libs.types import Message
+from utils import get_current_datetime
+from utils.token_manager import TokenManager
+from ..base import BaseAgent
+from .intent_analyzer import MaterialIntentAnalyzer
 
 
 class MaterialIntentAgent(BaseAgent):

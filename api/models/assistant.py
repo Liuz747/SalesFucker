@@ -66,7 +66,7 @@ class AssistantOrmModel(Base):
     status = Column(Enum(AccountStatus, name='account_status'), nullable=False, default=AccountStatus.ACTIVE)
     personality = Column(String(500), nullable=False)
     occupation = Column(String(100), nullable=False)
-    voice_id = Column(String(50))
+    voice_id = Column(String(100))
     voice_file = Column(String(500))
     industry = Column(String(100), nullable=False)
     profile = Column(JSONB, nullable=False)
