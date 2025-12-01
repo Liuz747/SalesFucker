@@ -12,12 +12,10 @@ from fastapi import APIRouter
 
 from libs.types import AccountStatus
 from models import TenantModel
-from schemas.tenant_schema import (
+from schemas import (
+    BaseResponse,
     TenantSyncRequest,
-    TenantSyncResponse,
-    TenantStatusResponse,
     TenantUpdateRequest,
-    TenantDeleteResponse
 )
 from schemas.exceptions import (
     TenantManagementException,
@@ -33,7 +31,7 @@ logger = get_component_logger(__name__, "TenantEndpoints")
 router = APIRouter()
 
 
-@router.post("/sync", response_model=TenantSyncResponse)
+@router.post("/sync", response_model=BaseResponse)
 async def sync_tenant(request: TenantSyncRequest):
     """
     从后端系统同步租户到AI服务
@@ -44,7 +42,7 @@ async def sync_tenant(request: TenantSyncRequest):
         tenant = TenantModel(
             tenant_id=request.tenant_id,
             tenant_name=request.tenant_name,
-            status=request.status,
+            status=request.status if request.status else AccountStatus.ACTIVE,
             industry=request.industry,
             creator=request.creator
         )
@@ -56,11 +54,7 @@ async def sync_tenant(request: TenantSyncRequest):
 
         logger.info(f"租户配置已保存: {tenant.tenant_id}")
 
-        return TenantSyncResponse(
-            tenant_id=tenant.tenant_id,
-            tenant_name=tenant.tenant_name,
-            message="租户同步成功"
-        )
+        return BaseResponse(message="租户同步成功")
 
     except TenantAlreadyExistsException:
         raise
@@ -69,7 +63,7 @@ async def sync_tenant(request: TenantSyncRequest):
         raise TenantSyncException(request.tenant_id, str(e))
 
 
-@router.get("/{tenant_id}/status", response_model=TenantStatusResponse)
+@router.get("/{tenant_id}/status", response_model=TenantModel)
 async def get_tenant_status(tenant_id: str):
     """获取租户状态"""
     try:
@@ -78,12 +72,7 @@ async def get_tenant_status(tenant_id: str):
         tenant = await TenantService.query_tenant(tenant_id)
 
         if tenant:
-            return TenantStatusResponse(
-                tenant_id=tenant.tenant_id,
-                tenant_name=tenant.tenant_name,
-                status=tenant.status,
-                message="租户状态获取成功"
-            )
+            return tenant
         else:
             raise TenantNotFoundException(tenant_id)
     except TenantNotFoundException:
@@ -93,7 +82,7 @@ async def get_tenant_status(tenant_id: str):
         raise TenantManagementException
 
 
-@router.put("/{tenant_id}", response_model=TenantSyncResponse)
+@router.post("/{tenant_id}", response_model=BaseResponse)
 async def update_tenant(
     tenant_id: str,
     request: TenantUpdateRequest,
@@ -113,12 +102,7 @@ async def update_tenant(
 
         logger.info(f"租户配置已更新: {tenant_id}")
 
-        return TenantSyncResponse(
-            tenant_id=tenant_id,
-            tenant_name=tenant_model.tenant_name,
-            status=tenant_model.status,
-            message="租户更新成功"
-        )
+        return BaseResponse(message="租户更新成功")
 
     except ValueError as e:
         logger.warning(f"租户更新参数错误: {e}")
@@ -128,7 +112,7 @@ async def update_tenant(
         raise TenantSyncException(tenant_id, f"租户更新失败: {str(e)}")
 
 
-@router.delete("/{tenant_id}", response_model=TenantDeleteResponse)
+@router.post("/{tenant_id}", response_model=BaseResponse)
 async def delete_tenant(tenant_id: str):
     """删除租户"""
     try:
@@ -140,11 +124,7 @@ async def delete_tenant(tenant_id: str):
             logger.error(f"删除租户失败: {tenant_id}")
             raise TenantSyncException(tenant_id, "删除租户失败")
 
-        return TenantDeleteResponse(
-            tenant_id=tenant_id,
-            status=AccountStatus.CLOSED,
-            message="租户删除成功"
-        )
+        return BaseResponse(message="租户删除成功")
 
     except Exception as e:
         logger.error(f"租户删除失败 {tenant_id}: {e}", exc_info=True)

@@ -11,10 +11,12 @@ AI员工管理相关数据模型
 """
 
 from typing import Any, Optional
+from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
 from libs.types import AccountStatus
+from .responses import BaseResponse
 
 
 class AssistantCreateRequest(BaseModel):
@@ -74,3 +76,10 @@ class AssistantDeleteResponse(BaseModel):
     删除助理响应模型
     """
     is_delete: bool = Field(description="是否有删除操作")
+
+
+class AssistantCreateResponse(BaseResponse):
+    """
+    创建助理响应模型
+    """
+    assistant_id: UUID = Field(description="创建的助理信息")

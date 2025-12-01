@@ -93,6 +93,7 @@ async def create_run(
         logger.info(f"运行处理完成 - 线程: {thread.thread_id}, 执行: {workflow_id}, 耗时: {processing_time:.2f}ms")
 
         # 返回标准化响应
+        # TODO: 更新response input和output token的统计信息
         response = {
             "run_id": workflow_id,
             "thread_id": result.thread_id,

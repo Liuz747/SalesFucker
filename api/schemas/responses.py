@@ -7,11 +7,10 @@
 - BaseResponse: 基础响应类，包含所有响应的标准字段
 """
 
-from datetime import datetime
 from typing import Any, Optional
 
 from pydantic import BaseModel, Field
-from utils.time_utils import get_current_datetime, to_isoformat
+from utils.time_utils import get_current_timestamp_ms
 
 
 class BaseResponse(BaseModel):
@@ -24,11 +23,5 @@ class BaseResponse(BaseModel):
 
     code: int = Field(default=0, description="业务状态码，0表示成功")
     message: str = Field(default="success", description="响应消息")
-    timestamp: datetime = Field(default_factory=get_current_datetime, description="响应时间戳")
+    timestamp: int = Field(default_factory=get_current_timestamp_ms, description="响应时间戳")
     metadata: Optional[dict[str, Any]] = Field(None, description="响应元数据")
-
-    model_config = {
-        "json_encoders": {
-            datetime: lambda v: to_isoformat(v)
-        }
-    }

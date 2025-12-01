@@ -16,9 +16,8 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from models import TenantModel
-from models.assistant import AssistantModel
-from schemas.assistants_schema import AssistantCreateRequest, AssistantUpdateRequest, AssistantDeleteResponse
+from models import TenantModel, AssistantModel
+from schemas import AssistantCreateRequest, AssistantCreateResponse, AssistantUpdateRequest, BaseResponse
 from schemas.exceptions import AssistantNotFoundException
 from services.assistant_service import AssistantService
 from utils import get_component_logger
@@ -30,7 +29,7 @@ logger = get_component_logger(__name__)
 # 创建路由器
 router = APIRouter()
 
-@router.post("/", response_model=AssistantModel, status_code=status.HTTP_201_CREATED)
+@router.post("/", response_model=AssistantCreateResponse, status_code=status.HTTP_201_CREATED)
 async def create_assistant(
     request: AssistantCreateRequest,
     tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)]
@@ -56,7 +55,11 @@ async def create_assistant(
         result = await AssistantService.create_assistant(request)
 
         logger.info(f"助理创建成功: {result.assistant_id}")
-        return result
+
+        return AssistantCreateResponse(
+            message="助理创建成功",
+            assistant_id=result.assistant_id
+        )
 
     except ValueError as e:
         logger.warning(f"助理创建参数错误: {e}")
@@ -140,7 +143,7 @@ async def get_assistant(assistant_id: UUID):
 
         result = await AssistantService.get_assistant_by_id(assistant_id)
 
-        logger.info(f"助理详情查询成功: {assistant_id} {type(result)}")
+        logger.info(f"助理详情查询成功: {assistant_id}")
         return result
 
     except AssistantNotFoundException:
@@ -153,7 +156,7 @@ async def get_assistant(assistant_id: UUID):
         )
 
 
-@router.put("/{assistant_id}", response_model=AssistantModel)
+@router.post("/{assistant_id}", response_model=BaseResponse)
 async def update_assistant(
     assistant_id: UUID,
     request: AssistantUpdateRequest,
@@ -178,8 +181,10 @@ async def update_assistant(
 
         if not result:
             raise AssistantNotFoundException(assistant_id)
+
         logger.info(f"助理更新成功: {assistant_id}")
-        return result
+        return BaseResponse(message="助理更新成功")
+
     except AssistantNotFoundException:
         raise
     except ValueError as e:
@@ -198,7 +203,7 @@ async def update_assistant(
         )
 
 
-@router.delete("/{assistant_id}", response_model=AssistantDeleteResponse)
+@router.post("/{assistant_id}", response_model=BaseResponse)
 async def delete_assistant(
     assistant_id: UUID,
     tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)],
@@ -214,8 +219,14 @@ async def delete_assistant(
 
         is_delete = await AssistantService.delete_assistant(assistant_id, force)
 
-        logger.info(f"助理删除成功: {assistant_id}")
-        return AssistantDeleteResponse(is_delete=is_delete)
+        if is_delete is True:
+            logger.info(f"助理删除成功: {assistant_id}")
+            return BaseResponse(message="助理删除成功")
+        else:
+            raise AssistantNotFoundException(assistant_id)
+
+    except AssistantNotFoundException:
+        raise
     except Exception as e:
         logger.error(f"助理删除失败: {e}")
         raise HTTPException(

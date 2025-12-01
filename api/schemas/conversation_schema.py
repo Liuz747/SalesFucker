@@ -10,6 +10,7 @@ from typing import Optional, Any
 from pydantic import BaseModel, Field
 
 from libs.types import InputContentParams
+from .responses import BaseResponse
 
 
 class ThreadMetadata(BaseModel):
@@ -30,6 +31,12 @@ class ThreadCreateRequest(BaseModel):
     """线程创建请求模型"""
     
     thread_id: Optional[UUID] = Field(None, description="线程标识符")
+
+
+class ThreadCreateResponse(BaseResponse):
+    """线程创建响应模型"""
+    
+    thread_id: UUID = Field(description="创建的线程信息")
 
 
 class MessageCreateRequest(BaseModel):

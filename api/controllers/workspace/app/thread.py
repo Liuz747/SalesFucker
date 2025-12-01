@@ -22,7 +22,7 @@ from config import mas_config
 from core.tasks.workflows import GreetingWorkflow
 from libs.factory import infra_registry
 from models import Thread, ThreadStatus, TenantModel
-from schemas.conversation_schema import ThreadCreateRequest
+from schemas import ThreadCreateRequest, ThreadCreateResponse
 from services import ThreadService
 from utils import get_component_logger
 from ..wraps import validate_and_get_tenant
@@ -38,7 +38,7 @@ router = APIRouter()
 router.include_router(workflow_router, prefix="/{thread_id}/runs", tags=["workflows"])
 router.include_router(analysis_router, prefix="/{thread_id}", tags=["analysis"])
 
-@router.post("")
+@router.post("", response_model=ThreadCreateResponse)
 async def create_thread(
     request: ThreadCreateRequest,
     tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)]
@@ -72,16 +72,7 @@ async def create_thread(
             )
         )
         
-        return {
-            "thread_id": thread_id,
-            "metadata": {
-                "tenant_id": tenant.tenant_id,
-                "assistant_id": thread.assistant_id
-            },
-            "status": thread.status,
-            "created_at": thread.created_at,
-            "updated_at": thread.updated_at
-        }
+        return ThreadCreateResponse(message="线程创建成功", thread_id=thread_id)
         
     except HTTPException:
         raise
