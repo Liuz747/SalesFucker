@@ -58,3 +58,17 @@ class CallbackPayload(BaseModel):
     processing_time: float = Field(description="处理时间（毫秒）")
     finished_at: str = Field(description="完成时间（ISO格式字符串）")
     metadata: dict = Field(description="元数据信息")
+
+
+class ThreadRunResponse(BaseModel):
+    """线程运行响应模型"""
+
+    run_id: UUID = Field(description="运行标识符")
+    thread_id: UUID = Field(description="线程标识符")
+    status: str = Field(description="运行状态 (completed/failed)")
+    response: Any = Field(description="响应内容")
+    input_tokens: Optional[int] = Field(0, description="输入Token数")
+    output_tokens: Optional[int] = Field(0, description="输出Token数")
+    processing_time: float = Field(description="处理耗时(ms)")
+    multimodal_outputs: Optional[list[dict]] = Field(None, description="多模态输出")
+    metadata: Optional[dict] = Field(None, description="元数据")

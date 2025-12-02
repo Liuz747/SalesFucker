@@ -15,7 +15,7 @@ from uuid import UUID, uuid4
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 
 from models import ThreadStatus, WorkflowRun, TenantModel
-from schemas.conversation_schema import MessageCreateRequest
+from schemas.conversation_schema import MessageCreateRequest, ThreadRunResponse
 from services import ThreadService, AudioService, WorkflowService
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms
 from ..wraps import (
@@ -31,7 +31,7 @@ logger = get_component_logger(__name__, "WorkflowRouter")
 router = APIRouter()
 
 
-@router.post("/wait")
+@router.post("/wait", response_model=ThreadRunResponse)
 async def create_run(
     thread_id: UUID,
     request: MessageCreateRequest,
@@ -94,25 +94,21 @@ async def create_run(
 
         # 返回标准化响应
         # TODO: 更新response input和output token的统计信息
-        response = {
-            "run_id": workflow_id,
-            "thread_id": result.thread_id,
-            "status": "completed",
-            "response": result.output,
-            "total_tokens": result.total_tokens,
-            "processing_time": processing_time,
-        }
-
-        # 添加多模态输出（如果存在）
-        if result.multimodal_outputs:
-            response["multimodal_outputs"] = [
+        response = ThreadRunResponse(
+            run_id=workflow_id,
+            thread_id=result.thread_id,
+            status="completed",
+            response=result.output,
+            processing_time=processing_time,
+            multimodal_outputs=[
                 {
                     "type": output.type,
                     "url": output.url,
                     "metadata": output.metadata
                 }
                 for output in result.multimodal_outputs
-            ]
+            ] if result.multimodal_outputs else None
+        )
 
         return response
 
