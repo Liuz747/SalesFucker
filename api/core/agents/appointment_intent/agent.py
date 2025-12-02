@@ -16,7 +16,6 @@ from langfuse import observe
 from ..base import BaseAgent
 from .intent_analyzer import AppointmentIntentAnalyzer
 from utils import get_current_datetime
-from utils.token_manager import TokenManager
 from config import mas_config
 from core.memory import StorageManager
 from libs.types import Message
@@ -240,23 +239,23 @@ class AppointmentIntentAgent(BaseAgent):
         """
         current_time = get_current_datetime()
 
-        # 创建标准化的Agent响应数据
-        agent_response_data = TokenManager.extract_agent_token_info(
-            agent_id=self.agent_id,
-            agent_type="appointment_intent",
-            llm_response=None,
-            response_content=str(intent_result),
-            timestamp=current_time
-        )
-
         # 更新token信息
         token_info = {
             "input_tokens": intent_result.get("input_tokens", 0),
             "output_tokens": intent_result.get("output_tokens", 0),
             "total_tokens": intent_result.get("total_tokens", intent_result.get("tokens_used", 0))
         }
-        agent_response_data["token_usage"] = token_info
-        agent_response_data["tokens_used"] = token_info["total_tokens"]
+
+        # 创建标准化的Agent响应数据 (原TokenManager逻辑)
+        agent_response_data = {
+            "agent_id": self.agent_id,
+            "agent_type": "appointment_intent",
+            "response": str(intent_result),
+            "token_usage": token_info,
+            "tokens_used": token_info["total_tokens"],
+            "response_length": len(str(intent_result)),
+            "timestamp": current_time
+        }
 
         # 核心传递字段：appointment_intent
         appointment_intent = {

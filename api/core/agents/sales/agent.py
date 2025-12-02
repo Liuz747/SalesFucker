@@ -17,7 +17,6 @@ from ..base import BaseAgent
 from libs.types import Message
 from infra.runtimes.entities import CompletionsRequest
 from utils import get_current_datetime
-from utils.token_manager import TokenManager
 from config import mas_config
 from core.memory import StorageManager
 from core.entities import WorkflowExecutionModel
@@ -252,14 +251,18 @@ class SalesAgent(BaseAgent):
         return enhanced_prompt
 
     def _extract_token_info(self, llm_response) -> dict:
-        """提取 token 使用信息 - 使用统一的TokenManager"""
+        """提取 token 使用信息"""
         try:
-            token_usage = TokenManager.extract_tokens(llm_response)
+            token_usage = getattr(llm_response, "usage", {}) or {}
+            input_tokens = token_usage.get("input_tokens", 0)
+            output_tokens = token_usage.get("output_tokens", 0)
+            total_tokens = token_usage.get("total_tokens", input_tokens + output_tokens)
+            
             return {
-                "tokens_used": token_usage.total_tokens,
-                "input_tokens": token_usage.input_tokens,
-                "output_tokens": token_usage.output_tokens,
-                "total_tokens": token_usage.total_tokens
+                "tokens_used": total_tokens,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "total_tokens": total_tokens
             }
         except Exception as e:
             self.logger.warning(f"Token 信息提取失败: {e}")

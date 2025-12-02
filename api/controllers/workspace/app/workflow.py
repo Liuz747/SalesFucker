@@ -92,13 +92,28 @@ async def create_run(
 
         logger.info(f"运行处理完成 - 线程: {thread.thread_id}, 执行: {workflow_id}, 耗时: {processing_time:.2f}ms")
 
+        # 计算 Token 统计
+        total_input_tokens = 0
+        total_output_tokens = 0
+        
+        # 从 result.values 中聚合 token 信息
+        if result.values and "agent_responses" in result.values:
+            agent_responses = result.values["agent_responses"]
+            if isinstance(agent_responses, dict):
+                for agent_resp in agent_responses.values():
+                    if isinstance(agent_resp, dict):
+                        token_usage = agent_resp.get("token_usage", {})
+                        total_input_tokens += token_usage.get("input_tokens", 0)
+                        total_output_tokens += token_usage.get("output_tokens", 0)
+
         # 返回标准化响应
-        # TODO: 更新response input和output token的统计信息
         response = ThreadRunResponse(
             run_id=workflow_id,
             thread_id=result.thread_id,
             status="completed",
             response=result.output,
+            input_tokens=total_input_tokens,
+            output_tokens=total_output_tokens,
             processing_time=processing_time,
             multimodal_outputs=[
                 {

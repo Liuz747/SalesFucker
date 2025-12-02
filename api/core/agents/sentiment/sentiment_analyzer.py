@@ -18,7 +18,6 @@ from uuid import uuid4
 
 from libs.types import Message
 from utils import LoggerMixin
-from utils.token_manager import TokenManager
 from infra.runtimes.entities import CompletionsRequest
 
 
@@ -74,18 +73,21 @@ class LLMSentimentAnalyzer(SentimentAnalysisStrategy):
                 else str(llm_response.content)
             )
 
-            # 使用统一的Token管理器提取token信息
-            token_usage = TokenManager.extract_tokens(llm_response)
+            # 提取 token 信息
+            token_usage = getattr(llm_response, "usage", {}) or {}
+            input_tokens = token_usage.get("input_tokens", 0)
+            output_tokens = token_usage.get("output_tokens", 0)
+            total_tokens = token_usage.get("total_tokens", input_tokens + output_tokens)
 
             # 解析并验证结果
             result = self._parse_llm_response(raw_response)
             validated_result = self._validate_and_normalize(result)
 
             # 添加标准化的token信息
-            validated_result["tokens_used"] = token_usage.total_tokens
-            validated_result["total_tokens"] = token_usage.total_tokens
-            validated_result["input_tokens"] = token_usage.input_tokens
-            validated_result["output_tokens"] = token_usage.output_tokens
+            validated_result["tokens_used"] = total_tokens
+            validated_result["total_tokens"] = total_tokens
+            validated_result["input_tokens"] = input_tokens
+            validated_result["output_tokens"] = output_tokens
 
             return validated_result
 
