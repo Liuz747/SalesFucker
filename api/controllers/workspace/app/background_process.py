@@ -74,7 +74,8 @@ class BackgroundWorkflowProcessor:
         thread_id: UUID,
         input: InputContentParams,
         assistant_id: UUID,
-        tenant_id: str
+        tenant_id: str,
+        context: list[dict] | None = None
     ):
         """在后台处理工作流"""
         start_time = get_current_datetime()
@@ -96,7 +97,8 @@ class BackgroundWorkflowProcessor:
                 thread_id=thread_id,
                 assistant_id=assistant_id,
                 tenant_id=tenant_id,
-                input=input
+                input=input,
+                context=context
             )
 
             # 使用编排器处理消息 - 核心工作流调用

@@ -41,6 +41,7 @@ class StateManager:
             assistant_id=workflow.assistant_id,
             tenant_id=workflow.tenant_id,
             input=workflow.input,
+            context=workflow.context,
             started_at=workflow.created_at,
             exception_count=0,
             total_tokens=0

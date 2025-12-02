@@ -103,6 +103,7 @@ class WorkflowState(TypedDict):
     thread_id: str
     tenant_id: str
     input: Any
+    context: Optional[list[dict]]  # 用户上下文
 
     # 并行节点专用字段 - 使用Reducer避免并发冲突
     sentiment_analysis: Annotated[Optional[dict], safe_merge_dict]
@@ -142,6 +143,7 @@ class WorkflowExecutionModel(BaseModel):
     tenant_id: str = Field(description="租户标识符")
 
     input: InputContentParams = Field(description="输入内容")
+    context: Optional[list[dict]] = Field(default=None, description="用户上下文信息")
     output: Optional[str] = Field(default=None, description="文本输出内容")
 
     # 多模态输出 - 支持音频、图像、视频等

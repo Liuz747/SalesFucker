@@ -77,12 +77,19 @@ class ThreadCreateResponse(BaseResponse):
     thread_id: UUID = Field(description="创建的线程信息")
 
 
+class ContextItem(BaseModel):
+    """上下文项模型"""
+    type: str = Field(description="上下文类型（如 area, job, wx_nickname 等）")
+    content: str = Field(description="上下文内容")
+
+
 class MessageCreateRequest(BaseModel):
     """消息创建请求模型"""
 
     tenant_id: str = Field(description="租户标识符")
     assistant_id: UUID = Field(description="助手标识符")
     input: InputContentParams = Field(description="纯文本输入或多模态内容列表")
+    context: Optional[List[ContextItem]] = Field(None, description="用户上下文信息列表")
 
 
 class CallbackPayload(BaseModel):

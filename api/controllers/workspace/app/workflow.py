@@ -58,6 +58,38 @@ async def create_run(
 
         logger.info(f"开始运行处理 - 线程: {thread.thread_id}")
 
+        # 处理用户上下文持久化
+        current_context = None
+        if request.context:
+            # 1. 获取当前 metadata
+            current_metadata = thread.metadata or {}
+            user_context = current_metadata.get("user_context", [])
+            
+            # 2. 合并新上下文（简单的追加/更新策略，这里采用追加）
+            # 转换 ContextItem 为 dict
+            new_items = [item.model_dump() for item in request.context]
+            
+            # 去重逻辑：如果 type 相同，覆盖旧值；否则追加
+            context_map = {item["type"]: item for item in user_context}
+            for item in new_items:
+                context_map[item["type"]] = item
+            
+            merged_context = list(context_map.values())
+            
+            # 3. 更新 metadata
+            current_metadata["user_context"] = merged_context
+            thread.metadata = current_metadata
+            
+            # 4. 持久化更新
+            # 注意：verify_workflow_permissions 返回的是 Thread Pydantic模型
+            # ThreadService.update_thread 需要 Thread 模型
+            thread = await ThreadService.update_thread(thread)
+            current_context = merged_context
+        else:
+             # 如果请求没带 context，尝试从 thread metadata 中读取
+             if thread.metadata:
+                 current_context = thread.metadata.get("user_context")
+
         match thread.status:
             case ThreadStatus.IDLE:
                 thread.status = ThreadStatus.ACTIVE
@@ -82,7 +114,8 @@ async def create_run(
             thread_id=thread.thread_id,
             assistant_id=request.assistant_id,
             tenant_id=thread.tenant_id,
-            input=normalized_input
+            input=normalized_input,
+            context=current_context
         )
 
         # 使用编排器处理消息
@@ -231,6 +264,34 @@ async def create_background_run(
 
         logger.info(f"开始后台运行处理 - 线程: {thread.thread_id}")
 
+        # 处理用户上下文持久化
+        current_context = None
+        if request.context:
+            # 1. 获取当前 metadata
+            current_metadata = thread.metadata or {}
+            user_context = current_metadata.get("user_context", [])
+            
+            # 2. 合并新上下文
+            new_items = [item.model_dump() for item in request.context]
+            
+            # 去重逻辑
+            context_map = {item["type"]: item for item in user_context}
+            for item in new_items:
+                context_map[item["type"]] = item
+            
+            merged_context = list(context_map.values())
+            
+            # 3. 更新 metadata
+            current_metadata["user_context"] = merged_context
+            thread.metadata = current_metadata
+            
+            # 4. 持久化更新
+            thread = await ThreadService.update_thread(thread)
+            current_context = merged_context
+        else:
+             if thread.metadata:
+                 current_context = thread.metadata.get("user_context")
+
         match thread.status:
             case ThreadStatus.IDLE:
                 thread.status = ThreadStatus.ACTIVE
@@ -261,7 +322,8 @@ async def create_background_run(
             thread_id=thread.thread_id,
             assistant_id=request.assistant_id,
             tenant_id=thread.tenant_id,
-            input=normalized_input
+            input=normalized_input,
+            context=current_context
         )
 
         logger.info(f"后台运行已创建 - 线程: {thread.thread_id}, 运行: {run_id}")
