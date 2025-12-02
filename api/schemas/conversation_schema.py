@@ -5,12 +5,50 @@
 """
 
 from uuid import UUID
-from typing import Optional, Any
+from typing import Optional, Any, Literal, Union, List
 
 from pydantic import BaseModel, Field
 
 from libs.types import InputContentParams
 from .responses import BaseResponse
+
+
+# 1. 定义具体的业务模型
+class AppointmentOutput(BaseModel):
+    type: Literal["appointment"]
+    status: int
+    time: int
+    phone: str
+    name: str
+    project: str
+    metadata: Optional[dict] = None
+
+
+class SalesOutput(BaseModel):
+    type: Literal["sales_summary"]
+    order_id: str
+    amount: float
+
+
+# 2. 定义多模态输出模型
+class TextOutput(BaseModel):
+    type: Literal["text"]
+    text: str
+    metadata: Optional[dict] = None
+
+
+class MaterialOutput(BaseModel):
+    type: Literal["material"]
+    file_id: str
+    metadata: Optional[dict] = None
+
+
+class AudioOutput(BaseModel):
+    type: Literal["audio"]
+    audio_url: str
+    audio_duration: int
+    audio_text: Optional[str] = None
+    metadata: Optional[dict] = None
 
 
 class ThreadMetadata(BaseModel):
@@ -66,9 +104,27 @@ class ThreadRunResponse(BaseModel):
     run_id: UUID = Field(description="运行标识符")
     thread_id: UUID = Field(description="线程标识符")
     status: str = Field(description="运行状态 (completed/failed)")
-    response: Any = Field(description="响应内容")
-    input_tokens: Optional[int] = Field(0, description="输入Token数")
-    output_tokens: Optional[int] = Field(0, description="输出Token数")
-    processing_time: float = Field(description="处理耗时(ms)")
-    multimodal_outputs: Optional[list[dict]] = Field(None, description="多模态输出")
+    
+    # 指标封装
+    metrics: Optional[dict] = Field(None, description="运行指标：tokens, time等")
+    
+    # 语音识别结果
+    asr_results: Optional[List[str]] = Field(None, description="用户语音输入的ASR结果")
+
+    # 关键点：使用 Union + Discriminator 实现 business_outputs 的多态
+    # 这样前端收到 type="appointment" 时，后端校验会自动匹配 AppointmentOutput 结构
+    business_outputs: Optional[Union[AppointmentOutput, SalesOutput, dict]] = Field(
+        None, 
+        description="特定业务场景的结构化输出"
+    )
+
+    # 多模态统一列表
+    multimodal_outputs: Optional[List[Union[TextOutput, MaterialOutput, AudioOutput, dict]]] = Field(
+        None,
+        description="标准化的多模态输出流"
+    )
+    
+    # 建议保留一个简化的文本字段，作为降级方案（可选）
+    response: Optional[str] = Field(None, description="[兼容性字段] 聚合的文本回复")
+    
     metadata: Optional[dict] = Field(None, description="元数据")

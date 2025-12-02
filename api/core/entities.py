@@ -166,6 +166,9 @@ class WorkflowExecutionModel(BaseModel):
     material_intent: Annotated[Optional[dict], safe_merge_dict] = Field(default=None)
 
     values: Annotated[Optional[dict], merge_agent_results] = Field(default=None, description="工作流节点交互的状态")
+    
+    # 传递业务输出
+    business_outputs: Optional[dict] = Field(default=None, description="结构化业务输出")
 
     active_agents: Annotated[Optional[list], merge_list] = Field(default=None)
 

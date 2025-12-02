@@ -31,7 +31,7 @@ logger = get_component_logger(__name__, "WorkflowRouter")
 router = APIRouter()
 
 
-@router.post("/wait", response_model=ThreadRunResponse)
+@router.post("/wait", response_model=ThreadRunResponse, response_model_exclude_none=True)
 async def create_run(
     thread_id: UUID,
     request: MessageCreateRequest,
@@ -96,6 +96,7 @@ async def create_run(
         total_input_tokens = 0
         total_output_tokens = 0
         
+        
         # 从 result.values 中聚合 token 信息
         if result.values and "agent_responses" in result.values:
             agent_responses = result.values["agent_responses"]
@@ -106,23 +107,91 @@ async def create_run(
                         total_input_tokens += token_usage.get("input_tokens", 0)
                         total_output_tokens += token_usage.get("output_tokens", 0)
 
+        # 构造 metrics
+        metrics = {
+            "input_tokens": total_input_tokens,
+            "output_tokens": total_output_tokens,
+            "processing_time": processing_time
+        }
+
+        # 提取 ASR 结果
+        # AudioService.normalize_input 会将转录文本追加到列表末尾
+        # 因此 normalized_input 中超出原始 request.input 长度的部分即为 ASR 结果
+        asr_results = None
+        if isinstance(request.input, list) and isinstance(normalized_input, list):
+            original_len = len(request.input)
+            if len(normalized_input) > original_len:
+                asr_results = [
+                    item.content 
+                    for item in normalized_input[original_len:] 
+                    if hasattr(item, "content")
+                ]
+
+        # 构造 multimodal_outputs
+        # 将纯文本响应也转换为 TextOutput 放入列表
+        multimodal_outputs = []
+        
+        # 1. 添加文本响应 (如果存在)
+        if result.output:
+            multimodal_outputs.append({
+                "type": "text",
+                "text": result.output,
+                "metadata": {"text_type": "response"}
+            })
+            
+        # 2. 添加其他多模态输出
+        if result.multimodal_outputs:
+            for output in result.multimodal_outputs:
+                 # 转换 OutputContentParams 为字典
+                output_dict = {
+                    "type": output.type,
+                    "url": output.url, # 注意：AudioOutput需要 audio_url
+                    "metadata": output.metadata
+                }
+                
+                # 特殊字段适配
+                if output.type == "audio":
+                    output_dict["audio_url"] = output.url
+                    # 尝试从 metadata 获取 duration 和 text
+                    if output.metadata:
+                        output_dict["audio_duration"] = output.metadata.get("duration", 0)
+                        output_dict["audio_text"] = output.metadata.get("text", "")
+                        
+                elif output.type == "material":
+                    output_dict["file_id"] = output.file_id if hasattr(output, "file_id") else output.url # 假设url存的是id
+                    
+                multimodal_outputs.append(output_dict)
+
+        # 构造 business_outputs
+        # 优先从 result.business_outputs 获取，如果没有则尝试从 appointment_intent 转换
+        business_outputs = result.business_outputs
+        
+        if not business_outputs and result.appointment_intent:
+             intent = result.appointment_intent
+             if intent.get("recommendation") == "suggest_appointment":
+                 # 简易映射，实际可能需要更详细的提取逻辑
+                 business_outputs = {
+                     "type": "appointment",
+                     "status": 1, # 假设1是待确认
+                     "time": 0, # 需要从 intent 中解析时间
+                     "phone": "", # 需要从 intent 中解析电话
+                     "name": "", 
+                     "project": "",
+                     "metadata": {
+                         "appointment_reason": f"Intent strength: {intent.get('intent_strength')}"
+                     }
+                 }
+
         # 返回标准化响应
         response = ThreadRunResponse(
             run_id=workflow_id,
             thread_id=result.thread_id,
             status="completed",
-            response=result.output,
-            input_tokens=total_input_tokens,
-            output_tokens=total_output_tokens,
-            processing_time=processing_time,
-            multimodal_outputs=[
-                {
-                    "type": output.type,
-                    "url": output.url,
-                    "metadata": output.metadata
-                }
-                for output in result.multimodal_outputs
-            ] if result.multimodal_outputs else None
+            metrics=metrics,
+            asr_results=asr_results,
+            business_outputs=business_outputs,
+            multimodal_outputs=multimodal_outputs,
+            response=result.output # 保留兼容字段
         )
 
         return response
