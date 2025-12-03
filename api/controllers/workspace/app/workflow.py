@@ -32,7 +32,7 @@ logger = get_component_logger(__name__, "WorkflowRouter")
 router = APIRouter()
 
 
-@router.post("/wait", response_model=ThreadRunResponse, response_model_exclude_none=True)
+@router.post("/wait", response_model=ThreadRunResponse)
 async def create_run(
     thread_id: UUID,
     request: MessageCreateRequest,
@@ -223,7 +223,7 @@ async def create_run(
         raise HTTPException(status_code=500, detail=f"运行处理失败: {str(e)}")
 
 
-@router.post("/suggestion", response_model=ThreadRunResponse, response_model_exclude_none=True)
+@router.post("/suggestion", response_model=ThreadRunResponse)
 async def create_suggestion(
     thread_id: UUID,
     request: MessageCreateRequest,
