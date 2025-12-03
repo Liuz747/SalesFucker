@@ -11,7 +11,7 @@ Sales Agent
 """
 
 from typing import Tuple
-from uuid import uuid4
+from uuid import uuid4, UUID
 
 from ..base import BaseAgent
 from libs.types import Message
@@ -20,6 +20,7 @@ from utils import get_current_datetime
 from config import mas_config
 from core.memory import StorageManager
 from core.entities import WorkflowExecutionModel
+from services import ThreadService
 
 
 class SalesAgent(BaseAgent):
@@ -117,8 +118,27 @@ class SalesAgent(BaseAgent):
             )
             self.logger.info(f"记忆检索完成 - 短期: {len(short_term_messages)} 条, 长期: {len(long_term_memories)} 条")
             
+            # 尝试从线程元数据中获取 memory_records
+            memory_records = []
+            try:
+                thread = await ThreadService.get_thread(UUID(thread_id))
+                if thread and thread.metadata:
+                    memory_records = thread.metadata.get("memory_records", [])
+                    if memory_records:
+                        self.logger.info(f"从线程元数据获取到 {len(memory_records)} 条记忆记录")
+            except Exception as e:
+                self.logger.warning(f"获取线程记忆记录失败: {e}")
+
             # 格式化用户上下文
-            formatted_context = self._format_user_context(user_context) if user_context else ""
+            # 将 user_context 和 memory_records 合并用于格式化上下文
+            # 优先使用 memory_records，因为它是新的结构化记录来源
+            combined_context = []
+            if user_context:
+                 combined_context.extend(user_context if isinstance(user_context, list) else [])
+            if memory_records:
+                 combined_context.extend(memory_records)
+            
+            formatted_context = self._format_user_context(combined_context) if combined_context else ""
             if formatted_context:
                 self.logger.info("已注入用户上下文信息")
 

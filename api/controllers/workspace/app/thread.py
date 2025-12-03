@@ -13,7 +13,7 @@
 """
 
 import asyncio
-from typing import Annotated
+from typing import Annotated, List
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -22,7 +22,7 @@ from config import mas_config
 from core.tasks.workflows import GreetingWorkflow
 from libs.factory import infra_registry
 from models import Thread, ThreadStatus, TenantModel
-from schemas import ThreadCreateRequest, ThreadCreateResponse
+from schemas import ThreadCreateRequest, ThreadCreateResponse, ContextItem
 from services import ThreadService
 from utils import get_component_logger
 from ..wraps import validate_and_get_tenant
@@ -118,4 +118,35 @@ async def get_thread(
         
     except Exception as e:
         logger.error(f"线程获取失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{thread_id}/record")
+async def upload_record(
+    thread_id: UUID,
+    records: List[ContextItem],
+    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)]
+):
+    """
+    上传线程记忆记录
+    
+    将记忆记录存储到线程的 metadata 中，支持自动去重。
+    """
+    try:
+        # 验证线程归属
+        thread = await ThreadService.get_thread(thread_id)
+        if not thread:
+            raise HTTPException(status_code=404, detail=f"线程不存在: {thread_id}")
+            
+        if thread.tenant_id != tenant.tenant_id:
+            raise HTTPException(status_code=403, detail="租户ID不匹配，无法访问此线程")
+
+        await ThreadService.update_thread_records(thread_id, records)
+        
+        return {"message": "记忆记录上传成功"}
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"记忆记录上传失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
