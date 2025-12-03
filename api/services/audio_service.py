@@ -85,7 +85,7 @@ class AudioService:
 
             # 轮询等待结果
             max_wait_time = 300
-            poll_interval = 2
+            poll_interval = 1
             elapsed_time = 0
 
             while elapsed_time < max_wait_time:
@@ -142,7 +142,7 @@ class AudioService:
         cls,
         raw_input: InputContentParams,
         thread_id: str
-    ) -> InputContentParams:
+    ) -> tuple[InputContentParams, list[dict]]:
         """
         标准化输入内容，为音频添加转录文本
 
@@ -157,19 +157,31 @@ class AudioService:
             标准化后的输入内容，包含原始项目和音频转录文本
         """
         if isinstance(raw_input, str):
-            return raw_input
+            return raw_input, []
 
-        normalized = raw_input.copy()
+        normalized: list[InputContent] = []
+        asr_result: list[dict] = []
 
-        for item in raw_input:
-            if item.type == InputType.AUDIO:
-                transcript = await cls.transcribe_async(
-                    audio_url=item.content,
-                    thread_id=thread_id
-                )
-                normalized.append(
-                    InputContent(type=InputType.TEXT, content=transcript)
-                )
+        for index, item in enumerate(raw_input):
+            if item.type != InputType.AUDIO:
+                normalized.append(item)
+                continue
 
-        return normalized
+            # Audio → STT
+            transcript = await cls.transcribe_async(
+                audio_url=item.content,
+                thread_id=thread_id
+            )
 
+            asr_result.append({
+                "index": index,
+                "content": transcript
+            })
+
+            # 保留原始音频内容并添加转录文本
+            normalized.extend([
+                item,
+                InputContent(type=InputType.TEXT, content=transcript)
+            ])
+
+        return normalized, asr_result
