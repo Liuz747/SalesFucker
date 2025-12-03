@@ -122,9 +122,10 @@ async def create_run(
         # 使用编排器处理消息
         result = await orchestrator.process_conversation(workflow)
 
-        processing_time = get_processing_time_ms(start_time)
+        # 计算处理时间并保留2位小数
+        processing_time = round(get_processing_time_ms(start_time), 2)
 
-        logger.info(f"运行处理完成 - 线程: {thread.thread_id}, 执行: {workflow_id}, 耗时: {processing_time:.2f}ms")
+        logger.info(f"运行处理完成 - 线程: {thread.thread_id}, 执行: {workflow_id}, 耗时: {processing_time}ms")
 
         # 计算 Token 统计
         total_input_tokens = 0

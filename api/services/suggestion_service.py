@@ -94,7 +94,7 @@ class SuggestionService:
                 # extra_body=extra_body
             )
             
-            processing_time = get_processing_time_ms(start_time)
+            processing_time = round(get_processing_time_ms(start_time), 2)
             
             # 构造输出
             multimodal_outputs = []
