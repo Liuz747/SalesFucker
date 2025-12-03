@@ -127,25 +127,10 @@ async def create_run(
 
         logger.info(f"运行处理完成 - 线程: {thread.thread_id}, 执行: {workflow_id}, 耗时: {processing_time}ms")
 
-        # 计算 Token 统计
-        total_input_tokens = 0
-        total_output_tokens = 0
-        
-        
-        # 从 result.values 中聚合 token 信息
-        if result.values and "agent_responses" in result.values:
-            agent_responses = result.values["agent_responses"]
-            if isinstance(agent_responses, dict):
-                for agent_resp in agent_responses.values():
-                    if isinstance(agent_resp, dict):
-                        token_usage = agent_resp.get("token_usage", {})
-                        total_input_tokens += token_usage.get("input_tokens", 0)
-                        total_output_tokens += token_usage.get("output_tokens", 0)
-
         # 构造 metrics
         metrics = {
-            "input_tokens": total_input_tokens,
-            "output_tokens": total_output_tokens,
+            "input_tokens": result.input_tokens or 0,
+            "output_tokens": result.output_tokens or 0,
             "processing_time": processing_time
         }
 

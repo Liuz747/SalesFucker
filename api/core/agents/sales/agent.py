@@ -183,6 +183,8 @@ class SalesAgent(BaseAgent):
 
             return {
                 "output": sales_response, # 更新最终输出
+                "input_tokens": token_usage["input_tokens"],
+                "output_tokens": token_usage["output_tokens"],
                 "total_tokens": current_total_tokens + token_usage["total_tokens"],
                 "values": {"agent_responses": {self.agent_id: agent_data}},
                 "active_agents": [self.agent_id]

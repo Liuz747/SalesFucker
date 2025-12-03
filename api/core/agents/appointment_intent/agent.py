@@ -300,6 +300,10 @@ class AppointmentIntentAgent(BaseAgent):
 
         self.logger.info(f"appointment intent 字段已添加: strength={appointment_intent['intent_strength']}, "
                         f"window={appointment_intent['time_window']}")
+        
+        # 添加 token 计数到顶层状态
+        state["input_tokens"] = token_info["input_tokens"]
+        state["output_tokens"] = token_info["output_tokens"]
 
         return state
 

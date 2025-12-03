@@ -88,6 +88,19 @@ def merge_list(left: Optional[list], right: Optional[list]) -> Optional[list]:
     return left + right
 
 
+def safe_add(left: Optional[int], right: Optional[int]) -> int:
+    """
+    安全的数值累加Reducer函数
+    """
+    if left is None and right is None:
+        return 0
+    if left is None:
+        return right
+    if right is None:
+        return left
+    return left + right
+
+
 # ==============================
 # LangGraph 状态类型定义
 # ==============================
@@ -117,8 +130,12 @@ class WorkflowState(TypedDict):
     journey_stage: Optional[str]
     matched_prompt: Optional[dict]
 
-    # 元数据字段
+    # Token 统计字段 - 使用累加Reducer
+    input_tokens: Annotated[Optional[int], safe_add]
+    output_tokens: Annotated[Optional[int], safe_add]
     total_tokens: Optional[int]
+    
+    # 元数据字段
     error_message: Optional[str]
     exception_count: int
     started_at: str
@@ -156,6 +173,8 @@ class WorkflowExecutionModel(BaseModel):
         description="输出类型列表，例如：['output_audio', 'output_image']"
     )
 
+    input_tokens: Annotated[Optional[int], safe_add] = Field(default=0, description="输入Token数")
+    output_tokens: Annotated[Optional[int], safe_add] = Field(default=0, description="输出Token数")
     total_tokens: Optional[int] = Field(default=None, description="总Token数")
     error_message: Optional[str] = Field(default=None, description="错误信息")
     exception_count: int = Field(default=0, description="异常次数")

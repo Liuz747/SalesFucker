@@ -303,6 +303,10 @@ class MaterialIntentAgent(BaseAgent):
         self.logger.info(f"material intent 字段已添加: urgency={material_intent['urgency_level']}, "
                         f"types={len(material_intent['material_types'])}")
 
+        # 添加 token 计数到顶层状态
+        state["input_tokens"] = token_info["input_tokens"]
+        state["output_tokens"] = token_info["output_tokens"]
+
         return state
 
     # def _create_fallback_state(self, state: dict) -> dict:
