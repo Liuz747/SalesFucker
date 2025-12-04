@@ -4,8 +4,9 @@
 该模块从业务模型导入必要的架构定义，提供纯数据结构的Thread模型。
 """
 
+from dataclasses import dataclass
 from uuid import UUID
-from typing import Optional, Any, Literal, Union, List
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -13,21 +14,13 @@ from libs.types import InputContentParams, OutputContentParams
 from .responses import BaseResponse
 
 
-# 1. 定义具体的业务模型
-class AppointmentOutput(BaseModel):
-    type: Literal["appointment"]
+@dataclass
+class AppointmentOutput:
     status: int
     time: int
-    phone: str
+    service: str
     name: str
-    project: str
-    metadata: Optional[dict] = None
-
-
-class SalesOutput(BaseModel):
-    type: Literal["sales_summary"]
-    order_id: str
-    amount: float
+    phone: int
 
 
 class ThreadMetadata(BaseModel):
@@ -41,7 +34,7 @@ class WorkflowData(BaseModel):
     """工作流数据模型"""
     
     type: str = Field(description="工作流数据类型")
-    content: Any = Field(description="工作流数据内容")
+    content: str = Field(description="工作流数据内容")
 
 
 class ThreadCreateRequest(BaseModel):
@@ -82,17 +75,11 @@ class ThreadRunResponse(BaseModel):
 
     run_id: UUID = Field(description="运行标识符")
     thread_id: UUID = Field(description="线程标识符")
-    status: str = Field(description="运行状态 (completed/failed)")
+    status: str = Field(description="运行状态")
     response: str = Field(description="最终文本回复")
     input_tokens: int = Field(default=0, description="输入Token数")
     output_tokens: int = Field(default=0, description="输出Token数")
     processing_time: float = Field(description="处理时间（毫秒）")
     asr_results: Optional[list[dict]] = Field(None, description="用户语音输入的ASR结果")
     multimodal_outputs: Optional[OutputContentParams] = Field(None, description="标准化的多模态输出流")
-
-    # 关键点：使用 Union + Discriminator 实现 business_outputs 的多态
-    # 这样前端收到 type="appointment" 时，后端校验会自动匹配 AppointmentOutput 结构
-    business_outputs: Optional[Union[AppointmentOutput, SalesOutput, dict]] = Field(
-        None, 
-        description="特定业务场景的结构化输出"
-    )
+    invitation: Optional[AppointmentOutput] = Field(None, description="特定业务场景的结构化输出")

@@ -93,24 +93,20 @@ async def create_run(
 
         logger.info(f"运行处理完成 - 线程: {thread.thread_id}, 执行: {workflow_id}, 耗时: {processing_time:.2f}ms")
 
-        # 构造 business_outputs
+        # 构造 invitation
         # 优先从 result.business_outputs 获取，如果没有则尝试从 appointment_intent 转换
-        business_outputs = result.business_outputs
+        invitation = result.business_outputs
         
         if not business_outputs and result.appointment_intent:
             intent = result.appointment_intent
             if intent.get("recommendation") == "suggest_appointment":
                 # 简易映射，实际可能需要更详细的提取逻辑
                 business_outputs = {
-                    "type": "appointment",
                     "status": 1, # 假设1是待确认
                     "time": 0, # 需要从 intent 中解析时间
-                    "phone": "", # 需要从 intent 中解析电话
+                    "service": "",
                     "name": "", 
-                    "project": "",
-                    "metadata": {
-                        "appointment_reason": f"Intent strength: {intent.get('intent_strength')}"
-                    }
+                    "phone": "" # 需要从 intent 中解析电话
                 }
 
         # 返回标准化响应
@@ -124,7 +120,7 @@ async def create_run(
             processing_time=processing_time,
             asr_results=asr_results,
             multimodal_outputs=result.multimodal_outputs if result.multimodal_outputs else None,
-            business_outputs=business_outputs
+            invitation=invitation
         )
 
         return response
