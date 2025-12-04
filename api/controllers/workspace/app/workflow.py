@@ -59,38 +59,6 @@ async def create_run(
 
         logger.info(f"开始运行处理 - 线程: {thread.thread_id}")
 
-        # 处理用户上下文持久化
-        current_context = None
-        if request.context:
-            # 1. 获取当前 metadata
-            current_metadata = thread.metadata or {}
-            user_context = current_metadata.get("user_context", [])
-            
-            # 2. 合并新上下文（简单的追加/更新策略，这里采用追加）
-            # 转换 ContextItem 为 dict
-            new_items = [item.model_dump() for item in request.context]
-            
-            # 去重逻辑：如果 type 相同，覆盖旧值；否则追加
-            context_map = {item["type"]: item for item in user_context}
-            for item in new_items:
-                context_map[item["type"]] = item
-            
-            merged_context = list(context_map.values())
-            
-            # 3. 更新 metadata
-            current_metadata["user_context"] = merged_context
-            thread.metadata = current_metadata
-            
-            # 4. 持久化更新
-            # 注意：verify_workflow_permissions 返回的是 Thread Pydantic模型
-            # ThreadService.update_thread 需要 Thread 模型
-            thread = await ThreadService.update_thread(thread)
-            current_context = merged_context
-        else:
-             # 如果请求没带 context，尝试从 thread metadata 中读取
-             if thread.metadata:
-                 current_context = thread.metadata.get("user_context")
-
         match thread.status:
             case ThreadStatus.IDLE:
                 thread.status = ThreadStatus.ACTIVE
@@ -104,7 +72,7 @@ async def create_run(
                 )
 
         # 标准化输入（处理音频转录）
-        normalized_input = await AudioService.normalize_input(request.input, str(thread.thread_id))
+        normalized_input, asr_results = await AudioService.normalize_input(request.input, str(thread.thread_id))
 
         # 创建工作流执行模型
         start_time = get_current_datetime()
@@ -115,103 +83,48 @@ async def create_run(
             thread_id=thread.thread_id,
             assistant_id=request.assistant_id,
             tenant_id=thread.tenant_id,
-            input=normalized_input,
-            context=current_context
+            input=normalized_input
         )
 
         # 使用编排器处理消息
         result = await orchestrator.process_conversation(workflow)
 
-        # 计算处理时间并保留2位小数
-        processing_time = round(get_processing_time_ms(start_time), 2)
+        processing_time = get_processing_time_ms(start_time)
 
-        logger.info(f"运行处理完成 - 线程: {thread.thread_id}, 执行: {workflow_id}, 耗时: {processing_time}ms")
-
-        # 构造 metrics
-        metrics = {
-            "input_tokens": result.input_tokens or 0,
-            "output_tokens": result.output_tokens or 0,
-            "processing_time": processing_time
-        }
-
-        # 提取 ASR 结果
-        # AudioService.normalize_input 会将转录文本追加到列表末尾
-        # 因此 normalized_input 中超出原始 request.input 长度的部分即为 ASR 结果
-        asr_results = None
-        if isinstance(request.input, list) and isinstance(normalized_input, list):
-            original_len = len(request.input)
-            if len(normalized_input) > original_len:
-                asr_results = [
-                    item.content 
-                    for item in normalized_input[original_len:] 
-                    if hasattr(item, "content")
-                ]
-
-        # 构造 multimodal_outputs
-        # 将纯文本响应也转换为 TextOutput 放入列表
-        multimodal_outputs = []
-        
-        # 1. 添加文本响应 (如果存在)
-        if result.output:
-            multimodal_outputs.append({
-                "type": "text",
-                "text": result.output,
-                "metadata": {"text_type": "response"}
-            })
-            
-        # 2. 添加其他多模态输出
-        if result.multimodal_outputs:
-            for output in result.multimodal_outputs:
-                 # 转换 OutputContentParams 为字典
-                output_dict = {
-                    "type": output.type,
-                    "url": output.url, # 注意：AudioOutput需要 audio_url
-                    "metadata": output.metadata
-                }
-                
-                # 特殊字段适配
-                if output.type == "audio":
-                    output_dict["audio_url"] = output.url
-                    # 尝试从 metadata 获取 duration 和 text
-                    if output.metadata:
-                        output_dict["audio_duration"] = output.metadata.get("duration", 0)
-                        output_dict["audio_text"] = output.metadata.get("text", "")
-                        
-                elif output.type == "material":
-                    output_dict["file_id"] = output.file_id if hasattr(output, "file_id") else output.url # 假设url存的是id
-                    
-                multimodal_outputs.append(output_dict)
+        logger.info(f"运行处理完成 - 线程: {thread.thread_id}, 执行: {workflow_id}, 耗时: {processing_time:.2f}ms")
 
         # 构造 business_outputs
         # 优先从 result.business_outputs 获取，如果没有则尝试从 appointment_intent 转换
         business_outputs = result.business_outputs
         
         if not business_outputs and result.appointment_intent:
-             intent = result.appointment_intent
-             if intent.get("recommendation") == "suggest_appointment":
-                 # 简易映射，实际可能需要更详细的提取逻辑
-                 business_outputs = {
-                     "type": "appointment",
-                     "status": 1, # 假设1是待确认
-                     "time": 0, # 需要从 intent 中解析时间
-                     "phone": "", # 需要从 intent 中解析电话
-                     "name": "", 
-                     "project": "",
-                     "metadata": {
-                         "appointment_reason": f"Intent strength: {intent.get('intent_strength')}"
-                     }
-                 }
+            intent = result.appointment_intent
+            if intent.get("recommendation") == "suggest_appointment":
+                # 简易映射，实际可能需要更详细的提取逻辑
+                business_outputs = {
+                    "type": "appointment",
+                    "status": 1, # 假设1是待确认
+                    "time": 0, # 需要从 intent 中解析时间
+                    "phone": "", # 需要从 intent 中解析电话
+                    "name": "", 
+                    "project": "",
+                    "metadata": {
+                        "appointment_reason": f"Intent strength: {intent.get('intent_strength')}"
+                    }
+                }
 
         # 返回标准化响应
         response = ThreadRunResponse(
             run_id=workflow_id,
             thread_id=result.thread_id,
             status="completed",
-            metrics=metrics,
+            response=result.output,
+            input_tokens=result.input_tokens,
+            output_tokens=result.output_tokens,
+            processing_time=processing_time,
             asr_results=asr_results,
-            business_outputs=business_outputs,
-            multimodal_outputs=multimodal_outputs,
-            response=result.output # 保留兼容字段
+            multimodal_outputs=result.multimodal_outputs if result.multimodal_outputs else None,
+            business_outputs=business_outputs
         )
 
         return response
@@ -299,34 +212,6 @@ async def create_background_run(
 
         logger.info(f"开始后台运行处理 - 线程: {thread.thread_id}")
 
-        # 处理用户上下文持久化
-        current_context = None
-        if request.context:
-            # 1. 获取当前 metadata
-            current_metadata = thread.metadata or {}
-            user_context = current_metadata.get("user_context", [])
-            
-            # 2. 合并新上下文
-            new_items = [item.model_dump() for item in request.context]
-            
-            # 去重逻辑
-            context_map = {item["type"]: item for item in user_context}
-            for item in new_items:
-                context_map[item["type"]] = item
-            
-            merged_context = list(context_map.values())
-            
-            # 3. 更新 metadata
-            current_metadata["user_context"] = merged_context
-            thread.metadata = current_metadata
-            
-            # 4. 持久化更新
-            thread = await ThreadService.update_thread(thread)
-            current_context = merged_context
-        else:
-             if thread.metadata:
-                 current_context = thread.metadata.get("user_context")
-
         match thread.status:
             case ThreadStatus.IDLE:
                 thread.status = ThreadStatus.ACTIVE
@@ -357,8 +242,7 @@ async def create_background_run(
             thread_id=thread.thread_id,
             assistant_id=request.assistant_id,
             tenant_id=thread.tenant_id,
-            input=normalized_input,
-            context=current_context
+            input=normalized_input
         )
 
         logger.info(f"后台运行已创建 - 线程: {thread.thread_id}, 运行: {run_id}")

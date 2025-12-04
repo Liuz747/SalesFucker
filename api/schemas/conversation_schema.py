@@ -84,12 +84,11 @@ class ThreadRunResponse(BaseModel):
     thread_id: UUID = Field(description="线程标识符")
     status: str = Field(description="运行状态 (completed/failed)")
     response: str = Field(description="最终文本回复")
-    
-    # 指标封装
-    metrics: Optional[dict] = Field(None, description="运行指标：tokens, time等")
-    
-    # 语音识别结果
+    input_tokens: int = Field(default=0, description="输入Token数")
+    output_tokens: int = Field(default=0, description="输出Token数")
+    processing_time: float = Field(description="处理时间（毫秒）")
     asr_results: Optional[list[dict]] = Field(None, description="用户语音输入的ASR结果")
+    multimodal_outputs: Optional[OutputContentParams] = Field(None, description="标准化的多模态输出流")
 
     # 关键点：使用 Union + Discriminator 实现 business_outputs 的多态
     # 这样前端收到 type="appointment" 时，后端校验会自动匹配 AppointmentOutput 结构
@@ -97,9 +96,3 @@ class ThreadRunResponse(BaseModel):
         None, 
         description="特定业务场景的结构化输出"
     )
-
-    # 多模态统一列表
-    multimodal_outputs: Optional[OutputContentParams] = Field(None, description="标准化的多模态输出流")
-    
-    
-    metadata: Optional[dict] = Field(None, description="元数据")
