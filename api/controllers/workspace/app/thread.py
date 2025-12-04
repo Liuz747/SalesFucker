@@ -13,7 +13,7 @@
 """
 
 import asyncio
-from typing import Annotated, List
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Depends
@@ -124,7 +124,7 @@ async def get_thread(
 @router.post("/{thread_id}/record")
 async def upload_record(
     thread_id: UUID,
-    records: List[ContextItem],
+    records: list,
     tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)]
 ):
     """

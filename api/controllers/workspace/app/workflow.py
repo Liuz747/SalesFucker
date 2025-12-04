@@ -32,7 +32,7 @@ logger = get_component_logger(__name__, "WorkflowRouter")
 router = APIRouter()
 
 
-@router.post("/wait", response_model=ThreadRunResponse, response_model_exclude_none=True)
+@router.post("/wait", response_model=ThreadRunResponse)
 async def create_run(
     thread_id: UUID,
     request: MessageCreateRequest,

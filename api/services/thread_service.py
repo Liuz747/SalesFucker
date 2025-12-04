@@ -13,12 +13,11 @@
 
 import asyncio
 from uuid import UUID
-from typing import Optional, List
+from typing import Optional
 
 from infra.db import database_session
 from libs.factory import infra_registry
 from repositories.thread_repo import ThreadRepository, Thread
-from schemas import ContextItem
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "ThreadService")
@@ -124,54 +123,12 @@ class ThreadService:
             raise
             
     @staticmethod
-    async def update_thread_records(thread_id: UUID, records: List[ContextItem]) -> bool:
+    async def update_thread_records():
         """
         更新线程记忆记录
         
         参数:
-            thread_id: 线程ID
-            records: 新的记忆记录列表
             
         返回:
-            bool: 更新是否成功
         """
-        try:
-            # 获取线程
-            thread = await ThreadService.get_thread(thread_id)
-            if not thread:
-                raise ValueError(f"线程不存在: {thread_id}")
-            
-            # 初始化或获取现有记录
-            if not thread.metadata:
-                thread.metadata = {}
-            
-            # 确保 memory_records 存在且为列表
-            current_records = thread.metadata.get("memory_records", [])
-            if not isinstance(current_records, list):
-                current_records = []
-            
-            # 去重逻辑
-            existing_set = set()
-            for r in current_records:
-                # 记录以字典形式存储在metadata中
-                if isinstance(r, dict):
-                    existing_set.add((r.get("type"), r.get("content")))
-            
-            new_records_added = False
-            for record in records:
-                record_tuple = (record.type, record.content)
-                if record_tuple not in existing_set:
-                    current_records.append(record.model_dump())
-                    existing_set.add(record_tuple)
-                    new_records_added = True
-            
-            if new_records_added:
-                thread.metadata["memory_records"] = current_records
-                await ThreadService.update_thread(thread)
-                logger.info(f"线程 {thread_id} 更新了记忆记录")
-                
-            return True
-            
-        except Exception as e:
-            logger.error(f"更新线程记录失败: {e}")
-            raise
+        pass
