@@ -12,9 +12,8 @@
 - 个性化增强
 """
 
-from typing import Dict, Any, List, Tuple, Union
+from typing import Dict, Any, List
 from abc import ABC, abstractmethod
-from enum import Enum
 
 from utils import LoggerMixin
 
@@ -340,36 +339,3 @@ class SalesPromptGenerator(LoggerMixin):
         }
 
         return fallback_prompts.get((sentiment, urgency), "您好！我是您的美妆顾问，很高兴为您服务。")
-
-    def add_strategy(self, strategy: PromptStrategy):
-        """添加新的生成策略"""
-        self.strategies.insert(0, strategy)  # 新策略优先级更高
-        self.logger.info(f"添加新策略: {type(strategy).__name__}")
-
-    def get_prompt_examples(self) -> Dict[str, List[str]]:
-        """获取提示词示例（用于测试和文档）"""
-        return {
-            "positive_high": [
-                "客户情绪积极且需求紧急，可以主动推荐产品并提供专业建议。强调产品效果和快速解决方案，体现高效服务。建议使用热情专业的沟通方式。"
-            ],
-            "negative_low": [
-                "客户情绪低落，需要温和关怀。耐心了解需求，提供贴心的建议。建议使用温和关怀的沟通方式。"
-            ],
-            "neutral_medium": [
-                "客户态度中性，可以逐步引导。了解需求，提供专业的产品介绍。建议使用专业引导的沟通方式。"
-            ]
-        }
-
-    def get_generator_info(self) -> Dict[str, Any]:
-        """获取生成器信息"""
-        return {
-            "total_strategies": len(self.strategies),
-            "available_strategies": [type(s).__name__ for s in self.strategies],
-            "default_prompt": self._get_default_prompt(),
-            "capabilities": [
-                "sentiment_based_generation",
-                "multimodal_enhancement",
-                "personalization",
-                "fallback_handling"
-            ]
-        }

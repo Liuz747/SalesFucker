@@ -11,7 +11,7 @@
 - 提供简洁的处理结果
 """
 
-from typing import Dict, Any, Union, List, Tuple, Sequence
+from typing import Dict, Any, List, Tuple, Sequence
 from uuid import uuid4
 from libs.types import InputContentParams, InputContent, InputType, Message
 from infra.runtimes import LLMClient, CompletionsRequest
@@ -211,11 +211,3 @@ class MultimodalInputProcessor(LoggerMixin):
                     text_parts.append(getattr(item, "content", ""))
 
         return " ".join(filter(None, text_parts)) or "无文本内容"
-
-    def get_supported_modalities(self) -> List[str]:
-        """获取支持的模态类型"""
-        return ["text", "image", "audio", "video", "files"]
-
-    def update_config(self, new_config: Dict[str, Any]):
-        """更新配置"""
-        self.config.update(new_config)

@@ -12,7 +12,7 @@
 - 置信度计算
 """
 
-from typing import Dict, Any, List, Tuple, Union
+from typing import Dict, Any, List, Union
 from abc import ABC, abstractmethod
 from uuid import uuid4
 
@@ -326,18 +326,4 @@ class SentimentAnalyzer(LoggerMixin):
             },
             "analyzer": "fallback",
             "error": "All strategies failed"
-        }
-
-    def add_strategy(self, strategy: SentimentAnalysisStrategy):
-        """添加新的分析策略"""
-        self.strategies.append(strategy)
-        self.logger.info(f"添加新策略: {type(strategy).__name__}")
-
-    def get_analyzer_info(self) -> Dict[str, Any]:
-        """获取分析器信息"""
-        return {
-            "llm_provider": self.llm_provider,
-            "llm_model": self.llm_model,
-            "available_strategies": [type(s).__name__ for s in self.strategies],
-            "total_strategies": len(self.strategies)
         }

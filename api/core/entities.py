@@ -4,7 +4,6 @@
 支持LangGraph并发状态更新和并行节点执行。
 """
 
-from collections.abc import Mapping
 from datetime import datetime
 from typing import Annotated, Any, Optional, TypedDict
 from uuid import UUID

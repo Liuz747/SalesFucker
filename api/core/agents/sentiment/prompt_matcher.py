@@ -100,15 +100,3 @@ class PromptMatcher:
             "journey_stage": journey_stage,
             "sentiment_score": sentiment_score
         }
-
-    def reload_config(self) -> None:
-        """热重载配置文件"""
-        self._load_config()
-
-    def get_available_stages(self) -> list:
-        """获取支持的旅程阶段列表"""
-        return self.config["dimensions"]["journey"]
-
-    def validate_stage(self, stage: str) -> bool:
-        """验证旅程阶段是否有效"""
-        return stage in self.get_available_stages()
