@@ -160,7 +160,6 @@ class WorkflowExecutionModel(BaseModel):
     tenant_id: str = Field(description="租户标识符")
 
     input: InputContentParams = Field(description="输入内容")
-    context: Optional[list[dict]] = Field(default=None, description="用户上下文信息")
     output: Optional[str] = Field(default=None, description="文本输出内容")
 
     # 多模态输出 - 支持音频、图像、视频等
