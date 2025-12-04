@@ -104,7 +104,7 @@ async def create_run(
                 )
 
         # 标准化输入（处理音频转录）
-        normalized_input = await AudioService.normalize_input(request.input, str(thread.thread_id))
+        normalized_input, asr_meta = await AudioService.normalize_input(request.input, str(thread.thread_id))
 
         # 创建工作流执行模型
         start_time = get_current_datetime()
@@ -135,17 +135,7 @@ async def create_run(
         }
 
         # 提取 ASR 结果
-        # AudioService.normalize_input 会将转录文本追加到列表末尾
-        # 因此 normalized_input 中超出原始 request.input 长度的部分即为 ASR 结果
-        asr_results = None
-        if isinstance(request.input, list) and isinstance(normalized_input, list):
-            original_len = len(request.input)
-            if len(normalized_input) > original_len:
-                asr_results = [
-                    item.content 
-                    for item in normalized_input[original_len:] 
-                    if hasattr(item, "content")
-                ]
+        asr_results = [item["content"] for item in asr_meta] if asr_meta else None
 
         # 构造 multimodal_outputs
         # 将纯文本响应也转换为 TextOutput 放入列表
@@ -244,7 +234,7 @@ async def create_suggestion(
         )
         
         # 标准化输入
-        normalized_input = await AudioService.normalize_input(request.input, str(thread.thread_id))
+        normalized_input, _ = await AudioService.normalize_input(request.input, str(thread.thread_id))
         
         # 生成建议
         multimodal_outputs, metrics = await SuggestionService.generate_suggestions(
@@ -340,7 +330,7 @@ async def create_background_run(
                 )
 
         # 标准化输入（处理音频转录）
-        normalized_input = await AudioService.normalize_input(request.input, str(thread.thread_id))
+        normalized_input, _ = await AudioService.normalize_input(request.input, str(thread.thread_id))
 
         # 生成运行ID
         run_id = uuid4()
