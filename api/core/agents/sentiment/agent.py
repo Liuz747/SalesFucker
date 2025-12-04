@@ -213,6 +213,8 @@ class SentimentAnalysisAgent(BaseAgent):
                 "sentiment_analysis": sentiment_analysis_update,
                 "matched_prompt": matched_prompt,
                 "journey_stage": journey_stage,
+                "input_tokens": token_info["input_tokens"],
+                "output_tokens": token_info["output_tokens"],
                 "values": {"agent_responses": {self.agent_id: agent_data}},
                 "active_agents": [self.agent_id]
             }

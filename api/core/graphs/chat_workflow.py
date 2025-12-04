@@ -295,6 +295,12 @@ class ChatWorkflow(BaseWorkflow):
                 if node_name not in current_active:
                     update_dict["active_agents"] = current_active + [node_name]
 
+            # 统一传递 Token 统计字段 (支持 Reducer 自动累加)
+            if "input_tokens" in result_state:
+                update_dict["input_tokens"] = result_state["input_tokens"]
+            if "output_tokens" in result_state:
+                update_dict["output_tokens"] = result_state["output_tokens"]
+
             logger.debug(f"节点 {node_name} 执行完成，更新状态字段: {list(update_dict.keys())}")
             return update_dict
 
