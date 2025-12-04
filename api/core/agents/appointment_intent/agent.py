@@ -10,15 +10,12 @@ Appointment Intent Analysis Agent - 邀约到店意向分析智能体
 - 智能记忆管理和检索
 """
 
-from typing import Dict, Any, List
 from langfuse import observe
 
+from core.memory import StorageManager
+from utils import get_current_datetime
 from ..base import BaseAgent
 from .intent_analyzer import AppointmentIntentAnalyzer
-from utils import get_current_datetime
-from config import mas_config
-from core.memory import StorageManager
-from libs.types import Message
 
 
 class AppointmentIntentAgent(BaseAgent):
@@ -37,16 +34,13 @@ class AppointmentIntentAgent(BaseAgent):
 
     def __init__(self):
         super().__init__()
-        self.llm_provider = mas_config.DEFAULT_LLM_PROVIDER
-        # 仿照sales agent，使用相同的OpenRouter模型
-        self.llm_model = "openai/gpt-4o-mini"
 
         self.memory_manager = StorageManager()
 
         # 初始化意向分析器
         self.intent_analyzer = AppointmentIntentAnalyzer(
-            llm_provider=self.llm_provider,
-            llm_model=self.llm_model,
+            llm_provider="openrouter",
+            llm_model="openai/gpt-4o-mini",
             invoke_llm_fn=self.invoke_llm
         )
 
@@ -134,7 +128,7 @@ class AppointmentIntentAgent(BaseAgent):
             return "\n".join(parts)
         return str(content)
 
-    def _extract_recent_user_messages(self, messages: List, max_rounds: int = 5) -> List[str]:
+    def _extract_recent_user_messages(self, messages: list, max_rounds: int = 5) -> list[str]:
         """
         从记忆中提取最近N轮用户消息
 
@@ -175,7 +169,7 @@ class AppointmentIntentAgent(BaseAgent):
             self.logger.error(f"提取用户消息失败: {e}")
             return []
 
-    async def _analyze_appointment_intent(self, current_input: str, recent_messages: List[str]) -> dict:
+    async def _analyze_appointment_intent(self, current_input: str, recent_messages: list[str]) -> dict:
         """
         分析邀约到店意向
 
@@ -225,7 +219,7 @@ class AppointmentIntentAgent(BaseAgent):
                 }
             }
 
-    def _update_state_with_intent(self, state: dict, intent_result: dict, recent_messages: List[str]) -> dict:
+    def _update_state_with_intent(self, state: dict, intent_result: dict, recent_messages: list[str]) -> dict:
         """
         更新状态，添加邀约意向信息
 

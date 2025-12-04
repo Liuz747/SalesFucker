@@ -278,12 +278,8 @@ class MaterialIntentAnalyzer:
             result = json.loads(json_content)
 
             # 修复：正确获取 token 信息从 LLMResponse.usage 字典
-            if hasattr(response, 'usage') and isinstance(response.usage, dict):
-                result["input_tokens"] = response.usage.get("input_tokens", 0)
-                result["output_tokens"] = response.usage.get("output_tokens", 0)
-            else:
-                result["input_tokens"] = 0
-                result["output_tokens"] = 0
+            result["input_tokens"] = response.usage.input_tokens
+            result["output_tokens"] = response.usage.output_tokens
 
             if "total_tokens" not in result:
                 result["total_tokens"] = result.get("input_tokens", 0) + result.get("output_tokens", 0)
@@ -355,11 +351,8 @@ class MaterialIntentAnalyzer:
 
         except json.JSONDecodeError as e:
             # 修复：JSON解析失败时正确获取 token 信息
-            input_tokens = 0
-            output_tokens = 0
-            if hasattr(response, 'usage') and isinstance(response.usage, dict):
-                input_tokens = response.usage.get("input_tokens", 0)
-                output_tokens = response.usage.get("output_tokens", 0)
+            input_tokens = response.usage.input_tokens
+            output_tokens = response.usage.output_tokens
 
             return {
                 "urgency_level": "medium",  # 改为默认中等而不是low
@@ -377,11 +370,8 @@ class MaterialIntentAnalyzer:
         except Exception as e:
             # 其他错误 - 同样提供更好的默认值
             # 尝试获取token信息
-            input_tokens = 0
-            output_tokens = 0
-            if hasattr(response, 'usage') and isinstance(response.usage, dict):
-                input_tokens = response.usage.get("input_tokens", 0)
-                output_tokens = response.usage.get("output_tokens", 0)
+            input_tokens = response.usage.input_tokens
+            output_tokens = response.usage.output_tokens
 
             return {
                 "urgency_level": "medium",

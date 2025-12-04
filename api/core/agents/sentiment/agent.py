@@ -12,18 +12,18 @@ Sentiment Analysis Agent
 """
 
 from typing import Sequence
+
 from langfuse import observe
 
+from core.entities import WorkflowExecutionModel
+from core.memory import StorageManager
+from libs.types import Message, InputContentParams, MemoryType
+from utils import get_current_datetime
 from ..base import BaseAgent
 from .multimodal_input_processor import MultimodalInputProcessor
 from .sentiment_analyzer import SentimentAnalyzer
 from .sales_prompt_generator import SalesPromptGenerator
 from .prompt_matcher import PromptMatcher
-from utils import get_current_datetime
-from config import mas_config
-from core.memory import StorageManager
-from libs.types import Message, InputContentParams, MemoryType
-from core.entities import WorkflowExecutionModel
 
 class SentimentAnalysisAgent(BaseAgent):
     """
@@ -40,10 +40,6 @@ class SentimentAnalysisAgent(BaseAgent):
 
     def __init__(self):
         super().__init__()
-        self.llm_provider = mas_config.DEFAULT_LLM_PROVIDER
-
-        # 使用OpenRouter中可用的模型
-        self.llm_model = "openai/gpt-5-mini"
 
         self.memory_manager = StorageManager()
         self.prompt_matcher = PromptMatcher()
@@ -57,8 +53,8 @@ class SentimentAnalysisAgent(BaseAgent):
         )
 
         self.sentiment_analyzer = SentimentAnalyzer(
-            llm_provider=self.llm_provider,
-            llm_model=self.llm_model,
+            llm_provider="openrouter",
+            llm_model="openai/gpt-5-mini",
             invoke_llm_fn=self.invoke_llm
         )
 

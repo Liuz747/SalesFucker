@@ -220,9 +220,7 @@ class ReportService:
 
             # 7. 构建返回结果
             # 提取 token 使用情况
-            total_tokens = 0
-            if response.usage:
-                total_tokens = response.usage.get("input_tokens", 0) + response.usage.get("output_tokens", 0)
+            total_tokens = response.usage.input_tokens + response.usage.output_tokens
                 
             result = {
                 "report_result": json_content.get("overall_summary", ""),

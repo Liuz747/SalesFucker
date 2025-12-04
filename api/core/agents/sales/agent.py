@@ -10,17 +10,14 @@ Sales Agent
 - 自动管理助手回复的存储
 """
 
-from typing import Tuple
-from uuid import uuid4, UUID
+from uuid import uuid4
 
-from ..base import BaseAgent
-from libs.types import Message
-from infra.runtimes.entities import CompletionsRequest
-from utils import get_current_datetime
-from config import mas_config
-from core.memory import StorageManager
 from core.entities import WorkflowExecutionModel
-from services import ThreadService
+from core.memory import StorageManager
+from infra.runtimes import CompletionsRequest
+from libs.types import Message
+from utils import get_current_datetime
+from ..base import BaseAgent
 
 
 class SalesAgent(BaseAgent):
@@ -36,11 +33,6 @@ class SalesAgent(BaseAgent):
 
         # 记忆管理
         self.memory_manager = StorageManager()
-        self.llm_provider = mas_config.DEFAULT_LLM_PROVIDER
-        self.llm_model = "openai/gpt-5-mini"
-        
-        self.logger.info(f"最终回复llm: {self.llm_provider}/{self.llm_model}")
-
 
     def _format_user_context(self, context_list: list[dict]) -> str:
         """格式化用户上下文"""
@@ -117,28 +109,9 @@ class SalesAgent(BaseAgent):
                 query_text=user_text,
             )
             self.logger.info(f"记忆检索完成 - 短期: {len(short_term_messages)} 条, 长期: {len(long_term_memories)} 条")
-            
-            # 尝试从线程元数据中获取 memory_records
-            memory_records = []
-            try:
-                thread = await ThreadService.get_thread(UUID(thread_id))
-                if thread and thread.metadata:
-                    memory_records = thread.metadata.get("memory_records", [])
-                    if memory_records:
-                        self.logger.info(f"从线程元数据获取到 {len(memory_records)} 条记忆记录")
-            except Exception as e:
-                self.logger.warning(f"获取线程记忆记录失败: {e}")
 
             # 格式化用户上下文
-            # 将 user_context 和 memory_records 合并用于格式化上下文
-            # 优先使用 memory_records，因为它是新的结构化记录来源
-            combined_context = []
-            if user_context:
-                 combined_context.extend(user_context if isinstance(user_context, list) else [])
-            if memory_records:
-                 combined_context.extend(memory_records)
-            
-            formatted_context = self._format_user_context(combined_context) if combined_context else ""
+            formatted_context = self._format_user_context(user_context) if user_context else ""
             if formatted_context:
                 self.logger.info("已注入用户上下文信息")
 
@@ -208,7 +181,7 @@ class SalesAgent(BaseAgent):
 
     async def __generate_final_response(
         self, customer_input: str, matched_prompt: dict, short_term_messages: list, long_term_memories: list, formatted_context: str = ""
-    ) -> Tuple[str, dict]:
+    ) -> tuple[str, dict]:
         """
         基于匹配提示词和记忆生成回复
 
@@ -241,8 +214,8 @@ class SalesAgent(BaseAgent):
             # 4. 调用 LLM
             request = CompletionsRequest(
                 id=uuid4(),
-                provider=self.llm_provider,
-                model=self.llm_model,
+                provider="openrouter",
+                model="openai/gpt-5-mini",
                 temperature=0.7,  # 适度创造性
                 messages=llm_messages
             )

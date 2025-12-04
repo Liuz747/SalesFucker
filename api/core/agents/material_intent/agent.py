@@ -10,15 +10,13 @@ Material Intent Analysis Agent - 素材发送意向分析智能体
 - 为sales agent提供对应素材提示词，以衔接回复
 """
 
-from typing import Dict, Any, List
 from langfuse import observe
 
+from core.entities import WorkflowExecutionModel
+from core.memory import StorageManager
+from utils import get_current_datetime
 from ..base import BaseAgent
 from .intent_analyzer import MaterialIntentAnalyzer
-from utils import get_current_datetime
-from config import mas_config
-from core.memory import StorageManager
-from libs.types import Message
 
 
 class MaterialIntentAgent(BaseAgent):
@@ -37,21 +35,18 @@ class MaterialIntentAgent(BaseAgent):
 
     def __init__(self):
         super().__init__()
-        self.llm_provider = mas_config.DEFAULT_LLM_PROVIDER  # 读取.env中的openrouter
-        # 使用与provider匹配的模型
-        self.llm_model = "openai/gpt-4o-mini"  # openrouter支持的模型
 
         self.memory_manager = StorageManager()
 
         # 初始化意向分析器
         self.intent_analyzer = MaterialIntentAnalyzer(
-            llm_provider=self.llm_provider,
-            llm_model=self.llm_model,
+            llm_provider="openrouter",
+            llm_model="openai/gpt-4o-mini",
             invoke_llm_fn=self.invoke_llm
         )
 
     @observe(name="material-intent-analysis", as_type="generation")
-    async def process_conversation(self, state: dict) -> dict:
+    async def process_conversation(self, state: WorkflowExecutionModel) -> dict:
         """
         处理对话状态中的素材发送意向分析
 
@@ -81,7 +76,7 @@ class MaterialIntentAgent(BaseAgent):
 
             # 步骤1: 检索记忆上下文（近3轮对话）
             user_text = self._input_to_text(customer_input)
-            short_term_messages, long_term_memories = await self.memory_manager.retrieve_context(
+            short_term_messages, _ = await self.memory_manager.retrieve_context(
                 tenant_id=tenant_id,
                 thread_id=thread_id,
                 query_text=user_text,
@@ -134,7 +129,7 @@ class MaterialIntentAgent(BaseAgent):
             return "\n".join(parts)
         return str(content)
 
-    def _extract_recent_user_messages(self, messages: List, max_rounds: int = 3) -> List[str]:
+    def _extract_recent_user_messages(self, messages: list, max_rounds: int = 3) -> list[str]:
         """
         从记忆中提取最近N轮用户消息
 
@@ -175,7 +170,7 @@ class MaterialIntentAgent(BaseAgent):
             self.logger.error(f"提取用户消息失败: {e}")
             return []
 
-    async def _analyze_material_intent(self, current_input: str, recent_messages: List[str]) -> dict:
+    async def _analyze_material_intent(self, current_input: str, recent_messages: list[str]) -> dict:
         """
         分析素材发送意向
 
@@ -226,7 +221,7 @@ class MaterialIntentAgent(BaseAgent):
                 }
             }
 
-    def _update_state_with_intent(self, state: dict, intent_result: dict, recent_messages: List[str]) -> dict:
+    def _update_state_with_intent(self, state: dict, intent_result: dict, recent_messages: list[str]) -> dict:
         """
         更新状态，添加素材意向信息
 
@@ -245,17 +240,6 @@ class MaterialIntentAgent(BaseAgent):
             "input_tokens": intent_result.get("input_tokens", 0),
             "output_tokens": intent_result.get("output_tokens", 0),
             "total_tokens": intent_result.get("total_tokens", intent_result.get("tokens_used", 0))
-        }
-
-        # 创建标准化的Agent响应数据 (原TokenManager逻辑)
-        agent_response_data = {
-            "agent_id": self.agent_id,
-            "agent_type": "material_intent",
-            "response": str(intent_result),
-            "token_usage": token_info,
-            "tokens_used": token_info["total_tokens"],
-            "response_length": len(str(intent_result)),
-            "timestamp": current_time
         }
 
         # 核心传递字段：material_intent
