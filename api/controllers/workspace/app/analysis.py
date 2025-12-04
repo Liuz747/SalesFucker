@@ -60,15 +60,7 @@ async def generate_thread_report(
 
     except Exception as e:
         logger.error(f"API生成报告失败: {e}", exc_info=True)
-        processing_time = get_processing_time_ms(start_time)
-        return ThreadRunResponse(
-            run_id=run_id,
-            thread_id=thread_id,
-            status="failed",
-            response=str(e),
-            processing_time=processing_time,
-            metadata={"error": str(e)}
-        )
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/label", response_model=ThreadRunResponse)
 async def generate_thread_labels(
@@ -112,14 +104,7 @@ async def generate_thread_labels(
     except Exception as e:
         logger.error(f"API生成标签失败: {e}", exc_info=True)
         processing_time = get_processing_time_ms(start_time)
-        return ThreadRunResponse(
-            run_id=run_id,
-            thread_id=thread_id,
-            status="failed",
-            response=str(e),
-            processing_time=processing_time,
-            metadata={"error": str(e)}
-        )
+        raise HTTPException(status_code=500, detail=str(e)) 
 
 @router.post("/profile", response_model=ThreadRunResponse)
 async def generate_thread_profile(
@@ -162,11 +147,4 @@ async def generate_thread_profile(
     except Exception as e:
         logger.error(f"API生成画像失败: {e}", exc_info=True)
         processing_time = get_processing_time_ms(start_time)
-        return ThreadRunResponse(
-            run_id=run_id,
-            thread_id=thread_id,
-            status="failed",
-            response=str(e),
-            processing_time=processing_time,
-            metadata={"error": str(e)}
-        )
+        raise HTTPException(status_code=500, detail=str(e))
