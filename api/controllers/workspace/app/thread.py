@@ -22,7 +22,7 @@ from config import mas_config
 from core.tasks.workflows import GreetingWorkflow
 from libs.factory import infra_registry
 from models import Thread, ThreadStatus, TenantModel
-from schemas import ThreadCreateRequest, ThreadCreateResponse, ContextItem
+from schemas import ThreadCreateRequest, ThreadCreateResponse
 from services import ThreadService
 from utils import get_component_logger
 from ..wraps import validate_and_get_tenant

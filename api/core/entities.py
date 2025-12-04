@@ -173,8 +173,8 @@ class WorkflowExecutionModel(BaseModel):
         description="输出类型列表，例如：['output_audio', 'output_image']"
     )
 
-    input_tokens: Annotated[Optional[int], safe_add] = Field(default=0, description="输入Token数")
-    output_tokens: Annotated[Optional[int], safe_add] = Field(default=0, description="输出Token数")
+    input_tokens:int = Field(default=0, description="输入Token数")
+    output_tokens:int = Field(default=0, description="输出Token数")
     total_tokens: Optional[int] = Field(default=None, description="总Token数")
     error_message: Optional[str] = Field(default=None, description="错误信息")
     exception_count: int = Field(default=0, description="异常次数")

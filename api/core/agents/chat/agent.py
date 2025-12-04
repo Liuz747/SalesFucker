@@ -100,9 +100,8 @@ class ChatAgent(BaseAgent):
             )
 
             # 提取 token 信息
-            token_usage = getattr(chat_response, "usage", {}) or {}
-            input_tokens = token_usage.get("input_tokens", 0)
-            output_tokens = token_usage.get("output_tokens", 0)
+            input_tokens = chat_response.usage.input_tokens
+            output_tokens = chat_response.usage.output_tokens
 
             # 计算处理时间
             processing_time = get_processing_time_ms(start_time)
@@ -126,8 +125,8 @@ class ChatAgent(BaseAgent):
             # 构建返回状态
             result = {
                 "output": chat_response.content,
-                "input_tokens": input_tokens,
-                "output_tokens": output_tokens,
+                "input_tokens": input_tokens + state.input_tokens,
+                "output_tokens": output_tokens + state.output_tokens,
                 "finished_at": get_current_datetime(),
                 "values": updated_value
             }
