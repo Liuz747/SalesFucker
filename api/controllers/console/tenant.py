@@ -94,7 +94,7 @@ async def update_tenant(
         if not request.features and not request.status:
             raise ValueError
 
-        tenant_model = await TenantService.update_tenant(
+        await TenantService.update_tenant(
             tenant_id,
             request.features.model_dump(exclude_none=True) if request.features else None,
             request.status
@@ -112,7 +112,7 @@ async def update_tenant(
         raise TenantSyncException(tenant_id, f"租户更新失败: {str(e)}")
 
 
-@router.post("/{tenant_id}", response_model=BaseResponse)
+@router.delete("/{tenant_id}", response_model=BaseResponse)
 async def delete_tenant(tenant_id: str):
     """删除租户"""
     try:
