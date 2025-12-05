@@ -121,3 +121,14 @@ class ThreadService:
         except Exception as e:
             logger.error(f"线程更新失败: {e}")
             raise
+
+    @staticmethod
+    async def update_thread_records():
+        """
+        更新线程记忆记录
+
+        参数:
+
+        返回:
+        """
+        pass

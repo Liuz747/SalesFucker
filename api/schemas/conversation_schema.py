@@ -4,13 +4,23 @@
 该模块从业务模型导入必要的架构定义，提供纯数据结构的Thread模型。
 """
 
+from dataclasses import dataclass
 from uuid import UUID
-from typing import Optional, Any
+from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from libs.types import InputContentParams
+from libs.types import InputContentParams, OutputContentParams
 from .responses import BaseResponse
+
+
+@dataclass
+class AppointmentOutput:
+    status: int
+    time: int
+    service: str
+    name: str
+    phone: int
 
 
 class ThreadMetadata(BaseModel):
@@ -24,7 +34,7 @@ class WorkflowData(BaseModel):
     """工作流数据模型"""
     
     type: str = Field(description="工作流数据类型")
-    content: Any = Field(description="工作流数据内容")
+    content: str = Field(description="工作流数据内容")
 
 
 class ThreadCreateRequest(BaseModel):
@@ -58,3 +68,18 @@ class CallbackPayload(BaseModel):
     processing_time: float = Field(description="处理时间（毫秒）")
     finished_at: str = Field(description="完成时间（ISO格式字符串）")
     metadata: dict = Field(description="元数据信息")
+
+
+class ThreadRunResponse(BaseModel):
+    """线程运行响应模型"""
+
+    run_id: UUID = Field(description="运行标识符")
+    thread_id: UUID = Field(description="线程标识符")
+    status: str = Field(description="运行状态")
+    response: str = Field(description="最终文本回复")
+    input_tokens: int = Field(default=0, description="输入Token数")
+    output_tokens: int = Field(default=0, description="输出Token数")
+    processing_time: float = Field(description="处理时间（毫秒）")
+    asr_results: Optional[list[dict]] = Field(None, description="用户语音输入的ASR结果")
+    multimodal_outputs: Optional[OutputContentParams] = Field(None, description="标准化的多模态输出流")
+    invitation: Optional[AppointmentOutput] = Field(None, description="特定业务场景的结构化输出")

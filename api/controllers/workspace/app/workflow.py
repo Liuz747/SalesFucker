@@ -15,8 +15,9 @@ from uuid import UUID, uuid4
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 
 from models import ThreadStatus, WorkflowRun, TenantModel
-from schemas.conversation_schema import MessageCreateRequest
+from schemas.conversation_schema import MessageCreateRequest, ThreadRunResponse
 from services import ThreadService, AudioService, WorkflowService
+from services.suggestion_service import SuggestionService
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms
 from ..wraps import (
     validate_and_get_tenant,
@@ -31,7 +32,7 @@ logger = get_component_logger(__name__, "WorkflowRouter")
 router = APIRouter()
 
 
-@router.post("/wait")
+@router.post("/wait", response_model=ThreadRunResponse)
 async def create_run(
     thread_id: UUID,
     request: MessageCreateRequest,
@@ -71,7 +72,7 @@ async def create_run(
                 )
 
         # 标准化输入（处理音频转录）
-        normalized_input = await AudioService.normalize_input(request.input, str(thread.thread_id))
+        normalized_input, asr_results = await AudioService.normalize_input(request.input, str(thread.thread_id))
 
         # 创建工作流执行模型
         start_time = get_current_datetime()
@@ -92,27 +93,35 @@ async def create_run(
 
         logger.info(f"运行处理完成 - 线程: {thread.thread_id}, 执行: {workflow_id}, 耗时: {processing_time:.2f}ms")
 
-        # 返回标准化响应
-        # TODO: 更新response input和output token的统计信息
-        response = {
-            "run_id": workflow_id,
-            "thread_id": result.thread_id,
-            "status": "completed",
-            "response": result.output,
-            "total_tokens": result.total_tokens,
-            "processing_time": processing_time,
-        }
-
-        # 添加多模态输出（如果存在）
-        if result.multimodal_outputs:
-            response["multimodal_outputs"] = [
-                {
-                    "type": output.type,
-                    "url": output.url,
-                    "metadata": output.metadata
+        # 构造 invitation
+        # 优先从 result.business_outputs 获取，如果没有则尝试从 appointment_intent 转换
+        invitation = result.business_outputs
+        
+        if not invitation and result.appointment_intent:
+            intent = result.appointment_intent
+            if intent.get("recommendation") == "suggest_appointment":
+                # 简易映射，实际可能需要更详细的提取逻辑
+                invitation = {
+                    "status": 1, # 假设1是待确认
+                    "time": 0, # 需要从 intent 中解析时间
+                    "service": "",
+                    "name": "", 
+                    "phone": "" # 需要从 intent 中解析电话
                 }
-                for output in result.multimodal_outputs
-            ]
+
+        # 返回标准化响应
+        response = ThreadRunResponse(
+            run_id=workflow_id,
+            thread_id=result.thread_id,
+            status="completed",
+            response=result.output,
+            input_tokens=result.input_tokens,
+            output_tokens=result.output_tokens,
+            processing_time=processing_time,
+            asr_results=asr_results,
+            multimodal_outputs=result.multimodal_outputs if result.multimodal_outputs else None,
+            invitation=invitation
+        )
 
         return response
 
@@ -121,6 +130,54 @@ async def create_run(
     except Exception as e:
         logger.error(f"运行处理失败 - 线程: {thread.thread_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"运行处理失败: {str(e)}")
+
+
+@router.post("/suggestion", response_model=ThreadRunResponse)
+async def create_suggestion(
+    thread_id: UUID,
+    request: MessageCreateRequest,
+    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)]
+):
+    """
+    生成回复建议
+    
+    根据用户输入生成3条建议回复。
+    """
+    try:
+        # 验证工作流权限
+        thread = await WorkflowService.verify_workflow_permissions(
+            tenant_id=tenant.tenant_id,
+            assistant_id=request.assistant_id,
+            thread_id=thread_id,
+            use_cache=True
+        )
+        
+        # 标准化输入
+        normalized_input = await AudioService.normalize_input(request.input, str(thread.thread_id))
+        
+        # 生成建议
+        multimodal_outputs, metrics = await SuggestionService.generate_suggestions(
+            input_content=normalized_input,
+            thread_id=thread_id,
+            tenant_id=tenant.tenant_id
+        )
+        
+        # 生成运行ID
+        run_id = uuid4()
+
+        return ThreadRunResponse(
+            run_id=run_id,
+            thread_id=thread.thread_id,
+            status="completed",
+            metrics=metrics,
+            multimodal_outputs=multimodal_outputs
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"建议生成失败 - 线程: {thread_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"建议生成失败: {str(e)}")
 
 
 @router.post("/async")

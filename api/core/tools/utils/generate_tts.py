@@ -94,6 +94,10 @@ async def generate_audio_output(result: WorkflowExecutionModel, assistant_id: UU
                 # MiniMax返回音频的链接
                 response_data = await response.json()
                 audio_url = response_data.get("data", {}).get("audio", "")
+                audio_length = response_data.get("extra_info", {}).get("audio_length", 0)
+
+        if audio_length is not None and audio_length / 1000 >= 60:
+            raise ValueError(f"MiniMax TTS audio exceeds 60 seconds: {audio_length}")
 
         if audio_url:
             # 处理URL编码问题：将\u0026转换为&
@@ -106,7 +110,7 @@ async def generate_audio_output(result: WorkflowExecutionModel, assistant_id: UU
                     metadata={
                         "format": "mp3",
                         "provider": "minimax",
-                        "text_length": len(result.output),
+                        "audio_length": audio_length,
                     }
                 )
             )

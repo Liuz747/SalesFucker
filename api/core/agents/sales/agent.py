@@ -10,17 +10,14 @@ Sales Agent
 - 自动管理助手回复的存储
 """
 
-from typing import Tuple
 from uuid import uuid4
 
-from ..base import BaseAgent
-from libs.types import Message
-from infra.runtimes.entities import CompletionsRequest
-from utils import get_current_datetime
-from utils.token_manager import TokenManager
-from config import mas_config
-from core.memory import StorageManager
 from core.entities import WorkflowExecutionModel
+from core.memory import StorageManager
+from infra.runtimes import CompletionsRequest
+from libs.types import Message
+from utils import get_current_datetime
+from ..base import BaseAgent
 
 
 class SalesAgent(BaseAgent):
@@ -36,11 +33,37 @@ class SalesAgent(BaseAgent):
 
         # 记忆管理
         self.memory_manager = StorageManager()
-        self.llm_provider = mas_config.DEFAULT_LLM_PROVIDER
-        self.llm_model = "openai/gpt-5-mini"
-        
-        self.logger.info(f"最终回复llm: {self.llm_provider}/{self.llm_model}")
 
+    def _format_user_context(self, context_list: list[dict]) -> str:
+        """格式化用户上下文"""
+        if not context_list:
+            return ""
+            
+        # 映射字典
+        type_map = {
+            "area": "所在地区",
+            "job": "职业",
+            "wx_nickname": "微信昵称",
+            "signature": "个性签名",
+            "headImg": "头像URL"
+        }
+        
+        lines = []
+        for item in context_list:
+            type_val = item.get("type")
+            content = item.get("content")
+            
+            # 跳过空内容
+            if not content:
+                continue
+                
+            label = type_map.get(type_val, type_val) # 如果不在映射中，使用原始type
+            lines.append(f"- {label}: {content}")
+            
+        if not lines:
+            return ""
+            
+        return "【客户档案资料】\n" + "\n".join(lines)
 
     async def process_conversation(self, state: WorkflowExecutionModel) -> dict:
         """
@@ -68,6 +91,7 @@ class SalesAgent(BaseAgent):
             customer_input = state.get("input")
             tenant_id = state.get("tenant_id")
             thread_id = str(state.get("thread_id"))
+            user_context = state.get("context") # 获取用户上下文
 
             matched_prompt = state.get("matched_prompt")
             current_total_tokens = state.get("total_tokens", 0) or 0
@@ -86,9 +110,14 @@ class SalesAgent(BaseAgent):
             )
             self.logger.info(f"记忆检索完成 - 短期: {len(short_term_messages)} 条, 长期: {len(long_term_memories)} 条")
 
-            # 生成个性化回复（基于匹配的提示词 + 记忆）
+            # 格式化用户上下文
+            formatted_context = self._format_user_context(user_context) if user_context else ""
+            if formatted_context:
+                self.logger.info("已注入用户上下文信息")
+
+            # 生成个性化回复（基于匹配的提示词 + 记忆 + 用户上下文）
             sales_response, token_info = await self.__generate_final_response(
-                user_text, matched_prompt, short_term_messages, long_term_memories
+                user_text, matched_prompt, short_term_messages, long_term_memories, formatted_context
             )
 
             # 存储助手回复到记忆
@@ -127,6 +156,8 @@ class SalesAgent(BaseAgent):
 
             return {
                 "output": sales_response, # 更新最终输出
+                "input_tokens": token_usage["input_tokens"],
+                "output_tokens": token_usage["output_tokens"],
                 "total_tokens": current_total_tokens + token_usage["total_tokens"],
                 "values": {"agent_responses": {self.agent_id: agent_data}},
                 "active_agents": [self.agent_id]
@@ -149,8 +180,8 @@ class SalesAgent(BaseAgent):
         return str(content)
 
     async def __generate_final_response(
-        self, customer_input: str, matched_prompt: dict, short_term_messages: list, long_term_memories: list
-    ) -> Tuple[str, dict]:
+        self, customer_input: str, matched_prompt: dict, short_term_messages: list, long_term_memories: list, formatted_context: str = ""
+    ) -> tuple[str, dict]:
         """
         基于匹配提示词和记忆生成回复
 
@@ -159,6 +190,7 @@ class SalesAgent(BaseAgent):
             matched_prompt: SentimentAgent 匹配的提示词
             short_term_messages: 短期记忆消息列表
             long_term_memories: 长期记忆摘要列表
+            formatted_context: 格式化后的用户上下文字符串
 
         Returns:
             tuple: (回复内容, token信息)
@@ -169,9 +201,9 @@ class SalesAgent(BaseAgent):
             tone = matched_prompt.get("tone", "专业、友好")
             strategy = matched_prompt.get("strategy", "标准服务")
 
-            # 2. 整合长期记忆到系统提示（参照 Chat Agent）
+            # 2. 整合长期记忆和用户上下文到系统提示
             enhanced_system_prompt = self._build_system_prompt_with_memory(
-                base_system_prompt, tone, strategy, long_term_memories
+                base_system_prompt, tone, strategy, long_term_memories, formatted_context
             )
 
             # 3. 构建消息列表（直接使用记忆消息）
@@ -182,8 +214,8 @@ class SalesAgent(BaseAgent):
             # 4. 调用 LLM
             request = CompletionsRequest(
                 id=uuid4(),
-                provider=self.llm_provider,
-                model=self.llm_model,
+                provider="openrouter",
+                model="openai/gpt-5-mini",
                 temperature=0.7,  # 适度创造性
                 messages=llm_messages
             )
@@ -206,7 +238,7 @@ class SalesAgent(BaseAgent):
             return self._get_fallback_response(matched_prompt), {"tokens_used": 0, "error": str(e)}
 
     def _build_system_prompt_with_memory(
-        self, base_prompt: str, tone: str, strategy: str, summaries: list
+        self, base_prompt: str, tone: str, strategy: str, summaries: list, formatted_context: str = ""
     ) -> str:
         """
         构建增强的系统提示词
@@ -216,6 +248,7 @@ class SalesAgent(BaseAgent):
             tone: 语气要求
             strategy: 策略要求
             summaries: 长期记忆摘要列表
+            formatted_context: 格式化后的用户上下文
 
         Returns:
             str: 增强后的系统提示词
@@ -233,6 +266,10 @@ class SalesAgent(BaseAgent):
 - 体现个性化，避免模板化回复
 - 根据客户历史适度调整策略
         """.strip()
+        
+        # 添加用户档案（如果有）
+        if formatted_context:
+            enhanced_prompt += f"\n\n{formatted_context}"
 
         # 添加长期记忆（如果有）
         if summaries:
@@ -252,14 +289,18 @@ class SalesAgent(BaseAgent):
         return enhanced_prompt
 
     def _extract_token_info(self, llm_response) -> dict:
-        """提取 token 使用信息 - 使用统一的TokenManager"""
+        """提取 token 使用信息"""
         try:
-            token_usage = TokenManager.extract_tokens(llm_response)
+            token_usage = getattr(llm_response, "usage", {}) or {}
+            input_tokens = token_usage.get("input_tokens", 0)
+            output_tokens = token_usage.get("output_tokens", 0)
+            total_tokens = token_usage.get("total_tokens", input_tokens + output_tokens)
+            
             return {
-                "tokens_used": token_usage.total_tokens,
-                "input_tokens": token_usage.input_tokens,
-                "output_tokens": token_usage.output_tokens,
-                "total_tokens": token_usage.total_tokens
+                "tokens_used": total_tokens,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
+                "total_tokens": total_tokens
             }
         except Exception as e:
             self.logger.warning(f"Token 信息提取失败: {e}")

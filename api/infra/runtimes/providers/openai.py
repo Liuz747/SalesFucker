@@ -11,7 +11,7 @@ import openai
 from openai.types.chat import ChatCompletionMessageParam, ChatCompletionContentPartParam
 from pydantic import ValidationError
 
-from ..entities import LLMResponse, Provider, CompletionsRequest, ResponseMessageRequest
+from ..entities import LLMResponse, Provider, CompletionsRequest, ResponseMessageRequest, TokenUsage
 from .base import BaseProvider
 from utils import get_component_logger
 
@@ -89,10 +89,10 @@ class OpenAIProvider(BaseProvider):
             content=response.choices[0].message.content,
             provider=request.provider,
             model=response.model,
-            usage={
-                "input_tokens": response.usage.prompt_tokens,
-                "output_tokens": response.usage.completion_tokens,
-            },
+            usage=TokenUsage(
+                input_tokens=response.usage.prompt_tokens,
+                output_tokens=response.usage.completion_tokens,
+            ),
             cost=self._calculate_cost(response.usage, response.model)
         )
 
@@ -170,10 +170,10 @@ class OpenAIProvider(BaseProvider):
             content=parsed_content,
             provider=request.provider,
             model=response.model,
-            usage={
-                "input_tokens": response.usage.prompt_tokens,
-                "output_tokens": response.usage.completion_tokens,
-            },
+            usage=TokenUsage(
+                input_tokens=response.usage.prompt_tokens,
+                output_tokens=response.usage.completion_tokens
+            ),
             cost=self._calculate_cost(response.usage, response.model)
         )
 
@@ -197,10 +197,10 @@ class OpenAIProvider(BaseProvider):
             content=response.output_text,
             provider=request.provider,
             model=response.model,
-            usage={
-                "input_tokens": response.usage.input_tokens,
-                "output_tokens": response.usage.output_tokens,
-            },
+            usage=TokenUsage(
+                input_tokens=response.usage.input_tokens,
+                output_tokens=response.usage.output_tokens,
+            ),
             # cost=self._calculate_cost(response.usage, response.model)
         )
 
@@ -236,10 +236,10 @@ class OpenAIProvider(BaseProvider):
             content=response.output_parsed,
             provider=request.provider,
             model=response.model,
-            usage={
-                "input_tokens": response.usage.input_tokens,
-                "output_tokens": response.usage.output_tokens,
-            },
+            usage=TokenUsage(
+                input_tokens=response.usage.input_tokens,
+                output_tokens=response.usage.output_tokens,
+            ),
             # cost=self._calculate_cost(response.usage, response.model)
         )
 

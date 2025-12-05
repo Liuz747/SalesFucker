@@ -116,19 +116,7 @@ class ProfileService:
                  profile_result = json.dumps(profile_data, ensure_ascii=False)
             
             # 计算总token
-            total_tokens = 0
-            if response.usage:
-                # 兼容 usage 是字典或对象的不同情况
-                if isinstance(response.usage, dict):
-                    total_tokens = response.usage.get("input_tokens", 0) + response.usage.get("output_tokens", 0)
-                else:
-                    # 尝试直接访问属性或转为字典
-                    try:
-                         total_tokens = getattr(response.usage, "total_tokens", 0)
-                         if total_tokens == 0:
-                             total_tokens = getattr(response.usage, "input_tokens", 0) + getattr(response.usage, "output_tokens", 0)
-                    except AttributeError:
-                        pass
+            total_tokens = response.usage.input_tokens + response.usage.output_tokens
 
             return {
                 "profile_result": profile_result,

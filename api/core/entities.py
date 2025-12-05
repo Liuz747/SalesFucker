@@ -4,7 +4,6 @@
 支持LangGraph并发状态更新和并行节点执行。
 """
 
-from collections.abc import Mapping
 from datetime import datetime
 from typing import Annotated, Any, Optional, TypedDict
 from uuid import UUID
@@ -103,6 +102,7 @@ class WorkflowState(TypedDict):
     thread_id: str
     tenant_id: str
     input: Any
+    context: Optional[list[dict]]  # 用户上下文
 
     # 并行节点专用字段 - 使用Reducer避免并发冲突
     sentiment_analysis: Annotated[Optional[dict], safe_merge_dict]
@@ -116,8 +116,12 @@ class WorkflowState(TypedDict):
     journey_stage: Optional[str]
     matched_prompt: Optional[dict]
 
-    # 元数据字段
+    # Token 统计字段
+    input_tokens: Annotated[int, operator.add]
+    output_tokens: Annotated[int, operator.add]
     total_tokens: Optional[int]
+    
+    # 元数据字段
     error_message: Optional[str]
     exception_count: int
     started_at: str
@@ -154,6 +158,9 @@ class WorkflowExecutionModel(BaseModel):
         description="输出类型列表，例如：['output_audio', 'output_image']"
     )
 
+    # Token 统计字段
+    input_tokens: Annotated[int, operator.add] = Field(default=0, description="输入Token数")
+    output_tokens: Annotated[int, operator.add] = Field(default=0, description="输出Token数")
     total_tokens: Optional[int] = Field(default=None, description="总Token数")
     error_message: Optional[str] = Field(default=None, description="错误信息")
     exception_count: int = Field(default=0, description="异常次数")
@@ -166,6 +173,9 @@ class WorkflowExecutionModel(BaseModel):
     material_intent: Annotated[Optional[dict], safe_merge_dict] = Field(default=None)
 
     values: Annotated[Optional[dict], merge_agent_results] = Field(default=None, description="工作流节点交互的状态")
+    
+    # 传递业务输出
+    business_outputs: Optional[dict] = Field(default=None, description="结构化业务输出")
 
     active_agents: Annotated[Optional[list], merge_list] = Field(default=None)
 

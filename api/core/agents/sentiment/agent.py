@@ -12,20 +12,18 @@ Sentiment Analysis Agent
 """
 
 from typing import Sequence
+
 from langfuse import observe
 
+from core.entities import WorkflowExecutionModel
+from core.memory import StorageManager
+from libs.types import Message, InputContentParams, MemoryType
+from utils import get_current_datetime
 from ..base import BaseAgent
 from .multimodal_input_processor import MultimodalInputProcessor
 from .sentiment_analyzer import SentimentAnalyzer
 from .sales_prompt_generator import SalesPromptGenerator
 from .prompt_matcher import PromptMatcher
-from utils import get_current_datetime
-from utils.token_manager import TokenManager
-from config import mas_config
-from core.memory import StorageManager
-from libs.types import Message, InputContentParams
-from libs.types.memory import MemoryType
-from core.entities import WorkflowExecutionModel
 
 class SentimentAnalysisAgent(BaseAgent):
     """
@@ -42,10 +40,6 @@ class SentimentAnalysisAgent(BaseAgent):
 
     def __init__(self):
         super().__init__()
-        self.llm_provider = mas_config.DEFAULT_LLM_PROVIDER
-
-        # 使用OpenRouter中可用的模型
-        self.llm_model = "openai/gpt-5-mini"
 
         self.memory_manager = StorageManager()
         self.prompt_matcher = PromptMatcher()
@@ -59,8 +53,8 @@ class SentimentAnalysisAgent(BaseAgent):
         )
 
         self.sentiment_analyzer = SentimentAnalyzer(
-            llm_provider=self.llm_provider,
-            llm_model=self.llm_model,
+            llm_provider="openrouter",
+            llm_model="openai/gpt-5-mini",
             invoke_llm_fn=self.invoke_llm
         )
 
@@ -214,6 +208,8 @@ class SentimentAnalysisAgent(BaseAgent):
                 "sentiment_analysis": sentiment_analysis_update,
                 "matched_prompt": matched_prompt,
                 "journey_stage": journey_stage,
+                "input_tokens": token_info["input_tokens"],
+                "output_tokens": token_info["output_tokens"],
                 "values": {"agent_responses": {self.agent_id: agent_data}},
                 "active_agents": [self.agent_id]
             }
@@ -309,93 +305,6 @@ class SentimentAnalysisAgent(BaseAgent):
                 "journey_stage": journey_stage,
                 "sentiment_score": sentiment_score
             }
-
-    def _update_state_enhanced(
-        self, state: dict, processed_text: str, sentiment_result: dict,
-        matched_prompt: dict, multimodal_context: dict, memory_context: dict,
-        journey_stage: str
-    ) -> dict:
-        """
-        构建更新后的状态对象
-
-        Args:
-            state: 原始状态
-            processed_text: 处理后的文本
-            sentiment_result: 情感分析结果
-            matched_prompt: 匹配的提示词
-            multimodal_context: 多模态上下文
-            memory_context: 记忆上下文
-            journey_stage: 旅程阶段
-
-        Returns:
-            dict: 更新后的状态
-        """
-        # 使用TokenManager创建标准化的Agent响应数据
-        current_time = get_current_datetime()
-        agent_response_data = TokenManager.extract_agent_token_info(
-            agent_id=self.agent_id,
-            agent_type="sentiment",
-            llm_response=None,  # token信息已在sentiment_result中
-            response_content=str(sentiment_result),
-            timestamp=current_time
-        )
-
-        # 更新token信息，使用sentiment_result中的实际数据
-        token_info = {
-            "input_tokens": sentiment_result.get("input_tokens", 0),
-            "output_tokens": sentiment_result.get("output_tokens", 0),
-            "total_tokens": sentiment_result.get("total_tokens", sentiment_result.get("tokens_used", 0))
-        }
-        agent_response_data["token_usage"] = token_info
-        agent_response_data["tokens_used"] = token_info["total_tokens"]
-
-        # LangGraph节点间传递 - 直接设置到model字段避免并发冲突
-        state["processed_text"] = processed_text
-        state["matched_prompt"] = matched_prompt  # SalesAgent 将使用matched_prompt 作为优化输入
-        state["journey_stage"] = journey_stage    # 旅程阶段
-        state["values"] = state.get("values", {})
-
-        # 保留原有的 sentiment_analysis，添加标准化token信息
-        state["sentiment_analysis"] = {
-            **sentiment_result,
-            "journey_stage": journey_stage,        #  添加旅程信息
-            "processed_input": processed_text,
-            "multimodal_context": multimodal_context,
-            "agent_id": self.agent_id,
-            "token_usage": token_info,             # 标准化的token信息
-            "tokens_used": token_info["total_tokens"]  # 向后兼容
-        }
-
-        # 备份存储在 values 结构中（用于统计和调试）
-        if state.get("values") is None:
-            state["values"] = {}
-        if state["values"].get("agent_responses") is None:
-            state["values"]["agent_responses"] = {}
-
-        agent_data = {
-            "agent_type": "sentiment",
-            "sentiment_analysis": sentiment_result,
-            "matched_prompt": matched_prompt,
-            "journey_stage": journey_stage,
-            "processed_input": processed_text,
-            "timestamp": current_time,
-            "token_usage": token_info,             # 标准化的token信息
-            "tokens_used": token_info["total_tokens"],  # 向后兼容
-            "response_length": len(str(sentiment_result))
-        }
-
-        state["values"]["agent_responses"][self.agent_id] = agent_data
-
-        # 更新活跃智能体列表
-        active_agents = state.get("active_agents")
-        if active_agents is None:
-            active_agents = []
-        active_agents.append(self.agent_id)
-        state["active_agents"] = active_agents
-
-        self.logger.info(f"sentiment agent 新增字段: matched_prompt, journey_stage")
-
-        return state
 
     async def _process_input(self, customer_input: InputContentParams) -> tuple[str, dict]:
         """处理多模态输入"""

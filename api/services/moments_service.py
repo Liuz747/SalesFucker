@@ -5,6 +5,7 @@
 支持文本和图像的智能分析，提供互动建议。
 """
 
+import asyncio
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Type
@@ -15,9 +16,7 @@ from pydantic import BaseModel
 from config import mas_config
 from infra.cache import get_redis_client
 from infra.runtimes import LLMClient, CompletionsRequest
-from libs.types import MethodType, Message
-from libs.types.content_params import InputContent, InputType
-from libs.types.memory import MemoryType
+from libs.types import MethodType, Message, InputContent, InputType, MemoryType
 from schemas.social_media_schema import (
     MomentsAnalysisRequest,
     MomentsAnalysisResponse,
@@ -214,7 +213,11 @@ class MomentsAnalysisService:
                 logger.warning(f"返回任务数量({tasks_count})与输入数量({len(request.task_list)})不匹配")
 
             # 存储互动记录到记忆
-            await self._store_moments_memories(request, result, tenant_id)
+            asyncio.create_task(self._store_moments_memories(
+                request,
+                result,
+                tenant_id
+            ))
 
             # 直接返回结果
             return result
@@ -284,7 +287,7 @@ class MomentsAnalysisService:
                 # 存储到记忆
                 await self.storage_manager.add_episodic_memory(
                     tenant_id=tenant_id,
-                    thread_id=uuid4() if not moment.thread_id else moment.thread_id, # thread_id should be UUID
+                    thread_id=moment.thread_id,
                     content=memory_content,
                     memory_type=MemoryType.MOMENTS_INTERACTION,
                     tags=["moments", "interaction"]

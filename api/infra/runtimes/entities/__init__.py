@@ -1,4 +1,10 @@
-from .llm import LLMRequest, LLMResponse, ResponseMessageRequest, CompletionsRequest
+from .llm import (
+    LLMRequest,
+    LLMResponse,
+    ResponseMessageRequest,
+    CompletionsRequest,
+    TokenUsage
+)
 from .providers import Provider, ProviderType
 from .models import Model, ModelType
 
@@ -11,4 +17,5 @@ __all__ = [
     "ProviderType",
     "Model",
     "ModelType",
+    "TokenUsage"
 ]

@@ -10,16 +10,12 @@ Appointment Intent Analysis Agent - 邀约到店意向分析智能体
 - 智能记忆管理和检索
 """
 
-from typing import Dict, Any, List
 from langfuse import observe
 
+from core.memory import StorageManager
+from utils import get_current_datetime
 from ..base import BaseAgent
 from .intent_analyzer import AppointmentIntentAnalyzer
-from utils import get_current_datetime
-from utils.token_manager import TokenManager
-from config import mas_config
-from core.memory import StorageManager
-from libs.types import Message
 
 
 class AppointmentIntentAgent(BaseAgent):
@@ -38,16 +34,13 @@ class AppointmentIntentAgent(BaseAgent):
 
     def __init__(self):
         super().__init__()
-        self.llm_provider = mas_config.DEFAULT_LLM_PROVIDER
-        # 仿照sales agent，使用相同的OpenRouter模型
-        self.llm_model = "openai/gpt-4o-mini"
 
         self.memory_manager = StorageManager()
 
         # 初始化意向分析器
         self.intent_analyzer = AppointmentIntentAnalyzer(
-            llm_provider=self.llm_provider,
-            llm_model=self.llm_model,
+            llm_provider="openrouter",
+            llm_model="openai/gpt-4o-mini",
             invoke_llm_fn=self.invoke_llm
         )
 
@@ -135,7 +128,7 @@ class AppointmentIntentAgent(BaseAgent):
             return "\n".join(parts)
         return str(content)
 
-    def _extract_recent_user_messages(self, messages: List, max_rounds: int = 5) -> List[str]:
+    def _extract_recent_user_messages(self, messages: list, max_rounds: int = 5) -> list[str]:
         """
         从记忆中提取最近N轮用户消息
 
@@ -176,7 +169,7 @@ class AppointmentIntentAgent(BaseAgent):
             self.logger.error(f"提取用户消息失败: {e}")
             return []
 
-    async def _analyze_appointment_intent(self, current_input: str, recent_messages: List[str]) -> dict:
+    async def _analyze_appointment_intent(self, current_input: str, recent_messages: list[str]) -> dict:
         """
         分析邀约到店意向
 
@@ -226,7 +219,7 @@ class AppointmentIntentAgent(BaseAgent):
                 }
             }
 
-    def _update_state_with_intent(self, state: dict, intent_result: dict, recent_messages: List[str]) -> dict:
+    def _update_state_with_intent(self, state: dict, intent_result: dict, recent_messages: list[str]) -> dict:
         """
         更新状态，添加邀约意向信息
 
@@ -240,23 +233,23 @@ class AppointmentIntentAgent(BaseAgent):
         """
         current_time = get_current_datetime()
 
-        # 创建标准化的Agent响应数据
-        agent_response_data = TokenManager.extract_agent_token_info(
-            agent_id=self.agent_id,
-            agent_type="appointment_intent",
-            llm_response=None,
-            response_content=str(intent_result),
-            timestamp=current_time
-        )
-
         # 更新token信息
         token_info = {
             "input_tokens": intent_result.get("input_tokens", 0),
             "output_tokens": intent_result.get("output_tokens", 0),
             "total_tokens": intent_result.get("total_tokens", intent_result.get("tokens_used", 0))
         }
-        agent_response_data["token_usage"] = token_info
-        agent_response_data["tokens_used"] = token_info["total_tokens"]
+
+        # 创建标准化的Agent响应数据 (原TokenManager逻辑)
+        agent_response_data = {
+            "agent_id": self.agent_id,
+            "agent_type": "appointment_intent",
+            "response": str(intent_result),
+            "token_usage": token_info,
+            "tokens_used": token_info["total_tokens"],
+            "response_length": len(str(intent_result)),
+            "timestamp": current_time
+        }
 
         # 核心传递字段：appointment_intent
         appointment_intent = {
@@ -301,6 +294,10 @@ class AppointmentIntentAgent(BaseAgent):
 
         self.logger.info(f"appointment intent 字段已添加: strength={appointment_intent['intent_strength']}, "
                         f"window={appointment_intent['time_window']}")
+        
+        # 添加 token 计数到顶层状态
+        state["input_tokens"] = token_info["input_tokens"]
+        state["output_tokens"] = token_info["output_tokens"]
 
         return state
 

@@ -6,18 +6,15 @@
 """
 
 import os
-from typing import Optional
-from collections.abc import Callable
 from uuid import uuid4
 
 from langgraph.graph import StateGraph, START, END
 
+from config import mas_config
 from core.agents.base import BaseAgent
-from core.entities import WorkflowExecutionModel, WorkflowState
+from libs.constants import AgentNodes
 from utils import get_component_logger
 from utils.llm_debug_wrapper import LLMDebugWrapper
-from config import mas_config
-from libs.constants import AgentNodes
 from .base_workflow import BaseWorkflow
 
 logger = get_component_logger(__name__)
@@ -295,13 +292,17 @@ class ChatWorkflow(BaseWorkflow):
                 if node_name not in current_active:
                     update_dict["active_agents"] = current_active + [node_name]
 
+            # 统一传递 Token 统计字段
+            update_dict["input_tokens"] = result_state.get("input_tokens", 0)
+            update_dict["output_tokens"] = result_state.get("output_tokens", 0)
+
             logger.debug(f"节点 {node_name} 执行完成，更新状态字段: {list(update_dict.keys())}")
             return update_dict
 
         except Exception as e:
             logger.error(f"节点 {node_name} 处理错误: {e}", exc_info=True)
-            # 即使出错也返回空状态，避免阻塞其他并行节点
-            return {}
+            # 即使出错也返回token字段，避免阻塞其他并行节点
+            return {"input_tokens": 0, "output_tokens": 0}
 
     def _create_agent_node(self, node_name: str):
         """创建智能体节点的通用方法"""
