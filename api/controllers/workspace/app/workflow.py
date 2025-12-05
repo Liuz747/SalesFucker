@@ -156,12 +156,15 @@ async def create_suggestion(
         normalized_input, _ = await AudioService.normalize_input(request.input, str(thread.thread_id))
         
         # 生成建议
-        multimodal_outputs, metrics = await SuggestionService.generate_suggestions(
+        start_time = get_current_datetime()
+        suggestions_list, metrics = await SuggestionService.generate_suggestions(
             input_content=normalized_input,
             thread_id=thread_id,
             tenant_id=tenant.tenant_id
         )
-        
+
+        processing_time = get_processing_time_ms(start_time)
+
         # 生成运行ID
         run_id = uuid4()
 
@@ -169,8 +172,13 @@ async def create_suggestion(
             run_id=run_id,
             thread_id=thread.thread_id,
             status="completed",
-            metrics=metrics,
-            multimodal_outputs=multimodal_outputs
+            response=suggestions_list,
+            input_tokens=metrics.get("input_tokens", 0),
+            output_tokens=metrics.get("output_tokens", 0),
+            processing_time=processing_time,
+            asr_results=[],
+            multimodal_outputs=None,
+            invitation=None
         )
 
     except HTTPException:

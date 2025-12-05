@@ -2,12 +2,12 @@
 回复建议生成服务层
 """
 
-from typing import Any, Tuple, List
+from typing import Any, Tuple
 import json
 from uuid import UUID
 
 from core.memory.conversation_store import ConversationStore
-from infra.runtimes import LLMClient, CompletionsRequest
+from infra.runtimes import LLMClient
 from libs.types import Message
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms
 
@@ -24,17 +24,17 @@ class SuggestionService:
         input_content: Any,
         thread_id: UUID,
         tenant_id: str = None
-    ) -> Tuple[List[dict], dict]:
+    ) -> Tuple[list[str], dict]:
         """
         生成回复建议
-        
+
         参数:
             input_content: 标准化后的输入内容
             thread_id: 线程ID (用于日志和记忆检索)
             tenant_id: 租户ID (保留，暂未强制使用)
-            
+
         返回:
-            (multimodal_outputs, metrics): 建议输出列表和指标字典
+            (response, metrics): 建议回复列表和指标字典
         """
         try:
             # 初始化LLM客户端
@@ -97,11 +97,11 @@ class SuggestionService:
             processing_time = round(get_processing_time_ms(start_time), 2)
             
             # 构造输出
-            multimodal_outputs = []
-            
+            suggestions_list = []
+
             if response.choices:
                 content = response.choices[0].message.content.strip()
-                
+
                 # 尝试清理 markdown 标记
                 if content.startswith("```json"):
                     content = content[7:]
@@ -114,18 +114,10 @@ class SuggestionService:
                     suggestions = json.loads(content)
                     if isinstance(suggestions, list):
                          for suggestion in suggestions:
-                            multimodal_outputs.append({
-                                "type": "text",
-                                "text": str(suggestion),
-                                "metadata": {"text_type": "suggestion"}
-                            })
+                            suggestions_list.append(str(suggestion))
                     else:
                         # 这是一个非列表的JSON对象或值
-                         multimodal_outputs.append({
-                            "type": "text",
-                            "text": str(suggestions),
-                            "metadata": {"text_type": "suggestion"}
-                        })
+                         suggestions_list.append(str(suggestions))
                 except json.JSONDecodeError:
                     # JSON解析失败，尝试按行分割作为兜底
                      logger.warning(f"建议生成 JSON解析失败: {content}")
@@ -135,22 +127,18 @@ class SuggestionService:
                          import re
                          cleaned_line = re.sub(r'^\d+[\.、]\s*', '', line.strip())
                          if cleaned_line:
-                             multimodal_outputs.append({
-                                "type": "text",
-                                "text": cleaned_line,
-                                "metadata": {"text_type": "suggestion"}
-                             })
+                             suggestions_list.append(cleaned_line)
             else:
                 logger.warning(f"LLM返回了空choices: {response}")
-            
+
             # 统计Token
             metrics = {
                 "input_tokens": response.usage.prompt_tokens,
                 "output_tokens": response.usage.completion_tokens,
                 "processing_time": processing_time
             }
-            
-            return multimodal_outputs, metrics
+
+            return suggestions_list, metrics
             
         except Exception as e:
             logger.error(f"建议生成失败 - 线程: {thread_id}: {e}", exc_info=True)
