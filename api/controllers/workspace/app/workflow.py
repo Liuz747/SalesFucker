@@ -153,7 +153,7 @@ async def create_suggestion(
         )
         
         # 标准化输入
-        normalized_input = await AudioService.normalize_input(request.input, str(thread.thread_id))
+        normalized_input, _ = await AudioService.normalize_input(request.input, str(thread.thread_id))
         
         # 生成建议
         multimodal_outputs, metrics = await SuggestionService.generate_suggestions(
@@ -221,7 +221,7 @@ async def create_background_run(
                 )
 
         # 标准化输入（处理音频转录）
-        normalized_input = await AudioService.normalize_input(request.input, str(thread.thread_id))
+        normalized_input, _ = await AudioService.normalize_input(request.input, str(thread.thread_id))
 
         # 生成运行ID
         run_id = uuid4()

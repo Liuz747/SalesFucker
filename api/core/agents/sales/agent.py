@@ -6,6 +6,7 @@ Sales Agent
 核心职责:
 - 接收 SentimentAgent 提供的策略提示词
 - 检索并整合记忆上下文
+- 获取并整合助理人设信息
 - 生成符合人设和策略的个性化回复
 - 自动管理助手回复的存储
 """
@@ -14,6 +15,7 @@ from uuid import uuid4
 
 from core.entities import WorkflowExecutionModel
 from core.memory import StorageManager
+from core.prompts.utils.get_role_prompt import get_role_prompt
 from infra.runtimes import CompletionsRequest
 from libs.types import Message
 from utils import get_current_datetime
@@ -91,6 +93,7 @@ class SalesAgent(BaseAgent):
             customer_input = state.get("input")
             tenant_id = state.get("tenant_id")
             thread_id = str(state.get("thread_id"))
+            assistant_id = state.get("assistant_id")
             user_context = state.get("context") # 获取用户上下文
 
             matched_prompt = state.get("matched_prompt")
@@ -98,6 +101,16 @@ class SalesAgent(BaseAgent):
 
             if not matched_prompt:
                 matched_prompt = {}
+
+            # 获取助理人设信息
+            role_prompt = None
+            if assistant_id:
+                try:
+                    role_prompt = await get_role_prompt(assistant_id, use_cache=True)
+                    self.logger.info(f"已获取助理人设信息: {role_prompt.content[:100]}...")
+                except Exception as e:
+                    self.logger.warning(f"获取助理人设信息失败: {e}")
+                    role_prompt = None
 
             self.logger.info(f"sales agent 匹配提示词: {matched_prompt.get('matched_key', 'unknown')}")
 
@@ -115,9 +128,9 @@ class SalesAgent(BaseAgent):
             if formatted_context:
                 self.logger.info("已注入用户上下文信息")
 
-            # 生成个性化回复（基于匹配的提示词 + 记忆 + 用户上下文）
+            # 生成个性化回复（基于匹配的提示词 + 人设 + 记忆 + 用户上下文）
             sales_response, token_info = await self.__generate_final_response(
-                user_text, matched_prompt, short_term_messages, long_term_memories, formatted_context
+                user_text, matched_prompt, role_prompt, short_term_messages, long_term_memories, formatted_context
             )
 
             # 存储助手回复到记忆
@@ -180,14 +193,21 @@ class SalesAgent(BaseAgent):
         return str(content)
 
     async def __generate_final_response(
-        self, customer_input: str, matched_prompt: dict, short_term_messages: list, long_term_memories: list, formatted_context: str = ""
+        self,
+        customer_input: str,
+        matched_prompt: dict,
+        role_prompt: Message,
+        short_term_messages: list,
+        long_term_memories: list,
+        formatted_context: str = ""
     ) -> tuple[str, dict]:
         """
-        基于匹配提示词和记忆生成回复
+        基于匹配提示词、人设信息和记忆生成回复
 
         Args:
             customer_input: 客户输入
             matched_prompt: SentimentAgent 匹配的提示词
+            role_prompt: 助理人设提示词（从get_role_prompt获取）
             short_term_messages: 短期记忆消息列表
             long_term_memories: 长期记忆摘要列表
             formatted_context: 格式化后的用户上下文字符串
@@ -196,14 +216,14 @@ class SalesAgent(BaseAgent):
             tuple: (回复内容, token信息)
         """
         try:
-            # 1. 构建基础系统提示（来自匹配器）
+            # 1. 构建基础系统提示（整合人设、匹配提示词等）
             base_system_prompt = matched_prompt.get("system_prompt", "你是一个专业的美容顾问。")
             tone = matched_prompt.get("tone", "专业、友好")
             strategy = matched_prompt.get("strategy", "标准服务")
 
-            # 2. 整合长期记忆和用户上下文到系统提示
+            # 2. 整合人设信息、长期记忆和用户上下文到系统提示
             enhanced_system_prompt = self._build_system_prompt_with_memory(
-                base_system_prompt, tone, strategy, long_term_memories, formatted_context
+                base_system_prompt, tone, strategy, role_prompt, long_term_memories, formatted_context
             )
 
             # 3. 构建消息列表（直接使用记忆消息）
@@ -238,7 +258,7 @@ class SalesAgent(BaseAgent):
             return self._get_fallback_response(matched_prompt), {"tokens_used": 0, "error": str(e)}
 
     def _build_system_prompt_with_memory(
-        self, base_prompt: str, tone: str, strategy: str, summaries: list, formatted_context: str = ""
+        self, base_prompt: str, tone: str, strategy: str, role_prompt: Message, summaries: list, formatted_context: str = ""
     ) -> str:
         """
         构建增强的系统提示词
@@ -247,14 +267,20 @@ class SalesAgent(BaseAgent):
             base_prompt: 基础系统提示词
             tone: 语气要求
             strategy: 策略要求
+            role_prompt: 助理人设提示词
             summaries: 长期记忆摘要列表
             formatted_context: 格式化后的用户上下文
 
         Returns:
             str: 增强后的系统提示词
         """
-        # 构建基础提示
-        enhanced_prompt = f"""
+        # 构建基础提示，优先使用人设信息
+        if role_prompt and role_prompt.content:
+            # 如果有人设信息，将其作为核心提示，然后融合其他要求
+            enhanced_prompt = f"""
+{role_prompt.content}
+
+【当前对话策略】
 {base_prompt}
 
 【语气要求】{tone}
@@ -265,8 +291,23 @@ class SalesAgent(BaseAgent):
 - 控制在150字以内
 - 体现个性化，避免模板化回复
 - 根据客户历史适度调整策略
-        """.strip()
-        
+- 始终保持上述人设特征进行对话
+            """.strip()
+        else:
+            # 如果没有人设信息，使用原有逻辑
+            enhanced_prompt = f"""
+{base_prompt}
+
+【语气要求】{tone}
+【策略要求】{strategy}
+
+【回复要求】
+- 用中文回复，语言自然流畅
+- 控制在150字以内
+- 体现个性化，避免模板化回复
+- 根据客户历史适度调整策略
+            """.strip()
+
         # 添加用户档案（如果有）
         if formatted_context:
             enhanced_prompt += f"\n\n{formatted_context}"
