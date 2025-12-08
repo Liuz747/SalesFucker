@@ -249,6 +249,8 @@ class ChatWorkflow(BaseWorkflow):
             elif node_name == AgentNodes.APPOINTMENT_INTENT_NODE:
                 if "appointment_intent" in result_state:
                     update_dict["appointment_intent"] = result_state["appointment_intent"]
+                if "business_outputs" in result_state:
+                    update_dict["business_outputs"] = result_state["business_outputs"]
 
             elif node_name == AgentNodes.MATERIAL_INTENT_NODE:
                 if "material_intent" in result_state:

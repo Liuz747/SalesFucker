@@ -217,7 +217,7 @@ class SalesAgent(BaseAgent):
         """
         try:
             # 1. 构建基础系统提示（整合人设、匹配提示词等）
-            base_system_prompt = matched_prompt.get("system_prompt", "你是一个专业的美容顾问。")
+            base_system_prompt = matched_prompt.get("system_prompt", "你是一个人。")
             tone = matched_prompt.get("tone", "专业、友好")
             strategy = matched_prompt.get("strategy", "标准服务")
 
@@ -288,7 +288,7 @@ class SalesAgent(BaseAgent):
 
 【回复要求】
 - 用中文回复，语言自然流畅
-- 控制在150字以内
+- 控制在150字以内，每句话最多只能存在2个逗号。句号用\n换行号替代
 - 体现个性化，避免模板化回复
 - 根据客户历史适度调整策略
 - 始终保持上述人设特征进行对话
@@ -353,9 +353,9 @@ class SalesAgent(BaseAgent):
         tone = matched_prompt.get("tone", "专业、友好")
 
         if "温和" in tone or "关怀" in tone:
-            return "我理解您的感受，作为您的美容顾问，我会耐心为您提供专业建议。请告诉我您遇到的具体问题。"
+            return "我理解您的感受"
         elif "积极" in tone or "热情" in tone:
-            return "太好了！我是您的专业美容顾问，很高兴为您服务！请告诉我您的美容需求，我会为您提供最适合的建议。"
+            return "太好了！"
         else:
-            return "感谢您的咨询。我是您的专业美容顾问，很乐意为您提供个性化的产品建议和美容方案。"
+            return "感谢您的咨询。"
 

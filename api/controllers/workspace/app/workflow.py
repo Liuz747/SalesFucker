@@ -94,20 +94,7 @@ async def create_run(
         logger.info(f"运行处理完成 - 线程: {thread.thread_id}, 执行: {workflow_id}, 耗时: {processing_time:.2f}ms")
 
         # 构造 invitation
-        # 优先从 result.business_outputs 获取，如果没有则尝试从 appointment_intent 转换
         invitation = result.business_outputs
-        
-        if not invitation and result.appointment_intent:
-            intent = result.appointment_intent
-            if intent.get("recommendation") == "suggest_appointment":
-                # 简易映射，实际可能需要更详细的提取逻辑
-                invitation = {
-                    "status": 1, # 假设1是待确认
-                    "time": 0, # 需要从 intent 中解析时间
-                    "service": "",
-                    "name": "", 
-                    "phone": "" # 需要从 intent 中解析电话
-                }
 
         # 返回标准化响应
         response = ThreadRunResponse(
@@ -152,16 +139,20 @@ async def create_suggestion(
             use_cache=True
         )
         
-        # 标准化输入
-        normalized_input, _ = await AudioService.normalize_input(request.input, str(thread.thread_id))
-        
+        # 标准化输入（处理音频转录并获取ASR结果）
+        normalized_input, asr_results = await AudioService.normalize_input(request.input, str(thread.thread_id))
+
         # 生成建议
-        multimodal_outputs, metrics = await SuggestionService.generate_suggestions(
+        start_time = get_current_datetime()
+        suggestions_list, input_tokens, output_tokens = await SuggestionService.generate_suggestions(
             input_content=normalized_input,
             thread_id=thread_id,
+            assistant_id=request.assistant_id,
             tenant_id=tenant.tenant_id
         )
-        
+
+        processing_time = get_processing_time_ms(start_time)
+
         # 生成运行ID
         run_id = uuid4()
 
@@ -169,8 +160,13 @@ async def create_suggestion(
             run_id=run_id,
             thread_id=thread.thread_id,
             status="completed",
-            metrics=metrics,
-            multimodal_outputs=multimodal_outputs
+            response=suggestions_list,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            processing_time=processing_time,
+            asr_results=asr_results,
+            multimodal_outputs=None,
+            invitation=None
         )
 
     except HTTPException:

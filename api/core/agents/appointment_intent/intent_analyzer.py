@@ -39,9 +39,9 @@ class AppointmentIntentAnalyzer:
 
         # 邀约意向分析提示词
         self.analysis_prompt = """
-        你是一个专业的客户邀约意向分析专家，专门客户的的到店意向。
+你是一个专业的客户邀约意向分析专家，专门分析客户的到店意向，并提取具体的邀约信息。
 
-请基于提供的用户对话内容，分析用户是否有到店咨询或体验的意向。
+请基于提供的用户对话内容，分析用户是否有到店咨询或体验的意向，并提取相关的实体信息。
 
 ## 分析维度：
 
@@ -65,6 +65,13 @@ class AppointmentIntentAnalyzer:
 - 便利性：询问是否需要预约、等待时间等
 - 直接表达：明确说想来看看、了解一下
 
+### 4. 实体信息提取
+如果用户在对话中提供了具体信息，请准确提取：
+- **服务类型 (service)**: 想要体验的具体服务项目，如"面部护理"、"皮肤检查"、"美容咨询"等
+- **客户姓名 (name)**: 用户提到的姓名，如"我叫张三"、"我是李女士"等
+- **联系电话 (phone)**: 用户提供的电话号码，如"我的电话是13812345678"
+- **时间表达 (time_expression)**: 用户提到的具体时间，如"明天下午"、"下周三上午"、"1月15号"等
+
 ## 输出格式：
 请严格按照以下JSON格式输出分析结果：
 
@@ -81,7 +88,19 @@ class AppointmentIntentAnalyzer:
         }
     ],
     "recommendation": "suggest_appointment",
-    "analysis_summary": "用户在第3轮对话中明确询问了门店的具体地址和营业时间，表现出较强的到店意向。建议主动邀约用户本周内到店体验。",
+    "extracted_entities": {
+        "service": "面部护理",
+        "name": "张三",
+        "phone": "13812345678",
+        "time_expression": "明天下午",
+        "entity_confidence": {
+            "service": 0.9,
+            "name": 0.8,
+            "phone": 0.9,
+            "time_expression": 0.7
+        }
+    },
+    "analysis_summary": "用户在第3轮对话中明确询问了门店的具体地址和营业时间，表现出较强的到店意向。用户提到想做面部护理，名叫张三，电话是13812345678，希望明天下午到店。建议主动邀约用户本周内到店体验。",
     "input_tokens": 150,
     "output_tokens": 200,
     "total_tokens": 350
@@ -93,7 +112,10 @@ class AppointmentIntentAnalyzer:
 2. confidence表示你对分析的置信度
 3. signals数组包含所有检测到的意向信号
 4. recommendation只能是: "suggest_appointment", "wait_signal", "no_appointment" 之一
-5. 必须包含准确的token使用统计
+5. extracted_entities 是对象，包含提取的具体信息，如果某个字段没有提到，设为null
+6. entity_confidence 为每个提取的实体提供置信度评分
+7. 只提取明确提到的高置信度信息，不要猜测或推断未提及的信息
+8. 必须包含准确的token使用统计
 """
 
     async def analyze_intent(self, analysis_context: Dict[str, Any]) -> Dict[str, Any]:
@@ -247,6 +269,40 @@ class AppointmentIntentAnalyzer:
                         result[field] = 0.5
                     elif field == "recommendation":
                         result[field] = "wait_signal"
+
+            # 确保有extracted_entities字段
+            if "extracted_entities" not in result:
+                result["extracted_entities"] = {
+                    "service": None,
+                    "name": None,
+                    "phone": None,
+                    "time_expression": None,
+                    "entity_confidence": {
+                        "service": 0.0,
+                        "name": 0.0,
+                        "phone": 0.0,
+                        "time_expression": 0.0
+                    }
+                }
+            else:
+                # 确保extracted_entities结构完整
+                entities = result["extracted_entities"]
+                default_entities = {
+                    "service": None,
+                    "name": None,
+                    "phone": None,
+                    "time_expression": None,
+                    "entity_confidence": {
+                        "service": 0.0,
+                        "name": 0.0,
+                        "phone": 0.0,
+                        "time_expression": 0.0
+                    }
+                }
+
+                for key, default_value in default_entities.items():
+                    if key not in entities:
+                        entities[key] = default_value
 
             # 如果有缺失字段，添加到分析摘要中
             if missing_fields:

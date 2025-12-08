@@ -4,6 +4,7 @@
 该模块从业务模型导入必要的架构定义，提供纯数据结构的Thread模型。
 """
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Optional
 from uuid import UUID
@@ -17,10 +18,10 @@ from .responses import BaseResponse
 @dataclass
 class AppointmentOutput:
     status: int
-    time: int
-    service: str
-    name: str
-    phone: int
+    time: Optional[int] = None
+    service: Optional[str] = None
+    name: Optional[str] = None
+    phone: Optional[int] = None
 
 
 class ThreadMetadata(BaseModel):
@@ -84,7 +85,7 @@ class ThreadRunResponse(BaseModel):
     run_id: UUID = Field(description="运行标识符")
     thread_id: UUID = Field(description="线程标识符")
     status: str = Field(description="运行状态")
-    response: str = Field(description="最终文本回复")
+    response: str | Sequence[str] = Field(description="最终文本回复")
     input_tokens: int = Field(default=0, description="输入Token数")
     output_tokens: int = Field(default=0, description="输出Token数")
     processing_time: float = Field(description="处理时间（毫秒）")
