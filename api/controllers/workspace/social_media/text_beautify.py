@@ -8,7 +8,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from libs.types import TextBeautifyActionType
 from schemas.social_media_schema import (
     TextBeautifyRequest,
     TextBeautifyResponse,

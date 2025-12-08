@@ -2,8 +2,8 @@
 回复建议生成服务层
 """
 
-from typing import Any, Tuple
 import json
+import re
 from uuid import UUID
 
 from core.memory.conversation_store import ConversationStore
@@ -65,6 +65,7 @@ class SuggestionService:
 
             # 2. 获取最近的对话记忆
             store = ConversationStore()
+            await store.append_messages(thread_id, input_content)
             recent_messages = await store.get_recent(thread_id, limit=10)
             
             # 构建消息列表
@@ -88,17 +89,7 @@ class SuggestionService:
             messages.append(Message(role="system", content=system_prompt))
             
             # 4. 添加历史消息
-            for msg in recent_messages:
-                # 确保内容格式兼容
-                # content = provider._format_message_content(msg.content)
-                messages.append(Message(role=msg.role, content=msg.content))
-
-            # 5. 添加当前用户输入
-            # 从 MessageParams 中提取用户消息内容
-            for msg in input_content:
-                if msg.role == "user":
-                    messages.append(Message(role=msg.role, content=msg.content))
-                    break  # 只添加第一个用户消息作为当前输入
+            messages.extend(recent_messages + input_content)
             
             # 调用OpenAI生成3条回复
             start_time = get_current_datetime()
@@ -109,20 +100,11 @@ class SuggestionService:
                 content = provider._format_message_content(m.content)
                 formatted_messages.append({"role": m.role, "content": content})
 
-            # 使用 OpenRouter 模型名称
-            model_name = "openai/gpt-oss-120b:exacto" 
-            
-            # 启用 require_parameters 确保 Provider 严格检查参数支持
-            extra_body = {}
-            if provider.provider.type == "openrouter":
-                extra_body["provider"] = {"require_parameters": False} # 尝试关闭以允许部分兼容
-
             response = await provider.client.chat.completions.create(
-                model=model_name,
+                model="openai/gpt-oss-120b:exacto",
                 messages=formatted_messages,
                 n=1,  # 改回 n=1，使用 JSON 数组获取多条建议
-                temperature=0.7,
-                # extra_body=extra_body
+                temperature=0.7
             )
             
             processing_time = get_processing_time_ms(start_time)
@@ -130,37 +112,32 @@ class SuggestionService:
             # 构造输出
             suggestions_list = []
 
-            if response.choices:
-                content = response.choices[0].message.content.strip()
+            response_content = response.choices[0].message.content.strip()
 
-                # 尝试清理 markdown 标记
-                if content.startswith("```json"):
-                    content = content[7:]
-                if content.endswith("```"):
-                    content = content[:-3]
-                content = content.strip()
+            await store.append_messages(thread_id, [Message(role="assistant", content=response_content)])
 
-                try:
-                    # 尝试解析JSON数组
-                    suggestions = json.loads(content)
-                    if isinstance(suggestions, list):
-                         for suggestion in suggestions:
-                            suggestions_list.append(str(suggestion))
-                    else:
-                        # 这是一个非列表的JSON对象或值
-                         suggestions_list.append(str(suggestions))
-                except json.JSONDecodeError:
-                    # JSON解析失败，尝试按行分割作为兜底
-                     logger.warning(f"建议生成 JSON解析失败: {content}")
-                     lines = [line for line in content.split('\n') if line.strip()]
-                     for line in lines:
-                         # 简单清理序号如 "1. "
-                         import re
-                         cleaned_line = re.sub(r'^\d+[\.、]\s*', '', line.strip())
-                         if cleaned_line:
-                             suggestions_list.append(cleaned_line)
-            else:
-                logger.warning(f"LLM返回了空choices: {response}")
+            # 尝试清理 markdown 标记
+            if response_content.startswith("```json") and response_content.endswith("```"):
+                response_content = response_content[7:-3].strip()
+
+            try:
+                # 尝试解析JSON数组
+                suggestions = json.loads(response_content)
+                if isinstance(suggestions, list):
+                    for suggestion in suggestions:
+                        suggestions_list.append(str(suggestion))
+                else:
+                    # 这是一个非列表的JSON对象或值
+                    suggestions_list.append(str(suggestions))
+            except json.JSONDecodeError:
+                # JSON解析失败，尝试按行分割作为兜底
+                logger.warning(f"建议生成 JSON解析失败: {response_content}")
+                lines = [line for line in response_content.split('\n') if line.strip()]
+                for line in lines:
+                    # 简单清理序号如 "1. "
+                    cleaned_line = re.sub(r'^\d+[\.、]\s*', '', line.strip())
+                    if cleaned_line:
+                        suggestions_list.append(cleaned_line)
 
             # Token使用统计
             input_tokens = response.usage.prompt_tokens if response.usage else 0
