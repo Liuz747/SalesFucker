@@ -81,7 +81,7 @@ class ElasticsearchConfig(BaseSettings):
 
     ES_REQUEST_TIMEOUT: PositiveInt = Field(
         description="请求超时时间(秒)",
-        default=30,
+        default=10,
     )
 
     @property
