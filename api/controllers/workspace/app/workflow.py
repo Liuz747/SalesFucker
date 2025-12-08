@@ -139,14 +139,15 @@ async def create_suggestion(
             use_cache=True
         )
         
-        # 标准化输入
-        normalized_input, _ = await AudioService.normalize_input(request.input, str(thread.thread_id))
-        
+        # 标准化输入（处理音频转录并获取ASR结果）
+        normalized_input, asr_results = await AudioService.normalize_input(request.input, str(thread.thread_id))
+
         # 生成建议
         start_time = get_current_datetime()
         suggestions_list, metrics = await SuggestionService.generate_suggestions(
             input_content=normalized_input,
             thread_id=thread_id,
+            assistant_id=request.assistant_id,
             tenant_id=tenant.tenant_id
         )
 
@@ -163,7 +164,7 @@ async def create_suggestion(
             input_tokens=metrics.get("input_tokens", 0),
             output_tokens=metrics.get("output_tokens", 0),
             processing_time=processing_time,
-            asr_results=[],
+            asr_results=asr_results,
             multimodal_outputs=None,
             invitation=None
         )

@@ -8,7 +8,9 @@ from uuid import UUID
 
 from core.memory.conversation_store import ConversationStore
 from infra.runtimes import LLMClient
+from infra.db.connection import database_session
 from libs.types import Message
+from repositories.assistant_repo import AssistantRepository
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms
 
 logger = get_component_logger(__name__, "SuggestionService")
@@ -23,6 +25,7 @@ class SuggestionService:
     async def generate_suggestions(
         input_content: Any,
         thread_id: UUID,
+        assistant_id: UUID,
         tenant_id: str = None
     ) -> Tuple[list[str], dict]:
         """
@@ -31,6 +34,7 @@ class SuggestionService:
         参数:
             input_content: 标准化后的输入内容
             thread_id: 线程ID (用于日志和记忆检索)
+            assistant_id: 助理ID (用于获取助理人设)
             tenant_id: 租户ID (保留，暂未强制使用)
 
         返回:
@@ -45,27 +49,51 @@ class SuggestionService:
             if not provider:
                 raise ValueError("OpenRouter provider not available in active_providers")
 
-            # 1. 获取最近的对话记忆
+            # 1. 获取助理人设信息
+            assistant_model = None
+            async with database_session() as session:
+                assistant_orm = await AssistantRepository.get_assistant_by_id(
+                    assistant_id=assistant_id,
+                    session=session,
+                    include_inactive=False
+                )
+                if assistant_orm:
+                    assistant_model = assistant_orm.to_business_model()
+                    logger.info(f"获取到助理人设: {assistant_model.assistant_name}, 个性: {assistant_model.personality}")
+                else:
+                    logger.warning(f"未找到助理ID: {assistant_id}，将使用默认人设")
+
+            # 2. 获取最近的对话记忆
             store = ConversationStore()
             recent_messages = await store.get_recent(thread_id, limit=10)
             
             # 构建消息列表
             messages = []
             
-            # 2. 添加系统预设提示词
-            system_prompt = (
-                "你是一个智能助手。请根据上下文回复用户，生成3条合适的建议回复。"
-                "请务必以JSON数组格式返回，例如：[\"建议1\", \"建议2\", \"建议3\"]。"
-            )
+            # 3. 添加系统预设提示词
+            if assistant_model:
+                system_prompt = (
+                    f"你是{assistant_model.assistant_name}，一位{assistant_model.occupation}。\n"
+                    f"个性特征：{assistant_model.personality}\n"
+                    f"专业领域：{assistant_model.industry}\n"
+                    f"请根据你的专业背景和个性特征，结合对话上下文，生成3条合适的建议回复。\n"
+                    f"回复应该体现你的专业性和个性特点。\n"
+                    f"请务必以JSON数组格式返回，例如：[\"建议1\", \"建议2\", \"建议3\"]。"
+                )
+            else:
+                system_prompt = (
+                    "你是一个专业的智能助手。请根据上下文回复用户，生成3条合适的建议回复。"
+                    "请务必以JSON数组格式返回，例如：[\"建议1\", \"建议2\", \"建议3\"]。"
+                )
             messages.append(Message(role="system", content=system_prompt))
             
-            # 3. 添加历史消息
+            # 4. 添加历史消息
             for msg in recent_messages:
                 # 确保内容格式兼容
                 # content = provider._format_message_content(msg.content)
                 messages.append(Message(role=msg.role, content=msg.content))
-                
-            # 4. 添加当前用户输入
+
+            # 5. 添加当前用户输入
             # current_content = provider._format_message_content(input_content)
             messages.append(Message(role="user", content=input_content))
             
@@ -94,7 +122,7 @@ class SuggestionService:
                 # extra_body=extra_body
             )
             
-            processing_time = round(get_processing_time_ms(start_time), 2)
+            processing_time = get_processing_time_ms(start_time)
             
             # 构造输出
             suggestions_list = []
