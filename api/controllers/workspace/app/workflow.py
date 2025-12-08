@@ -94,20 +94,7 @@ async def create_run(
         logger.info(f"运行处理完成 - 线程: {thread.thread_id}, 执行: {workflow_id}, 耗时: {processing_time:.2f}ms")
 
         # 构造 invitation
-        # 优先从 result.business_outputs 获取，如果没有则尝试从 appointment_intent 转换
         invitation = result.business_outputs
-        
-        if not invitation and result.appointment_intent:
-            intent = result.appointment_intent
-            if intent.get("recommendation") == "suggest_appointment":
-                # 简易映射，实际可能需要更详细的提取逻辑
-                invitation = {
-                    "status": 1, # 假设1是待确认
-                    "time": 0, # 需要从 intent 中解析时间
-                    "service": "",
-                    "name": "", 
-                    "phone": "" # 需要从 intent 中解析电话
-                }
 
         # 返回标准化响应
         response = ThreadRunResponse(

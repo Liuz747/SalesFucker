@@ -17,10 +17,10 @@ from .responses import BaseResponse
 @dataclass
 class AppointmentOutput:
     status: int
-    time: int
-    service: str
-    name: str
-    phone: int
+    time: Optional[int] = None
+    service: Optional[str] = None
+    name: Optional[str] = None
+    phone: Optional[int] = None
 
 
 class ThreadMetadata(BaseModel):

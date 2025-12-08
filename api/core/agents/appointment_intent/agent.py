@@ -12,10 +12,13 @@ Appointment Intent Analysis Agent - 邀约到店意向分析智能体
 
 from langfuse import observe
 
+from typing import Optional
+
 from core.memory import StorageManager
 from utils import get_current_datetime
 from ..base import BaseAgent
 from .intent_analyzer import AppointmentIntentAnalyzer
+from utils.appointment_time_parser import parse_appointment_time
 
 
 class AppointmentIntentAgent(BaseAgent):
@@ -259,11 +262,19 @@ class AppointmentIntentAgent(BaseAgent):
             "signals": intent_result.get("signals", []),                    # 检测到的意向信号列表
             "recommendation": intent_result.get("recommendation", "no_appointment"),  # "suggest_appointment", "wait_signal", "no_appointment"
             "analyzed_message_count": len(recent_messages),
-            "analysis_timestamp": current_time.isoformat()
+            "analysis_timestamp": current_time.isoformat(),
+            # 新增：提取的实体信息
+            "extracted_entities": intent_result.get("extracted_entities", {})
         }
+
+        # 处理实体提取结果，生成 business_outputs
+        business_outputs = self._generate_business_outputs(
+            intent_result, appointment_intent, recent_messages
+        )
 
         # 状态更新 - 直接设置到model字段避免并发冲突
         state["appointment_intent"] = appointment_intent
+        state["business_outputs"] = business_outputs  # 新增：设置业务输出
         state["values"] = state.get("values", {})
 
         # 备份存储在 values 结构中
@@ -300,6 +311,111 @@ class AppointmentIntentAgent(BaseAgent):
         state["output_tokens"] = token_info["output_tokens"]
 
         return state
+
+    def _generate_business_outputs(self, intent_result: dict, appointment_intent: dict, recent_messages: list[str]) -> dict:
+        """
+        基于意向分析结果生成业务输出
+
+        Args:
+            intent_result: LLM分析结果
+            appointment_intent: 标准化的意向信息
+            recent_messages: 最近的用户消息
+
+        Returns:
+            dict: 结构化的业务输出，包含邀约信息
+        """
+        try:
+            # 优化生成逻辑：只要有有效实体信息就生成business_outputs，不仅依赖recommendation
+            # 这样可以更好地处理各种意图场景，提高邀约信息提取的健壮性
+
+            # 提取实体信息
+            extracted_entities = intent_result.get("extracted_entities", {})
+            entity_confidence = extracted_entities.get("entity_confidence", {})
+
+            # 获取时间表达式
+            time_expression = extracted_entities.get("time_expression")
+
+            # 检查是否有足够的有效实体信息来生成邀约
+            has_valid_entities = False
+            if extracted_entities.get("name") and entity_confidence.get("name", 0) > 0.5:
+                has_valid_entities = True
+            if time_expression and entity_confidence.get("time_expression", 0) > 0.3:  # 降低时间置信度要求
+                has_valid_entities = True
+            if extracted_entities.get("phone") and entity_confidence.get("phone", 0) > 0.5:
+                has_valid_entities = True
+
+            # 如果没有任何有效实体信息，则不生成business_outputs
+            if not has_valid_entities:
+                self.logger.debug("未提取到有效实体信息，跳过business_outputs生成")
+                return None
+
+            # 解析时间
+            parsed_time = None
+            if time_expression and entity_confidence.get("time_expression", 0) > 0.5:
+                timestamp_ms, parse_info = parse_appointment_time(time_expression)
+                if timestamp_ms:
+                    parsed_time = timestamp_ms
+                    self.logger.info(f"时间解析成功: {time_expression} -> {timestamp_ms} ({parse_info.get('method', 'unknown')})")
+                else:
+                    self.logger.warning(f"时间解析失败: {time_expression} - {parse_info.get('error', 'unknown error')}")
+
+            # 构建邀约信息
+            invitation_data = {
+                "status": 1,  # 1表示待确认的邀约
+                "time": parsed_time or 0,
+                "service": extracted_entities.get("service"),
+                "name": extracted_entities.get("name"),
+                "phone": self._parse_phone_number(extracted_entities.get("phone")) if extracted_entities.get("phone") else None,
+                # 添加元数据信息
+                "extraction_metadata": {
+                    "intent_strength": appointment_intent.get("intent_strength", 0),
+                    "confidence": appointment_intent.get("confidence", 0),
+                    "entity_confidence": entity_confidence,
+                    "time_expression_original": time_expression,
+                    "time_parse_info": parse_info if time_expression else None,
+                    "analyzed_message_count": len(recent_messages),
+                    "extraction_timestamp": get_current_datetime().isoformat()
+                }
+            }
+
+            self.logger.info(f"生成邀约信息: status={invitation_data['status']}, "
+                           f"time={invitation_data['time']}, "
+                           f"service={invitation_data['service']}, "
+                           f"name={invitation_data['name']}, "
+                           f"phone={invitation_data['phone']}")
+
+            return invitation_data
+
+        except Exception as e:
+            self.logger.error(f"生成业务输出失败: {e}", exc_info=True)
+            return None
+
+    def _parse_phone_number(self, phone_str: str) -> Optional[int]:
+        """
+        解析电话号码为整数
+
+        Args:
+            phone_str: 电话号码字符串
+
+        Returns:
+            Optional[int]: 解析后的电话号码，失败返回None
+        """
+        if not phone_str:
+            return None
+
+        try:
+            # 移除所有非数字字符
+            clean_phone = ''.join(c for c in str(phone_str) if c.isdigit())
+
+            # 验证手机号格式（中国手机号11位）
+            if len(clean_phone) == 11 and clean_phone.startswith('1'):
+                return int(clean_phone)
+            else:
+                self.logger.warning(f"无效的手机号格式: {phone_str} -> {clean_phone}")
+                return None
+        except (ValueError, TypeError) as e:
+            self.logger.warning(f"电话号码解析失败: {phone_str} - {e}")
+            return None
 
     def _create_fallback_state(self, state: dict) -> dict:
         """
