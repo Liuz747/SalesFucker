@@ -11,7 +11,7 @@ import operator
 
 from pydantic import BaseModel, Field
 
-from libs.types import InputContentParams, OutputContentParams, OutputType
+from libs.types import MessageParams, OutputContentParams, OutputType
 from utils import get_current_datetime
 
 
@@ -145,7 +145,7 @@ class WorkflowExecutionModel(BaseModel):
     assistant_id: UUID = Field(description="助手标识符")
     tenant_id: str = Field(description="租户标识符")
 
-    input: InputContentParams = Field(description="输入内容")
+    input: MessageParams = Field(description="输入消息列表")
     output: Optional[str] = Field(default=None, description="文本输出内容")
 
     # 多模态输出 - 支持音频、图像、视频等

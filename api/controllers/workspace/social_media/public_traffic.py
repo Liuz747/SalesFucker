@@ -1,5 +1,4 @@
 """
-from ..wraps import validate_and_get_tenant, TenantModel
 社交媒体公域导流接口
 
 该模块负责HTTP层调用，具体业务逻辑委托给服务层实现。

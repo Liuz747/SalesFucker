@@ -15,7 +15,7 @@ from uuid import UUID
 
 from config import mas_config
 from core.app import Orchestrator
-from libs.types import InputContentParams
+from libs.types import MessageParams
 from models import ThreadStatus, WorkflowRun
 from services import ThreadService
 from schemas.conversation_schema import CallbackPayload
@@ -72,7 +72,7 @@ class BackgroundWorkflowProcessor:
         orchestrator: Orchestrator,
         run_id: UUID,
         thread_id: UUID,
-        input: InputContentParams,
+        input: MessageParams,
         assistant_id: UUID,
         tenant_id: str
     ):

@@ -1,11 +1,9 @@
-from typing import Sequence
-
 from langfuse import observe
 
 from core.entities import WorkflowExecutionModel
 from core.memory import StorageManager
 from infra.runtimes import CompletionsRequest
-from libs.types import Message, InputContent, InputType, OutputType
+from libs.types import Message, MessageParams, InputContent, InputType, OutputType
 from utils import get_current_datetime, get_processing_time_ms
 from ..base import BaseAgent
 
@@ -55,15 +53,12 @@ class ChatAgent(BaseAgent):
             await self.memory_manager.store_messages(
                 tenant_id=state.tenant_id,
                 thread_id=state.thread_id,
-                messages=[Message(role="user", content=state.input)],
+                messages=state.input,
             )
 
-            # 检测多模态输入
-            input_types = self._detect_input_types(state.input)
+            # 解析输入：提取文本和检测类型
+            user_text, input_types = self._parse_input(state.input)
             has_audio_input = InputType.AUDIO in input_types
-
-            # 准备聊天提示词
-            user_text = self._input_to_text(state.input)
 
             short_term_messages, long_term_memories = await self.memory_manager.retrieve_context(
                 tenant_id=state.tenant_id,
@@ -157,35 +152,31 @@ class ChatAgent(BaseAgent):
                 "values": error_values
             }
 
-    def _input_to_text(self, content) -> str:
-        if isinstance(content, str):
-            return content
-        if isinstance(content, Sequence):
-            parts: list[str] = []
-            for node in content:
-                value = getattr(node, "content", None)
-                parts.append(value if isinstance(value, str) else str(node))
-            return "\n".join(parts)
-        return str(content)
-
-    def _detect_input_types(self, content) -> set[InputType]:
+    def _parse_input(self, messages: MessageParams) -> tuple[str, set[InputType]]:
         """
-        检测输入内容的类型
+        解析输入消息列表，提取文本内容和检测内容类型
 
         Args:
-            content: 输入内容（字符串或InputContent列表）
+            messages: 消息列表 (MessageParams)
 
         Returns:
-            set[InputType]: 检测到的输入类型集合
+            tuple[str, set[InputType]]: (合并后的文本内容, 检测到的输入类型集合)
         """
-        if isinstance(content, str):
-            return {InputType.TEXT}
-        if isinstance(content, Sequence):
-            return {
-                item.type if isinstance(item, InputContent) else InputType.TEXT
-                for item in content
-            }
-        return {InputType.TEXT}
+        parts: list[str] = []
+        types: set[InputType] = set()
+
+        for message in messages:
+            content = message.content
+            if isinstance(content, str):
+                parts.append(f"{message.role}: {content}")
+                types.add(InputType.TEXT)
+            else:
+                for item in content:
+                    if isinstance(item, InputContent):
+                        parts.append(f"{message.role}: {item.content}")
+                        types.add(item.type)
+
+        return "\n".join(parts), types
 
     def _build_system_prompt(
         self,

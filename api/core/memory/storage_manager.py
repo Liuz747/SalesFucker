@@ -16,7 +16,7 @@ from typing import Any, Optional
 from uuid import UUID
 
 from config import mas_config
-from libs.types import MemoryType, MessageParams, Message
+from libs.types import MemoryType, MessageParams, Message, InputContentParams, InputContent
 from utils import get_component_logger, get_current_datetime
 from .conversation_store import ConversationStore
 from .elasticsearch_index import ElasticsearchIndex
@@ -53,6 +53,27 @@ class StorageManager:
         self._active_summaries: set[UUID] = set()
 
         logger.info("StorageManager initialized")
+
+    @staticmethod
+    def _extract_text(content: InputContentParams) -> str:
+        """
+        从 InputContentParams 中提取纯文本内容
+
+        Args:
+            content: 消息内容（字符串或 InputContent 序列）
+
+        Returns:
+            str: 提取的文本内容
+        """
+        if isinstance(content, str):
+            return content
+
+        # Sequence[InputContent]
+        text_parts = [
+            item.content for item in content
+            if isinstance(item, InputContent) and item.type.value == "text"
+        ]
+        return " ".join(text_parts) if text_parts else ""
 
     async def store_messages(
         self,
@@ -165,8 +186,11 @@ class StorageManager:
             if not recent_messages:
                 return False
 
-            # 生成摘要
-            text_block = "\n".join([f"{msg.role}: {msg.content}" for msg in recent_messages])
+            # 生成摘要 - 使用 _extract_text 处理多模态内容
+            text_block = "\n".join([
+                f"{msg.role}: {self._extract_text(msg.content)}"
+                for msg in recent_messages
+            ])
             summary_content = await self.summarization_service.generate_summary(text_block)
             if not summary_content:
                 return False

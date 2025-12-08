@@ -6,10 +6,11 @@ from urllib.parse import urlparse
 from dashscope.audio.asr import Transcription
 
 from config import mas_config
-from libs.types.content_params import (
+from libs.types import (
     InputContent,
-    InputContentParams,
-    InputType
+    InputType,
+    Message,
+    MessageParams,
 )
 from schemas.exceptions import (
     ASRConfigurationException,
@@ -140,48 +141,58 @@ class AudioService:
     @classmethod
     async def normalize_input(
         cls,
-        raw_input: InputContentParams,
+        raw_input: MessageParams,
         thread_id: str
-    ) -> tuple[InputContentParams, list[dict]]:
+    ) -> tuple[MessageParams, list[dict]]:
         """
-        标准化输入内容，为音频添加转录文本
+        标准化输入消息列表，为音频添加转录文本
 
-        对于音频类型的输入，会调用ASR服务进行转录，然后将转录文本作为新的文本内容
-        添加到输入列表中，同时保留原始音频内容以供后续处理使用。
+        对于消息列表中每个消息的音频类型内容，会调用ASR服务进行转录，
+        然后将转录文本添加到该消息的内容列表中。
 
         Args:
-            raw_input: 原始输入内容参数（字符串或内容列表）
+            raw_input: 消息列表
             thread_id: 线程标识符
 
         Returns:
-            标准化后的输入内容，包含原始项目和音频转录文本
+            tuple[MessageParams, list[dict]]: 标准化后的消息列表和ASR结果
         """
-        if isinstance(raw_input, str):
-            return raw_input, []
-
-        normalized: list[InputContent] = []
+        normalized: list[Message] = []
         asr_result: list[dict] = []
 
-        for index, item in enumerate(raw_input):
-            if item.type != InputType.AUDIO:
-                normalized.append(item)
+        for index, message in enumerate(raw_input):
+            content = message.content
+
+            # 如果内容是字符串，直接保留
+            if isinstance(content, str):
+                normalized.append(message)
                 continue
 
-            # Audio → STT
-            transcript = await cls.transcribe_async(
-                audio_url=item.content,
-                thread_id=thread_id
-            )
+            # 如果是 Sequence[InputContent]，处理音频
+            normalized_content: list[InputContent] = []
+            for item in content:
+                if item.type != InputType.AUDIO:
+                    normalized_content.append(item)
+                    continue
 
-            asr_result.append({
-                "index": index,
-                "content": transcript
-            })
+                # Audio → STT
+                transcript = await cls.transcribe_async(
+                    audio_url=item.content,
+                    thread_id=thread_id
+                )
 
-            # 保留原始音频内容并添加转录文本
-            normalized.extend([
-                item,
-                InputContent(type=InputType.TEXT, content=transcript)
-            ])
+                asr_result.append({
+                    "index": index,
+                    "content": transcript
+                })
+
+                # 保留原始音频内容并添加转录文本
+                normalized_content.extend([
+                    item,
+                    InputContent(type=InputType.TEXT, content=transcript)
+                ])
+
+            # 创建新的消息对象，保留原始角色
+            normalized.append(Message(role=message.role, content=normalized_content))
 
         return normalized, asr_result

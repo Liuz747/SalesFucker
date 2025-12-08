@@ -26,7 +26,6 @@ from .inner import completion_router
 from .workspace import (
     conversations_router,
     assistants_router,
-    prompts_router,
     public_traffic_router,
     text_beautify_router,
 )
@@ -38,7 +37,6 @@ app_router = APIRouter()
 app_router.include_router(auth_router, prefix="/auth", tags=["auth"])
 app_router.include_router(conversations_router, prefix="/threads", tags=["conversation-threads"])
 app_router.include_router(assistants_router, prefix="/assistants", tags=["assistants"])
-app_router.include_router(prompts_router, prefix="/prompts", tags=["prompts"])
 app_router.include_router(public_traffic_router, prefix="/social-media", tags=["social-media"])
 app_router.include_router(text_beautify_router, prefix="/social-media", tags=["social-media"])
 app_router.include_router(tenant_router, prefix="/tenants", tags=["tenant"])

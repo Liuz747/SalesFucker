@@ -203,7 +203,7 @@ async def update_assistant(
         )
 
 
-@router.post("/{assistant_id}", response_model=BaseResponse)
+@router.delete("/{assistant_id}", response_model=BaseResponse)
 async def delete_assistant(
     assistant_id: UUID,
     tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)],

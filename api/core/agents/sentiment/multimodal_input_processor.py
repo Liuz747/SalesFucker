@@ -13,7 +13,7 @@
 
 from typing import Dict, Any, List, Tuple, Sequence
 from uuid import uuid4
-from libs.types import InputContentParams, InputContent, InputType, Message
+from libs.types import InputContentParams, InputContent, InputType, Message, MessageParams
 from infra.runtimes import LLMClient, CompletionsRequest
 from utils import LoggerMixin
 
@@ -31,33 +31,50 @@ class MultimodalInputProcessor(LoggerMixin):
         self.config = config or {}
         self.llm_client = LLMClient()
 
-    async def process_input(self, customer_input: InputContentParams) -> Tuple[str, Dict[str, Any]]:
+    async def process_input(self, customer_input: MessageParams) -> tuple[str, dict[str, Any]]:
         """
-        处理多模态输入
+        处理多模态输入消息列表
 
         参数:
-            customer_input: 客户输入 (str | Sequence[InputContent])
+            customer_input: 消息列表 (MessageParams)
 
         返回:
-            Tuple[str, Dict[str, Any]]: (处理后的纯文字, 多模态上下文)
+            tuple[str, dict[str, Any]]: (处理后的纯文字, 多模态上下文)
         """
-        # 简单字符串直接返回
-        if isinstance(customer_input, str):
-            return customer_input, {
-                "type": "text",
-                "modalities": ["text"],
-                "item_count": 1
-            }
+        # 提取所有用户消息的内容
+        all_contents: list[InputContentParams] = []
+        for message in customer_input:
+            all_contents.append(message.content)
 
-        # 处理 Sequence[InputContent]
-        if not customer_input:
+        if not all_contents:
             return "", {
                 "type": "empty",
                 "modalities": [],
                 "item_count": 0
             }
 
-        return await self._extract_text_from_multimodal(customer_input)
+        # 处理每个内容项
+        combined_texts: list[str] = []
+        all_modalities: set = set()
+        total_items = 0
+
+        for content in all_contents:
+            if isinstance(content, str):
+                combined_texts.append(content)
+                all_modalities.add("text")
+                total_items += 1
+            else:
+                # Sequence[InputContent]
+                text, context = await self._extract_text_from_multimodal(content)
+                combined_texts.append(text)
+                all_modalities.update(context.get("modalities", []))
+                total_items += context.get("item_count", 0)
+
+        return " ".join(combined_texts), {
+            "type": "multimodal" if len(all_modalities) > 1 else "text",
+            "modalities": list(all_modalities),
+            "item_count": total_items
+        }
 
     async def _extract_text_from_multimodal(self, input_sequence: Sequence[InputContent]) -> Tuple[str, Dict[str, Any]]:
         """
