@@ -144,7 +144,7 @@ async def create_suggestion(
 
         # 生成建议
         start_time = get_current_datetime()
-        suggestions_list = await SuggestionService.generate_suggestions(
+        suggestions_list, input_tokens, output_tokens = await SuggestionService.generate_suggestions(
             input_content=normalized_input,
             thread_id=thread_id,
             assistant_id=request.assistant_id,
@@ -161,8 +161,8 @@ async def create_suggestion(
             thread_id=thread.thread_id,
             status="completed",
             response=suggestions_list,
-            input_tokens=0,
-            output_tokens=0,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
             processing_time=processing_time,
             asr_results=asr_results,
             multimodal_outputs=None,

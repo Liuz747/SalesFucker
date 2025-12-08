@@ -27,7 +27,7 @@ class SuggestionService:
         thread_id: UUID,
         assistant_id: UUID,
         tenant_id: str = None
-    ) -> list[str]:
+    ) -> tuple[list[str], int, int]:
         """
         生成回复建议
 
@@ -38,7 +38,7 @@ class SuggestionService:
             tenant_id: 租户ID (保留，暂未强制使用)
 
         返回:
-            list[str]: 建议回复列表
+            tuple[list[str], int, int]: (建议回复列表, 输入tokens, 输出tokens)
         """
         try:
             # 初始化LLM客户端
@@ -159,13 +159,13 @@ class SuggestionService:
             else:
                 logger.warning(f"LLM返回了空choices: {response}")
 
-            # Token使用统计 (保留用于内部监控)
-            input_tokens = response.usage.prompt_tokens
-            output_tokens = response.usage.completion_tokens
+            # Token使用统计
+            input_tokens = response.usage.prompt_tokens if response.usage else 0
+            output_tokens = response.usage.completion_tokens if response.usage else 0
 
             logger.info(f"建议生成完成 - 输入tokens: {input_tokens}, 输出tokens: {output_tokens}, 处理时间: {processing_time}ms")
 
-            return suggestions_list
+            return suggestions_list, input_tokens, output_tokens
             
         except Exception as e:
             logger.error(f"建议生成失败 - 线程: {thread_id}: {e}", exc_info=True)
