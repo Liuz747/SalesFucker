@@ -9,7 +9,7 @@ from uuid import UUID
 from core.memory.conversation_store import ConversationStore
 from infra.runtimes import LLMClient
 from infra.db.connection import database_session
-from libs.types import Message
+from libs.types import Message, MessageParams
 from repositories.assistant_repo import AssistantRepository
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms
 
@@ -23,7 +23,7 @@ class SuggestionService:
 
     @staticmethod
     async def generate_suggestions(
-        input_content: Any,
+        input_content: MessageParams,
         thread_id: UUID,
         assistant_id: UUID,
         tenant_id: str = None
@@ -32,7 +32,7 @@ class SuggestionService:
         生成回复建议
 
         参数:
-            input_content: 标准化后的输入内容
+            input_content: 标准化后的消息参数列表 (MessageParams)
             thread_id: 线程ID (用于日志和记忆检索)
             assistant_id: 助理ID (用于获取助理人设)
             tenant_id: 租户ID (保留，暂未强制使用)
@@ -94,8 +94,11 @@ class SuggestionService:
                 messages.append(Message(role=msg.role, content=msg.content))
 
             # 5. 添加当前用户输入
-            # current_content = provider._format_message_content(input_content)
-            messages.append(Message(role="user", content=input_content))
+            # 从 MessageParams 中提取用户消息内容
+            for msg in input_content:
+                if msg.role == "user":
+                    messages.append(Message(role=msg.role, content=msg.content))
+                    break  # 只添加第一个用户消息作为当前输入
             
             # 调用OpenAI生成3条回复
             start_time = get_current_datetime()
