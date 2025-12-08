@@ -8,9 +8,9 @@ from dataclasses import dataclass
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
-from libs.types import InputContentParams, OutputContentParams
+from libs.types import MessageParams, OutputContentParams
 from .responses import BaseResponse
 
 
@@ -54,7 +54,15 @@ class MessageCreateRequest(BaseModel):
 
     tenant_id: str = Field(description="租户标识符")
     assistant_id: UUID = Field(description="助手标识符")
-    input: InputContentParams = Field(description="纯文本输入或多模态内容列表")
+    input: MessageParams = Field(description="消息列表，每个消息包含role和content")
+
+    @field_validator('input')
+    @classmethod
+    def validate_input(cls, v: MessageParams) -> MessageParams:
+        """验证输入消息列表至少包含一个用户消息"""
+        if not any(msg.role == "user" for msg in v):
+            raise ValueError("消息序列必须至少包含一个role='user'的消息")
+        return v
 
 
 class CallbackPayload(BaseModel):

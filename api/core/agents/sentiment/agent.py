@@ -17,7 +17,7 @@ from langfuse import observe
 
 from core.entities import WorkflowExecutionModel
 from core.memory import StorageManager
-from libs.types import Message, InputContentParams, MemoryType
+from libs.types import MessageParams, MemoryType
 from utils import get_current_datetime
 from ..base import BaseAgent
 from .multimodal_input_processor import MultimodalInputProcessor
@@ -101,7 +101,7 @@ class SentimentAnalysisAgent(BaseAgent):
             await self.memory_manager.store_messages(
                 tenant_id=tenant_id,
                 thread_id=thread_id,
-                messages=[Message(role="user", content=processed_text)],
+                messages=customer_input,
             )
             
             # 步骤3: 检索记忆上下文 (使用处理后的文本进行检索)
@@ -306,16 +306,13 @@ class SentimentAnalysisAgent(BaseAgent):
                 "sentiment_score": sentiment_score
             }
 
-    async def _process_input(self, customer_input: InputContentParams) -> tuple[str, dict]:
-        """处理多模态输入"""
+    async def _process_input(self, customer_input: MessageParams) -> tuple[str, dict]:
+        """处理多模态输入消息列表"""
         try:
-            # 简单的适配逻辑
-            input_data = customer_input
-            return await self.input_processor.process_input(input_data)
+            return await self.input_processor.process_input(customer_input)
         except Exception as e:
             self.logger.error(f"输入处理失败: {e}")
-            # 降级处理：将输入转为字符串
-            return str(customer_input) if customer_input else "", {"type": "fallback", "error": str(e)}
+            raise
 
     async def _analyze_sentiment(self, text: str, context: dict) -> dict:
         """分析情感"""

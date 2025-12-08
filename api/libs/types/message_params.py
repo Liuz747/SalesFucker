@@ -1,6 +1,6 @@
-from collections.abc import Iterable
+from collections.abc import Sequence
 from enum import StrEnum
-from typing import TypeAlias
+from typing import Literal, TypeAlias
 
 from pydantic import BaseModel
 
@@ -17,8 +17,9 @@ class MessageType(StrEnum):
 
 
 class Message(BaseModel):
-    role: str
+    """消息模型"""
+    role: Literal["user", "assistant", "system"]
     content: InputContentParams
 
 
-MessageParams: TypeAlias = Iterable[Message]
+MessageParams: TypeAlias = Sequence[Message]
