@@ -69,10 +69,11 @@ class StorageManager:
             return content
 
         # Sequence[InputContent]
-        text_parts = [
-            item.content for item in content
-            if isinstance(item, InputContent) and item.type.value == "text"
-        ]
+        text_parts = []
+        for item in content:
+            if isinstance(item, InputContent):
+                text_parts.append(f"[{item.type.value}: {item.content}]")
+
         return " ".join(text_parts) if text_parts else ""
 
     async def store_messages(
