@@ -7,19 +7,22 @@
 from collections.abc import Mapping
 from pathlib import Path
 from typing import Type
+from time import time
 from uuid import uuid4
 
 from pydantic import BaseModel
 
 from config import mas_config
 from infra.cache import get_redis_client
-from infra.runtimes import LLMClient, ResponseMessageRequest, CompletionsRequest
-from libs.types import MethodType, Message
+from infra.runtimes import LLMClient, CompletionsRequest
+from libs.types import MethodType, Message, TextBeautifyActionType
 from schemas.social_media_schema import (
     CommentGenerationRequest,
     ReplyGenerationRequest,
     KeywordSummaryRequest,
     ChatGenerationRequest,
+    TextBeautifyRequest,
+    TextBeautifyResponse,
 )
 from utils import get_component_logger, load_yaml_file
 
@@ -175,3 +178,108 @@ class SocialMediaPublicTrafficService:
             f"{prompt_type_label}: {prompt_content}\n"
             f"用户消息: {request.content}"
         )
+
+    def build_text_beautify_prompt(self, request: TextBeautifyRequest) -> str:
+        """构建文本美化提示词"""
+        action_desc = "缩写" if request.action_type == TextBeautifyActionType.COMPRESS else "扩写"
+        style_desc = request.style or "专业、简洁、易读"
+
+        return (
+            f"请对以下文本进行{action_desc}美化处理。\n\n"
+            f"原始文本: {request.source_text}\n"
+            f"期望数量: {request.result_count}\n"
+            f"风格要求: {style_desc}\n\n"
+            f"请提供{request.result_count}个不同版本的{action_desc}结果，"
+            f"每个版本都要保持原意的同时提升表达效果。"
+        )
+
+    async def text_beautify(self, request: TextBeautifyRequest) -> TextBeautifyResponse:
+        """执行文本美化处理"""
+        start_time = time()
+        run_id = str(uuid4())
+
+        # 构建提示词
+        user_prompt = self.build_text_beautify_prompt(request)
+
+        # 根据操作类型选择系统提示词
+        if request.action_type == TextBeautifyActionType.COMPRESS:
+            system_prompt = await self.load_prompt(method=MethodType.COMPRESS)
+        else:
+            system_prompt = await self.load_prompt(method=MethodType.EXPAND)
+
+        try:
+            # 直接调用LLM客户端，不通过invoke_llm
+            run_id_llm = uuid4()
+            messages = [
+                Message(role="system", content=system_prompt),
+                Message(role="user", content=user_prompt)
+            ]
+            llm_request = CompletionsRequest(
+                id=run_id_llm,
+                model="openai/gpt-oss-120b:exacto",
+                provider="openrouter",
+                temperature=0.5,
+                max_tokens=4000,
+                messages=messages,
+                output_model=None
+            )
+            response = await self.client.completions(request=llm_request)
+
+            # 获取原始响应文本
+            llm_result = response.content if hasattr(response, 'content') else str(response)
+
+            # 解析响应文本为多个美化结果
+            beautified_texts = self._parse_beautify_response(llm_result, request.result_count)
+
+            processing_time = (time() - start_time) * 1000  # 转换为毫秒
+
+            return TextBeautifyResponse(
+                run_id=run_id,
+                status="completed",
+                response=beautified_texts,
+                input_tokens=len(user_prompt.split()) + len(system_prompt.split()),
+                output_tokens=len(str(llm_result).split()),
+                processing_time=processing_time,
+                action_type=request.action_type
+            )
+
+        except Exception as e:
+            logger.error(f"文本美化处理失败: {e}")
+            return TextBeautifyResponse(
+                run_id=run_id,
+                status="failed",
+                response=[],
+                input_tokens=0,
+                output_tokens=0,
+                processing_time=(time() - start_time) * 1000,
+                action_type=request.action_type
+            )
+
+    def _parse_beautify_response(self, response: str, expected_count: int) -> list[str]:
+        """解析LLM响应为多个美化文本"""
+        # 尝试按数字编号分割
+        import re
+
+        # 按数字序号分割，如 "1. 文本一 2. 文本二"
+        numbered_pattern = r'\d+[\.、]\s*'
+        parts = re.split(numbered_pattern, response.strip())
+
+        # 过滤空字符串
+        texts = [part.strip() for part in parts if part.strip()]
+
+        # 如果没有找到编号分割，尝试按换行分割
+        if len(texts) <= 1:
+            texts = [line.strip() for line in response.strip().split('\n') if line.strip()]
+
+        # 确保返回期望数量的结果
+        if len(texts) < expected_count:
+            # 如果结果不够，复制现有结果或使用空字符串填充
+            while len(texts) < expected_count:
+                if texts:
+                    texts.append(texts[-1] + f" (变体{len(texts)+1})")
+                else:
+                    texts.append("")
+        elif len(texts) > expected_count:
+            texts = texts[:expected_count]
+
+        return texts

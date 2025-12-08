@@ -28,6 +28,7 @@ from .workspace import (
     assistants_router,
     prompts_router,
     public_traffic_router,
+    text_beautify_router,
 )
 
 
@@ -39,6 +40,7 @@ app_router.include_router(conversations_router, prefix="/threads", tags=["conver
 app_router.include_router(assistants_router, prefix="/assistants", tags=["assistants"])
 app_router.include_router(prompts_router, prefix="/prompts", tags=["prompts"])
 app_router.include_router(public_traffic_router, prefix="/social-media", tags=["social-media"])
+app_router.include_router(text_beautify_router, prefix="/social-media", tags=["social-media"])
 app_router.include_router(tenant_router, prefix="/tenants", tags=["tenant"])
 app_router.include_router(completion_router, prefix="/messages", tags=["messages"])
 app_router.include_router(health_router, tags=["health"])

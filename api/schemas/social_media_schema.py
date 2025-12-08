@@ -9,7 +9,7 @@ from typing import Optional
 
 from pydantic import BaseModel, Field
 
-from libs.types import SocialMediaActionType, SocialPlatform, MethodType
+from libs.types import SocialMediaActionType, SocialPlatform, MethodType, TextBeautifyActionType
 
 
 class CommentData(BaseModel):
@@ -141,3 +141,24 @@ class MomentsAnalysisResponse(BaseModel):
     """朋友圈分析响应"""
 
     tasks: Sequence[MomentsActionResult] = Field(default_factory=list, description="朋友圈互动结果列表")
+
+
+class TextBeautifyRequest(BaseModel):
+    """文本美化请求"""
+
+    action_type: TextBeautifyActionType = Field(description="美化类型：1为缩写，2为扩写")
+    source_text: str = Field(min_length=1, max_length=5000, description="待美化的原始文本")
+    result_count: int = Field(default=3, ge=1, le=10, description="希望获得的文本数量")
+    style: Optional[str] = Field(None, max_length=200, description="期望的风格描述")
+
+
+class TextBeautifyResponse(BaseModel):
+    """文本美化响应"""
+
+    run_id: str = Field(description="运行标识符")
+    status: str = Field(description="运行状态")
+    response: Sequence[str] = Field(description="美化后的文本数组")
+    input_tokens: int = Field(default=0, description="输入Token数")
+    output_tokens: int = Field(default=0, description="输出Token数")
+    processing_time: float = Field(description="处理时间（毫秒）")
+    action_type: TextBeautifyActionType = Field(description="执行的美化类型")

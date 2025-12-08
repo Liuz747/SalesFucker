@@ -10,7 +10,7 @@ from .content_params import (
 from .infra_clients import InfraClients
 from .memory import MemoryType
 from .message_params import MessageParams, MessageType, Message
-from .social_media_types import SocialPlatform, SocialMediaActionType, MethodType
+from .social_media_types import SocialPlatform, SocialMediaActionType, MethodType, TextBeautifyActionType
 
 
 __all__ = [
@@ -28,5 +28,6 @@ __all__ = [
     "OutputContentParams",
     "OutputType",
     "SocialMediaActionType",
-    "SocialPlatform"
+    "SocialPlatform",
+    "TextBeautifyActionType"
 ]
