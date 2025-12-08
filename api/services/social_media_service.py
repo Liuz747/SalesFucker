@@ -237,8 +237,8 @@ class SocialMediaPublicTrafficService:
                 run_id=run_id,
                 status="completed",
                 response=beautified_texts,
-                input_tokens=len(user_prompt.split()) + len(system_prompt.split()),
-                output_tokens=len(str(llm_result).split()),
+                input_tokens=response.usage.input_tokens,
+                output_tokens=response.usage.output_tokens,
                 processing_time=processing_time,
                 action_type=request.action_type
             )
