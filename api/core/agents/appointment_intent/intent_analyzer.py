@@ -10,8 +10,9 @@ Appointment Intent Analyzer - 邀约意向分析器
 - 意向强度量化
 """
 
-from typing import Dict, Any, List
+from typing import Any
 import uuid
+
 from infra.runtimes import CompletionsRequest, LLMResponse
 from libs.types import Message
 
@@ -118,7 +119,7 @@ class AppointmentIntentAnalyzer:
 8. 必须包含准确的token使用统计
 """
 
-    async def analyze_intent(self, analysis_context: Dict[str, Any]) -> Dict[str, Any]:
+    async def analyze_intent(self, analysis_context: dict[str, Any]) -> dict[str, Any]:
         """
         分析邀约意向
 
@@ -129,7 +130,7 @@ class AppointmentIntentAnalyzer:
                 - message_count: 消息数量
 
         Returns:
-            Dict: 意向分析结果
+            dict: 意向分析结果
         """
         try:
             # 构建分析文本
@@ -180,7 +181,7 @@ class AppointmentIntentAnalyzer:
                 "error": str(e)
             }
 
-    def _build_analysis_text(self, context: Dict[str, Any]) -> str:
+    def _build_analysis_text(self, context: dict[str, Any]) -> str:
         """
         构建分析文本
 
@@ -214,7 +215,7 @@ class AppointmentIntentAnalyzer:
 
         return "\n".join(analysis_lines)
 
-    def _parse_llm_response(self, response: LLMResponse) -> Dict[str, Any]:
+    def _parse_llm_response(self, response: LLMResponse) -> dict[str, Any]:
         """
         解析LLM响应 - 增强版本，更好的错误处理和调试信息
 
@@ -222,7 +223,7 @@ class AppointmentIntentAnalyzer:
             response: LLM响应对象
 
         Returns:
-            Dict: 解析后的结果
+            dict: 解析后的结果
         """
         try:
             # 修复：直接访问 LLMResponse 的 content 属性

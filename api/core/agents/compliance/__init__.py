@@ -16,12 +16,10 @@
 
 from .agent import ComplianceAgent
 from .checker import ComplianceChecker
-from .audit import ComplianceAuditor
-from .metrics import ComplianceMetricsManager
 from .rule_manager import ComplianceRuleManager
 from .models import ComplianceRule
 from .types import RuleSeverity, RuleAction, RuleCategory
-from .default_rules import get_default_rules, get_rules_by_category, get_critical_rules
+
 
 __all__ = [
     # 主要智能体类
@@ -29,18 +27,11 @@ __all__ = [
     
     # 模块化组件
     "ComplianceChecker",
-    "ComplianceAuditor", 
-    "ComplianceMetricsManager",
     
     # 规则相关类
     "ComplianceRule",
     "ComplianceRuleManager", 
     "RuleSeverity",
     "RuleAction",
-    "RuleCategory",
-    
-    # 规则函数
-    "get_default_rules",
-    "get_rules_by_category",
-    "get_critical_rules"
+    "RuleCategory"
 ] 

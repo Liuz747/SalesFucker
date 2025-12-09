@@ -117,18 +117,6 @@ class MaterialIntentAgent(BaseAgent):
             # 降级处理：返回无需求状态
             # return self._create_fallback_state(state)
 
-    def _input_to_text(self, content) -> str:
-        """将输入转换为文本"""
-        if isinstance(content, str):
-            return content
-        if isinstance(content, list):
-            parts: list[str] = []
-            for node in content:
-                value = getattr(node, "content", None)
-                parts.append(value if isinstance(value, str) else str(node))
-            return "\n".join(parts)
-        return str(content)
-
     def _extract_recent_user_messages(self, messages: list, max_rounds: int = 3) -> list[str]:
         """
         从记忆中提取最近N轮用户消息

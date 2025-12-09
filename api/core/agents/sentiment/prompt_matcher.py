@@ -4,7 +4,7 @@
 
 import json
 from pathlib import Path
-from typing import Dict, Any, Optional
+from typing import Any, Optional
 
 
 class PromptMatcher:
@@ -62,7 +62,7 @@ class PromptMatcher:
         self,
         sentiment_score: float,
         journey_stage: str
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         核心方法：纯查表
 

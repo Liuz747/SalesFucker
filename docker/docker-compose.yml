@@ -162,10 +162,11 @@ services:
       - xpack.security.http.ssl.enabled=false
       - xpack.license.self_generated.type=basic
       - xpack.ml.enabled=false
+      - xpack.watcher.enabled=false
       - cluster.routing.allocation.disk.threshold_enabled=true
-      - cluster.routing.allocation.disk.watermark.low=512mb
-      - cluster.routing.allocation.disk.watermark.high=256mb
-      - cluster.routing.allocation.disk.watermark.flood_stage=128mb
+      - cluster.routing.allocation.disk.watermark.low=85%
+      - cluster.routing.allocation.disk.watermark.high=90%
+      - cluster.routing.allocation.disk.watermark.flood_stage=95%
     mem_limit: 2g
     ulimits:
       memlock:
@@ -310,3 +311,12 @@ volumes:
   es_data:
   etcd_data:
   milvus_data:
+
+networks:
+  mas-network:
+    driver: bridge
+    ipam:
+      driver: default
+      config:
+        - subnet: 192.168.100.0/24
+          gateway: 192.168.100.1

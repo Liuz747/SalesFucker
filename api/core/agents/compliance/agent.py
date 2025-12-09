@@ -11,15 +11,12 @@
 - 租户规则管理
 """
 
-from typing import Dict, Any, Optional
-from datetime import datetime
+from typing import Dict, Any
 
 from ..base import BaseAgent, parse_json_response
 from .rule_manager import ComplianceRuleManager
 from .checker import ComplianceChecker
-from .audit import ComplianceAuditor
-from .metrics import ComplianceMetricsManager
-from utils import get_current_datetime, get_processing_time_ms, to_isoformat
+from utils import get_current_datetime
 
 
 class ComplianceAgent(BaseAgent):
@@ -31,13 +28,10 @@ class ComplianceAgent(BaseAgent):
     
     采用模块化设计：
     - ComplianceChecker: 核心检查逻辑
-    - ComplianceAuditor: 审计日志管理
-    - ComplianceMetricsManager: 性能指标管理
     
     属性:
         rule_set: 合规规则集实例
         checker: 合规检查器
-        auditor: 审计管理器
         metrics: 性能指标管理器
         tenant_rules: 租户特定规则
     """
@@ -54,8 +48,6 @@ class ComplianceAgent(BaseAgent):
         
         # 初始化模块化组件
         self.checker = ComplianceChecker(self.rule_set, self.agent_id)
-        self.auditor = ComplianceAuditor()
-        self.metrics = ComplianceMetricsManager()
         
         # LLM integration for enhanced analysis
         
@@ -91,15 +83,6 @@ class ComplianceAgent(BaseAgent):
             
             # 根据合规结果确定后续处理
             self._update_conversation_state(state, compliance_result)
-            
-            # 更新统计和审计
-            processing_time = get_processing_time_ms(start_time)
-            self._update_metrics_and_audit(
-                state.get("thread_id", "unknown"),
-                customer_input,
-                compliance_result,
-                processing_time
-            )
             
             return state
             
@@ -147,29 +130,6 @@ class ComplianceAgent(BaseAgent):
         
         # 出错时采用保守策略，标记为需要人工审核
         state["human_escalation"] = True
-        
-        # 更新错误指标
-        self.metrics.update_status_metrics("error")
-    
-    def _update_metrics_and_audit(self, thread_id: str, input_text: str,
-                                compliance_result: Dict[str, Any], processing_time_ms: float):
-        """
-        更新指标和审计信息
-        
-        参数:
-            thread_id: 对话ID
-            input_text: 输入文本
-            compliance_result: 合规结果
-            processing_time_ms: 处理时间
-        """
-        # 更新性能指标
-        self.metrics.update_processing_stats(processing_time_ms)
-        self.metrics.update_status_metrics(compliance_result["status"])
-        
-        # 记录审计日志
-        self.auditor.log_compliance_check(
-            thread_id, input_text, compliance_result, processing_time_ms
-        )
     
     def add_tenant_rule(self, rule) -> bool:
         """
@@ -190,41 +150,7 @@ class ComplianceAgent(BaseAgent):
             self.logger.warning(f"租户规则添加失败: {rule.rule_id}")
         
         return success
-    
-    def get_audit_summary(self, start_date: Optional[datetime] = None) -> Dict[str, Any]:
-        """
-        获取合规审计摘要报告
-        
-        参数:
-            start_date: 可选的开始日期过滤
-            
-        返回:
-            Dict[str, Any]: 审计摘要信息
-        """
-        return self.auditor.get_audit_summary(start_date)
-    
-    def get_compliance_stats(self) -> Dict[str, Any]:
-        """
-        获取合规检查统计信息
-        
-        返回:
-            Dict[str, Any]: 统计信息
-        """
-        return self.metrics.get_compliance_stats(
-            rule_set_stats=self.rule_set.get_statistics(),
-            audit_log_size=self.auditor.get_audit_log_size(),
-            is_active=self.is_active
-        )
-    
-    def get_health_status(self) -> Dict[str, Any]:
-        """
-        获取合规系统健康状态
-        
-        返回:
-            Dict[str, Any]: 健康状态信息
-        """
-        return self.metrics.get_health_status()
-    
+
     async def _enhanced_compliance_check(self, customer_input: str) -> Dict[str, Any]:
         """
         执行增强的合规检查 (规则 + LLM分析)
@@ -351,5 +277,3 @@ class ComplianceAgent(BaseAgent):
             "llm_analysis": llm_result,
             "agent_id": self.agent_id
         }
-
- 

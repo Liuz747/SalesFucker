@@ -11,8 +11,6 @@ Sentiment Analysis Agent
 - 状态管理与记忆更新
 """
 
-from typing import Sequence
-
 from langfuse import observe
 
 from core.entities import WorkflowExecutionModel
@@ -45,12 +43,7 @@ class SentimentAnalysisAgent(BaseAgent):
         self.prompt_matcher = PromptMatcher()
 
         # 初始化核心组件
-        self.input_processor = MultimodalInputProcessor(
-            tenant_id=getattr(self, 'tenant_id', None),
-            config={
-                "openai_api_key": getattr(self, '_get_openai_api_key', lambda: None)()
-            }
-        )
+        self.input_processor = MultimodalInputProcessor(tenant_id=getattr(self, 'tenant_id', None))
 
         self.sentiment_analyzer = SentimentAnalyzer(
             llm_provider="openrouter",
@@ -85,9 +78,9 @@ class SentimentAnalysisAgent(BaseAgent):
         try:
             self.logger.info("=== Sentiment Agent ===")
 
-            customer_input = state.get("input")
-            tenant_id = state.get("tenant_id")
-            thread_id = str(state.get("thread_id"))
+            customer_input = state.input
+            tenant_id = state.tenant_id
+            thread_id = str(state.thread_id)
 
             self.logger.debug(f"input内容: {str(customer_input)[:100]}...")
 
@@ -224,18 +217,6 @@ class SentimentAnalysisAgent(BaseAgent):
             self.logger.error(f"失败时的输入: {str(input_content)[:100]}")
             raise e
 
-    def _input_to_text(self, content) -> str:
-        """将输入转换为文本"""
-        if isinstance(content, str):
-            return content
-        if isinstance(content, Sequence):
-            parts: list[str] = []
-            for node in content:
-                value = getattr(node, "content", None)
-                parts.append(value if isinstance(value, str) else str(node))
-            return "\n".join(parts)
-        return str(content)
-
     def _determine_journey_stage(self, short_term_messages: list) -> str:
         """
         判断客户旅程阶段
@@ -313,12 +294,6 @@ class SentimentAnalysisAgent(BaseAgent):
         except Exception as e:
             self.logger.error(f"输入处理失败: {e}")
             raise
-
-    async def _analyze_sentiment(self, text: str, context: dict) -> dict:
-        """分析情感"""
-        result = await self.sentiment_analyzer.analyze_sentiment(text, context)
-        self.logger.info(f"情感分析器返回结果 - sentiment: {result.get('sentiment')}, 情感分析消耗tokens: {result.get('total_tokens', 0)}")
-        return result
 
     async def _analyze_sentiment_with_history(self, current_text: str, context: dict, short_term_msgs: list) -> dict:
         """

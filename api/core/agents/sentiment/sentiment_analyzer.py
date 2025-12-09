@@ -12,20 +12,20 @@
 - 置信度计算
 """
 
-from typing import Dict, Any, List, Union
 from abc import ABC, abstractmethod
+from typing import Any, Union
 from uuid import uuid4
 
+from infra.runtimes import CompletionsRequest
 from libs.types import Message
 from utils import LoggerMixin
-from infra.runtimes.entities import CompletionsRequest
 
 
 class SentimentAnalysisStrategy(ABC):
     """情感分析策略基类"""
 
     @abstractmethod
-    async def analyze(self, text: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
+    async def analyze(self, text: str, context: dict[str, Any] = None) -> dict[str, Any]:
         """执行情感分析"""
         pass
 
@@ -38,7 +38,7 @@ class LLMSentimentAnalyzer(SentimentAnalysisStrategy):
         self.llm_model = llm_model
         self.invoke_llm = invoke_llm_fn
 
-    async def analyze(self, text: str, context: Dict[str, Any] = None) -> Dict[str, Any]:
+    async def analyze(self, text: str, context: dict[str, Any] = None) -> dict[str, Any]:
         """使用LLM分析情感"""
         if not text or len(text.strip()) < 2:
             return {
@@ -104,7 +104,7 @@ class LLMSentimentAnalyzer(SentimentAnalysisStrategy):
                 "error": str(e)
             }
 
-    def _build_analysis_prompt(self, text: str, context: Dict[str, Any]) -> str:
+    def _build_analysis_prompt(self, text: str, context: dict[str, Any]) -> str:
         """构建分析提示词"""
         context_info = self._extract_context_info(context)
 
@@ -138,7 +138,7 @@ class LLMSentimentAnalyzer(SentimentAnalysisStrategy):
 
         return prompt
 
-    def _extract_context_info(self, context: Dict[str, Any]) -> str:
+    def _extract_context_info(self, context: dict[str, Any]) -> str:
         """从多模态上下文中提取有用信息"""
         context_parts = []
 
@@ -158,7 +158,7 @@ class LLMSentimentAnalyzer(SentimentAnalysisStrategy):
 
         return "\n上下文信息：\n" + "\n".join(context_parts) if context_parts else ""
 
-    def _parse_llm_response(self, raw_response: str) -> Dict[str, Any]:
+    def _parse_llm_response(self, raw_response: str) -> dict[str, Any]:
         """解析LLM响应"""
         try:
             import json
@@ -176,7 +176,7 @@ class LLMSentimentAnalyzer(SentimentAnalysisStrategy):
             # 降级处理
             return self._fallback_parse(raw_response)
 
-    def _fallback_parse(self, text: str) -> Dict[str, Any]:
+    def _fallback_parse(self, text: str) -> dict[str, Any]:
         """降级解析方法"""
         text_lower = text.lower()
 
@@ -210,7 +210,7 @@ class LLMSentimentAnalyzer(SentimentAnalysisStrategy):
             }
         }
 
-    def _validate_and_normalize(self, result: Dict[str, Any]) -> Dict[str, Any]:
+    def _validate_and_normalize(self, result: dict[str, Any]) -> dict[str, Any]:
         """验证和标准化结果"""
         return {
             "sentiment": self._validate_sentiment(result.get("sentiment")),
@@ -238,7 +238,7 @@ class LLMSentimentAnalyzer(SentimentAnalysisStrategy):
         valid_urgencies = ["high", "medium", "low"]
         return urgency if urgency in valid_urgencies else "medium"
 
-    def _validate_indicators(self, indicators: Dict[str, Any]) -> Dict[str, float]:
+    def _validate_indicators(self, indicators: dict[str, Any]) -> dict[str, float]:
         """验证情感指标"""
         validated = {}
         for key, value in indicators.items():
@@ -259,7 +259,7 @@ class SentimentAnalyzer(LoggerMixin):
         self.llm_model = llm_model
 
         # 初始化分析策略
-        self.strategies: List[SentimentAnalysisStrategy] = [
+        self.strategies: list[SentimentAnalysisStrategy] = [
             LLMSentimentAnalyzer(llm_provider, llm_model, invoke_llm_fn)
         ]
 
@@ -268,8 +268,8 @@ class SentimentAnalyzer(LoggerMixin):
     async def analyze_sentiment(
         self,
         text: str,
-        multimodal_context: Dict[str, Any] = None
-    ) -> Dict[str, Any]:
+        multimodal_context: dict[str, Any] = None
+    ) -> dict[str, Any]:
         """
         分析文本情感
 
@@ -278,7 +278,7 @@ class SentimentAnalyzer(LoggerMixin):
             multimodal_context: 多模态上下文信息
 
         返回:
-            Dict[str, Any]: 情感分析结果
+            dict[str, Any]: 情感分析结果
         """
         if not text:
             return self._empty_result()
@@ -297,7 +297,7 @@ class SentimentAnalyzer(LoggerMixin):
         # 所有策略都失败，返回默认结果
         return self._fallback_result(text)
 
-    def _empty_result(self) -> Dict[str, Any]:
+    def _empty_result(self) -> dict[str, Any]:
         """空文本结果"""
         return {
             "sentiment": "neutral",
@@ -312,7 +312,7 @@ class SentimentAnalyzer(LoggerMixin):
             "analyzer": "empty_input"
         }
 
-    def _fallback_result(self, text: str) -> Dict[str, Any]:
+    def _fallback_result(self, text: str) -> dict[str, Any]:
         """降级结果"""
         return {
             "sentiment": "neutral",

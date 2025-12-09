@@ -25,10 +25,9 @@ class MultimodalInputProcessor(LoggerMixin):
     直接使用LLM的多模态能力，避免复杂的预处理管道。
     """
 
-    def __init__(self, tenant_id: str = None, config: Dict[str, Any] = None):
+    def __init__(self, tenant_id: str = None):
         super().__init__()
         self.tenant_id = tenant_id
-        self.config = config or {}
         self.llm_client = LLMClient()
 
     async def process_input(self, customer_input: MessageParams) -> tuple[str, dict[str, Any]]:
@@ -44,6 +43,8 @@ class MultimodalInputProcessor(LoggerMixin):
         # 提取所有用户消息的内容
         all_contents: list[InputContentParams] = []
         for message in customer_input:
+            if message.role != "user":
+                continue
             all_contents.append(message.content)
 
         if not all_contents:

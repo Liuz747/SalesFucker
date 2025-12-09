@@ -15,7 +15,9 @@ from abc import ABC, abstractmethod
 
 from core.entities import WorkflowExecutionModel
 from infra.runtimes import LLMClient, CompletionsRequest, LLMResponse
+from libs.types import MessageParams, InputContent
 from utils import get_component_logger
+
 
 class BaseAgent(ABC):
     """
@@ -43,9 +45,6 @@ class BaseAgent(ABC):
         else:
             self.agent_id = class_name.lower()
 
-        # 默认即为活跃状态；无需显式激活流程即可直接使用
-        self.is_active = True
-
         # 初始化LLM客户端
         self.llm_client = LLMClient()
 
@@ -72,12 +71,42 @@ class BaseAgent(ABC):
     async def invoke_llm(self, request: CompletionsRequest) -> LLMResponse:
         """
         简单的LLM调用方法
-        
+
         参数:
             request: LLM请求
-            
+
         返回:
             str: LLM响应内容
         """
-        
+
         return await self.llm_client.completions(request)
+
+    def _input_to_text(self, messages: MessageParams) -> str:
+        """
+        将输入转换为文本（仅提取用户消息）
+
+        该方法处理多种输入格式，统一转换为纯文本字符串。
+        只提取role为"user"的消息内容，过滤掉assistant消息。
+
+        参数:
+            messages: 输入内容
+
+        返回:
+            str: 转换后的文本内容
+        """
+        parts: list[str] = []
+        for message in messages:
+            # 只处理用户消息，跳过assistant消息
+            if message.role != "user":
+                continue
+
+            # 处理字符串内容
+            if isinstance(message.content, str):
+                parts.append(message.content)
+            else:
+                for node in message.content:
+                    if isinstance(node, InputContent):
+                        parts.append(node.content)
+
+        # 默认转为字符串
+        return "\n".join(parts)

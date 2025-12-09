@@ -12,8 +12,8 @@
 - 个性化增强
 """
 
-from typing import Dict, Any, List
 from abc import ABC, abstractmethod
+from typing import Any
 
 from utils import LoggerMixin
 
@@ -22,7 +22,7 @@ class PromptStrategy(ABC):
     """提示词策略基类"""
 
     @abstractmethod
-    def generate(self, sentiment_result: Dict[str, Any], context: Dict[str, Any] = None) -> str:
+    def generate(self, sentiment_result: dict[str, Any], context: dict[str, Any] = None) -> str:
         """生成提示词"""
         pass
 
@@ -49,7 +49,7 @@ class ThresholdBasedStrategy(PromptStrategy):
             "very_negative": "客户情绪低落或愤怒，优先安抚情绪，耐心倾听问题。建议使用同理心强的方式化解负面情绪。"
         }
 
-    def generate(self, sentiment_result: Dict[str, Any], context: Dict[str, Any] = None) -> str:
+    def generate(self, sentiment_result: dict[str, Any], context: dict[str, Any] = None) -> str:
         """基于情感分值阈值生成提示词"""
         score = sentiment_result.get("score", 0.0)
         confidence = sentiment_result.get("confidence", 0.0)
@@ -147,7 +147,7 @@ class SentimentBasedStrategy(PromptStrategy):
             }
         }
 
-    def generate(self, sentiment_result: Dict[str, Any], context: Dict[str, Any] = None) -> str:
+    def generate(self, sentiment_result: dict[str, Any], context: dict[str, Any] = None) -> str:
         """生成基础情感提示词"""
         sentiment = sentiment_result.get("sentiment", "neutral")
         urgency = sentiment_result.get("urgency", "medium")
@@ -165,7 +165,7 @@ class SentimentBasedStrategy(PromptStrategy):
 
         return f"{base_prompt}{enhancement}{intensity_modifier}建议使用{tone}的沟通方式。"
 
-    def _get_default_config(self) -> Dict[str, str]:
+    def _get_default_config(self) -> dict[str, str]:
         """获取默认配置"""
         return {
             "base": "保持专业友好的态度，了解客户需求。",
@@ -189,7 +189,7 @@ class MultimodalEnhancedStrategy(PromptStrategy):
     def __init__(self):
         self.base_strategy = SentimentBasedStrategy()
 
-    def generate(self, sentiment_result: Dict[str, Any], context: Dict[str, Any] = None) -> str:
+    def generate(self, sentiment_result: dict[str, Any], context: dict[str, Any] = None) -> str:
         """生成多模态增强的提示词"""
         base_prompt = self.base_strategy.generate(sentiment_result, context)
 
@@ -202,7 +202,7 @@ class MultimodalEnhancedStrategy(PromptStrategy):
 
         return base_prompt
 
-    def _extract_multimodal_enhancements(self, context: Dict[str, Any]) -> str:
+    def _extract_multimodal_enhancements(self, context: dict[str, Any]) -> str:
         """提取多模态增强信息"""
         enhancements = []
 
@@ -235,7 +235,7 @@ class PersonalizedStrategy(PromptStrategy):
     def __init__(self):
         self.multimodal_strategy = MultimodalEnhancedStrategy()
 
-    def generate(self, sentiment_result: Dict[str, Any], context: Dict[str, Any] = None) -> str:
+    def generate(self, sentiment_result: dict[str, Any], context: dict[str, Any] = None) -> str:
         """生成个性化提示词"""
         base_prompt = self.multimodal_strategy.generate(sentiment_result, context)
 
@@ -244,7 +244,7 @@ class PersonalizedStrategy(PromptStrategy):
 
         return f"{base_prompt} {personalization}"
 
-    def _add_personalization(self, sentiment_result: Dict[str, Any], context: Dict[str, Any]) -> str:
+    def _add_personalization(self, sentiment_result: dict[str, Any], context: dict[str, Any]) -> str:
         """添加个性化维度"""
         personalizations = []
 
@@ -274,7 +274,7 @@ class SalesPromptGenerator(LoggerMixin):
 
     def __init__(self):
         super().__init__()
-        self.strategies: List[PromptStrategy] = [
+        self.strategies: list[PromptStrategy] = [
             ThresholdBasedStrategy(),  # 新增的阈值匹配策略（最高优先级）
             PersonalizedStrategy(),  # 个性化策略
             MultimodalEnhancedStrategy(),  # 多模态增强策略
@@ -282,8 +282,8 @@ class SalesPromptGenerator(LoggerMixin):
         ]
     def generate_prompt(
         self,
-        sentiment_result: Dict[str, Any],
-        multimodal_context: Dict[str, Any] = None
+        sentiment_result: dict[str, Any],
+        multimodal_context: dict[str, Any] = None
     ) -> str:
         """
         生成销售提示词
@@ -321,7 +321,7 @@ class SalesPromptGenerator(LoggerMixin):
         """获取默认提示词"""
         return "您好！我是您的美妆顾问，很高兴为您服务。请告诉我您的需求。"
 
-    def _get_fallback_prompt(self, sentiment_result: Dict[str, Any]) -> str:
+    def _get_fallback_prompt(self, sentiment_result: dict[str, Any]) -> str:
         """获取降级提示词"""
         sentiment = sentiment_result.get("sentiment", "neutral")
         urgency = sentiment_result.get("urgency", "medium")

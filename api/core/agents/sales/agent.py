@@ -90,14 +90,14 @@ class SalesAgent(BaseAgent):
             self.logger.info("=== Sales Agent 开始处理 ===")
 
 
-            customer_input = state.get("input")
-            tenant_id = state.get("tenant_id")
-            thread_id = str(state.get("thread_id"))
-            assistant_id = state.get("assistant_id")
-            user_context = state.get("context") # 获取用户上下文
+            customer_input = state.input
+            tenant_id = state.tenant_id
+            thread_id = str(state.thread_id)
+            assistant_id = state.assistant_id
+            user_context = state.context
 
-            matched_prompt = state.get("matched_prompt")
-            current_total_tokens = state.get("total_tokens", 0) or 0
+            matched_prompt = state.matched_prompt
+            current_total_tokens = state.total_tokens
 
             if not matched_prompt:
                 matched_prompt = {}
@@ -180,17 +180,6 @@ class SalesAgent(BaseAgent):
             self.logger.error(f"销售代理处理失败: {e}", exc_info=True)
             raise e
 
-    def _input_to_text(self, content) -> str:
-        """将输入转换为文本（参照 Chat Agent）"""
-        if isinstance(content, str):
-            return content
-        if isinstance(content, list):
-            parts: list[str] = []
-            for node in content:
-                value = getattr(node, "content", None)
-                parts.append(value if isinstance(value, str) else str(node))
-            return "\n".join(parts)
-        return str(content)
 
     async def __generate_final_response(
         self,
