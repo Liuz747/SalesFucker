@@ -14,7 +14,6 @@
 from typing import Dict, Any, List, Optional
 from .models import ComplianceRule
 from .types import RuleSeverity
-from .default_rules import get_default_rules
 
 
 class ComplianceRuleManager:
@@ -33,13 +32,6 @@ class ComplianceRuleManager:
         """初始化规则管理器"""
         self.rules: Dict[str, ComplianceRule] = {}
         self.categories: Dict[str, List[str]] = {}
-        self._load_default_rules()
-    
-    def _load_default_rules(self):
-        """加载默认规则"""
-        default_rules = get_default_rules()
-        for rule in default_rules:
-            self.add_rule(rule)
     
     def add_rule(self, rule: ComplianceRule) -> bool:
         """
