@@ -62,7 +62,7 @@ async def create_run(
         match thread.status:
             case ThreadStatus.IDLE:
                 thread.status = ThreadStatus.ACTIVE
-                thread = await ThreadService.update_thread(thread)
+                thread = await ThreadService.update_thread_status(thread)
             case ThreadStatus.ACTIVE:
                 pass
             case _:
@@ -207,7 +207,7 @@ async def create_background_run(
         match thread.status:
             case ThreadStatus.IDLE:
                 thread.status = ThreadStatus.ACTIVE
-                thread = await ThreadService.update_thread(thread)
+                thread = await ThreadService.update_thread_status(thread)
             case ThreadStatus.ACTIVE:
                 pass
             case _:

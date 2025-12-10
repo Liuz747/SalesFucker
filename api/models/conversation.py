@@ -9,7 +9,7 @@ from typing import Optional, Self
 from uuid import UUID
 
 from pydantic import BaseModel, Field
-from sqlalchemy import Column, DateTime, Enum, Integer, String, Uuid, func
+from sqlalchemy import ARRAY, Boolean, Column, DateTime, Enum, Integer, String, Uuid, func
 
 from libs.types import Sex
 from utils import get_current_datetime
@@ -31,6 +31,8 @@ class ThreadOrm(Base):
     age = Column(Integer, comment="客户年龄")
     phone = Column(String(32), index=True, comment="客户电话")
     occupation = Column(String(128), comment="客户职业")
+    services = Column(ARRAY(String), default=[], comment="客户已消费的服务列表")
+    is_converted = Column(Boolean, default=False, comment="客户是否已转化（已消费）")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
@@ -47,6 +49,8 @@ class Thread(BaseModel):
     age: Optional[int] = Field(None, description="客户年龄")
     phone: Optional[str] = Field(None, description="客户电话")
     occupation: Optional[str] = Field(None, description="客户职业")
+    services: list[str] = Field(default_factory=list, description="客户已消费的服务列表")
+    is_converted: bool = Field(default=False, description="客户是否已转化（已消费）")
     created_at: datetime = Field(default_factory=get_current_datetime, description="创建时间")
     updated_at: datetime = Field(default_factory=get_current_datetime, description="更新时间")
 
@@ -63,6 +67,8 @@ class Thread(BaseModel):
             age=thread_orm.age,
             phone=thread_orm.phone,
             occupation=thread_orm.occupation,
+            services=thread_orm.services or [],
+            is_converted=thread_orm.is_converted or False,
             created_at=thread_orm.created_at,
             updated_at=thread_orm.updated_at
         )
@@ -79,6 +85,8 @@ class Thread(BaseModel):
             age=self.age,
             phone=self.phone,
             occupation=self.occupation,
+            services=self.services,
+            is_converted=self.is_converted,
             created_at=self.created_at,
             updated_at=self.updated_at
         )

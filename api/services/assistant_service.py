@@ -19,9 +19,8 @@ from libs.types import AccountStatus
 from libs.factory import infra_registry
 from models import AssistantModel
 from repositories.assistant_repo import AssistantRepository
-from repositories.tenant_repo import TenantRepository
-from schemas.exceptions import TenantNotFoundException, AssistantNotFoundException
-from schemas.assistants_schema import AssistantCreateRequest, AssistantUpdateRequest
+from schemas import AssistantCreateRequest, AssistantUpdateRequest
+from schemas.exceptions import AssistantNotFoundException, TenantNotFoundException, TenantValidationException
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "AssistantService")
@@ -47,12 +46,7 @@ class AssistantService:
         """
         try:
             async with database_session() as session:
-                # 1. 先查询 tenant 是否存在
-                tenant_orm = await TenantRepository.get_tenant_by_id(request.tenant_id, session)
-                if not tenant_orm:
-                    raise TenantNotFoundException(tenant_id=request.tenant_id)
-
-                # 2. 创建助理数据
+                # 1. 创建助理数据
                 assistant_model = AssistantModel(
                     assistant_name=request.assistant_name,
                     nickname=request.nickname,
@@ -70,7 +64,7 @@ class AssistantService:
                     last_active_at=None
                 )
 
-                # 3. 存储助理数据
+                # 2. 存储助理数据
                 assistant_orm = await AssistantRepository.insert_assistant(assistant_model, session)
                 if not assistant_orm:
                     raise Exception("AssistantRepository.insert_assistant failed")
@@ -148,6 +142,7 @@ class AssistantService:
 
     @staticmethod
     async def update_assistant(
+        tenant_id: str,
         assistant_id: UUID,
         request: AssistantUpdateRequest
     ) -> AssistantModel:
@@ -167,6 +162,9 @@ class AssistantService:
                 if not assistant_orm:
                     raise AssistantNotFoundException(assistant_id)
 
+                if assistant_orm.tenant_id != tenant_id:
+                    raise TenantValidationException(tenant_id, reason=f"助理不属于当前租户")
+
                 # 仅更新用户提供的字段
                 update_data = request.model_dump(exclude_unset=True)
                 for field, value in update_data.items():
@@ -184,6 +182,8 @@ class AssistantService:
             return assistant_model
 
         except AssistantNotFoundException:
+            raise
+        except TenantValidationException:
             raise
         except Exception as e:
             logger.error(f"助理更新失败: {e}")

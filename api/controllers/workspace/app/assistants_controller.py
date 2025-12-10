@@ -170,17 +170,7 @@ async def update_assistant(
     try:
         logger.info(f"更新助理请求: assistant={assistant_id}")
 
-        # 验证租户ID匹配
-        if request.tenant_id != tenant.tenant_id:
-            raise HTTPException(
-                status_code=403,
-                detail="租户ID不匹配，无法访问"
-            )
-
-        result = await AssistantService.update_assistant(assistant_id, request)
-
-        if not result:
-            raise AssistantNotFoundException(assistant_id)
+        await AssistantService.update_assistant(tenant.tenant_id, assistant_id, request)
 
         logger.info(f"助理更新成功: {assistant_id}")
         return BaseResponse(message="助理更新成功")

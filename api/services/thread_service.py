@@ -18,6 +18,8 @@ from typing import Optional
 from infra.db import database_session
 from libs.factory import infra_registry
 from repositories.thread_repo import ThreadRepository, Thread
+from schemas import ThreadPayload
+from schemas.exceptions import ThreadNotFoundException, TenantValidationException
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "ThreadService")
@@ -97,7 +99,7 @@ class ThreadService:
             return None
     
     @staticmethod
-    async def update_thread(thread: Thread) -> Thread:
+    async def update_thread_status(thread: Thread) -> Thread:
         """更新线程"""
         try:
             thread_orm = thread.to_orm()
@@ -123,12 +125,45 @@ class ThreadService:
             raise
 
     @staticmethod
-    async def update_thread_records():
+    async def update_thread_info(tenant_id: str, thread_id: UUID, request: ThreadPayload):
         """
-        更新线程记忆记录
+        更新线程客户会话信息
 
         参数:
 
         返回:
         """
-        pass
+        try:
+            # 获取现有线程
+            async with database_session() as session:
+                thread_orm = await ThreadRepository.get_thread(thread_id, session)
+                if not thread_orm:
+                    raise ThreadNotFoundException(thread_id)
+
+                if thread_orm.tenant_id != tenant_id:
+                    raise TenantValidationException(tenant_id, "租户ID不匹配，无法访问此线程")
+
+                # 更新线程信息
+                updated_thread = request.model_dump(exclude_unset=True)
+                for key, value in updated_thread.items():
+                    setattr(thread_orm, key, value)
+
+                updated_thread_orm = await ThreadRepository.update_thread_model(thread_orm, session)
+                logger.info(f"线程更新成功: {updated_thread_orm.thread_id}")
+
+                thread_model = Thread.to_model(updated_thread_orm)
+
+            redis_client = infra_registry.get_cached_clients().redis
+            asyncio.create_task(ThreadRepository.update_thread_cache(thread_model, redis_client))
+
+            return thread_model
+
+        except ThreadNotFoundException as e:
+            logger.error(f"线程不存在: {e}")
+            raise
+        except TenantValidationException as e:
+            logger.error(f"租户ID不匹配: {e}")
+            raise
+        except Exception as e:
+            logger.error(f"线程更新失败: {e}")
+            raise

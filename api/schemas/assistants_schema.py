@@ -56,7 +56,6 @@ class AssistantUpdateRequest(BaseModel):
     更新AI员工请求模型
     """
 
-    tenant_id: str = Field(description="租户标识符")
     assistant_name: Optional[str] = Field(None, description="助理姓名", min_length=1, max_length=100)
     nickname: Optional[str] = Field(None, description="助理昵称", max_length=100)
     address: Optional[str] = Field(None, description="助理地址", max_length=500)
@@ -71,13 +70,6 @@ class AssistantUpdateRequest(BaseModel):
 
 
 # 响应模型
-class AssistantDeleteResponse(BaseModel):
-    """
-    删除助理响应模型
-    """
-    is_delete: bool = Field(description="是否有删除操作")
-
-
 class AssistantCreateResponse(BaseResponse):
     """
     创建助理响应模型

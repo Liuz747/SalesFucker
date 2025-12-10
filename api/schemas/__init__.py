@@ -1,5 +1,5 @@
 from .assistants_schema import AssistantCreateRequest, AssistantUpdateRequest, AssistantCreateResponse
-from .conversation_schema import ThreadCreateRequest, ThreadCreateResponse
+from .conversation_schema import ThreadPayload, ThreadCreateResponse
 from .responses import BaseResponse
 from .tenant_schema import TenantSyncRequest, TenantUpdateRequest
 
@@ -10,6 +10,6 @@ __all__ = [
     "BaseResponse",
     "TenantSyncRequest",
     "TenantUpdateRequest",
-    "ThreadCreateRequest",
+    "ThreadPayload",
     "ThreadCreateResponse"
 ]

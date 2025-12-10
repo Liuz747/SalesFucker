@@ -22,7 +22,7 @@ from config import mas_config
 from core.tasks.workflows import GreetingWorkflow
 from libs.factory import infra_registry
 from models import Thread, ThreadStatus, TenantModel
-from schemas import ThreadCreateRequest, ThreadCreateResponse
+from schemas import BaseResponse, ThreadPayload, ThreadCreateResponse
 from services import ThreadService
 from utils import get_component_logger
 from ..wraps import validate_and_get_tenant
@@ -40,7 +40,7 @@ router.include_router(analysis_router, prefix="/{thread_id}", tags=["analysis"])
 
 @router.post("", response_model=ThreadCreateResponse)
 async def create_thread(
-    request: ThreadCreateRequest,
+    request: ThreadPayload,
     tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)]
 ):
     """
@@ -50,19 +50,17 @@ async def create_thread(
     性能目标: < 5ms 响应时间
     """
     try:
-        # 生成线程ID
-        thread_id = request.thread_id
-        
         # 创建业务模型对象
         thread = Thread(
-            thread_id=thread_id,
             tenant_id=tenant.tenant_id,
             status=ThreadStatus.IDLE,
             name=request.name,
             sex=request.sex,
             age=request.age,
             phone=request.phone,
-            occupation=request.occupation
+            occupation=request.occupation,
+            services=request.services or [],
+            is_converted=request.is_converted or False
         )
         
         thread_id = await ThreadService.create_thread(thread)
@@ -122,12 +120,39 @@ async def get_thread(
             "age": thread.age,
             "phone": thread.phone,
             "occupation": thread.occupation,
+            "services": thread.services,
+            "is_converted": thread.is_converted,
             "created_at": thread.created_at,
             "updated_at": thread.updated_at
         }
-        
+
     except Exception as e:
         logger.error(f"线程获取失败: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/{thread_id}")
+async def update_thread(
+    thread_id: UUID,
+    request: ThreadPayload,
+    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)]
+):
+    """
+    更新线程客户信息
+
+    更新线程关联的客户基本信息和消费信息。
+    仅更新请求中提供的非空字段。
+    """
+    try:
+        # 更新线程
+        await ThreadService.update_thread_info(tenant.tenant_id, thread_id, request)
+
+        return BaseResponse(message="线程更新成功")
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"线程更新失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
 

@@ -87,7 +87,7 @@ class BackgroundWorkflowProcessor:
             if thread:
                 thread.assistant_id = assistant_id
                 thread.status = ThreadStatus.PROCESSING
-                await ThreadService.update_thread(thread)
+                await ThreadService.update_thread_status(thread)
                 logger.debug(f"线程状态更新为处理中: {thread_id}")
 
             # 创建工作流执行模型
@@ -115,7 +115,7 @@ class BackgroundWorkflowProcessor:
             # 更新线程状态为完成
             if thread:
                 thread.status = ThreadStatus.COMPLETED
-                await ThreadService.update_thread(thread)
+                await ThreadService.update_thread_status(thread)
                 logger.debug(f"线程状态更新为完成: {thread_id}")
 
             logger.info(f"工作流处理完成 - 运行: {run_id}, 工作流: {run_id}, 耗时: {processing_time:.2f}ms")
@@ -147,5 +147,5 @@ class BackgroundWorkflowProcessor:
             thread = await ThreadService.get_thread(thread_id)
             if thread:
                 thread.status = ThreadStatus.FAILED
-                await ThreadService.update_thread(thread)
+                await ThreadService.update_thread_status(thread)
                 logger.debug(f"线程状态更新为失败: {thread_id}")
