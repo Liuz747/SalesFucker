@@ -17,7 +17,7 @@ from core.entities import WorkflowExecutionModel
 from core.memory import StorageManager
 from core.prompts.utils.get_role_prompt import get_role_prompt
 from infra.runtimes import CompletionsRequest
-from libs.types import Message, MessageParams, InputContent, InputType
+from libs.types import Message
 from utils import get_current_datetime
 from ..base import BaseAgent
 
@@ -113,7 +113,7 @@ class SalesAgent(BaseAgent):
             self.logger.info(f"sales agent 匹配提示词: {matched_prompt.get('matched_key', 'unknown')}")
 
             # 解析用户输入为文本
-            user_text, _ = self._parse_input(customer_input)
+            user_text = self._input_to_text(customer_input)
             short_term_messages, long_term_memories = await self.memory_manager.retrieve_context(
                 tenant_id=tenant_id,
                 thread_id=thread_id,
@@ -121,13 +121,10 @@ class SalesAgent(BaseAgent):
             )
             self.logger.info(f"记忆检索完成 - 短期: {len(short_term_messages)} 条, 长期: {len(long_term_memories)} 条")
 
-            # 按照设计模式，用户上下文通过memory manager获取
-            # 目前用户档案信息暂未集成到工作流中
-            formatted_context = ""
 
-            # 生成个性化回复（基于匹配的提示词 + 人设 + 记忆 + 用户上下文）
+            # 生成个性化回复（基于匹配的提示词 + 人设 + 记忆）
             sales_response, token_info = await self.__generate_final_response(
-                user_text, matched_prompt, role_prompt, short_term_messages, long_term_memories, formatted_context
+                user_text, matched_prompt, role_prompt, short_term_messages, long_term_memories
             )
 
             # 存储助手回复到记忆
@@ -184,8 +181,7 @@ class SalesAgent(BaseAgent):
         matched_prompt: dict,
         role_prompt: Message,
         short_term_messages: list,
-        long_term_memories: list,
-        formatted_context: str = ""
+        long_term_memories: list
     ) -> tuple[str, dict]:
         """
         基于匹配提示词、人设信息和记忆生成回复
@@ -196,7 +192,6 @@ class SalesAgent(BaseAgent):
             role_prompt: 助理人设提示词（从get_role_prompt获取）
             short_term_messages: 短期记忆消息列表
             long_term_memories: 长期记忆摘要列表
-            formatted_context: 格式化后的用户上下文字符串
 
         Returns:
             tuple: (回复内容, token信息)
@@ -207,9 +202,9 @@ class SalesAgent(BaseAgent):
             tone = matched_prompt.get("tone", "专业、友好")
             strategy = matched_prompt.get("strategy", "标准服务")
 
-            # 2. 整合人设信息、长期记忆和用户上下文到系统提示
+            # 2. 整合人设信息、长期记忆到系统提示
             enhanced_system_prompt = self._build_system_prompt_with_memory(
-                base_system_prompt, tone, strategy, role_prompt, long_term_memories, formatted_context
+                base_system_prompt, tone, strategy, role_prompt, long_term_memories
             )
 
             # 3. 构建消息列表（直接使用记忆消息）
@@ -244,7 +239,7 @@ class SalesAgent(BaseAgent):
             return self._get_fallback_response(matched_prompt), {"tokens_used": 0, "error": str(e)}
 
     def _build_system_prompt_with_memory(
-        self, base_prompt: str, tone: str, strategy: str, role_prompt: Message, summaries: list, formatted_context: str = ""
+        self, base_prompt: str, tone: str, strategy: str, role_prompt: Message, summaries: list
     ) -> str:
         """
         构建增强的系统提示词
@@ -255,7 +250,6 @@ class SalesAgent(BaseAgent):
             strategy: 策略要求
             role_prompt: 助理人设提示词
             summaries: 长期记忆摘要列表
-            formatted_context: 格式化后的用户上下文
 
         Returns:
             str: 增强后的系统提示词
@@ -294,10 +288,6 @@ class SalesAgent(BaseAgent):
 - 根据客户历史适度调整策略
             """.strip()
 
-        # 添加用户档案（如果有）
-        if formatted_context:
-            enhanced_prompt += f"\n\n{formatted_context}"
-
         # 添加长期记忆（如果有）
         if summaries:
             memory_lines = []
@@ -318,11 +308,17 @@ class SalesAgent(BaseAgent):
     def _extract_token_info(self, llm_response) -> dict:
         """提取 token 使用信息"""
         try:
-            token_usage = getattr(llm_response, "usage", {}) or {}
-            input_tokens = token_usage.get("input_tokens", 0)
-            output_tokens = token_usage.get("output_tokens", 0)
-            total_tokens = token_usage.get("total_tokens", input_tokens + output_tokens)
-            
+            # 直接访问TokenUsage dataclass的属性（与chat agent保持一致）
+            if hasattr(llm_response, 'usage') and llm_response.usage:
+                input_tokens = llm_response.usage.input_tokens
+                output_tokens = llm_response.usage.output_tokens
+                total_tokens = input_tokens + output_tokens
+            else:
+                # fallback: 如果没有usage信息，设为0
+                input_tokens = 0
+                output_tokens = 0
+                total_tokens = 0
+
             return {
                 "tokens_used": total_tokens,
                 "input_tokens": input_tokens,
@@ -331,8 +327,7 @@ class SalesAgent(BaseAgent):
             }
         except Exception as e:
             self.logger.warning(f"Token 信息提取失败: {e}")
-
-        return {"tokens_used": 0, "input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+            return {"tokens_used": 0, "input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
 
     def _get_fallback_response(self, matched_prompt: dict) -> str:
         """获取兜底回复"""
@@ -344,30 +339,4 @@ class SalesAgent(BaseAgent):
             return "太好了！"
         else:
             return "感谢您的咨询。"
-
-    def _parse_input(self, messages: MessageParams) -> tuple[str, set[InputType]]:
-        """
-        解析输入消息列表，提取文本内容和检测内容类型
-
-        Args:
-            messages: 消息列表 (MessageParams)
-
-        Returns:
-            tuple[str, set[InputType]]: (合并后的文本内容, 检测到的输入类型集合)
-        """
-        parts: list[str] = []
-        types: set[InputType] = set()
-
-        for message in messages:
-            content = message.content
-            if isinstance(content, str):
-                parts.append(f"{message.role}: {content}")
-                types.add(InputType.TEXT)
-            else:
-                for item in content:
-                    if isinstance(item, InputContent):
-                        parts.append(f"{message.role}: {item.content}")
-                        types.add(item.type)
-
-        return "\n".join(parts), types
 
