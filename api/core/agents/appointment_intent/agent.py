@@ -207,7 +207,7 @@ class AppointmentIntentAgent(BaseAgent):
                 }
             }
 
-    def _update_state_with_intent(self, state: dict, intent_result: dict, recent_messages: list[str]) -> dict:
+    def _update_state_with_intent(self, state: WorkflowExecutionModel, intent_result: dict, recent_messages: list[str]) -> dict:
         """
         更新状态，添加邀约意向信息
 
@@ -226,17 +226,6 @@ class AppointmentIntentAgent(BaseAgent):
             "input_tokens": intent_result.get("input_tokens", 0),
             "output_tokens": intent_result.get("output_tokens", 0),
             "total_tokens": intent_result.get("total_tokens", intent_result.get("tokens_used", 0))
-        }
-
-        # 创建标准化的Agent响应数据 (原TokenManager逻辑)
-        agent_response_data = {
-            "agent_id": self.agent_id,
-            "agent_type": "appointment_intent",
-            "response": str(intent_result),
-            "token_usage": token_info,
-            "tokens_used": token_info["total_tokens"],
-            "response_length": len(str(intent_result)),
-            "timestamp": current_time
         }
 
         # 核心传递字段：appointment_intent
@@ -258,15 +247,14 @@ class AppointmentIntentAgent(BaseAgent):
         )
 
         # 状态更新 - 直接设置到model字段避免并发冲突
-        state["appointment_intent"] = appointment_intent
-        state["business_outputs"] = business_outputs  # 新增：设置业务输出
-        state["values"] = state.get("values", {})
+        state.appointment_intent = appointment_intent
+        state.business_outputs = business_outputs  # 新增：设置业务输出
 
         # 备份存储在 values 结构中
-        if state.get("values") is None:
-            state["values"] = {}
-        if state["values"].get("agent_responses") is None:
-            state["values"]["agent_responses"] = {}
+        if state.values is None:
+            state.values = {}
+        if state.values.get("agent_responses") is None:
+            state.values["agent_responses"] = {}
 
         agent_data = {
             "agent_type": "appointment_intent",
@@ -279,21 +267,21 @@ class AppointmentIntentAgent(BaseAgent):
             "response_length": len(str(intent_result))
         }
 
-        state["values"]["agent_responses"][self.agent_id] = agent_data
+        state.values["agent_responses"][self.agent_id] = agent_data
 
         # 更新活跃智能体列表
-        active_agents = state.get("active_agents")
+        active_agents = state.active_agents
         if active_agents is None:
             active_agents = []
         active_agents.append(self.agent_id)
-        state["active_agents"] = active_agents
+        state.active_agents = active_agents
 
         self.logger.info(f"appointment intent 字段已添加: strength={appointment_intent['intent_strength']}, "
                         f"window={appointment_intent['time_window']}")
         
         # 添加 token 计数到顶层状态
-        state["input_tokens"] = token_info["input_tokens"]
-        state["output_tokens"] = token_info["output_tokens"]
+        state.input_tokens = token_info["input_tokens"]
+        state.output_tokens = token_info["output_tokens"]
 
         return state
 
