@@ -239,14 +239,13 @@ class MaterialIntentAgent(BaseAgent):
         }
 
         # 状态更新 - 直接设置到model字段避免并发冲突
-        state["material_intent"] = material_intent
-        state["values"] = state.get("values", {})
+        state.material_intent = material_intent
 
         # 备份存储在 values 结构中
-        if state.get("values") is None:
-            state["values"] = {}
-        if state["values"].get("agent_responses") is None:
-            state["values"]["agent_responses"] = {}
+        if state.values is None:
+            state.values = {}
+        if state.values.get("agent_responses") is None:
+            state.values["agent_responses"] = {}
 
         agent_data = {
             "agent_type": "material_intent",
@@ -259,63 +258,20 @@ class MaterialIntentAgent(BaseAgent):
             "response_length": len(str(intent_result))
         }
 
-        state["values"]["agent_responses"][self.agent_id] = agent_data
+        state.values["agent_responses"][self.agent_id] = agent_data
 
         # 更新活跃智能体列表
-        active_agents = state.get("active_agents")
+        active_agents = state.active_agents
         if active_agents is None:
             active_agents = []
         active_agents.append(self.agent_id)
-        state["active_agents"] = active_agents
+        state.active_agents = active_agents
 
         self.logger.info(f"material intent 字段已添加: urgency={material_intent['urgency_level']}, "
                         f"types={len(material_intent['material_types'])}")
 
         # 添加 token 计数到顶层状态
-        state["input_tokens"] = token_info["input_tokens"]
-        state["output_tokens"] = token_info["output_tokens"]
+        state.input_tokens = token_info["input_tokens"]
+        state.output_tokens = token_info["output_tokens"]
 
         return state
-
-    # def _create_fallback_state(self, state: dict) -> dict:
-    #     """
-    #     创建降级处理状态
-
-    #     Args:
-    #         state: 原始状态
-
-    #     Returns:
-    #         dict: 包含默认意向信息的状态
-    #     """
-    #     current_time = get_current_datetime()
-
-    #     # 默认无需求状态
-    #     material_intent = {
-    #         "urgency_level": "low",
-    #         "material_types": [],
-    #         "priority_score": 0.0,
-    #         "confidence": 0.0,
-    #         "specific_requests": [],
-    #         "recommendation": "no_material",
-    #         "analyzed_message_count": 0,
-    #         "analysis_timestamp": current_time.isoformat(),
-    #         "fallback": True
-    #     }
-
-    #     state["material_intent"] = material_intent
-
-    #     # 简化的values存储
-    #     if state.get("values") is None:
-    #         state["values"] = {}
-    #     if state["values"].get("agent_responses") is None:
-    #         state["values"]["agent_responses"] = {}
-
-    #     state["values"]["agent_responses"][self.agent_id] = {
-    #         "agent_type": "material_intent",
-    #         "material_intent": material_intent,
-    #         "timestamp": current_time,
-    #         "fallback": True,
-    #         "error": "processing_failed"
-    #     }
-
-    #     return state

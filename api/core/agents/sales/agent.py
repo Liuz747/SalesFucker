@@ -17,7 +17,7 @@ from core.entities import WorkflowExecutionModel
 from core.memory import StorageManager
 from core.prompts.utils.get_role_prompt import get_role_prompt
 from infra.runtimes import CompletionsRequest
-from libs.types import Message
+from libs.types import Message, MessageParams, InputContent, InputType
 from utils import get_current_datetime
 from ..base import BaseAgent
 
@@ -93,8 +93,7 @@ class SalesAgent(BaseAgent):
             tenant_id = state.tenant_id
             thread_id = str(state.thread_id)
             assistant_id = state.assistant_id
-            user_context = state.context
-
+    
             matched_prompt = state.matched_prompt
             current_total_tokens = state.total_tokens
 
@@ -113,8 +112,8 @@ class SalesAgent(BaseAgent):
 
             self.logger.info(f"sales agent 匹配提示词: {matched_prompt.get('matched_key', 'unknown')}")
 
-            # 直接检索记忆上下文
-            user_text = self._input_to_text(customer_input)
+            # 解析用户输入为文本
+            user_text, _ = self._parse_input(customer_input)
             short_term_messages, long_term_memories = await self.memory_manager.retrieve_context(
                 tenant_id=tenant_id,
                 thread_id=thread_id,
@@ -122,10 +121,9 @@ class SalesAgent(BaseAgent):
             )
             self.logger.info(f"记忆检索完成 - 短期: {len(short_term_messages)} 条, 长期: {len(long_term_memories)} 条")
 
-            # 格式化用户上下文
-            formatted_context = self._format_user_context(user_context) if user_context else ""
-            if formatted_context:
-                self.logger.info("已注入用户上下文信息")
+            # 按照设计模式，用户上下文通过memory manager获取
+            # 目前用户档案信息暂未集成到工作流中
+            formatted_context = ""
 
             # 生成个性化回复（基于匹配的提示词 + 人设 + 记忆 + 用户上下文）
             sales_response, token_info = await self.__generate_final_response(
@@ -346,4 +344,30 @@ class SalesAgent(BaseAgent):
             return "太好了！"
         else:
             return "感谢您的咨询。"
+
+    def _parse_input(self, messages: MessageParams) -> tuple[str, set[InputType]]:
+        """
+        解析输入消息列表，提取文本内容和检测内容类型
+
+        Args:
+            messages: 消息列表 (MessageParams)
+
+        Returns:
+            tuple[str, set[InputType]]: (合并后的文本内容, 检测到的输入类型集合)
+        """
+        parts: list[str] = []
+        types: set[InputType] = set()
+
+        for message in messages:
+            content = message.content
+            if isinstance(content, str):
+                parts.append(f"{message.role}: {content}")
+                types.add(InputType.TEXT)
+            else:
+                for item in content:
+                    if isinstance(item, InputContent):
+                        parts.append(f"{message.role}: {item.content}")
+                        types.add(item.type)
+
+        return "\n".join(parts), types
 

@@ -179,6 +179,10 @@ class WorkflowExecutionModel(BaseModel):
 
     active_agents: Annotated[Optional[list], merge_list] = Field(default=None)
 
+    # 工作流状态字段
+    journey_stage: Optional[str] = Field(default=None, description="客户旅程阶段")
+    matched_prompt: Optional[dict] = Field(default=None, description="匹配的提示词信息")
+
     model_config = {
         "arbitrary_types_allowed": True
     }
