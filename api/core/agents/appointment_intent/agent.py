@@ -14,6 +14,7 @@ from langfuse import observe
 
 from typing import Optional
 
+from core.entities import WorkflowExecutionModel
 from core.memory import StorageManager
 from utils import get_current_datetime
 from ..base import BaseAgent
@@ -48,7 +49,7 @@ class AppointmentIntentAgent(BaseAgent):
         )
 
     @observe(name="appointment-intent-analysis", as_type="generation")
-    async def process_conversation(self, state: dict) -> dict:
+    async def process_conversation(self, state: WorkflowExecutionModel) -> dict:
         """
         处理对话状态中的邀约到店意向分析
 
@@ -70,17 +71,13 @@ class AppointmentIntentAgent(BaseAgent):
         try:
             self.logger.info("=== Appointment Intent Agent ===")
 
-            customer_input = state.get("customer_input", "")
-            tenant_id = state.get("tenant_id")
-            thread_id = state.get("thread_id")
-
-            self.logger.debug(f"分析邀约意向 - 输入: {str(customer_input)[:100]}...")
+            self.logger.debug(f"分析邀约意向 - 输入: {str(state.input)[:100]}...")
 
             # 步骤1: 检索记忆上下文（近5轮对话）
-            user_text = self._input_to_text(customer_input)
+            user_text = self._input_to_text(state.input)
             short_term_messages, long_term_memories = await self.memory_manager.retrieve_context(
-                tenant_id=tenant_id,
-                thread_id=thread_id,
+                tenant_id=state.tenant_id,
+                thread_id=state.thread_id,
                 query_text=user_text,
             )
 
@@ -115,7 +112,7 @@ class AppointmentIntentAgent(BaseAgent):
 
         except Exception as e:
             self.logger.error(f"邀约意向分析失败: {e}", exc_info=True)
-            self.logger.error(f"失败时的输入: {state.get('customer_input', 'None')}")
+            self.logger.error(f"失败时的输入: {state.input}")
             # 降级处理：返回无意向状态
             return self._create_fallback_state(state)
 
