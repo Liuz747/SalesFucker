@@ -40,7 +40,7 @@ Add extra services as needed:
 ```bash
 cd mas-v0.2/api
 uv run uvicorn main:app --reload
-# or uv run python main.py
+# or uv run main.py
 ```
 FastAPI will listen on `http://localhost:8000`. Verify with:
 - `http://localhost:8000/` – basic status payload
@@ -53,9 +53,9 @@ uv run pytest
 uv run pytest test/agents/test_agents.py
 
 # Database migrations
-uv run python scripts/database.py                     # upgrade to head
-uv run python scripts/database.py revision "add foo"  # autogenerate revision
-uv run python scripts/database.py downgrade -1        # roll back
+uv run scripts/database.py                     # upgrade to head
+uv run scripts/database.py revision "add foo"  # autogenerate revision
+uv run scripts/database.py downgrade -1        # roll back
 ```
 See `docs/database_migrations.md` for detailed team workflow guidance.
 

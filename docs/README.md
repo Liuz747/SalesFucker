@@ -32,7 +32,7 @@ mas-v0.2/
 ## Backend Quick Start
 
 ### Prerequisites
-- Python 3.11+
+- Python 3.13+
 - [uv](https://docs.astral.sh/uv/) package manager (`curl -LsSf https://astral.sh/uv/install.sh | sh`)
 - Docker & Docker Compose (optional, for local dependencies)
 - At least one valid LLM API key (OpenAI, Anthropic, Gemini, or OpenRouter)
@@ -56,7 +56,7 @@ mas-v0.2/
 5. Launch the API:
    ```bash
    uv run uvicorn main:app --reload
-   # or uv run python main.py
+   # or uv run main.py
    ```
 6. Visit `http://localhost:8000/docs` for the interactive API reference.
 
@@ -74,9 +74,9 @@ uv run pytest --cov=. --cov-report=term-missing
 Use `api/scripts/database.py` for Alembic workflows:
 ```bash
 cd api
-uv run python scripts/database.py                     # upgrade to head
-uv run python scripts/database.py revision "add foo"  # auto-generate revision
-uv run python scripts/database.py downgrade -1        # roll back one revision
+uv run scripts/database.py                     # upgrade to head
+uv run scripts/database.py revision "add foo"  # auto-generate revision
+uv run scripts/database.py downgrade -1        # roll back one revision
 ```
 Existing revisions are stored in `api/migrations/versions/6ee06edc35dd_modify_data_model.py`. See `docs/database_migrations.md` for collaboration tips.
 
@@ -86,7 +86,6 @@ Existing revisions are stored in `api/migrations/versions/6ee06edc35dd_modify_da
 - `/v1/threads/*` – thread creation plus synchronous/async LangGraph runs
 - `/v1/messages/*` – direct access to the lightweight `LLMClient`
 - `/v1/assistants/*` – CRUD for agent assistants
-- `/v1/prompts/*` – prompt versioning, testing, cloning, and rollback
 - `/v1/social-media/*` – utilities for comments, replies, keyword extraction, chat, and prompt reload
 - `/v1/tenants/*` – tenant synchronisation from upstream systems
 
