@@ -16,4 +16,4 @@ class ThreadStatus(StrEnum):
     PROCESSING = "PROCESSING"
     FAILED = "FAILED"
     PAUSED = "PAUSED"
-    DELETED = "DELETED"
+    COMPLETED = "COMPLETED"
