@@ -82,10 +82,10 @@ class ChatWorkflow(BaseWorkflow):
 
         使用LangGraph编译时状态定义，确保Reducer函数正确应用。
         """
-        from core.entities import WorkflowState
+        from core.entities import WorkflowExecutionModel
 
         # 使用编译时状态定义构建图
-        graph = StateGraph(WorkflowState)
+        graph = StateGraph(WorkflowExecutionModel)
 
         # 注册节点
         self._register_nodes(graph)
@@ -197,10 +197,9 @@ class ChatWorkflow(BaseWorkflow):
         通用智能体节点处理方法
 
         统一处理智能体调用和错误处理，支持LangGraph的并发状态管理。
-        确保agents接收字典类型状态，而不是WorkflowExecutionModel对象。
 
         参数:
-            state: 当前对话状态（可能是WorkflowExecutionModel或dict）
+            state: 当前对话状态
             node_name: 节点名称
 
         返回:
@@ -212,23 +211,7 @@ class ChatWorkflow(BaseWorkflow):
             raise ValueError(f"Agent '{node_name}' not found")
 
         try:
-            # 关键修复：确保传递给agents的是字典状态
-            if hasattr(state, 'model_dump'):
-                # 如果是Pydantic模型，转换为字典
-                agent_state = state.model_dump(mode='json')
-            elif isinstance(state, dict):
-                # 如果已经是字典，直接使用
-                agent_state = state.copy()
-            else:
-                # 其他情况，转换为字符串作为字典值
-                agent_state = {"state": str(state)}
-
-            # 确保有customer_input字段
-            if "customer_input" not in agent_state and "input" in agent_state:
-                agent_state["customer_input"] = agent_state["input"]
-
-            # 执行agent处理
-            result_state = await agent.process_conversation(agent_state)
+            result_state = await agent.process_conversation(state)
 
             if not isinstance(result_state, dict):
                 logger.warning(f"Agent {node_name} 返回非字典结果: {type(result_state)}")
@@ -271,14 +254,11 @@ class ChatWorkflow(BaseWorkflow):
                 update_dict["values"] = result_state["values"]
             else:
                 # 只有当agent没有返回values时（异常情况），才尝试手动构造
-                if isinstance(state, dict):
-                    values_update = state.get("values", {}).copy()
-                else:
-                    values_update = {}
+                values_update = (state.values or {}).copy() if state.values else {}
                 
                 if "agent_responses" not in values_update:
                     values_update["agent_responses"] = {}
-                
+
                 # 只有当result_state看起来不像完整状态时才添加
                 # 避免将整个状态树作为agent响应
                 is_full_state = "workflow_id" in result_state or "thread_id" in result_state
@@ -290,7 +270,7 @@ class ChatWorkflow(BaseWorkflow):
             if "active_agents" in result_state:
                 update_dict["active_agents"] = result_state["active_agents"]
             else:
-                current_active = state.get("active_agents") if isinstance(state, dict) else []
+                current_active = state.active_agents or []
                 if node_name not in current_active:
                     update_dict["active_agents"] = current_active + [node_name]
 

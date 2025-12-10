@@ -89,7 +89,6 @@ class SalesAgent(BaseAgent):
         try:
             self.logger.info("=== Sales Agent 开始处理 ===")
 
-
             customer_input = state.input
             tenant_id = state.tenant_id
             thread_id = str(state.thread_id)
