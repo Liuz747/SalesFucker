@@ -152,13 +152,12 @@ class SalesAgent(BaseAgent):
                 "sales_response": sales_response,
                 "response": sales_response,  # 标准化的响应字段
                 "token_usage": token_usage,  # 标准化的token信息
-                "tokens_used": token_usage["total_tokens"],  # 向后兼容
                 "timestamp": get_current_datetime(),
                 "response_length": len(sales_response)
             }
 
             processing_time = (get_current_datetime() - start_time).total_seconds()
-            self.logger.info(f"最终回复生成完成: 耗时{processing_time:.2f}s, 长度={len(sales_response)}, tokens={token_info.get('tokens_used', 0)}")
+            self.logger.info(f"最终回复生成完成: 耗时{processing_time:.2f}s, 长度={len(sales_response)}, tokens={token_info.get('total_tokens', 0)}")
             self.logger.info("=== Sales Agent 处理完成 ===")
 
             return {
@@ -308,26 +307,19 @@ class SalesAgent(BaseAgent):
     def _extract_token_info(self, llm_response) -> dict:
         """提取 token 使用信息"""
         try:
-            # 直接访问TokenUsage dataclass的属性（与chat agent保持一致）
-            if hasattr(llm_response, 'usage') and llm_response.usage:
-                input_tokens = llm_response.usage.input_tokens
-                output_tokens = llm_response.usage.output_tokens
-                total_tokens = input_tokens + output_tokens
-            else:
-                # fallback: 如果没有usage信息，设为0
-                input_tokens = 0
-                output_tokens = 0
-                total_tokens = 0
-
+            input_tokens = llm_response.usage.input_tokens
+            output_tokens = llm_response.usage.output_tokens
+            total_tokens = input_tokens + output_tokens
+            
             return {
-                "tokens_used": total_tokens,
                 "input_tokens": input_tokens,
                 "output_tokens": output_tokens,
                 "total_tokens": total_tokens
             }
         except Exception as e:
             self.logger.warning(f"Token 信息提取失败: {e}")
-            return {"tokens_used": 0, "input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
+
+        return {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
 
     def _get_fallback_response(self, matched_prompt: dict) -> str:
         """获取兜底回复"""
