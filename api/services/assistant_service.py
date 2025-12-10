@@ -79,7 +79,23 @@ class AssistantService:
             created_assistant = assistant_orm.to_business_model()
             logger.info(f"助理创建成功: {created_assistant.assistant_id}")
 
-            # 5. 异步更新缓存
+            # 5. 处理语音克隆（如果提供了音频URL和voice_id）
+            if created_assistant.voice_file and created_assistant.voice_id:
+                try:
+                    from services.audio_service import AudioService
+
+                    # 克隆并激活声音（voice_file应该是音频文件的URL）
+                    clone_result = await AudioService.clone_and_activate_voice(
+                        voice_file=created_assistant.voice_file,
+                        voice_id=created_assistant.voice_id,
+                        demo_text="你好，我是你的AI助理。"
+                    )
+                    logger.info(f"声音克隆并激活成功: {clone_result}")
+
+                except Exception as e:
+                    logger.error(f"语音克隆失败: {e}")
+
+            # 6. 异步更新缓存
             redis_client = infra_registry.get_cached_clients().redis
             asyncio.create_task(AssistantRepository.update_assistant_cache(
                 created_assistant,
