@@ -172,6 +172,7 @@ services:
       memlock:
         soft: -1
         hard: -1
+    restart: unless-stopped
     volumes:
       - es_data:/usr/share/elasticsearch/data
 
@@ -213,6 +214,7 @@ services:
     depends_on:
       - etcd
       - minio
+    restart: unless-stopped
 
   minio:
     image: ${REGISTRY_URL}/minio:latest
