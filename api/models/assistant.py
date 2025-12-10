@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import Column, String, Boolean, DateTime, Uuid, func, Index, Enum
 from sqlalchemy.dialects.postgresql import JSONB
 
-from libs.types import AccountStatus
+from libs.types import AccountStatus, Sex
 from .base import Base
 
 
@@ -31,9 +31,9 @@ class AssistantModel(BaseModel):
     assistant_id: Optional[UUID] = Field(default=None, description="助理 ID（由数据库自动生成）")
     tenant_id: str = Field(description="租户 ID")
     assistant_name: str = Field(description="助理名称")
-    nickname: Optional[str] = Field(default=None, description="助理昵称")
-    address: Optional[str] = Field(default=None, description="助理地址")
-    sex: Optional[str] = Field(default=None, description="助理性别")
+    nickname: Optional[str] = Field(None, description="助理昵称")
+    address: Optional[str] = Field(None, description="助理地址")
+    sex: Optional[Sex] = Field(None, description="助理性别")
     status: AccountStatus = Field(default=AccountStatus.ACTIVE, description="助理状态枚举")
     personality: str = Field(description="助理 个性类型")
     occupation: str = Field(description="数字员工职业")
@@ -62,7 +62,7 @@ class AssistantOrmModel(Base):
     assistant_name = Column(String(100), nullable=False)
     nickname = Column(String(100))
     address = Column(String(500))
-    sex = Column(String(32))
+    sex = Column(Enum(Sex, name='sex'))
     status = Column(Enum(AccountStatus, name='account_status'), nullable=False, default=AccountStatus.ACTIVE)
     personality = Column(String(500), nullable=False)
     occupation = Column(String(100), nullable=False)

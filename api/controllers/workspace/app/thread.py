@@ -57,7 +57,12 @@ async def create_thread(
         thread = Thread(
             thread_id=thread_id,
             tenant_id=tenant.tenant_id,
-            status=ThreadStatus.IDLE
+            status=ThreadStatus.IDLE,
+            name=request.name,
+            sex=request.sex,
+            age=request.age,
+            phone=request.phone,
+            occupation=request.occupation
         )
         
         thread_id = await ThreadService.create_thread(thread)
@@ -112,6 +117,11 @@ async def get_thread(
             "tenant_id": thread.tenant_id,
             "assistant_id": thread.assistant_id,
             "status": thread.status,
+            "name": thread.name,
+            "sex": thread.sex,
+            "age": thread.age,
+            "phone": thread.phone,
+            "occupation": thread.occupation,
             "created_at": thread.created_at,
             "updated_at": thread.updated_at
         }

@@ -7,6 +7,7 @@ from .content_params import (
     OutputType,
     OutputContent,
 )
+from .customer import Sex
 from .infra_clients import InfraClients
 from .memory import MemoryType
 from .message_params import MessageParams, MessageType, Message
@@ -27,6 +28,7 @@ __all__ = [
     "OutputContent",
     "OutputContentParams",
     "OutputType",
+    "Sex",
     "SocialMediaActionType",
     "SocialPlatform",
     "TextBeautifyActionType"

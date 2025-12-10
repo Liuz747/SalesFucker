@@ -11,7 +11,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
-from libs.types import MessageParams, OutputContentParams
+from libs.types import MessageParams, OutputContentParams, Sex
 from .responses import BaseResponse
 
 
@@ -26,22 +26,27 @@ class AppointmentOutput:
 
 class ThreadMetadata(BaseModel):
     """线程元数据模型"""
-    
+
     tenant_id: Optional[str] = Field(None, description="租户标识符")
     assistant_id: Optional[UUID] = Field(None, description="助手标识符")
 
 
 class WorkflowData(BaseModel):
     """工作流数据模型"""
-    
+
     type: str = Field(description="工作流数据类型")
     content: str = Field(description="工作流数据内容")
 
 
 class ThreadCreateRequest(BaseModel):
     """线程创建请求模型"""
-    
+
     thread_id: Optional[UUID] = Field(None, description="线程标识符")
+    name: Optional[str] = Field(None, description="客户姓名")
+    sex: Optional[Sex] = Field(None, description="客户性别")
+    age: Optional[int] = Field(None, description="客户年龄")
+    phone: Optional[str] = Field(None, description="客户电话")
+    occupation: Optional[str] = Field(None, description="客户职业")
 
 
 class ThreadCreateResponse(BaseResponse):
