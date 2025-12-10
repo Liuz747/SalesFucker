@@ -74,10 +74,17 @@ class LLMSentimentAnalyzer(SentimentAnalysisStrategy):
             )
 
             # 提取 token 信息
-            token_usage = getattr(llm_response, "usage", {}) or {}
-            input_tokens = token_usage.get("input_tokens", 0)
-            output_tokens = token_usage.get("output_tokens", 0)
-            total_tokens = token_usage.get("total_tokens", input_tokens + output_tokens)
+            try:
+                # 直接访问TokenUsage dataclass的属性
+                if hasattr(llm_response, 'usage') and llm_response.usage:
+                    input_tokens = llm_response.usage.input_tokens
+                    output_tokens = llm_response.usage.output_tokens
+                    total_tokens = input_tokens + output_tokens
+                    
+            except Exception:
+                input_tokens = 0
+                output_tokens = 0
+                total_tokens = 0
 
             # 解析并验证结果
             result = self._parse_llm_response(raw_response)
@@ -312,7 +319,7 @@ class SentimentAnalyzer(LoggerMixin):
             "analyzer": "empty_input"
         }
 
-    def _fallback_result(self, text: str) -> dict[str, Any]:
+    def _fallback_result(self, _text: str) -> dict[str, Any]:
         """降级结果"""
         return {
             "sentiment": "neutral",
