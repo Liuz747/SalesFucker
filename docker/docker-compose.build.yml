@@ -36,12 +36,6 @@ services:
       - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
       - LANGFUSE_HOST=${LANGFUSE_HOST}
       - CALLBACK_URL=${CALLBACK_URL}
-    depends_on:
-      - postgres
-      - redis
-      - elasticsearch
-      - milvus-standalone
-      - temporal
     restart: unless-stopped
 
   langfuse-web:
@@ -54,15 +48,6 @@ services:
       args:
         - NEXT_PUBLIC_LANGFUSE_CLOUD_REGION=${NEXT_PUBLIC_LANGFUSE_CLOUD_REGION:-}
     image: ${REGISTRY_URL}/frontend:latest
-    depends_on: &langfuse-depends-on
-      postgres:
-        condition: service_healthy
-      minio:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      clickhouse:
-        condition: service_healthy
     ports:
       - "3000:3000"
     environment: &langfuse-web-env
@@ -120,7 +105,6 @@ services:
       args:
         - NEXT_PUBLIC_LANGFUSE_CLOUD_REGION=${NEXT_PUBLIC_LANGFUSE_CLOUD_REGION:-}
     image: ${REGISTRY_URL}/langfuse-worker:latest
-    depends_on: *langfuse-depends-on
     ports:
       - "3030:3030"
     environment:
