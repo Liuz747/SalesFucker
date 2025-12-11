@@ -30,11 +30,9 @@ x-shared-var: &shared-mas-env
   ELASTIC_HOST: ${ELASTIC_HOST}
   ELASTIC_PORT: ${ELASTIC_PORT:-9200}
   ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
-  ES_MEMORY_INDEX: ${ELASTIC_MEMORY_INDEX}
   # Temporal
   TEMPORAL_HOST: ${TEMPORAL_HOST}
   TEMPORAL_PORT: ${TEMPORAL_PORT:-7233}
-  TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE:-default}
   # Observability
   LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY}
   LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY}
@@ -71,6 +69,24 @@ services:
       MODE: worker
     depends_on: *mas-depends-on
     restart: unless-stopped
+
+  api-test:
+    image: ${REGISTRY_URL}/api:latest
+    environment:
+      <<: *shared-mas-env
+      DB_NAME: ${DB_NAME_TEST:-mas_test}
+      REDIS_DB: ${REDIS_DB_TEST:-1}
+      ES_MEMORY_INDEX: ${ELASTIC_MEMORY_INDEX_TEST}
+      TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE_TEST}
+    depends_on: *mas-depends-on
+    restart: unless-stopped
+    profiles:
+      - test
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
 
   langfuse-web:
     image: ${REGISTRY_URL}/frontend:latest

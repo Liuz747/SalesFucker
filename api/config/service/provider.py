@@ -58,24 +58,3 @@ class LLMConfig(BaseSettings):
         description="Zenmux API 密钥，用于访问 Zenmux 系列模型",
         default="",
     )
-
-    # 多LLM 系统配置
-    DEFAULT_LLM_PROVIDER: str = Field(
-        description="默认 LLM 提供商",
-        default="openai",
-    )
-
-    FALLBACK_LLM_PROVIDER: str = Field(
-        description="备用 LLM 提供商，当主提供商不可用时使用",
-        default="anthropic",
-    )
-
-    ENABLE_COST_TRACKING: bool = Field(
-        description="启用成本追踪，监控 API 调用费用",
-        default=True,
-    )
-
-    ENABLE_INTELLIGENT_ROUTING: bool = Field(
-        description="启用智能路由，根据任务类型自动选择最适合的模型",
-        default=True,
-    )
