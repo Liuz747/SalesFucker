@@ -22,7 +22,7 @@ from config import mas_config
 from core.tasks.workflows import GreetingWorkflow
 from libs.factory import infra_registry
 from models import Thread, ThreadStatus, TenantModel
-from schemas import BaseResponse, ThreadCreateRequest, ThreadUpdateRequest, ThreadCreateResponse
+from schemas import BaseResponse, ThreadCreateRequest, ThreadPayload, ThreadCreateResponse
 from services import ThreadService
 from utils import get_component_logger
 from ..wraps import validate_and_get_tenant
@@ -134,7 +134,7 @@ async def get_thread(
 @router.post("/{thread_id}")
 async def update_thread(
     thread_id: UUID,
-    request: ThreadUpdateRequest,
+    request: ThreadPayload,
     tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)]
 ):
     """

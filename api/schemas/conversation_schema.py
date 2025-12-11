@@ -4,13 +4,12 @@
 该模块从业务模型导入必要的架构定义，提供纯数据结构的Thread模型。
 """
 
-import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, PositiveInt
 
 from libs.types import MessageParams, OutputContentParams, Sex
 from .responses import BaseResponse
@@ -40,124 +39,23 @@ class WorkflowData(BaseModel):
 
 
 class ThreadCreateRequest(BaseModel):
-    """线程创建请求模型 - 要求必填字段以识别客户"""
+    """线程创建请求模型"""
 
-    name: str = Field(..., description="客户姓名（必填）")
-    phone: str = Field(..., description="客户电话（必填）")
+    name: str = Field(description="客户姓名")
     sex: Optional[Sex] = Field(None, description="客户性别")
-    age: Optional[int] = Field(None, description="客户年龄")
+    age: Optional[PositiveInt] = Field(None, description="客户年龄")
+    phone: Optional[str] = Field(description="客户电话")
     occupation: Optional[str] = Field(None, description="客户职业")
     services: Optional[list[str]] = Field(default_factory=list, description="客户已消费的服务列表")
     is_converted: bool = Field(default=False, description="客户是否已转化（已消费）")
 
-    @field_validator('phone')
-    @classmethod
-    def validate_phone(cls, v: str) -> str:
-        """验证手机号格式"""
-        if not v:
-            raise ValueError('手机号不能为空')
-
-        # 去除空格和其他非数字字符
-        cleaned_phone = re.sub(r'[^\d]', '', v)
-
-        # 验证中国大陆手机号格式（1开头的11位数字）
-        if not re.match(r'^1[3-9]\d{9}$', cleaned_phone):
-            raise ValueError('手机号格式不正确，请输入有效的中国大陆手机号')
-
-        return cleaned_phone
-
-    @field_validator('name')
-    @classmethod
-    def validate_name(cls, v: str) -> str:
-        """验证客户姓名"""
-        if not v or not v.strip():
-            raise ValueError('客户姓名不能为空')
-
-        # 去除前后空格
-        cleaned_name = v.strip()
-
-        # 基本长度检查
-        if len(cleaned_name) < 1:
-            raise ValueError('客户姓名长度至少为1个字符')
-        if len(cleaned_name) > 50:
-            raise ValueError('客户姓名长度不能超过50个字符')
-
-        return cleaned_name
-
-    @field_validator('age')
-    @classmethod
-    def validate_age(cls, v: Optional[int]) -> Optional[int]:
-        """验证年龄范围"""
-        if v is not None:
-            if v < 0 or v > 150:
-                raise ValueError('年龄必须在0-150之间')
-        return v
-
-
-class ThreadUpdateRequest(BaseModel):
-    """线程更新请求模型 - 支持部分更新客户信息"""
-
-    name: Optional[str] = Field(None, description="客户姓名")
-    phone: Optional[str] = Field(None, description="客户电话")
-    sex: Optional[Sex] = Field(None, description="客户性别")
-    age: Optional[int] = Field(None, description="客户年龄")
-    occupation: Optional[str] = Field(None, description="客户职业")
-    services: Optional[list[str]] = Field(None, description="客户已消费的服务列表")
-    is_converted: Optional[bool] = Field(None, description="客户是否已转化（已消费）")
-
-    @field_validator('phone')
-    @classmethod
-    def validate_phone(cls, v: Optional[str]) -> Optional[str]:
-        """验证手机号格式（如果提供）"""
-        if v is not None:
-            if not v.strip():
-                raise ValueError('手机号不能为空字符串')
-
-            # 去除空格和其他非数字字符
-            cleaned_phone = re.sub(r'[^\d]', '', v)
-
-            # 验证中国大陆手机号格式
-            if not re.match(r'^1[3-9]\d{9}$', cleaned_phone):
-                raise ValueError('手机号格式不正确，请输入有效的中国大陆手机号')
-
-            return cleaned_phone
-        return v
-
-    @field_validator('name')
-    @classmethod
-    def validate_name(cls, v: Optional[str]) -> Optional[str]:
-        """验证客户姓名（如果提供）"""
-        if v is not None:
-            if not v.strip():
-                raise ValueError('客户姓名不能为空字符串')
-
-            cleaned_name = v.strip()
-
-            # 基本长度检查
-            if len(cleaned_name) < 1:
-                raise ValueError('客户姓名长度至少为1个字符')
-            if len(cleaned_name) > 50:
-                raise ValueError('客户姓名长度不能超过50个字符')
-
-            return cleaned_name
-        return v
-
-    @field_validator('age')
-    @classmethod
-    def validate_age(cls, v: Optional[int]) -> Optional[int]:
-        """验证年龄范围"""
-        if v is not None:
-            if v < 0 or v > 150:
-                raise ValueError('年龄必须在0-150之间')
-        return v
-
 
 class ThreadPayload(BaseModel):
-    """线程创建/更新通用模型 - 已弃用，请使用ThreadCreateRequest或ThreadUpdateRequest"""
+    """线程更新模型"""
 
     name: Optional[str] = Field(None, description="客户姓名")
     sex: Optional[Sex] = Field(None, description="客户性别")
-    age: Optional[int] = Field(None, description="客户年龄")
+    age: Optional[PositiveInt] = Field(None, description="客户年龄")
     phone: Optional[str] = Field(None, description="客户电话")
     occupation: Optional[str] = Field(None, description="客户职业")
     services: Optional[list[str]] = Field(None, description="客户已消费的服务列表")
