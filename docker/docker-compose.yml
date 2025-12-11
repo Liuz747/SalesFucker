@@ -267,6 +267,7 @@ services:
     entrypoint: [ "sh", "/docker-entrypoint.sh" ]
     environment:
       NGINX_SERVER_NAME: ${NGINX_SERVER_NAME:-_}
+      NGINX_TEST_SERVER_NAME: ${NGINX_TEST_SERVER_NAME}
       NGINX_PORT: ${NGINX_PORT:-80}
       NGINX_SSL_PORT: ${NGINX_SSL_PORT:-443}
       NGINX_HTTPS_ENABLED: ${NGINX_HTTPS_ENABLED:-false}
