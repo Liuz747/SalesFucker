@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from config import mas_config
 from infra.cache import get_redis_client
 from infra.runtimes import LLMClient, CompletionsRequest
+from infra.runtimes.entities.llm import LLMResponse
 from libs.types import MethodType, Message, InputContent, InputType, MemoryType
 from schemas.social_media_schema import (
     MomentsAnalysisRequest,
@@ -51,7 +52,7 @@ class MomentsAnalysisService:
         text_content: str,
         image_urls: list[str],
         output_model: Type[BaseModel]
-    ) -> Mapping:
+    ) -> LLMResponse:
         """调用多模态LLM客户端，支持图片和文本混合分析"""
         run_id = uuid4()
 
@@ -75,14 +76,14 @@ class MomentsAnalysisService:
             output_model=output_model
         )
         response = await self.client.completions(request)
-        return response.content
+        return response
 
     async def invoke_llm_text(
         self,
         system_prompt: str,
         user_prompt: str,
         output_model: Type[BaseModel]
-    ) -> Mapping:
+    ) -> LLMResponse:
         """调用文本LLM客户端，处理纯文本分析"""
         run_id = uuid4()
         messages = [
@@ -99,7 +100,7 @@ class MomentsAnalysisService:
             output_model=output_model
         )
         response = await self.client.completions(request)
-        return response.content
+        return response
 
     async def load_prompt(self, method: MethodType) -> str:
         """加载提示词配置，支持Redis缓存"""
@@ -190,7 +191,7 @@ class MomentsAnalysisService:
             # 选择调用方式：有图片使用多模态，无图片使用文本模型
             if all_image_urls:
                 logger.info(f"检测到 {len(all_image_urls)} 张图片，使用多模态LLM进行视觉分析")
-                result = await self.invoke_llm_multimodal(
+                llm_response = await self.invoke_llm_multimodal(
                     system_prompt=system_prompt,
                     text_content=user_prompt,
                     image_urls=all_image_urls,
@@ -198,15 +199,24 @@ class MomentsAnalysisService:
                 )
             else:
                 logger.info("纯文本内容，使用标准文本LLM分析")
-                result = await self.invoke_llm_text(
+                llm_response = await self.invoke_llm_text(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
                     output_model=MomentsAnalysisResponse
                 )
 
-            # result 已经是 MomentsAnalysisResponse 对象
+            # 从 LLMResponse 中提取结果和token信息
+            result = llm_response.content
+
+            # 创建包含token信息的响应
+            final_response = MomentsAnalysisResponse(
+                tasks=result.tasks,
+                input_tokens=llm_response.usage.input_tokens,
+                output_tokens=llm_response.usage.output_tokens
+            )
+
             tasks_count = len(result.tasks)
-            logger.info(f"朋友圈分析完成，生成 {tasks_count} 个互动建议")
+            logger.info(f"朋友圈分析完成，生成 {tasks_count} 个互动建议，使用Token: 输入{llm_response.usage.input_tokens}, 输出{llm_response.usage.output_tokens}")
 
             # 验证返回结果的完整性
             if tasks_count != len(request.task_list):
@@ -215,12 +225,12 @@ class MomentsAnalysisService:
             # 存储互动记录到记忆
             asyncio.create_task(self._store_moments_memories(
                 request,
-                result,
+                final_response,
                 tenant_id
             ))
 
-            # 直接返回结果
-            return result
+            # 返回包含token信息的结果
+            return final_response
 
         except Exception as e:
             logger.exception(f"朋友圈分析失败: {e}")
