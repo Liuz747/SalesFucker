@@ -58,6 +58,8 @@ class CommentGenerationResponse(BaseModel):
 
     actions: list[SocialMediaActionType] = Field(description="任务类型ID列表。必须返回列表，如果没有动作则返回空列表 []")
     message: str | None = Field(description="生成的评论文案。如果无法生成有效评论，返回 null")
+    input_tokens: int = Field(default=0, description="输入Token数")
+    output_tokens: int = Field(default=0, description="输出Token数")
 
 
 class ReplyGenerationRequest(BaseGenerationRequest):
@@ -70,6 +72,8 @@ class ReplyGenerationResponse(BaseModel):
     """评论回复响应"""
 
     tasks: Sequence[ReplyMessageData] = Field(default_factory=list, description="任务列表")
+    input_tokens: int = Field(default=0, description="输入Token数")
+    output_tokens: int = Field(default=0, description="输出Token数")
 
 
 class KeywordSummaryRequest(BaseModel):
@@ -86,6 +90,8 @@ class KeywordSummaryResponse(BaseModel):
     keywords: list[str] = Field(default_factory=list, description="提炼的关键词")
     count: int = Field(description="关键词数量")
     summary: str = Field(description="整体舆情摘要")
+    input_tokens: int = Field(default=0, description="输入Token数")
+    output_tokens: int = Field(default=0, description="输出Token数")
 
 
 class ChatGenerationRequest(BaseGenerationRequest):
@@ -99,6 +105,8 @@ class ChatGenerationResponse(BaseModel):
     """私聊回复响应"""
 
     message: str = Field(description="生成的私聊回复内容")
+    input_tokens: int = Field(default=0, description="输入Token数")
+    output_tokens: int = Field(default=0, description="输出Token数")
 
 
 class ReloadPromptRequest(BaseModel):
@@ -141,6 +149,8 @@ class MomentsAnalysisResponse(BaseModel):
     """朋友圈分析响应"""
 
     tasks: Sequence[MomentsActionResult] = Field(default_factory=list, description="朋友圈互动结果列表")
+    input_tokens: int = Field(default=0, description="输入Token数")
+    output_tokens: int = Field(default=0, description="输出Token数")
 
 
 class TextBeautifyRequest(BaseModel):

@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from config import mas_config
 from infra.cache import get_redis_client
 from infra.runtimes import LLMClient, CompletionsRequest
+from infra.runtimes.entities.llm import LLMResponse
 from libs.types import MethodType, Message, TextBeautifyActionType
 from schemas.social_media_schema import (
     CommentGenerationRequest,
@@ -49,7 +50,7 @@ class SocialMediaPublicTrafficService:
         system_prompt: str,
         user_prompt: str,
         output_model: Type[BaseModel]
-    ) -> Mapping:
+    ) -> LLMResponse:
         """调用统一LLM客户端"""
         run_id = uuid4()
         messages = [
@@ -66,7 +67,7 @@ class SocialMediaPublicTrafficService:
             output_model=output_model
         )
         response = await self.client.completions(request)
-        return response.content
+        return response
 
     async def load_prompt(self, method: MethodType) -> str:
         redis_client = await get_redis_client()
