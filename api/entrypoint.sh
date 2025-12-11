@@ -8,10 +8,10 @@ TEMPORAL_HOST=${TEMPORAL_HOST:-temporal}
 TEMPORAL_PORT=${TEMPORAL_PORT:-7233}
 
 # Wait for Temporal
-until > /dev/tcp/$TEMPORAL_HOST/$TEMPORAL_PORT 2>/dev/null; do
+until > /dev/tcp/$TEMPORAL_HOST/$TEMPORAL_PORT 2>&1; do
     echo "⏳ Waiting for Temporal to start..."
     sleep 2
-done
+done 2>/dev/null
 echo "✅ Temporal is ready!"
 
 echo "Starting MAS in $MODE mode..."
