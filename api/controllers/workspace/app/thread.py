@@ -22,7 +22,7 @@ from config import mas_config
 from core.tasks.workflows import GreetingWorkflow
 from libs.factory import infra_registry
 from models import Thread, ThreadStatus, TenantModel
-from schemas import BaseResponse, ThreadCreateRequest, ThreadPayload, ThreadCreateResponse
+from schemas import BaseResponse, ThreadPayload, ThreadCreateResponse
 from services import ThreadService
 from utils import get_component_logger
 from ..wraps import validate_and_get_tenant
@@ -40,7 +40,7 @@ router.include_router(analysis_router, prefix="/{thread_id}", tags=["analysis"])
 
 @router.post("", response_model=ThreadCreateResponse)
 async def create_thread(
-    request: ThreadCreateRequest,
+    request: ThreadPayload,
     tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)]
 ):
     """
@@ -55,6 +55,8 @@ async def create_thread(
             tenant_id=tenant.tenant_id,
             status=ThreadStatus.IDLE,
             name=request.name,
+            nickname=request.nickname,
+            real_name=request.real_name,
             sex=request.sex,
             age=request.age,
             phone=request.phone,
@@ -116,6 +118,8 @@ async def get_thread(
             "assistant_id": thread.assistant_id,
             "status": thread.status,
             "name": thread.name,
+            "nickname": thread.nickname,
+            "real_name": thread.real_name,
             "sex": thread.sex,
             "age": thread.age,
             "phone": thread.phone,
@@ -131,7 +135,7 @@ async def get_thread(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/{thread_id}")
+@router.post("/{thread_id}/info")
 async def update_thread(
     thread_id: UUID,
     request: ThreadPayload,

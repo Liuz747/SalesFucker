@@ -27,6 +27,8 @@ class ThreadOrm(Base):
     assistant_id = Column(Uuid, index=True)
     status = Column(Enum(ThreadStatus, name='thread_status'), default=ThreadStatus.IDLE, nullable=False, index=True)
     name = Column(String(128), comment="客户姓名")
+    nickname = Column(String(128), comment="客户昵称")
+    real_name = Column(String(128), comment="客户真实姓名")
     sex = Column(Enum(Sex, name='sex'), comment="客户性别")
     age = Column(Integer, comment="客户年龄")
     phone = Column(String(32), index=True, comment="客户电话")
@@ -45,6 +47,8 @@ class Thread(BaseModel):
     assistant_id: Optional[UUID] = Field(None, description="助手标识符")
     status: ThreadStatus = Field(default=ThreadStatus.IDLE, description="线程状态")
     name: Optional[str] = Field(None, description="客户姓名")
+    nickname: Optional[str] = Field(None, description="客户昵称")
+    real_name: Optional[str] = Field(None, description="客户真实姓名")
     sex: Optional[Sex] = Field(None, description="客户性别")
     age: Optional[int] = Field(None, description="客户年龄")
     phone: Optional[str] = Field(None, description="客户电话")
@@ -63,6 +67,8 @@ class Thread(BaseModel):
             assistant_id=thread_orm.assistant_id,
             status=thread_orm.status,
             name=thread_orm.name,
+            nickname=thread_orm.nickname,
+            real_name=thread_orm.real_name,
             sex=thread_orm.sex,
             age=thread_orm.age,
             phone=thread_orm.phone,
@@ -81,6 +87,8 @@ class Thread(BaseModel):
             assistant_id=self.assistant_id,
             status=self.status,
             name=self.name,
+            nickname=self.nickname,
+            real_name=self.real_name,
             sex=self.sex,
             age=self.age,
             phone=self.phone,

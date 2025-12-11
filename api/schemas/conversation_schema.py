@@ -38,22 +38,12 @@ class WorkflowData(BaseModel):
     content: str = Field(description="工作流数据内容")
 
 
-class ThreadCreateRequest(BaseModel):
-    """线程创建请求模型"""
-
-    name: str = Field(description="客户姓名")
-    sex: Optional[Sex] = Field(None, description="客户性别")
-    age: Optional[PositiveInt] = Field(None, description="客户年龄")
-    phone: Optional[str] = Field(description="客户电话")
-    occupation: Optional[str] = Field(None, description="客户职业")
-    services: Optional[list[str]] = Field(default_factory=list, description="客户已消费的服务列表")
-    is_converted: bool = Field(default=False, description="客户是否已转化（已消费）")
-
-
 class ThreadPayload(BaseModel):
     """线程更新模型"""
 
     name: Optional[str] = Field(None, description="客户姓名")
+    nickname: Optional[str] = Field(None, description="客户昵称")
+    real_name: Optional[str] = Field(None, description="客户真实姓名")
     sex: Optional[Sex] = Field(None, description="客户性别")
     age: Optional[PositiveInt] = Field(None, description="客户年龄")
     phone: Optional[str] = Field(None, description="客户电话")
