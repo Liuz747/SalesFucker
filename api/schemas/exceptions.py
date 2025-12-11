@@ -36,7 +36,7 @@ class BaseHTTPException(HTTPException):
 
         self.data = {
             "code": self.code,
-            "messgae": self.message,
+            "message": self.message,
             "detail": self.detail
         }
 
@@ -83,7 +83,7 @@ class TenantValidationException(BaseHTTPException):
         super().__init__(detail=f"租户 {tenant_id} 验证失败: {reason}")
 
 
-class TenantIdRequiredException(TenantValidationException):
+class TenantIdRequiredException(BaseHTTPException):
     code = 1000006
     message = "TENANT_ID_REQUIRED"
     http_status_code = 400
@@ -97,7 +97,7 @@ class TenantDisabledException(TenantValidationException):
     message = "TENANT_DISABLED"
 
     def __init__(self, tenant_id: str):
-        super().__init__(detail=f"租户 {tenant_id} 已被禁用")
+        super().__init__(tenant_id=tenant_id, reason="租户已被禁用")
 
 
 class TenantAccessDeniedException(TenantValidationException):
@@ -105,7 +105,7 @@ class TenantAccessDeniedException(TenantValidationException):
     message = "TENANT_ACCESS_DENIED"
 
     def __init__(self, tenant_id: str, resource: str):
-        super().__init__(detail=f"租户 {tenant_id} 无权访问 {resource}")
+        super().__init__(tenant_id=tenant_id, reason=f"无权访问 {resource}")
 
 
 class TenantAlreadyExistsException(TenantManagementException):
@@ -142,7 +142,7 @@ class AssistantUnavailableException(AssistantException):
 
 class AssistantConflictException(AssistantException):
     code = 1100003
-    message = "Assistant_Conflict"
+    message = "ASSISTANT_CONFLICT"
     http_status_code = 503
 
     def __init__(self, assistant_id: str):

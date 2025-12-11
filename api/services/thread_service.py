@@ -125,25 +125,37 @@ class ThreadService:
             raise
 
     @staticmethod
-    async def update_thread_info(tenant_id: str, thread_id: UUID, request: ThreadPayload):
+    async def update_thread_info(tenant_id: str, thread_id: UUID, request: ThreadPayload) -> Thread:
         """
         更新线程客户会话信息
 
+        仅更新请求中提供的非空字段（部分更新），支持更新客户基本信息和消费状态。
+        更新完成后异步刷新Redis缓存。
+
         参数:
+            tenant_id: 租户标识符，用于验证线程归属
+            thread_id: 线程标识符
+            request: 包含待更新字段的请求体，仅更新非空字段
 
         返回:
+            Thread: 更新后的线程业务模型
+
+        异常:
+            ThreadNotFoundException: 线程不存在
+            TenantValidationException: 租户ID不匹配，无权访问此线程
         """
         try:
-            # 获取现有线程
             async with database_session() as session:
+                # 查询线程是否存在
                 thread_orm = await ThreadRepository.get_thread(thread_id, session)
                 if not thread_orm:
                     raise ThreadNotFoundException(thread_id)
 
+                # 验证租户归属权限
                 if thread_orm.tenant_id != tenant_id:
                     raise TenantValidationException(tenant_id, "租户ID不匹配，无法访问此线程")
 
-                # 更新线程信息
+                # 部分更新：仅更新请求中提供的字段
                 updated_thread = request.model_dump(exclude_unset=True)
                 for key, value in updated_thread.items():
                     setattr(thread_orm, key, value)
@@ -153,6 +165,7 @@ class ThreadService:
 
                 thread_model = Thread.to_model(updated_thread_orm)
 
+            # 异步刷新Redis缓存
             redis_client = infra_registry.get_cached_clients().redis
             asyncio.create_task(ThreadRepository.update_thread_cache(thread_model, redis_client))
 
