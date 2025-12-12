@@ -5,6 +5,7 @@
 """
 
 import json
+import time
 from uuid import UUID, uuid4
 from typing import List, Dict, Any
 
@@ -14,6 +15,12 @@ from libs.types import Message
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "LabelService")
+
+
+def _log_step_time(step_name: str, start_time: float, thread_id: UUID):
+    """记录步骤耗时"""
+    elapsed_ms = (time.time() - start_time) * 1000
+    logger.info(f"[{thread_id}] {step_name} 耗时: {elapsed_ms:.2f}ms")
 
 class LabelService:
     """
@@ -29,13 +36,18 @@ class LabelService:
             Dict[str, Any]: 包含标签结果、token使用情况和错误信息的字典
         """
         try:
+            total_start = time.time()
+            logger.info(f"[{thread_id}] 开始生成标签")
+
             # 1. 获取记忆
+            step_start = time.time()
             memory_manager = StorageManager()
             short_term_messages, long_term_memories = await memory_manager.retrieve_context(
                 tenant_id=tenant_id,
                 thread_id=thread_id,
-                query_text=None 
+                query_text=None
             )
+            _log_step_time("获取记忆上下文", step_start, thread_id)
             
             long_term_context = "\n".join([m.get('content', '') for m in long_term_memories]) if long_term_memories else "无长期记忆"
             
@@ -60,22 +72,24 @@ class LabelService:
             """
             
             # 3. 调用 LLM
+            step_start = time.time()
             llm_messages = [Message(role="system", content=system_prompt)]
             llm_messages.extend(short_term_messages)
 
             llm_client = LLMClient()
             request = CompletionsRequest(
                 id=str(uuid4()),
-                provider="openrouter", 
-                model="openai/gpt-5-mini",
+                provider="openrouter",
+                model="qwen/qwen3-coder-flash",
                 messages=llm_messages,
                 thread_id=thread_id,
                 temperature=0.7
             )
-            
+
             response = await llm_client.completions(request)
+            _log_step_time("LLM调用", step_start, thread_id)
             content = response.content
-            
+
             # 计算总token
             total_tokens = response.usage.input_tokens + response.usage.output_tokens
             
@@ -89,6 +103,9 @@ class LabelService:
                 # 如果解析失败，尝试简单的文本分割作为兜底
                 labels = [tag.strip() for tag in content.split(',') if tag.strip()]
             
+            total_elapsed_ms = (time.time() - total_start) * 1000
+            logger.info(f"[{thread_id}] 标签生成完成, 总耗时: {total_elapsed_ms:.2f}ms, tokens: {total_tokens}")
+
             return {
                 "label_result": labels,
                 "label_tokens": total_tokens,

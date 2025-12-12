@@ -9,6 +9,7 @@
 
 import json
 import re
+import time
 from uuid import UUID, uuid4
 from typing import Optional, List, Dict, Any
 
@@ -18,6 +19,12 @@ from libs.types import Message
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "ReportService")
+
+
+def _log_step_time(step_name: str, start_time: float, thread_id: UUID):
+    """记录步骤耗时"""
+    elapsed_ms = (time.time() - start_time) * 1000
+    logger.info(f"[{thread_id}] {step_name} 耗时: {elapsed_ms:.2f}ms")
 
 class ReportService:
     """
@@ -37,15 +44,20 @@ class ReportService:
             Dict[str, Any]: 生成的报告结果，包含 report_result, report_tokens, error_message
         """
         try:
+            total_start = time.time()
+            logger.info(f"[{thread_id}] 开始生成报告")
+
             # 1. 初始化记忆管理器
             memory_manager = StorageManager()
 
             # 2. 获取记忆 (Short-term + Long-term)
+            step_start = time.time()
             short_term_messages, long_term_memories = await memory_manager.retrieve_context(
                 tenant_id=tenant_id,
                 thread_id=thread_id,
-                query_text=None 
+                query_text=None
             )
+            _log_step_time("获取记忆上下文", step_start, thread_id)
 
             # 3. 格式化记忆内容
             formatted_history = []
@@ -179,29 +191,31 @@ class ReportService:
 
 ### 🎯 **综合总结特别要求**
 - **综合总结 (overall_summary)** 字段是最重要的输出，必须基于所有非空分析字段内容生成
-- 使用中文以及标准MD格式，分行加粗标点等格式语法
+- 使用中文以及标准MD格式，可以用一些无序列表、加粗、标点等格式语法
 - 内容要涵盖客户画像、需求分析、行为特征、跟进建议等关键信息
 - 语言要自然流畅，避免生硬的分点罗列
 - 长度要充实，至少200字以上，全面反映客户特征
 
-请直接返回纯净的 JSON 格式内容，不要包含 markdown 代码块标记。
+请直接返回纯净的 JSON 格式内容。
 """
             
             # 5. 调用 LLM
+            step_start = time.time()
             llm_messages = [Message(role="system", content=system_prompt)]
             # 注意：这里不再次添加 short_term_messages，因为已经格式化到 system_prompt 中了
 
             llm_client = LLMClient()
             request = CompletionsRequest(
                 id=str(uuid4()),
-                provider="openrouter", 
-                model="openai/gpt-5-mini", # 或使用 gpt-4o 等
+                provider="openrouter",
+                model="qwen/qwen-plus-2025-07-28", # 或使用 gpt-4o 等
                 messages=llm_messages,
                 thread_id=thread_id,
                 temperature=0.7
             )
-            
+
             response = await llm_client.completions(request)
+            _log_step_time("LLM调用", step_start, thread_id)
             
             # 6. 解析响应
             content = response.content
@@ -227,7 +241,10 @@ class ReportService:
                 "report_tokens": total_tokens,
                 "error_message": None
             }
-            
+
+            total_elapsed_ms = (time.time() - total_start) * 1000
+            logger.info(f"[{thread_id}] 报告生成完成, 总耗时: {total_elapsed_ms:.2f}ms, tokens: {total_tokens}")
+
             return result
 
         except Exception as e:
