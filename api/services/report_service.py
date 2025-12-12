@@ -9,15 +9,16 @@
 
 import json
 import re
+from typing import Any
 from uuid import UUID, uuid4
-from typing import Optional, List, Dict, Any
 
 from core.memory import StorageManager
 from infra.runtimes import LLMClient, CompletionsRequest
 from libs.types import Message
-from utils import get_component_logger
+from utils import get_component_logger, get_current_datetime, get_processing_time
 
 logger = get_component_logger(__name__, "ReportService")
+
 
 class ReportService:
     """
@@ -25,7 +26,7 @@ class ReportService:
     """
     
     @staticmethod
-    async def generate_user_analysis(tenant_id: str, thread_id: UUID) -> Dict[str, Any]:
+    async def generate_user_analysis(tenant_id: str, thread_id: UUID) -> dict[str, Any]:
         """
         生成用户分析报告
         
@@ -34,9 +35,12 @@ class ReportService:
             thread_id: 线程ID
             
         Returns:
-            Dict[str, Any]: 生成的报告结果，包含 report_result, report_tokens, error_message
+            dict[str, Any]: 生成的报告结果，包含 report_result, report_tokens, error_message
         """
         try:
+            start_time = get_current_datetime()
+            logger.info(f"[{thread_id}] 开始生成报告")
+
             # 1. 初始化记忆管理器
             memory_manager = StorageManager()
 
@@ -44,8 +48,9 @@ class ReportService:
             short_term_messages, long_term_memories = await memory_manager.retrieve_context(
                 tenant_id=tenant_id,
                 thread_id=thread_id,
-                query_text=None 
+                query_text=None
             )
+            logger.debug(f"获取记忆上下文, thread_id={thread_id}")
 
             # 3. 格式化记忆内容
             formatted_history = []
@@ -179,30 +184,33 @@ class ReportService:
 
 ### 🎯 **综合总结特别要求**
 - **综合总结 (overall_summary)** 字段是最重要的输出，必须基于所有非空分析字段内容生成
-- 使用中文以及标准MD格式，分行加粗标点等格式语法
+- 使用中文以及标准MD格式，可以用一些无序列表、加粗、标点等格式语法
 - 内容要涵盖客户画像、需求分析、行为特征、跟进建议等关键信息
 - 语言要自然流畅，避免生硬的分点罗列
 - 长度要充实，至少200字以上，全面反映客户特征
 
-请直接返回纯净的 JSON 格式内容，不要包含 markdown 代码块标记。
+请直接返回纯净的 JSON 格式内容。
 """
             
             # 5. 调用 LLM
+            logger.debug(f"构建 {thread_id} Prompt")
             llm_messages = [Message(role="system", content=system_prompt)]
             # 注意：这里不再次添加 short_term_messages，因为已经格式化到 system_prompt 中了
 
             llm_client = LLMClient()
             request = CompletionsRequest(
                 id=str(uuid4()),
-                provider="openrouter", 
-                model="openai/gpt-5-mini", # 或使用 gpt-4o 等
+                provider="openrouter",
+                model="qwen/qwen-plus-2025-07-28", # 或使用 gpt-4o 等
                 messages=llm_messages,
                 thread_id=thread_id,
                 temperature=0.7
             )
-            
+
             response = await llm_client.completions(request)
-            
+
+            logger.debug(f"[LLM] {thread_id}，收到返回信息")
+
             # 6. 解析响应
             content = response.content
             
@@ -220,20 +228,26 @@ class ReportService:
 
             # 7. 构建返回结果
             # 提取 token 使用情况
-            total_tokens = response.usage.input_tokens + response.usage.output_tokens
-                
+            input_tokens = response.usage.input_tokens
+            output_tokens = response.usage.output_tokens
+
             result = {
                 "report_result": json_content.get("overall_summary", ""),
-                "report_tokens": total_tokens,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
                 "error_message": None
             }
-            
+
+            total_elapsed_ms = get_processing_time(start_time)
+            logger.info(f"[{thread_id}] 报告生成完成, 总耗时: {total_elapsed_ms:.2f}ms, input_tokens: {input_tokens}, output_tokens: {output_tokens}")
+
             return result
 
         except Exception as e:
             logger.error(f"报告生成失败: {e}", exc_info=True)
             return {
                 "report_result": "",
-                "report_tokens": 0,
+                "input_tokens": 0,
+                "output_tokens": 0,
                 "error_message": str(e)
             }

@@ -105,10 +105,19 @@
       name: "GPT-4.1-nano"
       type: "text"
       enabled: true
-
     - id: "google/gemini-2.5-flash-preview-09-2025"
       provider: "openrouter"
       name: "Gemini-2.5-flash"
+      type: "text"
+      enabled: true
+    - id: "qwen/qwen3-coder-flash"
+      provider: "openrouter"
+      name: "Qwen-3-coder-flash"
+      type: "text"
+      enabled: true
+    - id: "qwen/qwen-plus-2025-07-28"
+      provider: "openrouter"
+      name: "Qwen-plus"
       type: "text"
       enabled: true
 

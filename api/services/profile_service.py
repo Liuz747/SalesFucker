@@ -5,15 +5,16 @@
 """
 
 import json
+from typing import Any
 from uuid import UUID, uuid4
-from typing import Dict, Any
 
 from core.memory import StorageManager
 from infra.runtimes import LLMClient, CompletionsRequest
 from libs.types import Message
-from utils import get_component_logger
+from utils import get_component_logger, get_current_datetime, get_processing_time
 
 logger = get_component_logger(__name__, "ProfileService")
+
 
 class ProfileService:
     """
@@ -21,21 +22,25 @@ class ProfileService:
     """
     
     @staticmethod
-    async def generate_user_profile(tenant_id: str, thread_id: UUID) -> Dict[str, Any]:
+    async def generate_user_profile(tenant_id: str, thread_id: UUID) -> dict[str, Any]:
         """
         生成结构化用户画像
         
         Returns:
-            Dict[str, Any]: 结构化画像数据
+            dict[str, Any]: 结构化画像数据
         """
         try:
+            start_time = get_current_datetime()
+            logger.info(f"[{thread_id}] 开始生成画像")
+
             # 1. 获取记忆
             memory_manager = StorageManager()
             short_term_messages, long_term_memories = await memory_manager.retrieve_context(
                 tenant_id=tenant_id,
                 thread_id=thread_id,
-                query_text=None 
+                query_text=None
             )
+            logger.debug(f"获取记忆上下文, thread_id={thread_id}")
             
             long_term_context = "\n".join([m.get('content', '') for m in long_term_memories]) if long_term_memories else "无长期记忆"
             
@@ -88,22 +93,25 @@ class ProfileService:
             """
             
             # 3. 调用 LLM
+            logger.debug(f"构建 {thread_id} Prompt")
             llm_messages = [Message(role="system", content=system_prompt)]
             llm_messages.extend(short_term_messages)
 
             llm_client = LLMClient()
             request = CompletionsRequest(
                 id=str(uuid4()),
-                provider="openrouter", 
-                model="openai/gpt-5-mini",
+                provider="openrouter",
+                model="qwen/qwen3-coder-flash",
                 messages=llm_messages,
                 thread_id=thread_id,
                 temperature=0.7
             )
-            
+
             response = await llm_client.completions(request)
             content = response.content
-            
+
+            logger.debug(f"[LLM] {thread_id}，收到返回信息")
+
             # 4. 解析结果
             # 清理可能存在的 markdown 代码块标记
             content = content.replace("```json", "").replace("```", "").strip()
@@ -115,16 +123,26 @@ class ProfileService:
                 # 如果没有找到对应的 key，尝试将整个 JSON 转为字符串
                  profile_result = json.dumps(profile_data, ensure_ascii=False)
             
-            # 计算总token
-            total_tokens = response.usage.input_tokens + response.usage.output_tokens
+            # 提取 token 使用情况
+            input_tokens = response.usage.input_tokens
+            output_tokens = response.usage.output_tokens
+
+            total_elapsed_ms = get_processing_time(start_time)
+            logger.info(f"[{thread_id}] 画像生成完成, 总耗时: {total_elapsed_ms:.2f}ms, input_tokens: {input_tokens}, output_tokens: {output_tokens}")
 
             return {
                 "profile_result": profile_result,
-                "profile_tokens": total_tokens,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
                 "error_message": None
             }
 
         except Exception as e:
             logger.error(f"画像生成失败: {e}", exc_info=True)
-            raise e
+            return {
+                "profile_result": "",
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "error_message": str(e)
+            }
 
