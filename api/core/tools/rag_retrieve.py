@@ -5,7 +5,7 @@ RAG混合检索工具
 """
 
 from core.rag.search import ProductSearch, SearchQuery
-from utils import get_component_logger
+from utils.logger_utils import get_component_logger
 
 logger = get_component_logger(__name__)
 

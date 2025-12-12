@@ -8,7 +8,7 @@ from uuid import UUID
 from typing import Any
 
 from infra.ops.temporal_client import get_temporal_client
-from utils import get_component_logger
+from utils.logger_utils import get_component_logger
 
 logger = get_component_logger(__name__)
 
