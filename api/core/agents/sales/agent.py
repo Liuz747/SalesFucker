@@ -15,7 +15,7 @@ from uuid import uuid4
 
 from core.entities import WorkflowExecutionModel
 from core.memory import StorageManager
-from core.prompts.utils.get_role_prompt import get_role_prompt
+from core.prompts.get_role_prompt import get_role_prompt, get_combined_system_prompt
 from infra.runtimes import CompletionsRequest
 from libs.types import Message
 from utils import get_current_datetime
@@ -102,13 +102,12 @@ class SalesAgent(BaseAgent):
 
             # 获取助理人设信息
             role_prompt = None
-            if assistant_id:
-                try:
-                    role_prompt = await get_role_prompt(assistant_id, use_cache=True)
-                    self.logger.info(f"已获取助理人设信息: {role_prompt.content[:100]}...")
-                except Exception as e:
-                    self.logger.warning(f"获取助理人设信息失败: {e}")
-                    role_prompt = None
+            try:
+                role_prompt = await get_combined_system_prompt(state.assistant_id, state.thread_id)
+                self.logger.info(f"已获取助理人设信息: {role_prompt.content[:100]}...")
+            except Exception as e:
+                self.logger.warning(f"获取助理人设信息失败: {e}")
+                role_prompt = None
 
             self.logger.info(f"sales agent 匹配提示词: {matched_prompt.get('matched_key', 'unknown')}")
 
