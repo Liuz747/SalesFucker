@@ -9,22 +9,16 @@
 
 import json
 import re
-import time
+from typing import Any
 from uuid import UUID, uuid4
-from typing import Optional, List, Dict, Any
 
 from core.memory import StorageManager
 from infra.runtimes import LLMClient, CompletionsRequest
 from libs.types import Message
-from utils import get_component_logger
+from utils import get_component_logger, get_current_datetime, get_processing_time
 
 logger = get_component_logger(__name__, "ReportService")
 
-
-def _log_step_time(step_name: str, start_time: float, thread_id: UUID):
-    """记录步骤耗时"""
-    elapsed_ms = (time.time() - start_time) * 1000
-    logger.info(f"[{thread_id}] {step_name} 耗时: {elapsed_ms:.2f}ms")
 
 class ReportService:
     """
@@ -32,7 +26,7 @@ class ReportService:
     """
     
     @staticmethod
-    async def generate_user_analysis(tenant_id: str, thread_id: UUID) -> Dict[str, Any]:
+    async def generate_user_analysis(tenant_id: str, thread_id: UUID) -> dict[str, Any]:
         """
         生成用户分析报告
         
@@ -41,23 +35,22 @@ class ReportService:
             thread_id: 线程ID
             
         Returns:
-            Dict[str, Any]: 生成的报告结果，包含 report_result, report_tokens, error_message
+            dict[str, Any]: 生成的报告结果，包含 report_result, report_tokens, error_message
         """
         try:
-            total_start = time.time()
+            start_time = get_current_datetime()
             logger.info(f"[{thread_id}] 开始生成报告")
 
             # 1. 初始化记忆管理器
             memory_manager = StorageManager()
 
             # 2. 获取记忆 (Short-term + Long-term)
-            step_start = time.time()
             short_term_messages, long_term_memories = await memory_manager.retrieve_context(
                 tenant_id=tenant_id,
                 thread_id=thread_id,
                 query_text=None
             )
-            _log_step_time("获取记忆上下文", step_start, thread_id)
+            logger.debug(f"获取记忆上下文, thread_id={thread_id}")
 
             # 3. 格式化记忆内容
             formatted_history = []
@@ -200,7 +193,7 @@ class ReportService:
 """
             
             # 5. 调用 LLM
-            step_start = time.time()
+            logger.debug(f"构建 {thread_id} Prompt")
             llm_messages = [Message(role="system", content=system_prompt)]
             # 注意：这里不再次添加 short_term_messages，因为已经格式化到 system_prompt 中了
 
@@ -215,8 +208,9 @@ class ReportService:
             )
 
             response = await llm_client.completions(request)
-            _log_step_time("LLM调用", step_start, thread_id)
-            
+
+            logger.debug(f"[LLM] {thread_id}，收到返回信息")
+
             # 6. 解析响应
             content = response.content
             
@@ -244,7 +238,7 @@ class ReportService:
                 "error_message": None
             }
 
-            total_elapsed_ms = (time.time() - total_start) * 1000
+            total_elapsed_ms = get_processing_time(start_time)
             logger.info(f"[{thread_id}] 报告生成完成, 总耗时: {total_elapsed_ms:.2f}ms, input_tokens: {input_tokens}, output_tokens: {output_tokens}")
 
             return result

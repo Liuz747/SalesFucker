@@ -5,22 +5,16 @@
 """
 
 import json
-import time
+from typing import Any
 from uuid import UUID, uuid4
-from typing import Dict, Any
 
 from core.memory import StorageManager
 from infra.runtimes import LLMClient, CompletionsRequest
 from libs.types import Message
-from utils import get_component_logger
+from utils import get_component_logger, get_current_datetime, get_processing_time
 
 logger = get_component_logger(__name__, "ProfileService")
 
-
-def _log_step_time(step_name: str, start_time: float, thread_id: UUID):
-    """记录步骤耗时"""
-    elapsed_ms = (time.time() - start_time) * 1000
-    logger.info(f"[{thread_id}] {step_name} 耗时: {elapsed_ms:.2f}ms")
 
 class ProfileService:
     """
@@ -28,26 +22,25 @@ class ProfileService:
     """
     
     @staticmethod
-    async def generate_user_profile(tenant_id: str, thread_id: UUID) -> Dict[str, Any]:
+    async def generate_user_profile(tenant_id: str, thread_id: UUID) -> dict[str, Any]:
         """
         生成结构化用户画像
         
         Returns:
-            Dict[str, Any]: 结构化画像数据
+            dict[str, Any]: 结构化画像数据
         """
         try:
-            total_start = time.time()
+            start_time = get_current_datetime()
             logger.info(f"[{thread_id}] 开始生成画像")
 
             # 1. 获取记忆
-            step_start = time.time()
             memory_manager = StorageManager()
             short_term_messages, long_term_memories = await memory_manager.retrieve_context(
                 tenant_id=tenant_id,
                 thread_id=thread_id,
                 query_text=None
             )
-            _log_step_time("获取记忆上下文", step_start, thread_id)
+            logger.debug(f"获取记忆上下文, thread_id={thread_id}")
             
             long_term_context = "\n".join([m.get('content', '') for m in long_term_memories]) if long_term_memories else "无长期记忆"
             
@@ -100,7 +93,7 @@ class ProfileService:
             """
             
             # 3. 调用 LLM
-            step_start = time.time()
+            logger.debug(f"构建 {thread_id} Prompt")
             llm_messages = [Message(role="system", content=system_prompt)]
             llm_messages.extend(short_term_messages)
 
@@ -115,9 +108,10 @@ class ProfileService:
             )
 
             response = await llm_client.completions(request)
-            _log_step_time("LLM调用", step_start, thread_id)
             content = response.content
-            
+
+            logger.debug(f"[LLM] {thread_id}，收到返回信息")
+
             # 4. 解析结果
             # 清理可能存在的 markdown 代码块标记
             content = content.replace("```json", "").replace("```", "").strip()
@@ -133,7 +127,7 @@ class ProfileService:
             input_tokens = response.usage.input_tokens
             output_tokens = response.usage.output_tokens
 
-            total_elapsed_ms = (time.time() - total_start) * 1000
+            total_elapsed_ms = get_processing_time(start_time)
             logger.info(f"[{thread_id}] 画像生成完成, 总耗时: {total_elapsed_ms:.2f}ms, input_tokens: {input_tokens}, output_tokens: {output_tokens}")
 
             return {

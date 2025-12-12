@@ -112,12 +112,12 @@
       enabled: true
     - id: "qwen/qwen3-coder-flash"
       provider: "openrouter"
-      name: "Gemini-2.5-flash"
+      name: "Qwen-3-coder-flash"
       type: "text"
       enabled: true
     - id: "qwen/qwen-plus-2025-07-28"
       provider: "openrouter"
-      name: "Gemini-2.5-flash"
+      name: "Qwen-plus"
       type: "text"
       enabled: true
 
