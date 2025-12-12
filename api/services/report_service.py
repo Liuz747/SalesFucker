@@ -234,16 +234,18 @@ class ReportService:
 
             # 7. 构建返回结果
             # 提取 token 使用情况
-            total_tokens = response.usage.input_tokens + response.usage.output_tokens
-                
+            input_tokens = response.usage.input_tokens
+            output_tokens = response.usage.output_tokens
+
             result = {
                 "report_result": json_content.get("overall_summary", ""),
-                "report_tokens": total_tokens,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
                 "error_message": None
             }
 
             total_elapsed_ms = (time.time() - total_start) * 1000
-            logger.info(f"[{thread_id}] 报告生成完成, 总耗时: {total_elapsed_ms:.2f}ms, tokens: {total_tokens}")
+            logger.info(f"[{thread_id}] 报告生成完成, 总耗时: {total_elapsed_ms:.2f}ms, input_tokens: {input_tokens}, output_tokens: {output_tokens}")
 
             return result
 
@@ -251,6 +253,7 @@ class ReportService:
             logger.error(f"报告生成失败: {e}", exc_info=True)
             return {
                 "report_result": "",
-                "report_tokens": 0,
+                "input_tokens": 0,
+                "output_tokens": 0,
                 "error_message": str(e)
             }

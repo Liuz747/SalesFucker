@@ -54,6 +54,8 @@ async def generate_thread_report(
             thread_id=thread_id,
             status=status,
             response=response_content,
+            input_tokens=result.get("input_tokens", 0),
+            output_tokens=result.get("output_tokens", 0),
             processing_time=processing_time,
             metadata={"error": result.get("error_message")} if result.get("error_message") else None
         )
@@ -69,7 +71,7 @@ async def generate_thread_labels(
 ):
     """
     生成用户标签 (Labels)
-    
+
     返回包含 label_result, label_tokens, error_message 的 JSON 对象。
     """
     start_time = get_current_datetime()
@@ -80,12 +82,12 @@ async def generate_thread_labels(
             tenant_id=tenant.tenant_id,
             thread_id=thread_id
         )
-        
+
         processing_time = get_processing_time_ms(start_time)
-        
+
         status = "completed"
         response_content = result.get("label_result", [])
-        
+
         if result.get("error_message"):
             status = "failed"
             # 如果失败，response可能是空列表或错误信息，视需求而定
@@ -97,6 +99,8 @@ async def generate_thread_labels(
             thread_id=thread_id,
             status=status,
             response=response_content,
+            input_tokens=result.get("input_tokens", 0),
+            output_tokens=result.get("output_tokens", 0),
             processing_time=processing_time,
             metadata={"error": result.get("error_message")} if result.get("error_message") else None
         )
@@ -113,7 +117,7 @@ async def generate_thread_profile(
 ):
     """
     生成结构化用户画像 (Profile)
-    
+
     返回包含 profile_result, profile_tokens, error_message 的 JSON 对象。
     """
     start_time = get_current_datetime()
@@ -124,22 +128,24 @@ async def generate_thread_profile(
             tenant_id=tenant.tenant_id,
             thread_id=thread_id
         )
-        
+
         processing_time = get_processing_time_ms(start_time)
-        
+
         status = "completed"
         response_content = result.get("profile_result")
-        
+
         if result.get("error_message"):
             status = "failed"
             if not response_content:
                  response_content = result.get("error_message")
-        
+
         return ThreadRunResponse(
             run_id=run_id,
             thread_id=thread_id,
             status=status,
             response=response_content,
+            input_tokens=result.get("input_tokens", 0),
+            output_tokens=result.get("output_tokens", 0),
             processing_time=processing_time,
             metadata={"error": result.get("error_message")} if result.get("error_message") else None
         )

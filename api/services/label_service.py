@@ -90,9 +90,10 @@ class LabelService:
             _log_step_time("LLM调用", step_start, thread_id)
             content = response.content
 
-            # 计算总token
-            total_tokens = response.usage.input_tokens + response.usage.output_tokens
-            
+            # 提取 token 使用情况
+            input_tokens = response.usage.input_tokens
+            output_tokens = response.usage.output_tokens
+
             # 4. 解析结果
             # 清理可能存在的 markdown 代码块标记
             content = content.replace("```json", "").replace("```", "").strip()
@@ -104,11 +105,12 @@ class LabelService:
                 labels = [tag.strip() for tag in content.split(',') if tag.strip()]
             
             total_elapsed_ms = (time.time() - total_start) * 1000
-            logger.info(f"[{thread_id}] 标签生成完成, 总耗时: {total_elapsed_ms:.2f}ms, tokens: {total_tokens}")
+            logger.info(f"[{thread_id}] 标签生成完成, 总耗时: {total_elapsed_ms:.2f}ms, input_tokens: {input_tokens}, output_tokens: {output_tokens}")
 
             return {
                 "label_result": labels,
-                "label_tokens": total_tokens,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
                 "error_message": None
             }
 
@@ -116,6 +118,7 @@ class LabelService:
             logger.error(f"标签生成失败: {e}", exc_info=True)
             return {
                 "label_result": [],
-                "label_tokens": 0,
+                "input_tokens": 0,
+                "output_tokens": 0,
                 "error_message": str(e)
             }

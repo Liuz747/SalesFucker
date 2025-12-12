@@ -129,19 +129,26 @@ class ProfileService:
                 # 如果没有找到对应的 key，尝试将整个 JSON 转为字符串
                  profile_result = json.dumps(profile_data, ensure_ascii=False)
             
-            # 计算总token
-            total_tokens = response.usage.input_tokens + response.usage.output_tokens
+            # 提取 token 使用情况
+            input_tokens = response.usage.input_tokens
+            output_tokens = response.usage.output_tokens
 
             total_elapsed_ms = (time.time() - total_start) * 1000
-            logger.info(f"[{thread_id}] 画像生成完成, 总耗时: {total_elapsed_ms:.2f}ms, tokens: {total_tokens}")
+            logger.info(f"[{thread_id}] 画像生成完成, 总耗时: {total_elapsed_ms:.2f}ms, input_tokens: {input_tokens}, output_tokens: {output_tokens}")
 
             return {
                 "profile_result": profile_result,
-                "profile_tokens": total_tokens,
+                "input_tokens": input_tokens,
+                "output_tokens": output_tokens,
                 "error_message": None
             }
 
         except Exception as e:
             logger.error(f"画像生成失败: {e}", exc_info=True)
-            raise e
+            return {
+                "profile_result": "",
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "error_message": str(e)
+            }
 
