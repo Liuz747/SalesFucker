@@ -149,6 +149,15 @@ class AssistantConflictException(AssistantException):
         super().__init__(detail=f"AI助手 {assistant_id} 已存在")
 
 
+class AssistantDisabledException(AssistantException):
+    code = 1100004
+    message = "ASSISTANT_DISABLED"
+    http_status_code = 400
+
+    def __init__(self, assistant_id: UUID | str):
+        super().__init__(detail=f"AI助手 {assistant_id} 已被禁用，无法处理请求")
+
+
 class ThreadException(WorkspaceException):
     code = 1300001
     message = "THREAD_ERROR"

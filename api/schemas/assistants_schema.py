@@ -15,7 +15,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from libs.types import AccountStatus
+from libs.types import AccountStatus, Sex
 from .responses import BaseResponse
 
 
@@ -28,7 +28,7 @@ class AssistantCreateRequest(BaseModel):
     assistant_name: str = Field(description="助理姓名", min_length=1, max_length=100)
     nickname: Optional[str] = Field(None, description="助理昵称", max_length=100)
     address: Optional[str] = Field(None, description="助理地址", max_length=500)
-    sex: Optional[str] = Field(None, description="助理性别", max_length=32)
+    sex: Optional[Sex] = Field(None, description="助理性别")
     personality: str = Field(description="助理个性类型")
     occupation: str = Field(description="数字员工职业")
     voice_id: Optional[str] = Field(None, description="语音克隆配置，使用MiniMax模型")
@@ -59,7 +59,7 @@ class AssistantUpdateRequest(BaseModel):
     assistant_name: Optional[str] = Field(None, description="助理姓名", min_length=1, max_length=100)
     nickname: Optional[str] = Field(None, description="助理昵称", max_length=100)
     address: Optional[str] = Field(None, description="助理地址", max_length=500)
-    sex: Optional[str] = Field(None, description="助理性别", max_length=32)
+    sex: Optional[Sex] = Field(None, description="助理性别")
     personality: Optional[str] = Field(None, description="助理个性类型")
     occupation: Optional[str] = Field(None, description="数字员工职业")
     voice_id: Optional[str] = Field(None, description="语音克隆配置")

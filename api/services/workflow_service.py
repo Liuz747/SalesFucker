@@ -9,6 +9,11 @@ from fastapi import HTTPException
 
 from libs.types import AccountStatus
 from models import Thread
+from schemas.exceptions import (
+    AssistantDisabledException,
+    TenantValidationException,
+    ThreadNotFoundException
+)
 from utils import get_component_logger
 from .assistant_service import AssistantService
 from .thread_service import ThreadService
@@ -44,10 +49,9 @@ class WorkflowService:
             Thread: 验证通过的线程模型
 
         异常:
-            HTTPException:
-                - 404: 线程不存在
-                - 403: 权限验证失败（租户不匹配或助理不属于租户）
-                - 400: 助理状态无效
+            ThreadNotFoundException: 线程不存在
+            TenantValidationException: 租户验证失败（租户不匹配或助理不属于租户）
+            AssistantDisabledException: 助理已被禁用
         """
         try:
             logger.info(f"开始验证工作流权限 - 线程: {thread_id}")
@@ -56,10 +60,7 @@ class WorkflowService:
             thread = await ThreadService.get_thread(thread_id)
             if not thread:
                 logger.warning(f"线程不存在: {thread_id}")
-                raise HTTPException(
-                    status_code=404,
-                    detail=f"线程不存在: {thread_id}"
-                )
+                raise ThreadNotFoundException(thread_id)
 
             # 2. 验证助理身份
             assistant = await AssistantService.get_assistant_by_id(
@@ -70,18 +71,12 @@ class WorkflowService:
             # 3. 验证线程、助理、租户ID三者匹配
             if not assistant.tenant_id == thread.tenant_id == tenant_id:
                 logger.warning(f"租户、数字员工、线程不匹配: thread_id={thread_id}")
-                raise HTTPException(
-                    status_code=403,
-                    detail="租户ID不匹配，无法访问此线程"
-                )
+                raise TenantValidationException(tenant_id, "线程和数字员工不匹配")
 
             # 4. 验证助理状态
             if assistant.status != AccountStatus.ACTIVE:
                 logger.warning(f"助理已被禁用: assistant_id={assistant_id}")
-                raise HTTPException(
-                    status_code=400,
-                    detail="助理已被禁用，无法处理请求"
-                )
+                raise AssistantDisabledException(assistant_id)
 
             logger.info(f"工作流权限验证成功 - 线程: {thread_id}")
             return thread

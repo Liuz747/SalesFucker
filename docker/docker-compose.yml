@@ -71,11 +71,14 @@ services:
     restart: unless-stopped
 
   api-test:
-    image: ${REGISTRY_URL}/api:latest
+    image: ${REGISTRY_URL}/api:test
     environment:
       <<: *shared-mas-env
-      DB_NAME: ${DB_NAME_TEST:-mas_test}
-      REDIS_DB: ${REDIS_DB_TEST:-1}
+      DEBUG: true
+      LOG_LEVEL: DEBUG
+      SQLALCHEMY_ECHO: true
+      DB_NAME: ${DB_NAME_TEST}
+      REDIS_DB: ${REDIS_DB_TEST}
       ES_MEMORY_INDEX: ${ELASTIC_MEMORY_INDEX_TEST}
       TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE_TEST}
     depends_on: *mas-depends-on
