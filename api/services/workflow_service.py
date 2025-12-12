@@ -1,6 +1,5 @@
 """
 工作流执行业务服务层
-
 """
 
 from uuid import UUID
@@ -11,6 +10,7 @@ from libs.types import AccountStatus
 from models import Thread
 from schemas.exceptions import (
     AssistantDisabledException,
+    BaseHTTPException,
     TenantValidationException,
     ThreadNotFoundException
 )
@@ -81,7 +81,7 @@ class WorkflowService:
             logger.info(f"工作流权限验证成功 - 线程: {thread_id}")
             return thread
 
-        except HTTPException:
+        except BaseHTTPException:
             raise
         except Exception as e:
             logger.error(
