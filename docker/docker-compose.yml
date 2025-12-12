@@ -61,6 +61,8 @@ services:
       timeout: 10s
       retries: 3
     restart: unless-stopped
+    networks:
+      - mas-network
 
   worker:
     image: ${REGISTRY_URL}/api:latest
@@ -69,6 +71,8 @@ services:
       MODE: worker
     depends_on: *mas-depends-on
     restart: unless-stopped
+    networks:
+      - mas-network
 
   api-test:
     image: ${REGISTRY_URL}/api:test
@@ -90,6 +94,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    networks:
+      - mas-network
 
   langfuse-web:
     image: ${REGISTRY_URL}/frontend:latest
@@ -146,6 +152,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    networks:
+      - mas-network
 
   langfuse-worker:
     image: ${REGISTRY_URL}/langfuse-worker:latest
@@ -158,6 +166,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    networks:
+      - mas-network
 
   clickhouse:
     image: ${REGISTRY_URL}/clickhouse-server:latest
@@ -173,6 +183,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    networks:
+      - mas-network
 
   elasticsearch:
     image: ${REGISTRY_URL}/elasticsearch:9.2.0
@@ -197,6 +209,9 @@ services:
     restart: unless-stopped
     volumes:
       - es_data:/usr/share/elasticsearch/data
+      - es_plugins:/usr/share/elasticsearch/plugins
+    networks:
+      - mas-network
 
   etcd:
     image: ${REGISTRY_URL}/etcd:v3.6.5
@@ -213,6 +228,8 @@ services:
       interval: 30s
       timeout: 20s
       retries: 3
+    networks:
+      - mas-network
 
   milvus-standalone:
     image: ${REGISTRY_URL}/milvus:v2.6.4
@@ -237,6 +254,8 @@ services:
       - etcd
       - minio
     restart: unless-stopped
+    networks:
+      - mas-network
 
   minio:
     image: ${REGISTRY_URL}/minio:latest
@@ -252,6 +271,8 @@ services:
       interval: 30s
       timeout: 20s
       retries: 3
+    networks:
+      - mas-network
 
   nginx:
     image: ${REGISTRY_URL}/nginx:alpine
@@ -281,6 +302,8 @@ services:
       NGINX_PROXY_READ_TIMEOUT: ${NGINX_PROXY_READ_TIMEOUT:-3600s}
       NGINX_PROXY_SEND_TIMEOUT: ${NGINX_PROXY_SEND_TIMEOUT:-3600s}
     restart: unless-stopped
+    networks:
+      - mas-network
 
   postgres:
     image: ${REGISTRY_URL}/postgres:18-alpine
@@ -296,6 +319,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    networks:
+      - mas-network
 
   redis:
     image: ${REGISTRY_URL}/redis:8-alpine
@@ -310,6 +335,8 @@ services:
       retries: 3
     command: --requirepass ${REDIS_PASSWORD:-myredissecret}
     restart: always
+    networks:
+      - mas-network
 
   temporal:
     image: ${REGISTRY_URL}/temporal:latest
@@ -327,6 +354,8 @@ services:
       - ES_PWD=${ELASTIC_PASSWORD:-changeme}
       - ES_SEEDS=elasticsearch
       - TEMPORAL_ADDRESS=${TEMPORAL_HOST:-temporal}:${TEMPORAL_PORT:-7233}
+    networks:
+      - mas-network
 
 volumes:
   clickhouse_data:
@@ -334,14 +363,13 @@ volumes:
   postgres_data:
   minio_data:
   es_data:
+  es_plugins:
   etcd_data:
   milvus_data:
 
 networks:
   mas-network:
-    driver: bridge
     ipam:
-      driver: default
       config:
         - subnet: 192.168.100.0/24
           gateway: 192.168.100.1

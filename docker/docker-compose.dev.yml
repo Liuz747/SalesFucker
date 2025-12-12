@@ -116,6 +116,7 @@ services:
       - "9200:9200"
     volumes:
       - es_data:/usr/share/elasticsearch/data
+      - es_plugins:/usr/share/elasticsearch/plugins
 
   etcd:
     image: quay.io/coreos/etcd:v3.6.5
@@ -236,5 +237,6 @@ volumes:
   postgres_data:
   minio_data:
   es_data:
+  es_plugins:
   etcd_data:
   milvus_data:
