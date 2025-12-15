@@ -18,7 +18,7 @@ class MarketingPlanRequest(BaseModel):
 
 class MarketingPlanResponse(BaseModel):
     """营销计划生成响应"""
-    request_id: str = Field(description="请求ID")
+    request_id: UUID = Field(description="请求ID")
     response: str = Field(description="营销方案分析和建议")
     options: list[MarketingPlanOption] = Field(description="3个结构化的营销方案选项")
     input_tokens: int = Field(description="输入token数")

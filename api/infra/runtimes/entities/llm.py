@@ -39,7 +39,7 @@ class CompletionsRequest(LLMRequest):
 
 @dataclass 
 class LLMResponse:
-    id: str
+    id: UUID | None
     content: str | Mapping
     provider: str
     model: str
