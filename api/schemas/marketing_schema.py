@@ -16,7 +16,7 @@ class MarketingPlanRequest(BaseModel):
 
 class MarketingPlanResponse(BaseModel):
     """营销计划生成响应"""
-    response: str = Field(description="LLM生成的自然语言分析和建议")
+    response: str = Field(description="营销方案分析和建议")
     options: list[MarketingPlanOption] = Field(description="3个结构化的营销方案选项")
     input_tokens: int = Field(description="输入token数")
     output_tokens: int = Field(description="输出token数")
