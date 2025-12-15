@@ -2,6 +2,11 @@ from .assistants_schema import AssistantCreateRequest, AssistantUpdateRequest, A
 from .conversation_schema import ThreadPayload, ThreadCreateResponse
 from .responses import BaseResponse
 from .tenant_schema import TenantSyncRequest, TenantUpdateRequest
+from .marketing_schema import (
+    MarketingPlanRequest,
+    MarketingPlanResponse,
+    MarketingPlanOption
+)
 
 __all__ = [
     "AssistantCreateRequest",
@@ -11,5 +16,8 @@ __all__ = [
     "TenantSyncRequest",
     "TenantUpdateRequest",
     "ThreadPayload",
-    "ThreadCreateResponse"
+    "ThreadCreateResponse",
+    "MarketingPlanRequest",
+    "MarketingPlanResponse",
+    "MarketingPlanOption"
 ]
