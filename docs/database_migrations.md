@@ -26,13 +26,13 @@ api/
 
 ```bash
 # 升级到最新版本
-uv run python scripts/database.py
+uv run scripts/database.py
 
 # 生成新迁移（自动检测模型变化）
-uv run python scripts/database.py revision "add tenant webhook"
+uv run scripts/database.py revision "add tenant webhook"
 
 # 回滚到上一版本
-uv run python scripts/database.py downgrade -1
+uv run scripts/database.py downgrade -1
 ```
 
 命令说明：
@@ -46,7 +46,7 @@ uv run python scripts/database.py downgrade -1
 
 ### 3.1 新增模型 / 字段
 1. 修改或新增 `api/models/*.py`
-2. 在 `api/` 目录执行 `uv run python scripts/database.py revision "description"`
+2. 在 `api/` 目录执行 `uv run scripts/database.py revision "description"`
 3. 检查 `migrations/versions/` 下的自动生成文件，必要时手动调整
 4. 将模型与迁移一并提交 PR：
    ```bash
@@ -61,11 +61,11 @@ uv run python scripts/database.py downgrade -1
    ```
 2. 在 `api/` 目录执行升级
    ```bash
-   uv run python scripts/database.py
+   uv run scripts/database.py
    ```
 3. 如需要回滚到旧版本用于调试
    ```bash
-   uv run python scripts/database.py downgrade -1
+   uv run scripts/database.py downgrade -1
    ```
 
 ---

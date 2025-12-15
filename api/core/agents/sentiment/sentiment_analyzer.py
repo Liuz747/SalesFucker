@@ -1,140 +1,336 @@
 """
-情感分析核心模块
+情感分析器
 
-该模块提供文本情感分析的核心功能。
-包含中文情感词典和情感识别算法。
+专门负责分析文本情感状态，可以结合多模态信息进行综合分析。
+使用LLM进行情感识别，支持情感分类、强度评分和紧急度判断。
 
 核心功能:
-- 中文情感词典管理
 - 文本情感分析
-- 情感强度计算
-- 情感指标提取
+- 多模态情感融合
+- 情感强度量化
+- 紧急度评估
+- 置信度计算
 """
 
-from typing import Dict, List, Set
+from abc import ABC, abstractmethod
+from typing import Any, Union
+from uuid import uuid4
+
+from infra.runtimes import CompletionsRequest
+from libs.types import Message
+from utils import LoggerMixin
 
 
-class ChineseSentimentAnalyzer:
+class SentimentAnalysisStrategy(ABC):
+    """情感分析策略基类"""
+
+    @abstractmethod
+    async def analyze(self, text: str, context: dict[str, Any] = None) -> dict[str, Any]:
+        """执行情感分析"""
+        pass
+
+
+class LLMSentimentAnalyzer(SentimentAnalysisStrategy):
+    """基于LLM的情感分析器"""
+
+    def __init__(self, llm_provider: str, llm_model: str, invoke_llm_fn):
+        self.llm_provider = llm_provider
+        self.llm_model = llm_model
+        self.invoke_llm = invoke_llm_fn
+
+    async def analyze(self, text: str, context: dict[str, Any] = None) -> dict[str, Any]:
+        """使用LLM分析情感"""
+        if not text or len(text.strip()) < 2:
+            return {
+                "sentiment": "neutral",
+                "score": 0.0,
+                "urgency": "medium",
+                "confidence": 0.0,
+                "tokens_used": 0,
+                "total_tokens": 0,
+                "input_tokens": 0,
+                "output_tokens": 0
+            }
+
+        try:
+            prompt = self._build_analysis_prompt(text, context or {})
+
+            messages = [
+                Message(role="user", content=prompt)
+            ]
+            request = CompletionsRequest(
+                id=uuid4(),
+                provider=self.llm_provider,
+                model=self.llm_model,
+                temperature=0.1,
+                messages=messages
+            )
+
+            llm_response = await self.invoke_llm(request)
+            raw_response = (
+                llm_response.content
+                if isinstance(llm_response.content, str)
+                else str(llm_response.content)
+            )
+
+            # 提取 token 信息
+            try:
+                # 直接访问TokenUsage dataclass的属性
+                if hasattr(llm_response, 'usage') and llm_response.usage:
+                    input_tokens = llm_response.usage.input_tokens
+                    output_tokens = llm_response.usage.output_tokens
+                    total_tokens = input_tokens + output_tokens
+                    
+            except Exception:
+                input_tokens = 0
+                output_tokens = 0
+                total_tokens = 0
+
+            # 解析并验证结果
+            result = self._parse_llm_response(raw_response)
+            validated_result = self._validate_and_normalize(result)
+
+            # 添加标准化的token信息
+            validated_result["tokens_used"] = total_tokens
+            validated_result["total_tokens"] = total_tokens
+            validated_result["input_tokens"] = input_tokens
+            validated_result["output_tokens"] = output_tokens
+
+            return validated_result
+
+        except Exception as e:
+            return {
+                "sentiment": "neutral",
+                "score": 0.0,
+                "urgency": "medium",
+                "confidence": 0.0,
+                "tokens_used": 0,
+                "total_tokens": 0,
+                "input_tokens": 0,
+                "output_tokens": 0,
+                "error": str(e)
+            }
+
+    def _build_analysis_prompt(self, text: str, context: dict[str, Any]) -> str:
+        """构建分析提示词"""
+        context_info = self._extract_context_info(context)
+
+        prompt = f"""请分析以下客户输入的情感状态：
+
+客户输入：{text}
+
+{context_info}
+
+请返回JSON格式的分析结果：
+{{
+    "sentiment": "positive|negative|neutral",
+    "score": 0.0-1.0,
+    "urgency": "high|medium|low",
+    "confidence": 0.0-1.0,
+    "emotional_indicators": {{
+        "enthusiasm": 0.0-1.0,
+        "concern": 0.0-1.0,
+        "satisfaction": 0.0-1.0
+    }}
+}}
+
+判断标准：
+- sentiment: 整体情感倾向（积极/消极/中性）
+- score: 情感强度（0-1，越接近1情感越强烈）
+- urgency: 紧急程度（高/中/低）
+- confidence: 分析置信度（0-1）
+- emotional_indicators: 具体情感指标
+
+请基于文本内容和上下文信息进行综合判断。"""
+
+        return prompt
+
+    def _extract_context_info(self, context: dict[str, Any]) -> str:
+        """从多模态上下文中提取有用信息"""
+        context_parts = []
+
+        # 语音上下文
+        if context.get("modalities") and "audio" in context["modalities"]:
+            context_parts.append("- 客户通过语音表达，注意语气和情感特征")
+
+        # 图像上下文
+        if context.get("modalities") and "image" in context["modalities"]:
+            context_parts.append("- 包含图像内容，可能反映客户的视觉关注点")
+
+        # 分析结果
+        analysis = context.get("analysis", {})
+        for key, value in analysis.items():
+            if isinstance(value, dict) and value.get("text"):
+                context_parts.append(f"- 从{key}中提取的内容：{value['text']}")
+
+        return "\n上下文信息：\n" + "\n".join(context_parts) if context_parts else ""
+
+    def _parse_llm_response(self, raw_response: str) -> dict[str, Any]:
+        """解析LLM响应"""
+        try:
+            import json
+            return json.loads(raw_response)
+        except json.JSONDecodeError:
+            # 尝试从文本中提取JSON
+            import re
+            json_match = re.search(r'\{.*\}', raw_response, re.DOTALL)
+            if json_match:
+                try:
+                    return json.loads(json_match.group())
+                except json.JSONDecodeError:
+                    pass
+
+            # 降级处理
+            return self._fallback_parse(raw_response)
+
+    def _fallback_parse(self, text: str) -> dict[str, Any]:
+        """降级解析方法"""
+        text_lower = text.lower()
+
+        # 简单关键词分析
+        if any(word in text_lower for word in ["好", "喜欢", "满意", "棒", "不错"]):
+            sentiment = "positive"
+            score = 0.7
+        elif any(word in text_lower for word in ["不好", "讨厌", "失望", "糟糕", "问题"]):
+            sentiment = "negative"
+            score = 0.7
+        else:
+            sentiment = "neutral"
+            score = 0.5
+
+        if any(word in text_lower for word in ["急", "马上", "现在", "立即"]):
+            urgency = "high"
+        elif any(word in text_lower for word in ["尽快", "快点"]):
+            urgency = "medium"
+        else:
+            urgency = "low"
+
+        return {
+            "sentiment": sentiment,
+            "score": score,
+            "urgency": urgency,
+            "confidence": 0.3,  # 低置信度，因为是降级解析
+            "emotional_indicators": {
+                "enthusiasm": 0.5 if sentiment == "positive" else 0.2,
+                "concern": 0.5 if sentiment == "negative" else 0.2,
+                "satisfaction": 0.5 if sentiment == "positive" else 0.2
+            }
+        }
+
+    def _validate_and_normalize(self, result: dict[str, Any]) -> dict[str, Any]:
+        """验证和标准化结果"""
+        return {
+            "sentiment": self._validate_sentiment(result.get("sentiment")),
+            "score": self._validate_score(result.get("score")),
+            "urgency": self._validate_urgency(result.get("urgency")),
+            "confidence": self._validate_score(result.get("confidence", 0.5)),
+            "emotional_indicators": self._validate_indicators(result.get("emotional_indicators", {}))
+        }
+
+    def _validate_sentiment(self, sentiment: str) -> str:
+        """验证情感值"""
+        valid_sentiments = ["positive", "negative", "neutral"]
+        return sentiment if sentiment in valid_sentiments else "neutral"
+
+    def _validate_score(self, score: Union[int, float, str]) -> float:
+        """验证分数值"""
+        try:
+            score_float = float(score)
+            return max(0.0, min(1.0, score_float))
+        except (ValueError, TypeError):
+            return 0.0
+
+    def _validate_urgency(self, urgency: str) -> str:
+        """验证紧急度"""
+        valid_urgencies = ["high", "medium", "low"]
+        return urgency if urgency in valid_urgencies else "medium"
+
+    def _validate_indicators(self, indicators: dict[str, Any]) -> dict[str, float]:
+        """验证情感指标"""
+        validated = {}
+        for key, value in indicators.items():
+            validated[key] = self._validate_score(value)
+        return validated
+
+
+class SentimentAnalyzer(LoggerMixin):
     """
-    中文情感分析器
-    
-    基于词典的中文情感分析工具。
-    支持多种情感类别的识别和量化。
-    
-    属性:
-        positive_words: 正面情感词汇
-        negative_words: 负面情感词汇
-        concern_words: 担心情感词汇
-        enthusiasm_words: 热情情感词汇
+    情感分析器主类
+
+    协调不同的分析策略，提供统一的情感分析接口。
     """
-    
-    def __init__(self):
-        self._load_sentiment_dictionaries()
-    
-    def _load_sentiment_dictionaries(self):
-        """加载情感词典"""
-        # 中文情感词典
-        self.positive_words: Set[str] = {
-            '喜欢', '爱', '好', '棒', '完美', '满意', '开心', '高兴', '兴奋',
-            '惊喜', '赞', '优秀', '不错', '很好', '太好了', '喜爱', '心动'
-        }
-        
-        self.negative_words: Set[str] = {
-            '不好', '差', '失望', '讨厌', '烦', '糟糕', '难受', '郭闷',
-            '生气', '愤怒', '沉丧', '伤心', '难过', '不满', '抱怨'
-        }
-        
-        self.concern_words: Set[str] = {
-            '担心', '焦虑', '紧张', '害怕', '不安', '忧虑', '疑虑', '顾虑',
-            '犹豫', '纠结', '困扰', '问题', '麻烦', '困难'
-        }
-        
-        self.enthusiasm_words: Set[str] = {
-            '想要', '渴望', '期待', '迫不及待', '激动', '兴奋', '热情',
-            '积极', '主动', '热切', '急需', '立即', '马上'
-        }
-    
-    def analyze_text_sentiment(self, text: str) -> Dict[str, float]:
+
+    def __init__(self, llm_provider: str, llm_model: str, invoke_llm_fn):
+        super().__init__()
+        self.llm_provider = llm_provider
+        self.llm_model = llm_model
+
+        # 初始化分析策略
+        self.strategies: list[SentimentAnalysisStrategy] = [
+            LLMSentimentAnalyzer(llm_provider, llm_model, invoke_llm_fn)
+        ]
+
+        self.logger.info(f"情感分析llm: {llm_provider}/{llm_model}")
+
+    async def analyze_sentiment(
+        self,
+        text: str,
+        multimodal_context: dict[str, Any] = None
+    ) -> dict[str, Any]:
         """
         分析文本情感
-        
-        Args:
+
+        参数:
             text: 要分析的文本
-            
-        Returns:
-            各种情感的得分
+            multimodal_context: 多模态上下文信息
+
+        返回:
+            dict[str, Any]: 情感分析结果
         """
-        emotions = {
-            'positive': 0.0,
-            'negative': 0.0,
-            'concern': 0.0,
-            'enthusiasm': 0.0
+        if not text:
+            return self._empty_result()
+
+        # 使用第一个可用的策略
+        for strategy in self.strategies:
+            try:
+                result = await strategy.analyze(text, multimodal_context)
+                result["analyzer"] = type(strategy).__name__
+                result["llm_provider"] = self.llm_provider
+                return result
+            except Exception as e:
+                self.logger.warning(f"策略{type(strategy).__name__}失败: {e}")
+                continue
+
+        # 所有策略都失败，返回默认结果
+        return self._fallback_result(text)
+
+    def _empty_result(self) -> dict[str, Any]:
+        """空文本结果"""
+        return {
+            "sentiment": "neutral",
+            "score": 0.0,
+            "urgency": "medium",
+            "confidence": 0.0,
+            "emotional_indicators": {
+                "enthusiasm": 0.0,
+                "concern": 0.0,
+                "satisfaction": 0.0
+            },
+            "analyzer": "empty_input"
         }
-        
-        # 统计情感词汇
-        words = set(text.lower().split())
-        text_length = len(text)
-        
-        if text_length == 0:
-            return emotions
-        
-        # 正面情感
-        positive_count = len(words.intersection(self.positive_words))
-        emotions['positive'] = positive_count / text_length * 10
-        
-        # 负面情感
-        negative_count = len(words.intersection(self.negative_words))
-        emotions['negative'] = negative_count / text_length * 10
-        
-        # 担心情感
-        concern_count = len(words.intersection(self.concern_words))
-        emotions['concern'] = concern_count / text_length * 10
-        
-        # 热情情感
-        enthusiasm_count = len(words.intersection(self.enthusiasm_words))
-        emotions['enthusiasm'] = enthusiasm_count / text_length * 10
-        
-        return emotions
-    
-    def determine_primary_emotion(self, emotions: Dict[str, float]) -> str:
-        """确定主要情感"""
-        if not emotions:
-            return 'neutral'
-        
-        max_emotion = max(emotions.items(), key=lambda x: x[1])
-        
-        if max_emotion[1] > 0.2:
-            return max_emotion[0]
-        else:
-            return 'neutral'
-    
-    def calculate_confidence(self, emotions: Dict[str, float]) -> float:
-        """计算情感置信度"""
-        total_intensity = sum(emotions.values())
-        if total_intensity == 0:
-            return 0.5  # 中性置信度
-        
-        # 归一化置信度
-        max_intensity = max(emotions.values())
-        confidence = min(max_intensity * 2, 1.0)
-        
-        return confidence
-    
-    def extract_emotion_indicators(self, text: str) -> List[str]:
-        """提取情感指标"""
-        indicators = []
-        
-        # 检测标点符号情感
-        if '!' in text:
-            indicators.append('exclamation')
-        if '？' in text or '?' in text:
-            indicators.append('questioning')
-        if '...' in text:
-            indicators.append('hesitation')
-        
-        # 检测重复词汇
-        words = text.split()
-        if len(set(words)) < len(words) * 0.8:  # 有重复词汇
-            indicators.append('repetition')
-        
-        return indicators
+
+    def _fallback_result(self, _text: str) -> dict[str, Any]:
+        """降级结果"""
+        return {
+            "sentiment": "neutral",
+            "score": 0.5,
+            "urgency": "medium",
+            "confidence": 0.1,
+            "emotional_indicators": {
+                "enthusiasm": 0.5,
+                "concern": 0.5,
+                "satisfaction": 0.5
+            },
+            "analyzer": "fallback",
+            "error": "All strategies failed"
+        }

@@ -16,6 +16,7 @@ from infra.ops import (
     get_es_client,
     close_es_client,
     verify_es_connection,
+    create_memory_index,
     get_milvus_connection,
     close_milvus_connection,
     verify_milvus_connection,
@@ -63,23 +64,23 @@ class InfraFactory:
         try:
             elasticsearch = await get_es_client()
             logger.info("Elasticsearch 客户端准备完成")
-        except Exception as exc:
-            logger.warning("Elasticsearch 连接初始化失败: %s", exc, exc_info=True)
+        except Exception as e:
+            logger.warning(f"Elasticsearch 连接初始化失败: {e}")
 
         # Milvus is optional
         milvus: Optional[MilvusClient] = None
         try:
             milvus = await get_milvus_connection()
             logger.info("Milvus 连接准备完成")
-        except Exception as exc:
-            logger.warning("Milvus 连接初始化失败: %s", exc, exc_info=True)
+        except ConnectionError as e:
+            logger.warning(f"Milvus 连接初始化失败: {e}")
 
         temporal: Optional[Client] = None
         try:
             temporal = await get_temporal_client()
             logger.info("Temporal 连接准备完成")
-        except Exception as exc:
-            logger.warning("Temporal 连接初始化失败: %s", exc, exc_info=True)
+        except ConnectionError as e:
+            logger.warning(f"Temporal 连接初始化失败:{e}")
 
         self._clients = InfraClients(
             db_engine=db_engine,
@@ -129,6 +130,7 @@ class InfraFactory:
         if self._clients.elasticsearch:
             if await verify_es_connection(self._clients.elasticsearch):
                 logger.info("✓ Elasticsearch连接测试成功")
+                await create_memory_index(self._clients.elasticsearch)
             else:
                 logger.warning("✗ Elasticsearch连接测试失败")
         else:

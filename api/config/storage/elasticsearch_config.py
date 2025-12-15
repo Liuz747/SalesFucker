@@ -46,16 +46,6 @@ class ElasticsearchConfig(BaseSettings):
         default=3072,
     )
 
-    ES_SIMILARITY_METRIC: str = Field(
-        description="向量相似度计算方式 (cosine/dot_product/l2_norm)",
-        default="cosine",
-    )
-
-    ES_NUM_CANDIDATES: PositiveInt = Field(
-        description="kNN搜索候选数量",
-        default=100,
-    )
-
     ES_MEMORY_TTL_DAYS: PositiveInt = Field(
         description="记忆数据保留天数 (用于ILM策略)",
         default=365,
@@ -63,17 +53,12 @@ class ElasticsearchConfig(BaseSettings):
 
     ES_REFRESH_INTERVAL: str = Field(
         description="索引刷新间隔 (实时性要求)",
-        default="1s",
+        default="30s",
     )
 
     ES_NUMBER_OF_SHARDS: PositiveInt = Field(
         description="索引分片数量",
         default=3,
-    )
-
-    ES_NUMBER_OF_REPLICAS: PositiveInt = Field(
-        description="索引副本数量",
-        default=1,
     )
 
     # 记忆检索配置
@@ -96,7 +81,7 @@ class ElasticsearchConfig(BaseSettings):
 
     ES_REQUEST_TIMEOUT: PositiveInt = Field(
         description="请求超时时间(秒)",
-        default=30,
+        default=10,
     )
 
     @property

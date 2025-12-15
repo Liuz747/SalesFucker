@@ -1,25 +1,25 @@
-from collections.abc import Iterable
+from collections.abc import Sequence
 from enum import StrEnum
-from typing import TypeAlias
+from typing import Literal, TypeAlias
 
 from pydantic import BaseModel
 
-from ..constants import MessageConstants
 from .content_params import InputContentParams
 
 
 class MessageType(StrEnum):
     """消息类型枚举"""
-    QUERY = MessageConstants.QUERY
-    RESPONSE = MessageConstants.RESPONSE
-    NOTIFICATION = MessageConstants.NOTIFICATION
-    TRIGGER = MessageConstants.TRIGGER
-    SUGGESTION = MessageConstants.SUGGESTION
+    QUERY = "query"
+    RESPONSE = "response"
+    NOTIFICATION = "notification"
+    TRIGGER = "trigger"
+    SUGGESTION = "suggestion"
 
 
 class Message(BaseModel):
-    role: str
+    """消息模型"""
+    role: Literal["user", "assistant", "system"]
     content: InputContentParams
 
 
-MessageParams: TypeAlias = Iterable[Message]
+MessageParams: TypeAlias = Sequence[Message]

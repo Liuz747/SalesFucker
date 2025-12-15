@@ -36,7 +36,7 @@ class ThreadRepository:
     """
         
     @staticmethod
-    async def get_thread(thread_id: str, session: AsyncSession) -> Optional[ThreadOrm]:
+    async def get_thread(thread_id: UUID, session: AsyncSession) -> Optional[ThreadOrm]:
         """
         获取线程数据库模型
         
@@ -60,24 +60,31 @@ class ThreadRepository:
         """创建线程数据库模型"""
         try:
             session.add(thread)
+            # 刷新以获取数据库生成的值（如 thread_id, created_at, updated_at）
+            await session.flush()
+            await session.refresh(thread)
             return thread
         except Exception as e:
             logger.error(f"创建线程数据库模型失败: {thread.thread_id}, 错误: {e}")
             raise
 
     @staticmethod
-    async def update_thread(thread: ThreadOrm, session: AsyncSession) -> Optional[ThreadOrm]:
+    async def update_thread_model(thread: ThreadOrm, session: AsyncSession) -> ThreadOrm:
         """更新线程数据库模型"""
         try:
-            session.merge(thread)
+            thread.updated_at = func.now()
             logger.debug(f"更新线程: {thread.thread_id}")
-            return thread
+            merged_thread = await session.merge(thread)
+            # 刷新以获取数据库生成的值（如 updated_at）
+            await session.flush()
+            await session.refresh(merged_thread)
+            return merged_thread
         except Exception as e:
             logger.error(f"更新线程数据库模型失败: {thread.thread_id}, 错误: {e}")
             raise
 
     @staticmethod
-    async def delete_thread(thread_id: str, session: AsyncSession):
+    async def delete_thread(thread_id: UUID, session: AsyncSession):
         """删除线程数据库模型"""
         try:
             thread = await session.get(ThreadOrm, thread_id)
@@ -93,9 +100,10 @@ class ThreadRepository:
             raise
 
     @staticmethod
-    async def update_thread_field(thread_id: str, value: dict, session: AsyncSession) -> bool:
+    async def update_thread_field(thread_id: UUID, value: dict, session: AsyncSession) -> bool:
         """更新线程数据库模型字段"""
         try:
+            value['updated_at'] = func.now()
             stmt = (
                 update(ThreadOrm)
                 .where(ThreadOrm.thread_id == thread_id)
@@ -117,7 +125,7 @@ class ThreadRepository:
     async def update_thread_cache(thread_model: Thread, redis_client: Redis):
         """更新线程缓存"""
         try:
-            redis_key = f"thread:{thread_model.thread_id}"
+            redis_key = f"thread:{str(thread_model.thread_id)}"
             thread_data = thread_model.model_dump(mode='json')
 
             await redis_client.setex(
@@ -132,10 +140,10 @@ class ThreadRepository:
             raise
 
     @staticmethod
-    async def get_thread_cache(thread_id: str, redis_client: Redis) -> Optional[Thread]:
+    async def get_thread_cache(thread_id: UUID, redis_client: Redis) -> Optional[Thread]:
         """获取线程缓存"""
         try:
-            redis_key = f"thread:{thread_id}"
+            redis_key = f"thread:{str(thread_id)}"
             redis_data = await redis_client.get(redis_key)
 
             if redis_data:

@@ -20,12 +20,19 @@ from schemas.social_media_schema import (
     ChatGenerationResponse,
     ReloadPromptRequest,
     ReloadPromptResponse,
+    MomentsAnalysisRequest,
+    MomentsAnalysisResponse,
 )
 from services.social_media_service import (
     SocialMediaPublicTrafficService,
     SocialMediaServiceError,
 )
+from services.moments_service import (
+    MomentsAnalysisService,
+    MomentsServiceError,
+)
 from utils import get_component_logger
+from ..wraps import validate_and_get_tenant, TenantModel
 
 
 logger = get_component_logger(__name__, "SocialMediaPublicTraffic")
@@ -42,13 +49,18 @@ async def generate_comment(
     try:
         user_prompt = service.build_comment_prompt(request)
         system_prompt = await service.load_prompt(method=MethodType.COMMENT)
-        response = await service.invoke_llm(
+        llm_response = await service.invoke_llm(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             output_model=CommentGenerationResponse,
         )
 
-        return response
+        return CommentGenerationResponse(
+            actions=llm_response.content.actions,
+            message=llm_response.content.message,
+            input_tokens=llm_response.usage.input_tokens,
+            output_tokens=llm_response.usage.output_tokens
+        )
     except SocialMediaServiceError as e:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -70,13 +82,17 @@ async def generate_reply(
     try:
         user_prompt = service.build_reply_prompt(request)
         system_prompt = await service.load_prompt(method=MethodType.REPLIES)
-        response = await service.invoke_llm(
+        llm_response = await service.invoke_llm(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             output_model=ReplyGenerationResponse,
         )
 
-        return response
+        return ReplyGenerationResponse(
+            tasks=llm_response.content.tasks,
+            input_tokens=llm_response.usage.input_tokens,
+            output_tokens=llm_response.usage.output_tokens
+        )
     except SocialMediaServiceError as e:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -99,13 +115,19 @@ async def summarize_keywords(
     try:
         user_prompt = service.build_keywords_prompt(request)
         system_prompt = await service.load_prompt(method=MethodType.KEYWORDS)
-        response = await service.invoke_llm(
+        llm_response = await service.invoke_llm(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             output_model=KeywordSummaryResponse,
         )
 
-        return response
+        return KeywordSummaryResponse(
+            keywords=llm_response.content.keywords,
+            count=llm_response.content.count,
+            summary=llm_response.content.summary,
+            input_tokens=llm_response.usage.input_tokens,
+            output_tokens=llm_response.usage.output_tokens
+        )
     except SocialMediaServiceError as e:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -128,18 +150,26 @@ async def generate_chat_reply(
     try:
         # 固定回复模式：直接返回chat_prompt内容
         if request.comment_type and request.chat_prompt:
-            return ChatGenerationResponse(message=request.chat_prompt)
+            return ChatGenerationResponse(
+                message=request.chat_prompt,
+                input_tokens=0,  # 固定回复无LLM调用
+                output_tokens=0  # 固定回复无LLM调用
+            )
 
         # AI生成模式：调用LLM生成回复
         user_prompt = service.build_chat_prompt(request)
         system_prompt = await service.load_prompt(method=MethodType.PRIVATE_MESSAGE)
-        response = await service.invoke_llm(
+        llm_response = await service.invoke_llm(
             system_prompt=system_prompt,
             user_prompt=user_prompt,
             output_model=ChatGenerationResponse,
         )
 
-        return response
+        return ChatGenerationResponse(
+            message=llm_response.content.message,
+            input_tokens=llm_response.usage.input_tokens,
+            output_tokens=llm_response.usage.output_tokens
+        )
     except SocialMediaServiceError as e:
         raise HTTPException(
             status_code=status.HTTP_502_BAD_GATEWAY,
@@ -176,4 +206,34 @@ async def reload_prompt(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="提示词重载失败，请稍后重试",
+        )
+
+
+@router.post("/moments", response_model=MomentsAnalysisResponse)
+async def analyze_moments(
+    request: MomentsAnalysisRequest,
+    service: Annotated[MomentsAnalysisService, Depends()],
+    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)]
+):
+    """分析朋友圈内容并生成互动建议"""
+    try:
+        logger.info(f"收到朋友圈分析请求，包含 {len(request.task_list)} 条内容")
+
+        # 调用朋友圈分析服务
+        result = await service.analyze_moments(request, tenant.tenant_id)
+
+        logger.info(f"朋友圈分析成功完成，返回 {len(result.tasks)} 条互动建议")
+        return result
+
+    except MomentsServiceError as e:
+        logger.error(f"朋友圈分析服务错误: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail=str(e) or "朋友圈分析失败，请稍后重试",
+        )
+    except Exception as e:
+        logger.error("朋友圈分析失败: %s", e, exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="朋友圈分析失败，请稍后重试",
         )

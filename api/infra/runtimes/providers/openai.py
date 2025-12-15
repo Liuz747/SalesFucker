@@ -11,7 +11,7 @@ import openai
 from openai.types.chat import ChatCompletionMessageParam, ChatCompletionContentPartParam
 from pydantic import ValidationError
 
-from ..entities import LLMResponse, Provider, CompletionsRequest, ResponseMessageRequest
+from ..entities import LLMResponse, Provider, CompletionsRequest, ResponseMessageRequest, TokenUsage
 from .base import BaseProvider
 from utils import get_component_logger
 
@@ -51,7 +51,7 @@ class OpenAIProvider(BaseProvider):
         formatted: list[ChatCompletionContentPartParam] = []
         for item in content:
             if item.type == "text":
-                formatted.append({"type": "text", "text": item.content})
+                formatted.append({"type": item.type, "text": item.content})
             elif item.type == "input_image":
                 formatted.append({
                     "type": "image_url",
@@ -89,10 +89,10 @@ class OpenAIProvider(BaseProvider):
             content=response.choices[0].message.content,
             provider=request.provider,
             model=response.model,
-            usage={
-                "input_tokens": response.usage.prompt_tokens,
-                "output_tokens": response.usage.completion_tokens,
-            },
+            usage=TokenUsage(
+                input_tokens=response.usage.prompt_tokens,
+                output_tokens=response.usage.completion_tokens,
+            ),
             cost=self._calculate_cost(response.usage, response.model)
         )
 
@@ -139,13 +139,7 @@ class OpenAIProvider(BaseProvider):
             )
 
             # 解析JSON响应
-            content_str = response.choices[0].message.content
-
-            # 详细日志记录用于调试
-            logger.debug(f"OpenRouter响应原始内容类型: {type(content_str)}")
-            logger.debug(f"OpenRouter响应原始内容: {repr(content_str)}")
-
-            content_str = content_str.strip()
+            content_str = response.choices[0].message.content.strip()
 
             try:
                 # 解析JSON并验证
@@ -176,10 +170,10 @@ class OpenAIProvider(BaseProvider):
             content=parsed_content,
             provider=request.provider,
             model=response.model,
-            usage={
-                "input_tokens": response.usage.prompt_tokens,
-                "output_tokens": response.usage.completion_tokens,
-            },
+            usage=TokenUsage(
+                input_tokens=response.usage.prompt_tokens,
+                output_tokens=response.usage.completion_tokens
+            ),
             cost=self._calculate_cost(response.usage, response.model)
         )
 
@@ -203,10 +197,10 @@ class OpenAIProvider(BaseProvider):
             content=response.output_text,
             provider=request.provider,
             model=response.model,
-            usage={
-                "input_tokens": response.usage.input_tokens,
-                "output_tokens": response.usage.output_tokens,
-            },
+            usage=TokenUsage(
+                input_tokens=response.usage.input_tokens,
+                output_tokens=response.usage.output_tokens,
+            ),
             # cost=self._calculate_cost(response.usage, response.model)
         )
 
@@ -242,10 +236,10 @@ class OpenAIProvider(BaseProvider):
             content=response.output_parsed,
             provider=request.provider,
             model=response.model,
-            usage={
-                "input_tokens": response.usage.input_tokens,
-                "output_tokens": response.usage.output_tokens,
-            },
+            usage=TokenUsage(
+                input_tokens=response.usage.input_tokens,
+                output_tokens=response.usage.output_tokens,
+            ),
             # cost=self._calculate_cost(response.usage, response.model)
         )
 

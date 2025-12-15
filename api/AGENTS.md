@@ -16,7 +16,7 @@ Run `uv sync` after cloning to install dependencies from `pyproject.toml`. Launc
 Alembic via `uv run alembic upgrade head`.
 
 ## Coding Style & Naming Conventions
-Code targets Python 3.11 with 4-space indentation and type hints. Keep modules cohesive and prefer explicit imports from package `__init__.py` exports. Follow
+Code targets Python 3.13 with 4-space indentation and type hints. Keep modules cohesive and prefer explicit imports from package `__init__.py` exports. Follow
 Pydantic model conventions for request/response schemas and snake_case filenames (see `controllers/workspace/assistants_controller.py`). Loggers should come from
 `utils.get_component_logger` to align formatting.
 

@@ -5,15 +5,12 @@ AI-powered product recommendation engine for beauty consultations.
 Provides expert product knowledge and personalized recommendations.
 """
 
-from typing import Dict, Any
 import asyncio
-from ..base import BaseAgent
-from utils import get_current_datetime, get_processing_time_ms
+from typing import Dict, Any
 
-# 导入模块化组件
-from .recommendation_coordinator import RecommendationCoordinator
-from .needs_analyzer import CustomerNeedsAnalyzer
-from .product_knowledge import ProductKnowledgeManager
+from utils import get_current_datetime
+from ..base import BaseAgent
+
 
 class ProductExpertAgent(BaseAgent):
     """
@@ -21,24 +18,11 @@ class ProductExpertAgent(BaseAgent):
     
     提供专业的美妆产品推荐和咨询服务。
     使用模块化架构，结合RAG和降级系统提供个性化的产品建议。
-    
-    架构组件:
-    - RecommendationCoordinator: 推荐策略协调器
-    - CustomerNeedsAnalyzer: 客户需求分析器  
-    - ProductKnowledgeManager: 产品知识管理器
-    - RAGRecommendationEngine: RAG增强推荐引擎
-    - FallbackRecommendationSystem: 降级推荐系统
-    - RecommendationFormatter: 推荐结果格式化器
     """
     
     def __init__(self):
         # MAS架构：所有智能体都具备LLM能力，自动使用产品推荐优化配置
         super().__init__()
-
-        # 初始化模块化组件
-        self.recommendation_coordinator = RecommendationCoordinator()
-        self.needs_analyzer = CustomerNeedsAnalyzer()
-        self.knowledge_manager = ProductKnowledgeManager()
         
         # 系统初始化状态
         self._initialized = False

@@ -13,19 +13,18 @@
 - enums.py: 枚举相关的所有模型
 """
 
-from .enums import (
-    InputType,
-    ThreadStatus,
-    TenantRole,
-    TenantStatus
-)
-from .tenant import (
-    TenantOrm,
-    TenantModel
+from .assistant import (
+    AssistantOrmModel,
+    AssistantModel
 )
 from .conversation import (
     ThreadOrm,
     Thread
+)
+from .enums import ThreadStatus, TenantRole
+from .tenant import (
+    TenantOrm,
+    TenantModel
 )
 from .workflow import (
     WorkflowOrm,
@@ -33,19 +32,21 @@ from .workflow import (
 )
 
 __all__ = [
-    # Enums
-    "TenantRole",
-    "TenantStatus",
-    "ThreadStatus",
-    "InputType",
-
-    # Tenant
-    "TenantOrm",
-    "TenantModel",
+    # Assistant
+    "AssistantOrmModel",
+    "AssistantModel",
 
     # Conversation
     "ThreadOrm",
     "Thread",
+
+    # Enums
+    "TenantRole",
+    "ThreadStatus",
+
+    # Tenant
+    "TenantOrm",
+    "TenantModel",
 
     # Workflow
     "WorkflowOrm",

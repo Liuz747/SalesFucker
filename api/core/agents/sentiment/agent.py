@@ -1,327 +1,384 @@
 """
-Sentiment & Intent Analysis Agent
+Sentiment Analysis Agent
 
-LLM-powered comprehensive analysis for customer interactions in beauty consultations.
-Combines sentiment analysis with intent recognition for unified customer understanding.
-Provides emotional context, purchase intent, and customer needs assessment.
+负责对话过程中的情感分析、意图识别和流程控制。
+
+核心职责:
+- 多模态输入处理与标准化
+- 基于历史上下文的情感分析
+- 客户旅程阶段判定
+- 销售策略提示词匹配
+- 状态管理与记忆更新
 """
-
-from typing import Dict, Any
 
 from langfuse import observe
 
-from ..base import BaseAgent, parse_json_response
-from core.prompts.templates import get_default_prompt, AgentType, PromptType
-from utils import get_current_datetime, get_processing_time_ms
-
+from core.entities import WorkflowExecutionModel
+from core.memory import StorageManager
+from libs.types import MessageParams, MemoryType
+from utils import get_current_datetime
+from ..base import BaseAgent
+from .multimodal_input_processor import MultimodalInputProcessor
+from .sentiment_analyzer import SentimentAnalyzer
+from .sales_prompt_generator import SalesPromptGenerator
+from .prompt_matcher import PromptMatcher
 
 class SentimentAnalysisAgent(BaseAgent):
     """
-    情感与意图分析智能体
-
-    使用LLM综合分析客户情感状态和购买意图。
-    专注于美妆咨询场景的情感识别、意图判断和客户需求评估。
-
-    整合功能：
-    - 情感分析：情绪状态、满意度、紧迫性
-    - 意图识别：购买意图、对话阶段、产品兴趣
-    - 策略提示：基于分析结果提供销售策略建议
-    """
+    情感分析智能体
     
+    作为对话系统的核心协调组件，负责：
+    1. 处理多模态输入（文本/图片）
+    2. 分析用户情感与意图
+    3. 确定客户旅程阶段
+    4. 匹配最佳销售策略提示词
+    
+    该智能体维护对话状态，并为下游的 SalesAgent 准备必要的上下文信息。
+    """
+
     def __init__(self):
-        # 简化初始化
         super().__init__()
 
+        self.memory_manager = StorageManager()
+        self.prompt_matcher = PromptMatcher()
 
-        self.logger.info(f"情感与意图分析智能体初始化完成: {self.agent_id}")
+        # 初始化核心组件
+        self.input_processor = MultimodalInputProcessor(tenant_id=getattr(self, 'tenant_id', None))
 
+        self.sentiment_analyzer = SentimentAnalyzer(
+            llm_provider="openrouter",
+            llm_model="openai/gpt-5-mini",
+            invoke_llm_fn=self.invoke_llm
+        )
 
-    @observe(name="sentiment-intent-analysis", as_type="generation")
-    async def process_conversation(self, state: dict) -> dict:
+        self.prompt_generator = SalesPromptGenerator()
+
+    @observe(name="sentiment-analysis", as_type="generation")
+    async def process_conversation(self, state: WorkflowExecutionModel) -> dict:
         """
-        处理对话状态中的情感与意图综合分析
-
-        在LangGraph工作流中执行综合分析，更新对话状态。
-
-        参数:
-            state: 当前对话状态
-
-        返回:
-            ThreadState: 更新后的对话状态
+        处理对话状态中的情感分析流程
+        
+        工作流程：
+        1. 处理多模态输入并存储到记忆
+        2. 检索相关记忆上下文
+        3. 执行基于历史的情感分析
+        4. 判定客户旅程阶段
+        5. 匹配销售策略提示词
+        6. 注入外部动态信息（如朋友圈互动）
+        7. 更新对话状态
+        
+        Args:
+            state: 当前工作流执行状态
+            
+        Returns:
+            dict: 更新后的状态增量，包含 sentiment_analysis, matched_prompt 等
         """
         start_time = get_current_datetime()
 
         try:
-            customer_input = state.get("customer_input", "")
-            conversation_history = state.get("conversation_history", [])
-            conversation_context = self._build_conversation_context(state)
+            self.logger.info("=== Sentiment Agent ===")
 
-            # 执行综合分析（情感 + 意图）
-            analysis_result = await self._analyze_sentiment_and_intent(
-                customer_input, conversation_history, conversation_context
+            customer_input = state.input
+            tenant_id = state.tenant_id
+            thread_id = str(state.thread_id)
+
+            self.logger.debug(f"input内容: {str(customer_input)[:100]}...")
+
+            # 步骤1: 处理多模态输入 (优先处理，将图片转为文字)
+            processed_text, multimodal_context = await self._process_input(customer_input)
+            self.logger.info(f"多模态输入处理完成 - 输入消息条数: {len(processed_text)}, context类型: {multimodal_context.get('type')}")
+
+            # 步骤2: 存储用户输入到记忆 (存储处理后的文字描述，确保记忆包含图片语义)
+            # 注意：这里我们将处理后的 processed_text 存入记忆，而不是原始的 customer_input
+            # 这样后续检索时，图片内容就是可被搜索和理解的文本形式
+            await self.memory_manager.store_messages(
+                tenant_id=tenant_id,
+                thread_id=thread_id,
+                messages=customer_input,
             )
+            
+            # 步骤3: 检索记忆上下文 (使用处理后的文本进行检索)
+            short_term_messages, long_term_memories = await self.memory_manager.retrieve_context(
+                tenant_id=tenant_id,
+                thread_id=thread_id,
+                query_text=processed_text,
+            )
+            
+            memory_context = {
+                "short_term": short_term_messages,
+                "long_term": long_term_memories
+            }
+            
+            self.logger.info(f"记忆检索完成 - 短期消息数: {len(memory_context['short_term'])}, 长期摘要数: {len(memory_context['long_term'])}")
 
-            # 更新对话状态 - 保持向后兼容
-            state["sentiment_analysis"] = analysis_result.get("sentiment", {})
-            state["intent_analysis"] = analysis_result.get("intent", {})
-            state.setdefault("active_agents", []).append(self.agent_id)
+            # 步骤4: 执行情感分析（结合短期消息历史）
+            sentiment_result = await self._analyze_sentiment_with_history(processed_text, multimodal_context, memory_context['short_term'])
+            self.logger.info(f"情感分析结果 - sentiment: {sentiment_result.get('sentiment')}, score: {sentiment_result.get('score')}, urgency: {sentiment_result.get('urgency')}")
+            self.logger.info(f"情感分析token统计 - tokens_used: {sentiment_result.get('tokens_used', 0)}")
+            self.logger.info(f"情感分析上下文 - 使用历史消息数: {len(memory_context['short_term'])}")
 
-            # 根据分析结果设置策略提示
-            self._set_strategy_hints(state, analysis_result)
+            # 步骤5: 判断客户旅程阶段
+            journey_stage = self._determine_journey_stage(memory_context['short_term'])
+            self.logger.info(f"旅程阶段判断: {journey_stage} (基于对话轮次: {len(memory_context['short_term'])})")
 
-            return state
+            # 步骤6: 智能匹配提示词
+            matched_prompt = self._match_prompt(sentiment_result.get('score', 0.5), journey_stage)
+            self.logger.info(f"提示词匹配完成 - matched_key: {matched_prompt['matched_key']}, tone: {matched_prompt['tone']}")
+            self.logger.debug(f"matched_prompt内容: {matched_prompt['system_prompt'][:150]}..." if len(matched_prompt['system_prompt']) > 150 else f"matched_prompt内容: {matched_prompt['system_prompt']}")
+
+            # 步骤6.5: 注入外部活动记忆 (如朋友圈互动)
+            # 仅在情感积极（> 0.5）时注入，增强互动性
+            sentiment_score = sentiment_result.get('score', 0.5)
+            if sentiment_score > 0.5:
+                try:
+                    external_memories = await self.memory_manager.get_external_context(
+                        tenant_id=tenant_id,
+                        thread_id=thread_id,
+                        query_text=processed_text,
+                        limit=3, # 最近3条
+                        memory_types=[MemoryType.MOMENTS_INTERACTION] # 未来可添加 MemoryType.OFFLINE_REPORT 等
+                    )
+                    
+                    if external_memories:
+                        self.logger.info(f"发现 {len(external_memories)} 条外部活动记忆，注入上下文")
+                        
+                        # 格式化外部记忆
+                        memory_texts = []
+                        for mem in external_memories:
+                             # 简单处理时间
+                            created_at = mem.get('created_at', '')[:10] 
+                            content = mem.get('content', '')
+                            memory_texts.append(f"- [{created_at}] {content}")
+                        
+                        external_context_str = "\n".join(memory_texts)
+                        
+                        # 注入到 matched_prompt 的 system_prompt 中
+                        # SalesAgent 会直接使用这个 system_prompt
+                        additional_prompt = f"\n【用户近期动态（可适当寒暄提及）】\n{external_context_str}\n"
+                        matched_prompt["system_prompt"] += additional_prompt
+                        
+                except Exception as e:
+                    self.logger.warning(f"获取外部记忆失败，跳过注入: {e}")
+
+
+            # 步骤7: 更新对话状态 - 使用Reducer模式返回增量更新
+            
+            # 使用TokenManager创建标准化的Agent响应数据
+            current_time = get_current_datetime()
+            
+            # 更新token信息，使用sentiment_result中的实际数据
+            token_info = {
+                "input_tokens": sentiment_result.get("input_tokens", 0),
+                "output_tokens": sentiment_result.get("output_tokens", 0),
+                "total_tokens": sentiment_result.get("total_tokens", sentiment_result.get("tokens_used", 0))
+            }
+
+            agent_data = {
+                "agent_type": "sentiment",
+                "sentiment_analysis": sentiment_result,
+                "matched_prompt": matched_prompt,
+                "journey_stage": journey_stage,
+                "processed_input": processed_text,
+                "timestamp": current_time,
+                "token_usage": token_info,             # 标准化的token信息
+                "tokens_used": token_info["total_tokens"],  # 向后兼容
+                "response_length": len(str(sentiment_result))
+            }
+            
+            # 构造 sentiment_analysis 更新对象
+            sentiment_analysis_update = {
+                **sentiment_result,
+                "journey_stage": journey_stage,        #  添加旅程信息
+                "processed_input": processed_text,
+                "multimodal_context": multimodal_context,
+                "agent_id": self.agent_id,
+                "token_usage": token_info,             # 标准化的token信息
+                "tokens_used": token_info["total_tokens"]  # 向后兼容
+            }
+            
+            # 构造返回的增量状态
+            return {
+                "sentiment_analysis": sentiment_analysis_update,
+                "matched_prompt": matched_prompt,
+                "journey_stage": journey_stage,
+                "input_tokens": token_info["input_tokens"],
+                "output_tokens": token_info["output_tokens"],
+                "values": {"agent_responses": {self.agent_id: agent_data}},
+                "active_agents": [self.agent_id]
+            }
+
+            # self.logger.info(f"情感分析完成: 耗时{processing_time:.2f}s, 情感={sentiment_result.get('sentiment')}, 旅程={journey_stage}")
+            # self.logger.info("=== Sentiment Agent 处理完成 ===")
 
         except Exception as e:
-            self.logger.error(f"Agent processing failed: {e}", exc_info=True)
+            self.logger.error(f"情感分析处理失败: {e}", exc_info=True)
+            # 失败时的输入处理可能需要调整
+            input_content = state.get("input") if isinstance(state, dict) else getattr(state, "input", "unknown")
+            self.logger.error(f"失败时的输入: {str(input_content)[:100]}")
+            raise e
 
-            # 设置降级分析结果
-            state["sentiment_analysis"] = {
-                "sentiment": "neutral",
-                "score": 0.0,
-                "confidence": 0.5,
-                "emotions": [],
-                "fallback": True,
-                "agent_id": self.agent_id
-            }
-            state["intent_analysis"] = {
-                "intent": "browsing",
-                "category": "general",
-                "confidence": 0.5,
-                "urgency": "medium",
-                "decision_stage": "awareness",
-                "fallback": True,
-                "agent_id": self.agent_id
-            }
-
-            return state
-
-    async def _analyze_sentiment_and_intent(
-        self,
-        customer_input: str,
-        conversation_history: list = None,
-        conversation_context: str = ""
-    ) -> Dict[str, Any]:
+    def _determine_journey_stage(self, short_term_messages: list) -> str:
         """
-        使用LLM综合分析客户情感和意图
+        判断客户旅程阶段
+        
+        基于对话轮次进行简单规则判断。
 
-        将情感分析和意图识别合并为一次LLM调用，提高效率。
+        Args:
+            short_term_messages: 短期记忆消息列表
 
-        参数:
-            customer_input: 客户输入文本
-            conversation_history: 对话历史
-            conversation_context: 对话上下文
-
-        返回:
-            Dict[str, Any]: 包含情感和意图的综合分析结果
+        Returns:
+            str: "awareness" | "consideration" | "decision"
         """
         try:
-            # 构建对话历史文本
-            history_text = ""
-            if conversation_history:
-                recent_history = conversation_history[-5:]  # 最近5轮对话
-                history_text = f"\n对话历史：\n{self._format_history(recent_history)}\n"
-
-            # 从templates.py获取情感分析提示词模板
-            prompt_template = get_default_prompt(
-                AgentType.SENTIMENT,
-                PromptType.SENTIMENT_ANALYSIS
+            # 计算对话轮次（只算用户消息）
+            user_message_count = sum(
+                1 for msg in short_term_messages
+                if isinstance(msg, dict) and msg.get("role") == "user"
             )
+            # 兼容Message对象
+            if user_message_count == 0:
+                 user_message_count = sum(
+                    1 for msg in short_term_messages
+                    if hasattr(msg, "role") and msg.role == "user"
+                )
 
-            # 填充模板参数
-            prompt = prompt_template.format(
-                history_text=history_text,
-                customer_input=customer_input
-            )
-
-            # 调用LLM分析
-            messages = [{"role": "user", "content": prompt}]
-            response = await self.llm_call(messages, temperature=0.3)
-
-            # 解析结构化响应
-            default_result = {
-                "sentiment": {
-                    "sentiment": "neutral",
-                    "score": 0.0,
-                    "confidence": 0.5,
-                    "emotions": [],
-                    "satisfaction": "unknown",
-                    "urgency": "medium"
-                },
-                "intent": {
-                    "intent": "browsing",
-                    "category": "general",
-                    "confidence": 0.5,
-                    "urgency": "medium",
-                    "decision_stage": "awareness",
-                    "needs": [],
-                    "customer_profile": {}
-                }
-            }
-            analysis_result = parse_json_response(response, default_result=default_result)
-
-            # 添加元数据
-            analysis_result["sentiment"]["agent_id"] = self.agent_id
-            analysis_result["sentiment"]["analysis_method"] = "llm_powered"
-            analysis_result["intent"]["agent_id"] = self.agent_id
-            analysis_result["intent"]["analysis_method"] = "llm_powered"
-            analysis_result["intent"]["conversation_length"] = len(conversation_history or [])
-
-            return analysis_result
+            # 简单的规则判定
+            if user_message_count <= 2:
+                return "awareness"      # 前1-2轮：认知阶段
+            elif user_message_count <= 5:
+                return "consideration"  # 第3-5轮：考虑阶段
+            else:
+                return "decision"       # 第6轮+：决策阶段
 
         except Exception as e:
-            self.logger.error(f"综合分析失败: {e}")
+            self.logger.error(f"旅程阶段判断失败: {e}")
+            return "awareness"  # 默认返回认知阶段
+
+    def _match_prompt(self, sentiment_score: float, journey_stage: str) -> dict:
+        """
+        根据情感和旅程阶段匹配提示词
+
+        Args:
+            sentiment_score: 情感分数 0.0-1.0
+            journey_stage: 旅程阶段
+
+        Returns:
+            dict: 匹配的提示词配置
+        """
+        try:
+            # 调用 PromptMatcher 查表
+            matched_prompt = self.prompt_matcher.get_prompt(
+                sentiment_score=sentiment_score,
+                journey_stage=journey_stage
+            )
+
+            self.logger.debug(f"提示词匹配成功 - key: {matched_prompt.get('matched_key')}")
+            return matched_prompt
+
+        except Exception as e:
+            self.logger.error(f"提示词匹配失败: {e}")
             return {
-                "sentiment": {
-                    "sentiment": "neutral",
-                    "score": 0.0,
-                    "confidence": 0.5,
-                    "emotions": [],
-                    "fallback": True,
-                    "error": str(e),
-                    "agent_id": self.agent_id
-                },
-                "intent": {
-                    "intent": "browsing",
-                    "category": "general",
-                    "confidence": 0.5,
-                    "urgency": "medium",
-                    "decision_stage": "awareness",
-                    "fallback": True,
-                    "error": str(e),
-                    "agent_id": self.agent_id
-                }
+                "system_prompt": "你是一个专业友好的美容顾问。",
+                "tone": "专业、友好",
+                "strategy": "标准服务",
+                "matched_key": "fallback",
+                "sentiment_level": "medium",
+                "journey_stage": journey_stage,
+                "sentiment_score": sentiment_score
             }
 
-    def _format_history(self, history: list) -> str:
+    async def _process_input(self, customer_input: MessageParams) -> tuple[str, dict]:
+        """处理多模态输入消息列表"""
+        try:
+            return await self.input_processor.process_input(customer_input)
+        except Exception as e:
+            self.logger.error(f"输入处理失败: {e}")
+            raise
+
+    async def _analyze_sentiment_with_history(self, current_text: str, context: dict, short_term_msgs: list) -> dict:
         """
-        格式化对话历史
+        使用历史消息+当前输入进行情感分析
 
-        参数:
-            history: 对话历史列表
+        Args:
+            current_text: 当前处理的文本
+            context: 多模态上下文
+            short_term_msgs: 短期历史消息列表
 
-        返回:
-            str: 格式化的对话历史文本
+        Returns:
+            dict: 情感分析结果
         """
-        if not history:
-            return ""
+        try:
+            # 获取最近5条用户消息（如果有的话）
+            # 注意：short_term_msgs 可能包含 dict 或 Message 对象
+            recent_user_messages = []
+            for msg in reversed(short_term_msgs):
+                if len(recent_user_messages) >= 5:
+                    break
+                
+                role = msg.get("role") if isinstance(msg, dict) else getattr(msg, "role", None)
+                content = msg.get("content") if isinstance(msg, dict) else getattr(msg, "content", None)
+                
+                if role == "user" and content and str(content).strip():
+                    recent_user_messages.insert(0, str(content))
 
-        formatted = []
-        for i, msg in enumerate(history):
-            if isinstance(msg, dict):
-                role = msg.get("role", "unknown")
-                content = msg.get("content", "")
-                formatted.append(f"{role}: {content}")
+            # 构建合并的文本用于分析
+            if recent_user_messages:
+                # 创建历史对话上下文
+                history_context = "\n".join([f"用户消息{i+1}: {msg}" for i, msg in enumerate(recent_user_messages)])
+                combined_text = f"""最近对话历史：
+{history_context}
+
+当前用户输入：
+{current_text}"""
+
+                # 增强上下文信息，标明这是历史上下文分析
+                enhanced_context = {
+                    **context,
+                    "analysis_type": "with_history",
+                    "history_message_count": len(recent_user_messages),
+                    "conversation_flow": "sequential"
+                }
+
+                # 调用原有的情感分析方法
+                result = await self.sentiment_analyzer.analyze_sentiment(combined_text, enhanced_context)
+
+                # 添加上下文信息到结果中
+                result["analysis_context"] = {
+                    "used_history": True,
+                    "history_message_count": len(recent_user_messages),
+                    "combined_text_length": len(combined_text),
+                    "current_text_length": len(current_text)
+                }
+
+                self.logger.info(f"基于历史的情感分析完成 - sentiment: {result.get('sentiment')}, 使用历史消息: {len(recent_user_messages)}条")
+                return result
             else:
-                formatted.append(str(msg))
+                # 没有历史消息，使用当前文本分析
+                self.logger.info("未找到历史用户消息，使用当前文本进行情感分析")
+                result = await self.sentiment_analyzer.analyze_sentiment(current_text, context)
 
-        return "\n".join(formatted)
+                result["analysis_context"] = {
+                    "used_history": False,
+                    "history_message_count": 0,
+                    "combined_text_length": len(current_text),
+                    "current_text_length": len(current_text)
+                }
 
-    def _set_strategy_hints(self, state: dict, analysis_result: dict):
-        """
-        根据综合分析结果设置策略提示
+                return result
 
-        参数:
-            state: 对话状态
-            analysis_result: 综合分析结果（包含情感和意图）
-        """
-        intent_data = analysis_result.get("intent", {})
-        sentiment_data = analysis_result.get("sentiment", {})
+        except Exception as e:
+            self.logger.error(f"基于历史的情感分析失败: {e}")
+            # 降级处理：只分析当前文本
+            return await self.sentiment_analyzer.analyze_sentiment(current_text, context)
 
-        # 提取关键信息
-        intent_level = intent_data.get("intent", "browsing")
-        urgency = intent_data.get("urgency", "medium")
-        sentiment = sentiment_data.get("sentiment", "neutral")
-        decision_stage = intent_data.get("decision_stage", "awareness")
+    async def _generate_prompt(self, sentiment_result: dict, context: dict) -> str:
+        """生成销售提示词"""
+        try:
+            # 使用prompt_generator生成个性化提示词
+            sales_prompt = self.prompt_generator.generate_prompt(sentiment_result, context)
 
-        strategy_hints = {}
+            self.logger.info(f"成功生成sales_prompt，长度: {len(sales_prompt)}")
+            return sales_prompt
 
-        # 根据意图级别设置策略
-        if intent_level == "ready_to_buy":
-            strategy_hints["approach"] = "closing_focused"
-            strategy_hints["priority"] = "conversion"
-        elif intent_level == "comparing":
-            strategy_hints["approach"] = "competitive_advantage"
-            strategy_hints["priority"] = "differentiation"
-        elif intent_level == "interested":
-            strategy_hints["approach"] = "educational"
-            strategy_hints["priority"] = "trust_building"
-        else:
-            strategy_hints["approach"] = "exploratory"
-            strategy_hints["priority"] = "rapport_building"
-
-        # 根据情感调整策略
-        if sentiment == "negative":
-            strategy_hints["tone"] = "empathetic"
-            strategy_hints["focus"] = "problem_solving"
-        elif sentiment == "positive":
-            strategy_hints["tone"] = "enthusiastic"
-            strategy_hints["focus"] = "momentum_building"
-        else:
-            strategy_hints["tone"] = "professional"
-            strategy_hints["focus"] = "information_gathering"
-
-        # 根据紧急程度调整
-        if urgency == "high":
-            strategy_hints["response_speed"] = "immediate"
-            strategy_hints["detail_level"] = "concise"
-        elif urgency == "low":
-            strategy_hints["response_speed"] = "thorough"
-            strategy_hints["detail_level"] = "comprehensive"
-        else:
-            strategy_hints["response_speed"] = "balanced"
-            strategy_hints["detail_level"] = "moderate"
-
-        # 将策略提示存储在状态中
-        state.setdefault("strategy_hints", {}).update(strategy_hints)
-
-    def _build_conversation_context(self, state: dict) -> str:
-        """
-        构建对话上下文信息
-        
-        参数:
-            state: 对话状态
-            
-        返回:
-            str: 格式化的对话上下文
-        """
-        context_parts = []
-        
-        # 客户档案信息
-        if state.get("customer_profile"):
-            profile_info = []
-            customer_profile = state.get("customer_profile", {})
-            if customer_profile.get("skin_type"):
-                profile_info.append(f"Skin type: {customer_profile['skin_type']}")
-            if customer_profile.get("previous_purchases"):
-                profile_info.append(f"Previous purchases: {len(customer_profile['previous_purchases'])} items")
-            
-            if profile_info:
-                context_parts.append("Customer profile: " + ", ".join(profile_info))
-        
-        # 对话历史
-        if state.get("conversation_history"):
-            recent_history = state["conversation_history"][-3:]
-            context_parts.append("Recent conversation: " + " | ".join(recent_history))
-        
-        # 合规和意图信息
-        compliance_result = state.get("compliance_result")
-        if compliance_result:
-            context_parts.append(f"Compliance status: {compliance_result.get('status', 'unknown')}")
-
-        return " | ".join(context_parts) if context_parts else "Initial interaction"
-
-    def get_sentiment_metrics(self) -> Dict[str, Any]:
-        """
-        获取综合分析性能指标
-
-        返回:
-            Dict[str, Any]: 性能指标信息
-        """
-        return {
-            "total_analyses": self.processing_stats.get("messages_processed", 0),
-            "error_rate": self.processing_stats.get("errors", 0) / max(1, self.processing_stats.get("messages_processed", 1)) * 100,
-            "average_processing_time": self.processing_stats.get("average_response_time", 0),
-            "last_activity": self.processing_stats.get("last_activity", None),
-            "agent_id": self.agent_id,
-            "analysis_type": "sentiment_and_intent"
-        }
+        except Exception as e:
+            self.logger.error(f"提示词生成失败: {e}")

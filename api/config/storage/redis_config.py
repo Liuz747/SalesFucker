@@ -63,10 +63,17 @@ class RedisConfig(BaseSettings):
         default=7200,
     )
 
+    REDIS_DB: int = Field(
+        description="Redis 数据库编号 (0-15)",
+        default=0,
+        ge=0,
+        le=15,
+    )
+
     @property
     def redis_url(self) -> str:
         """构建Redis连接URL"""
         return (
             f"redis://{self.REDIS_USERNAME}:{self.REDIS_PASSWORD}"
-            f"@{self.REDIS_HOST}:{self.REDIS_PORT}"
+            f"@{self.REDIS_HOST}:{self.REDIS_PORT}/{self.REDIS_DB}"
         )

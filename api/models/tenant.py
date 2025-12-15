@@ -15,10 +15,9 @@ from typing import Optional, Self
 
 from pydantic import BaseModel, Field
 from sqlalchemy import Column, String, Boolean, DateTime, Integer, Index, Enum, func
-from sqlalchemy.dialects.postgresql import JSONB
 
+from libs.types import AccountStatus
 from .base import Base
-from .enums import TenantStatus
 
 
 class TenantOrm(Base):
@@ -32,16 +31,10 @@ class TenantOrm(Base):
     # 基本信息
     tenant_id = Column(String(64), primary_key=True)
     tenant_name = Column(String(255), nullable=False)
-    status = Column(Enum(TenantStatus, name='tenant_status'), nullable=False, default=TenantStatus.ACTIVE)
-
-    # 业务信息
-    industry = Column(String(64))
-    company_size = Column(Integer)
-    area_id = Column(String(64))
-    user_count = Column(Integer, default=0)
-    expires_at = Column(DateTime)
-
-    # 审计字段
+    status = Column(Enum(AccountStatus, name='account_status'), nullable=False, default=AccountStatus.ACTIVE)
+    industry = Column(String(500))
+    creator = Column(Integer)
+    is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(
         DateTime(timezone=True),
         nullable=False,
@@ -52,12 +45,6 @@ class TenantOrm(Base):
         nullable=False,
         server_default=func.now()
     )
-    creator = Column(Integer)
-    editor = Column(Integer)
-    is_active = Column(Boolean, nullable=False, default=True)
-
-    # 扩展配置（新增JSONB字段用于存储复杂配置）
-    features = Column(JSONB, default=dict)
 
     # 数据库索引优化
     __table_args__ = (
@@ -78,27 +65,12 @@ class TenantModel(BaseModel):
     # 基本信息
     tenant_id: str = Field(description="租户标识符")
     tenant_name: str = Field(description="租户名称")
-    status: TenantStatus = Field(default=TenantStatus.ACTIVE, description="状态：1-活跃，0-禁用")
-
-    # 业务信息
-    industry: str = Field(default=1, description="行业类型：1-美容诊所，2-化妆品公司等")
-    company_size: Optional[int] = Field(default=1, description="公司规模：1-小型，2-中型，3-大型")
-    area_id: str = Field(default=1, description="地区ID")
-    user_count: int = Field(default=0, description="用户数量")
-    expires_at: Optional[datetime] = Field(None, description="过期时间")
-
-    # 审计字段
+    status: AccountStatus = Field(default=AccountStatus.ACTIVE, description="状态")
+    industry: str = Field(description="行业类型")
     creator: int = Field(default=1, description="创建者ID")
-    editor: Optional[int] = Field(None, description="编辑者ID")
     is_active: bool = Field(default=True, description="激活状态")
     created_at: Optional[datetime] = Field(None, description="创建时间")
     updated_at: Optional[datetime] = Field(None, description="最后更新时间")
-
-    # 业务配置
-    features: dict[str, bool] = Field(
-        default_factory=dict,
-        description="功能开关配置"
-    )
 
     @classmethod
     def to_model(cls, tenant_orm: TenantOrm) -> Self:
@@ -107,16 +79,10 @@ class TenantModel(BaseModel):
             tenant_name=tenant_orm.tenant_name,
             status=tenant_orm.status,
             industry=tenant_orm.industry,
-            company_size=tenant_orm.company_size,
-            area_id=tenant_orm.area_id,
-            user_count=tenant_orm.user_count,
-            expires_at=tenant_orm.expires_at,
             creator=tenant_orm.creator,
-            editor=tenant_orm.editor,
             is_active=tenant_orm.is_active,
             created_at=tenant_orm.created_at,
-            updated_at=tenant_orm.updated_at,
-            features=tenant_orm.features or {},
+            updated_at=tenant_orm.updated_at
         )
 
     def to_orm(self) -> TenantOrm:
@@ -125,14 +91,8 @@ class TenantModel(BaseModel):
             tenant_name=self.tenant_name,
             status=self.status,
             industry=self.industry,
-            company_size=self.company_size,
-            area_id=self.area_id,
-            user_count=self.user_count,
-            expires_at=self.expires_at,
             creator=self.creator,
-            editor=self.editor,
             is_active=self.is_active,
             created_at=self.created_at,
-            updated_at=self.updated_at,
-            features=self.features,
+            updated_at=self.updated_at
         )

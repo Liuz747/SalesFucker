@@ -60,7 +60,7 @@ services:
       retries: 3
 
   langfuse-worker:
-    image: ${REGISTRY_URL}/worker
+    image: ${REGISTRY_URL}/langfuse-worker
     depends_on: *langfuse-depends-on
     ports:
       - "3030:3030"
@@ -94,25 +94,29 @@ services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:9.2.0
     environment:
-      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-}
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-changeme}
       - discovery.type=single-node
       - bootstrap.memory_lock=true
       - xpack.security.enabled=false
       - xpack.security.http.ssl.enabled=false
       - xpack.license.self_generated.type=basic
+      - xpack.ml.enabled=false
+      - xpack.watcher.enabled=false
       - cluster.routing.allocation.disk.threshold_enabled=true
-      - cluster.routing.allocation.disk.watermark.low=512mb
-      - cluster.routing.allocation.disk.watermark.high=256mb
-      - cluster.routing.allocation.disk.watermark.flood_stage=128mb
-    mem_limit: 1g
+      - cluster.routing.allocation.disk.watermark.low=85%
+      - cluster.routing.allocation.disk.watermark.high=90%
+      - cluster.routing.allocation.disk.watermark.flood_stage=95%
+    mem_limit: 2g
     ulimits:
       memlock:
         soft: -1
         hard: -1
+    restart: unless-stopped
     ports:
       - "9200:9200"
     volumes:
       - es_data:/usr/share/elasticsearch/data
+      - es_plugins:/usr/share/elasticsearch/plugins
 
   etcd:
     image: quay.io/coreos/etcd:v3.6.5
@@ -155,6 +159,7 @@ services:
     depends_on:
       - etcd
       - minio
+    restart: unless-stopped
 
   minio:
     image: minio/minio
@@ -232,5 +237,6 @@ volumes:
   postgres_data:
   minio_data:
   es_data:
+  es_plugins:
   etcd_data:
   milvus_data:

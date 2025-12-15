@@ -12,15 +12,16 @@ FastAPI主应用入口
 - API文档配置
 """
 
-import uvicorn
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+import uvicorn
 
 from config import mas_config
-from controllers.middleware import SafetyInterceptor, JWTMiddleware
 from controllers import app_router, __version__
+from controllers.middleware import JWTMiddleware
 from libs.factory import infra_registry
 from schemas.exceptions import BaseHTTPException
 from utils import get_component_logger, configure_logging, to_isoformat
@@ -64,7 +65,6 @@ app.add_middleware(
 # 添加自定义中间件 (order matters - JWT first for security)
 app.add_middleware(JWTMiddleware, exclude_paths=[
     "/",
-    "/health",
     "/docs",
     "/openapi.json",
     "/redoc",
@@ -74,7 +74,6 @@ app.add_middleware(JWTMiddleware, exclude_paths=[
     "/static/",
     "/assets/"
 ])
-app.add_middleware(SafetyInterceptor)
 
 # 全局异常处理
 @app.exception_handler(BaseHTTPException)

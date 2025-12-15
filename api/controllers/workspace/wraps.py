@@ -15,13 +15,14 @@ from typing import Optional
 from fastapi import HTTPException, Request
 
 from core.app.orchestrator import Orchestrator
+from libs.types import AccountStatus
 from services.tenant_service import TenantService, TenantModel
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "TenantValidation")
 
 
-async def validate_and_get_tenant_id(request: Request) -> Optional[TenantModel]:
+async def validate_and_get_tenant(request: Request) -> Optional[TenantModel]:
     """依赖注入函数 - 租户验证"""
     tenant_id = request.headers.get("X-Tenant-ID")
     
@@ -47,7 +48,7 @@ async def validate_and_get_tenant_id(request: Request) -> Optional[TenantModel]:
                 }
             )
         
-        if not tenant.is_active:
+        if tenant.status != AccountStatus.ACTIVE:
             raise HTTPException(
                 status_code=403,
                 detail={

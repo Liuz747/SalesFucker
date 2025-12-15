@@ -39,23 +39,22 @@ class LLMConfig(BaseSettings):
         default="",
     )
 
-    # 多LLM 系统配置
-    DEFAULT_LLM_PROVIDER: str = Field(
-        description="默认 LLM 提供商",
-        default="openai",
+    DASHSCOPE_API_KEY: str = Field(
+        description="阿里云通义千问 DashScope API 密钥，用于访问 Paraformer 语音转文字服务",
+        default="",
     )
 
-    FALLBACK_LLM_PROVIDER: str = Field(
-        description="备用 LLM 提供商，当主提供商不可用时使用",
-        default="anthropic",
+    MINIMAX_API_KEY: str = Field(
+        description="MiniMax API 密钥，用于访问 TTS 语音合成服务",
+        default="",
     )
 
-    ENABLE_COST_TRACKING: bool = Field(
-        description="启用成本追踪，监控 API 调用费用",
-        default=True,
+    MINIMAX_VOICE_ID: str = Field(
+        description="MiniMax 语音 ID，用于访问 TTS 语音合成服务",
+        default="qianyu_test",
     )
 
-    ENABLE_INTELLIGENT_ROUTING: bool = Field(
-        description="启用智能路由，根据任务类型自动选择最适合的模型",
-        default=True,
+    ZENMUX_API_KEY: str = Field(
+        description="Zenmux API 密钥，用于访问 Zenmux 系列模型",
+        default="",
     )

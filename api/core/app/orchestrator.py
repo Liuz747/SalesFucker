@@ -9,21 +9,26 @@
 - 模块间协调和错误处理
 - 多租户工作流隔离
 - 多模态输入处理支持
+- 多模态输出生成（TTS等）
 """
+
+from uuid import UUID
 
 from langfuse import observe, get_client
 
+from core.entities import WorkflowExecutionModel
+from core.tools.utils import generate_audio_output
+from libs.types import OutputType
 from models import WorkflowRun
-from ..workflows import ChatWorkflow, TestWorkflow, SentimentChatWorkflow
-from .entities import WorkflowExecutionModel
-from .workflow_builder import WorkflowBuilder
-from .state_manager import StateManager
 from utils import (
     get_component_logger,
     get_current_datetime,
     get_processing_time,
     flush_traces
 )
+from ..graphs import ChatWorkflow, TestWorkflow, SentimentChatWorkflow
+from .state_manager import StateManager
+from .workflow_builder import WorkflowBuilder
 
 logger = get_component_logger(__name__)
 
@@ -49,10 +54,8 @@ class Orchestrator:
         self.state_manager = StateManager()
 
         # 构建工作流图
-        self.workflow_builder = WorkflowBuilder(SentimentChatWorkflow)
+        self.workflow_builder = WorkflowBuilder(ChatWorkflow)
         self.graph = self.workflow_builder.build_graph()
-
-        logger.info("多智能体编排器初始化完成")
 
     @observe(name="multi-agent-conversation", as_type="span")
     async def process_conversation(self, workflow: WorkflowRun) -> WorkflowExecutionModel:
@@ -119,9 +122,48 @@ class Orchestrator:
             flush_traces()
 
             # 构建执行结果模型（元数据 + 会话结果）
-            return WorkflowExecutionModel(**result)
+            execution_result = WorkflowExecutionModel(**result)
+
+            # 添加多模态输出
+            execution_result = await self._enrich_output(execution_result, workflow.assistant_id)
+
+            return execution_result
 
         except Exception as e:
             logger.error(f"对话处理失败: {e}", exc_info=True)
             # 返回统一错误状态
             raise
+
+    async def _enrich_output(
+        self,
+        result: WorkflowExecutionModel,
+        assistant_id: UUID
+    ) -> WorkflowExecutionModel:
+        """
+        为工作流结果添加多模态输出
+
+        Agent节点可通过设置 result.actions 来请求特定类型的多模态输出
+        例如: result.actions = [OutputType.AUDIO, OutputType.IMAGE]
+
+        Args:
+            result: 工作流执行结果
+            assistant_id: 数字员工ID
+
+        Returns:
+            enriched WorkflowExecutionModel with multimodal_outputs
+        """
+        if not result.actions:
+            return result
+
+        result.multimodal_outputs = []
+
+        for action in result.actions:
+            match action:
+                case OutputType.AUDIO:
+                    await generate_audio_output(result, assistant_id)
+                case OutputType.IMAGE:
+                    pass
+                case OutputType.VIDEO:
+                    pass
+
+        return result

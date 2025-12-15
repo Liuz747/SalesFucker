@@ -12,7 +12,7 @@
 
 from models import WorkflowRun
 from utils import get_component_logger
-from .entities import WorkflowExecutionModel
+from core.entities import WorkflowExecutionModel
 
 
 logger = get_component_logger(__name__)

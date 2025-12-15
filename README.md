@@ -32,7 +32,7 @@ mas-v0.2/
 ## 快速开始（后端）
 
 ### 环境要求
-- Python 3.11 及以上
+- Python 3.13 及以上
 - [uv](https://docs.astral.sh/uv/) 包管理器（建议 `curl -LsSf https://astral.sh/uv/install.sh | sh`）
 - Docker & Docker Compose（可选，用于依赖服务或一体化部署）
 - 至少一组可用的 LLM API Key（OpenAI、Anthropic、Gemini 或 OpenRouter）
@@ -43,22 +43,18 @@ mas-v0.2/
    git clone <repo-url>
    cd mas-v0.2/api
    ```
-2. 运行初始化脚本（安装依赖、生成 `.env` 模板、创建数据目录）：
-   ```bash
-   ./scripts/setup.sh
-   ```
-3. 根据实际密钥与服务地址编辑 `.env`。常用变量包括 `OPENAI_API_KEY`、`ANTHROPIC_API_KEY`、`DB_*`、`REDIS_URL`、`ELASTICSEARCH_URL`、`MILVUS_HOST`。
-4. 如需本地依赖服务，可在仓库根目录执行：
+2. 根据实际密钥与服务地址编辑 `.env`。常用变量包括 `OPENAI_API_KEY`、`ANTHROPIC_API_KEY`、`DB_*`、`REDIS_URL`、`ELASTICSEARCH_URL`、`MILVUS_HOST`。
+3. 如需本地依赖服务，可在仓库根目录执行：
    ```bash
    docker compose -f docker/docker-compose.dev.yml up -d postgres redis
    # 需要 Langfuse/ClickHouse/MinIO 时再补充相应服务
    ```
-5. 启动 API：
+4. 启动 API：
    ```bash
    uv run uvicorn main:app --reload
-   # 或使用 uv run python main.py
+   # 或使用 uv run main.py
    ```
-6. 访问 `http://localhost:8000/` 获取健康信息，`http://localhost:8000/docs` 查看自动生成的 OpenAPI 文档。
+5. 访问 `http://localhost:8000/` 获取健康信息，`http://localhost:8000/docs` 查看自动生成的 OpenAPI 文档。
 
 前端与 Langfuse 面板位于 `web/` 目录，具体使用方式请参见该目录的 `README.md` 与 `REVIEW.md`。
 
@@ -82,13 +78,13 @@ uv run pytest --cov=. --cov-report=term-missing
 cd api
 
 # 应用最新迁移
-uv run python scripts/database.py
+uv run scripts/database.py
 
 # 创建新迁移（自动检测模型变更）
-uv run python scripts/database.py revision "add tenant webhook"
+uv run scripts/database.py revision "add tenant webhook"
 
 # 回滚到上一版本
-uv run python scripts/database.py downgrade -1
+uv run scripts/database.py downgrade -1
 ```
 
 现有迁移位于 `api/migrations/versions/6ee06edc35dd_modify_data_model.py`，更多注意事项请参见 `docs/database_migrations.md`。
@@ -118,15 +114,8 @@ uv run python scripts/database.py downgrade -1
 ### 助理管理 (`/v1/assistants`)
 - `POST /v1/assistants`：创建智能助理
 - `GET /v1/assistants/{assistant_id}`：查看助理详情
-- `PUT /v1/assistants/{assistant_id}`：更新助理配置
+- `POST /v1/assistants/{assistant_id}`：更新助理配置
 - `DELETE /v1/assistants/{assistant_id}`：删除助理（需提供租户 ID）
-
-### Prompt 管理 (`/v1/prompts`)
-- `POST /v1/prompts/{assistant_id}`：创建或替换助理 Prompt
-- `GET /v1/prompts/{assistant_id}/{tenant_id}/{version}`：读取指定版本
-- `PUT /v1/prompts/{tenant_id}/{assistant_id}`：更新 Prompt 版本
-- `POST /v1/prompts/{assistant_id}/rollback`：回滚到历史版本
-- 另含模板库、克隆、校验等辅助端点
 
 ### 社交渠道工具 (`/v1/social-media`)
 - `POST /v1/social-media/comment`：生成评论内容
@@ -137,8 +126,8 @@ uv run python scripts/database.py downgrade -1
 
 ### 租户同步 (`/v1/tenants`)
 - `POST /v1/tenants/sync`：从业务系统同步租户信息
-- `GET /v1/tenants/{tenant_id}/status`：查询租户状态
-- `PUT /v1/tenants/{tenant_id}`：更新租户特性或状态
+- `GET /v1/tenants/{tenant_id}`：查询租户状态
+- `POST /v1/tenants/{tenant_id}`：更新租户特性或状态
 - `DELETE /v1/tenants/{tenant_id}`：删除租户
 
 完整参数说明与响应模型可通过 FastAPI 文档或 `schemas/` 目录查看。

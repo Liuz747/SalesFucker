@@ -24,3 +24,12 @@ class MethodType(StrEnum):
     REPLIES = "replies"
     KEYWORDS = "keywords"
     PRIVATE_MESSAGE = "private_message"
+    MOMENTS = "moments"
+    COMPRESS = "compress"
+    EXPAND = "expand"
+
+
+class TextBeautifyActionType(IntEnum):
+    """文本美化动作类型"""
+    COMPRESS = 1  # 缩写
+    EXPAND = 2    # 扩写

@@ -1,44 +1,101 @@
 name: mas-observe
 
+x-shared-var: &shared-mas-env
+  # Deployment
+  APP_KEY: ${APP_KEY}
+  CALLBACK_URL: ${CALLBACK_URL}
+  # LLM Provider Keys
+  OPENAI_API_KEY: ${OPENAI_API_KEY}
+  ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+  GOOGLE_API_KEY: ${GOOGLE_API_KEY}
+  DEEPSEEK_API_KEY: ${DEEPSEEK_API_KEY}
+  OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
+  DASHSCOPE_API_KEY: ${DASHSCOPE_API_KEY}
+  MINIMAX_API_KEY: ${MINIMAX_API_KEY}
+  # Database
+  DB_HOST: ${DB_HOST}
+  DB_PORT: ${DB_PORT:-5432}
+  DB_NAME: ${DB_NAME}
+  POSTGRES_USER: ${POSTGRES_USER}
+  POSTGRES_PWD: ${POSTGRES_PWD}
+  # Redis
+  REDIS_HOST: ${REDIS_HOST}
+  REDIS_PORT: ${REDIS_PORT:-6379}
+  REDIS_USERNAME: ${REDIS_USERNAME:-}
+  REDIS_PASSWORD: ${REDIS_PASSWORD}
+  # Milvus
+  MILVUS_HOST: ${MILVUS_HOST}
+  MILVUS_PORT: ${MILVUS_PORT:-19530}
+  # Elasticsearch
+  ELASTIC_HOST: ${ELASTIC_HOST}
+  ELASTIC_PORT: ${ELASTIC_PORT:-9200}
+  ELASTIC_PASSWORD: ${ELASTIC_PASSWORD}
+  # Temporal
+  TEMPORAL_HOST: ${TEMPORAL_HOST}
+  TEMPORAL_PORT: ${TEMPORAL_PORT:-7233}
+  # Observability
+  LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY}
+  LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY}
+  LANGFUSE_HOST: ${LANGFUSE_HOST}
+
 services:
   # Main MAS application
   api:
     image: ${REGISTRY_URL}/api:latest
     environment:
-      - APP_KEY=${APP_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
-      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT:-5432}
-      - DB_NAME=${DB_NAME}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PWD=${POSTGRES_PWD}
-      - REDIS_HOST=${REDIS_HOST}
-      - REDIS_PORT=${REDIS_PORT:-6379}
-      - REDIS_USERNAME=${REDIS_USERNAME:-}
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - MILVUS_HOST=${MILVUS_HOST}
-      - MILVUS_PORT=${MILVUS_PORT:-19530}
-      - ELASTIC_HOST=${ELASTIC_HOST}
-      - ELASTIC_PORT=${ELASTIC_PORT:-9200}
-      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
-      - TEMPORAL_HOST=${TEMPORAL_HOST}
-      - TEMPORAL_PORT=${TEMPORAL_PORT:-7233}
-      - TEMPORAL_NAMESPACE=${TEMPORAL_NAMESPACE:-default}
-      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
-      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
-      - LANGFUSE_HOST=${LANGFUSE_HOST}
-      - CALLBACK_URL=${CALLBACK_URL}
-    depends_on:
-      - postgres
-      - redis
-      - elasticsearch
-      - milvus-standalone
-      - temporal
+      <<: *shared-mas-env
+    depends_on: &mas-depends-on
+      milvus-standalone:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_started
+      temporal:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
     restart: unless-stopped
+    networks:
+      - mas-network
+
+  worker:
+    image: ${REGISTRY_URL}/api:latest
+    environment:
+      <<: *shared-mas-env
+      MODE: worker
+    depends_on: *mas-depends-on
+    restart: unless-stopped
+    networks:
+      - mas-network
+
+  api-test:
+    image: ${REGISTRY_URL}/api:test
+    environment:
+      <<: *shared-mas-env
+      DEBUG: true
+      LOG_LEVEL: DEBUG
+      SQLALCHEMY_ECHO: true
+      DB_NAME: ${DB_NAME_TEST}
+      REDIS_DB: ${REDIS_DB_TEST}
+      ES_MEMORY_INDEX: ${ELASTIC_MEMORY_INDEX_TEST}
+      TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE_TEST}
+    depends_on: *mas-depends-on
+    restart: unless-stopped
+    profiles:
+      - test
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - mas-network
 
   langfuse-web:
     image: ${REGISTRY_URL}/frontend:latest
@@ -95,9 +152,11 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    networks:
+      - mas-network
 
   langfuse-worker:
-    image: ${REGISTRY_URL}/worker:latest
+    image: ${REGISTRY_URL}/langfuse-worker:latest
     depends_on: *langfuse-depends-on
     environment:
       <<: *langfuse-web-env
@@ -107,6 +166,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    networks:
+      - mas-network
 
   clickhouse:
     image: ${REGISTRY_URL}/clickhouse-server:latest
@@ -122,6 +183,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    networks:
+      - mas-network
 
   elasticsearch:
     image: ${REGISTRY_URL}/elasticsearch:9.2.0
@@ -132,17 +195,23 @@ services:
       - xpack.security.enabled=true
       - xpack.security.http.ssl.enabled=false
       - xpack.license.self_generated.type=basic
+      - xpack.ml.enabled=false
+      - xpack.watcher.enabled=false
       - cluster.routing.allocation.disk.threshold_enabled=true
-      - cluster.routing.allocation.disk.watermark.low=512mb
-      - cluster.routing.allocation.disk.watermark.high=256mb
-      - cluster.routing.allocation.disk.watermark.flood_stage=128mb
-    mem_limit: 1g
+      - cluster.routing.allocation.disk.watermark.low=85%
+      - cluster.routing.allocation.disk.watermark.high=90%
+      - cluster.routing.allocation.disk.watermark.flood_stage=95%
+    mem_limit: 2g
     ulimits:
       memlock:
         soft: -1
         hard: -1
+    restart: unless-stopped
     volumes:
       - es_data:/usr/share/elasticsearch/data
+      - es_plugins:/usr/share/elasticsearch/plugins
+    networks:
+      - mas-network
 
   etcd:
     image: ${REGISTRY_URL}/etcd:v3.6.5
@@ -159,6 +228,8 @@ services:
       interval: 30s
       timeout: 20s
       retries: 3
+    networks:
+      - mas-network
 
   milvus-standalone:
     image: ${REGISTRY_URL}/milvus:v2.6.4
@@ -182,6 +253,9 @@ services:
     depends_on:
       - etcd
       - minio
+    restart: unless-stopped
+    networks:
+      - mas-network
 
   minio:
     image: ${REGISTRY_URL}/minio:latest
@@ -197,6 +271,8 @@ services:
       interval: 30s
       timeout: 20s
       retries: 3
+    networks:
+      - mas-network
 
   nginx:
     image: ${REGISTRY_URL}/nginx:alpine
@@ -215,6 +291,7 @@ services:
     entrypoint: [ "sh", "/docker-entrypoint.sh" ]
     environment:
       NGINX_SERVER_NAME: ${NGINX_SERVER_NAME:-_}
+      NGINX_TEST_SERVER_NAME: ${NGINX_TEST_SERVER_NAME}
       NGINX_PORT: ${NGINX_PORT:-80}
       NGINX_SSL_PORT: ${NGINX_SSL_PORT:-443}
       NGINX_HTTPS_ENABLED: ${NGINX_HTTPS_ENABLED:-false}
@@ -225,6 +302,8 @@ services:
       NGINX_PROXY_READ_TIMEOUT: ${NGINX_PROXY_READ_TIMEOUT:-3600s}
       NGINX_PROXY_SEND_TIMEOUT: ${NGINX_PROXY_SEND_TIMEOUT:-3600s}
     restart: unless-stopped
+    networks:
+      - mas-network
 
   postgres:
     image: ${REGISTRY_URL}/postgres:18-alpine
@@ -240,6 +319,8 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
+    networks:
+      - mas-network
 
   redis:
     image: ${REGISTRY_URL}/redis:8-alpine
@@ -254,6 +335,8 @@ services:
       retries: 3
     command: --requirepass ${REDIS_PASSWORD:-myredissecret}
     restart: always
+    networks:
+      - mas-network
 
   temporal:
     image: ${REGISTRY_URL}/temporal:latest
@@ -271,6 +354,8 @@ services:
       - ES_PWD=${ELASTIC_PASSWORD:-changeme}
       - ES_SEEDS=elasticsearch
       - TEMPORAL_ADDRESS=${TEMPORAL_HOST:-temporal}:${TEMPORAL_PORT:-7233}
+    networks:
+      - mas-network
 
 volumes:
   clickhouse_data:
@@ -278,5 +363,13 @@ volumes:
   postgres_data:
   minio_data:
   es_data:
+  es_plugins:
   etcd_data:
   milvus_data:
+
+networks:
+  mas-network:
+    ipam:
+      config:
+        - subnet: 192.168.100.0/24
+          gateway: 192.168.100.1

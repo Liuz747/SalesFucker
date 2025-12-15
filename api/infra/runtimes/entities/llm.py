@@ -9,6 +9,12 @@ from libs.types import MessageParams
 
 
 @dataclass
+class TokenUsage:
+    input_tokens: int
+    output_tokens: int
+
+
+@dataclass
 class LLMRequest:
     id: UUID | None
     model: str
@@ -33,9 +39,9 @@ class CompletionsRequest(LLMRequest):
 
 @dataclass 
 class LLMResponse:
-    id: str
+    id: UUID | None
     content: str | Mapping
     provider: str
     model: str
-    usage: dict[str, int]
+    usage: TokenUsage
     cost: float = 0.0

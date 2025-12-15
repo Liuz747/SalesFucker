@@ -10,9 +10,8 @@ api/infra/runtimes/
 ├── client.py          # LLMClient 实现（OpenAI/Anthropic/OpenRouter）
 ├── config.py          # 读取 YAML 模型清单
 ├── entities.py        # 请求 / 响应 / 枚举类型
-├── providers/         # 具体供应商实现（OpenAIProvider、AnthropicProvider）
 ├── routing.py         # 简单路由器（保留扩展位）
-└── legacy_llm/        # 旧版 mixin，供历史代码兼容
+└── providers/         # 具体供应商实现（OpenAIProvider、AnthropicProvider）
 ```
 
 `data/models.yaml` 用于声明可用模型，只要 `.env` 中存在对应 API Key，模型就会被 `LLMConfig` 加载。
@@ -97,16 +96,7 @@ print(response.content)  # 已解析为 CalendarEvent 实例
 
 ---
 
-## 4. 在智能体中使用
-旧版智能体通过 `legacy_llm/llm_mixin.py` 集成多 LLM 功能：
-- `get_multi_llm_client()` 会返回全局单例，复用连接
-- `RoutingStrategy` 枚举保留接口，可在未来接入更复杂的路由策略
-
-若需在新的智能体中调用，只需直接依赖 `LLMClient`。
-
----
-
-## 5. 扩展要点
+## 4. 扩展要点
 - **新增供应商**：实现 `providers/BaseProvider` 子类，并在 `config.py` 中加入映射
 - **模型筛选**：`data/models.yaml` 中将 `enabled` 设为 `false` 即可临时禁用
 - **成本/统计**：当前版本未集成成本追踪，可在 `LLMResponse` 中的 `usage` 字段上层处理
@@ -114,7 +104,7 @@ print(response.content)  # 已解析为 CalendarEvent 实例
 
 ---
 
-## 6. 常见问题
+## 5. 常见问题
 | 现象 | 可能原因 | 排查方式 |
 | --- | --- | --- |
 | `ValueError: 指定的供应商不可用` | `.env` 未配置对应 API Key 或 provider id 拼写错误 | 确认 `models.yaml` 与请求 `provider` 字段一致，并设置 API Key |

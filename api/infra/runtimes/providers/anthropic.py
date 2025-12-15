@@ -11,7 +11,7 @@ import anthropic
 from anthropic.types import MessageParam
 
 from infra.runtimes.providers import BaseProvider
-from infra.runtimes.entities import CompletionsRequest, LLMResponse, Provider
+from infra.runtimes.entities import CompletionsRequest, LLMResponse, Provider, TokenUsage
 
 
 class AnthropicProvider(BaseProvider):
@@ -85,10 +85,10 @@ class AnthropicProvider(BaseProvider):
             content=response.content[0].text,
             provider=request.provider,
             model=response.model,
-            usage={
-                "input_tokens": response.usage.input_tokens,
-                "output_tokens": response.usage.output_tokens,
-            },
+            usage=TokenUsage(
+                input_tokens=response.usage.input_tokens,
+                output_tokens=response.usage.output_tokens,
+            ),
             cost=self._calculate_cost(response.usage, response.model)
         )
 
