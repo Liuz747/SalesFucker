@@ -26,8 +26,8 @@ from schemas import BaseResponse, ThreadPayload, ThreadCreateResponse
 from services import ThreadService
 from utils import get_component_logger
 from ..wraps import validate_and_get_tenant
-from .workflow import router as workflow_router
 from .analysis import router as analysis_router
+from .workflow import router as workflow_router
 
 
 logger = get_component_logger(__name__, "ConversationRouter")
@@ -35,8 +35,9 @@ logger = get_component_logger(__name__, "ConversationRouter")
 # 创建路由器
 router = APIRouter()
 
-router.include_router(workflow_router, prefix="/{thread_id}/runs", tags=["workflows"])
 router.include_router(analysis_router, prefix="/{thread_id}", tags=["analysis"])
+router.include_router(workflow_router, prefix="/{thread_id}/runs", tags=["workflows"])
+
 
 @router.post("", response_model=ThreadCreateResponse)
 async def create_thread(

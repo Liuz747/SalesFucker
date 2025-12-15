@@ -1,16 +1,18 @@
 """
 营销专家Agent
 """
+
 import json
 from uuid import uuid4
 
 from langfuse import observe
 
-from core.agents.base import BaseAgent
+from core.memory import ConversationStore
 from infra.runtimes import CompletionsRequest, LLMResponse
 from libs.types import Message
 from schemas.marketing_schema import MarketingPlanRequest, MarketingPlanResponse
 from utils import get_component_logger
+from ..base import BaseAgent
 
 logger = get_component_logger(__name__)
 
@@ -25,13 +27,12 @@ class MarketingAgent(BaseAgent):
 
     特点：
     - 独立运行（非工作流集成）
-    - 无需线程ID，仅租户级隔离
-    - 支持活动策略和内容营销两种模式
     - 预留产品目录集成能力
     """
 
     def __init__(self):
         super().__init__()
+        self.short_memory_manager = ConversationStore()
 
         # 预留：未来产品目录集成
         # self.product_recommender = ProductRecommender()
@@ -72,20 +73,43 @@ class MarketingAgent(BaseAgent):
         try:
             logger.info(f"开始生成营销计划 - tenant: {tenant_id}")
 
-            # 1. 构建营销提示词
+            # 1. 加载会话历史（如果提供了request_id）
+            conversation_history = []
+            if request.request_id:
+                conversation_history = await self.short_memory_manager.get_recent(
+                    thread_id=request.request_id,
+                    limit=10
+                )
+                logger.info(f"加载了 {len(conversation_history)} 条历史消息")
+
+            # 2. 构建营销提示词
             marketing_prompt = self._build_marketing_prompt(content=request.content)
 
-            # 2. 调用LLM生成计划
-            llm_response = await self._generate_plans(marketing_prompt=marketing_prompt)
+            conversation_history.append(
+                Message(role="user", content=marketing_prompt)
+            )
 
-            # 3. 解析结构化输出
+            # 3. 调用LLM生成计划
+            llm_response = await self._generate_plans(conversation_history)
+
+            # 4. 解析结构化输出
             response, plan_options = self._parse_structured_output(llm_response.content)
+
+            # 5. 保存本轮对话
+            await self.short_memory_manager.append_messages(
+                thread_id=request.request_id if request.request_id else llm_response.id,
+                messages=[
+                    Message(role="user", content=request.content),
+                    Message(role="assistant", content=llm_response.content)
+                ]
+            )
 
             logger.info(
                 f"营销计划生成成功 - options: {len(plan_options)}, "
             )
 
             return MarketingPlanResponse(
+                request_id=llm_response.id,
                 response=response,
                 options=plan_options,
                 input_tokens=llm_response.usage.input_tokens,
@@ -131,12 +155,12 @@ class MarketingAgent(BaseAgent):
         )
 
     @observe(name="llm-generation", as_type="generation")
-    async def _generate_plans(self, marketing_prompt: str) -> LLMResponse:
+    async def _generate_plans(self, user_input: list) -> LLMResponse:
         """
         调用LLM生成营销计划
 
         参数:
-            marketing_prompt: 完整提示词
+            user_input: 完整提示词
 
         返回:
             LLMResponse
@@ -148,9 +172,7 @@ class MarketingAgent(BaseAgent):
                 provider="openrouter",
                 model="openai/gpt-oss-120b:exacto",
                 temperature=0.7,
-                messages=[
-                    Message(role="user", content=marketing_prompt)
-                ],
+                messages=user_input,
                 # 注意：response_format JSON mode 需要provider支持
                 # 这里先不使用，后续可以根据provider能力优化
             )
