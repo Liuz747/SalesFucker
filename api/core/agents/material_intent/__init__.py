@@ -1,5 +1,5 @@
 """
-Material Intent Analysis Agent Package - 素材发送意向分析智能体包
+Material Intent Analysis Agent - 素材发送意向分析智能体
 
 专门分析客户对各种类型素材（图片、价格、技术参数等）的发送需求。
 """

@@ -6,8 +6,6 @@
 核心组件:
 - BaseAgent: 智能体抽象基类
 - AgentMessage: 智能体间消息传递
-
-注意: LangGraph工作流组件现在位于 src.core 模块中。
 """
 
 # 核心智能体组件导入

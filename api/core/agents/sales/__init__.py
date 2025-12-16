@@ -1,5 +1,5 @@
 """
-Sales Agent Module - 简化架构（智能匹配提示词 + 记忆系统）
+Sales Agent Module - 智能匹配提示词 + 记忆系统
 
 基于 SentimentAgent 输出的 matched_prompt，结合记忆上下文生成个性化销售回复。
 移除复杂的产品推荐逻辑，专注于核心对话生成。

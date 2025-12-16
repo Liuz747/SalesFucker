@@ -1,5 +1,5 @@
 """
-Sentiment Analysis Agent Module - 模块化架构
+Sentiment Analysis Agent
 
 提供情感分析和多模态处理的完整解决方案。
 采用模块化设计，每个组件职责单一，便于测试和维护。

@@ -3,17 +3,9 @@
 
 该包包含化妆品行业数字营销的多智能体系统的所有专业智能体:
 - 合规审查智能体 (Compliance Review Agent)
-- 情感与意图分析智能体 (Sentiment & Intent Analysis Agent - 整合)
+- 情感与意图分析智能体 (Sentiment & Intent Analysis Agent)
 - 销售智能体 (Sales Agent)
 - 产品专家智能体 (Product Expert Agent)
-- 主动营销智能体 (Proactive Agent)
-- AI建议智能体 (AI Suggestion Agent)
-
-模块组织采用trunk-based development最佳实践：
-- core/: 核心基础组件和架构
-- compliance/: 合规检查相关模块
-- sales/: 销售智能体相关模块
-- (更多模块按需扩展)
 """
 
 # 导入核心组件

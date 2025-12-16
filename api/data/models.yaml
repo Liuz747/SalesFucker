@@ -14,11 +14,6 @@
       name: "GPT-4 Omni Mini"
       type: "text"
       enabled: true
-    - id: "gpt-4-vision-preview"
-      provider: "openai"
-      name: "GPT-4 Vision Preview"
-      type: "vision"
-      enabled: true
     - id: "text-embedding-3-small"
       provider: "openai"
       name: "Text Embedding 3 Small"
@@ -46,11 +41,6 @@
       name: "Claude 3.5 Haiku"
       type: "text"
       enabled: true
-    - id: "claude-3-opus-20240229"
-      provider: "anthropic"
-      name: "Claude 3 Opus"
-      type: "text"
-      enabled: true
 
 - id: "gemini"
   type: "gemini"
@@ -62,21 +52,6 @@
       provider: "gemini"
       name: "Gemini 1.5 Pro"
       type: "text"
-      enabled: true
-    - id: "gemini-1.5-flash-002"
-      provider: "gemini"
-      name: "Gemini 1.5 Flash"
-      type: "text"
-      enabled: true
-    - id: "gemini-1.5-pro-vision-002"
-      provider: "gemini"
-      name: "Gemini 1.5 Pro Vision"
-      type: "vision"
-      enabled: true
-    - id: "text-embedding-004"
-      provider: "gemini"
-      name: "Text Embedding 004"
-      type: "embedding"
       enabled: true
 
 - id: "openrouter"
