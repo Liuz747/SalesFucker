@@ -1,6 +1,6 @@
 # 多 LLM 运行时使用指南
 
-MAS 当前采用的多 LLM 运行时，位于 `api/infra/runtimes/`。该实现专注于快速启动与测试：读取 `data/models.yaml` 配置，依据 `.env` 中的 API Key 启用供应商，并通过统一的 `LLMClient` 暴露 Completions 与 Responses 能力。
+MAS 当前采用的多 LLM 运行时，位于 `api/infra/runtimes/`。该实现专注于快速启动与测试：读取 `api/data/models.yaml` 配置，依据 `.env` 中的 API Key 启用供应商，并通过统一的 `LLMClient` 暴露 Completions 与 Responses 能力。
 
 ---
 
@@ -14,7 +14,7 @@ api/infra/runtimes/
 └── providers/         # 具体供应商实现（OpenAIProvider、AnthropicProvider）
 ```
 
-`data/models.yaml` 用于声明可用模型，只要 `.env` 中存在对应 API Key，模型就会被 `LLMConfig` 加载。
+`api/data/models.yaml` 用于声明可用模型，只要 `.env` 中存在对应 API Key，模型就会被 `LLMConfig` 加载。
 
 ---
 
