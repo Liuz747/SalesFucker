@@ -161,16 +161,14 @@ class AudioService:
         asr_result: list[dict] = []
 
         for index, message in enumerate(raw_input):
-            content = message.content
-
             # 如果内容是字符串，直接保留
-            if isinstance(content, str):
+            if isinstance(message.content, str):
                 normalized.append(message)
                 continue
 
             # 如果是 Sequence[InputContent]，处理音频
             normalized_content: list[InputContent] = []
-            for item in content:
+            for item in message.content:
                 if item.type != InputType.AUDIO:
                     normalized_content.append(item)
                     continue
@@ -193,7 +191,8 @@ class AudioService:
                 ])
 
             # 创建新的消息对象，保留原始角色
-            normalized.append(Message(role=message.role, content=normalized_content))
+            message.content = normalized_content
+            normalized.append(message)
 
         return normalized, asr_result
 

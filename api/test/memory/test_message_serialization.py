@@ -6,10 +6,17 @@
 2. 多模态消息 (Sequence[InputContent])
 3. 不同角色的消息
 """
-import pytest
+
 import msgpack
 
-from libs.types import Message, InputContent, InputType
+from libs.types import (
+    Message,
+    UserMessage,
+    AssistantMessage,
+    SystemMessage,
+    InputContent,
+    InputType
+)
 
 
 class TestMessageSerialization:
@@ -17,43 +24,43 @@ class TestMessageSerialization:
 
     def test_text_message_roundtrip(self):
         """测试纯文本消息序列化 - user角色"""
-        msg = Message(role="user", content="Hello world")
+        msg = UserMessage(role="user", content="Hello world")
 
         # 序列化
         packed = msgpack.packb(msg.model_dump(), use_bin_type=True)
 
         # 反序列化
         unpacked = msgpack.unpackb(packed, raw=False)
-        restored = Message(**unpacked)
+        restored = UserMessage(**unpacked)
 
         assert restored.role == "user"
         assert restored.content == "Hello world"
 
     def test_assistant_text_message_roundtrip(self):
         """测试纯文本消息序列化 - assistant角色"""
-        msg = Message(role="assistant", content="I can help you with that.")
+        msg = AssistantMessage(role="assistant", content="I can help you with that.")
 
         packed = msgpack.packb(msg.model_dump(), use_bin_type=True)
         unpacked = msgpack.unpackb(packed, raw=False)
-        restored = Message(**unpacked)
+        restored = AssistantMessage(**unpacked)
 
         assert restored.role == "assistant"
         assert restored.content == "I can help you with that."
 
     def test_system_text_message_roundtrip(self):
         """测试纯文本消息序列化 - system角色"""
-        msg = Message(role="system", content="You are a helpful assistant.")
+        msg = SystemMessage(role="system", content="You are a helpful assistant.")
 
         packed = msgpack.packb(msg.model_dump(), use_bin_type=True)
         unpacked = msgpack.unpackb(packed, raw=False)
-        restored = Message(**unpacked)
+        restored = SystemMessage(**unpacked)
 
         assert restored.role == "system"
         assert restored.content == "You are a helpful assistant."
 
     def test_multimodal_text_only_roundtrip(self):
         """测试多模态消息序列化 - 仅文本内容"""
-        msg = Message(
+        msg = UserMessage(
             role="user",
             content=[
                 InputContent(type=InputType.TEXT, content="What is this?"),
@@ -62,7 +69,7 @@ class TestMessageSerialization:
 
         packed = msgpack.packb(msg.model_dump(), use_bin_type=True)
         unpacked = msgpack.unpackb(packed, raw=False)
-        restored = Message(**unpacked)
+        restored = UserMessage(**unpacked)
 
         assert restored.role == "user"
         assert isinstance(restored.content, list)
@@ -72,7 +79,7 @@ class TestMessageSerialization:
 
     def test_multimodal_image_roundtrip(self):
         """测试多模态消息序列化 - 文本+图像"""
-        msg = Message(
+        msg = UserMessage(
             role="user",
             content=[
                 InputContent(type=InputType.TEXT, content="Check this image"),
@@ -82,7 +89,7 @@ class TestMessageSerialization:
 
         packed = msgpack.packb(msg.model_dump(), use_bin_type=True)
         unpacked = msgpack.unpackb(packed, raw=False)
-        restored = Message(**unpacked)
+        restored = UserMessage(**unpacked)
 
         assert restored.role == "user"
         assert isinstance(restored.content, list)
@@ -98,7 +105,7 @@ class TestMessageSerialization:
 
     def test_multimodal_audio_roundtrip(self):
         """测试多模态消息序列化 - 文本+音频"""
-        msg = Message(
+        msg = UserMessage(
             role="user",
             content=[
                 InputContent(type=InputType.TEXT, content="Transcribed: Hello"),
@@ -108,7 +115,7 @@ class TestMessageSerialization:
 
         packed = msgpack.packb(msg.model_dump(), use_bin_type=True)
         unpacked = msgpack.unpackb(packed, raw=False)
-        restored = Message(**unpacked)
+        restored = UserMessage(**unpacked)
 
         assert restored.role == "user"
         assert len(restored.content) == 2
@@ -118,7 +125,7 @@ class TestMessageSerialization:
 
     def test_multimodal_mixed_types_roundtrip(self):
         """测试多模态消息序列化 - 混合多种类型"""
-        msg = Message(
+        msg = UserMessage(
             role="user",
             content=[
                 InputContent(type=InputType.TEXT, content="Check these files"),
@@ -130,7 +137,7 @@ class TestMessageSerialization:
 
         packed = msgpack.packb(msg.model_dump(), use_bin_type=True)
         unpacked = msgpack.unpackb(packed, raw=False)
-        restored = Message(**unpacked)
+        restored = UserMessage(**unpacked)
 
         assert restored.role == "user"
         assert len(restored.content) == 4
@@ -141,7 +148,7 @@ class TestMessageSerialization:
 
     def test_enum_serialization_as_string(self):
         """验证 InputType 枚举序列化为字符串值"""
-        msg = Message(
+        msg = UserMessage(
             role="user",
             content=[
                 InputContent(type=InputType.IMAGE, content="https://example.com/img.png"),
@@ -155,11 +162,11 @@ class TestMessageSerialization:
 
     def test_empty_content_handling(self):
         """测试空内容列表处理"""
-        msg = Message(role="user", content=[])
+        msg = UserMessage(role="user", content=[])
 
         packed = msgpack.packb(msg.model_dump(), use_bin_type=True)
         unpacked = msgpack.unpackb(packed, raw=False)
-        restored = Message(**unpacked)
+        restored = UserMessage(**unpacked)
 
         assert restored.role == "user"
         assert restored.content == []
@@ -171,14 +178,14 @@ class TestMessageListSerialization:
     def test_conversation_history_roundtrip(self):
         """测试完整对话历史序列化"""
         messages = [
-            Message(role="system", content="You are helpful."),
-            Message(role="user", content="Hello"),
-            Message(role="assistant", content="Hi! How can I help?"),
-            Message(role="user", content=[
+            SystemMessage(role="system", content="You are helpful."),
+            UserMessage(role="user", content="Hello"),
+            AssistantMessage(role="assistant", content="Hi! How can I help?"),
+            UserMessage(role="user", content=[
                 InputContent(type=InputType.TEXT, content="What's in this image?"),
                 InputContent(type=InputType.IMAGE, content="https://example.com/img.png"),
             ]),
-            Message(role="assistant", content="I see a beautiful landscape."),
+            AssistantMessage(role="assistant", content="I see a beautiful landscape."),
         ]
 
         # 序列化每条消息

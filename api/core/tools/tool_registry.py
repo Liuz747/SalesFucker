@@ -24,8 +24,6 @@ long_term_memory_tool = ToolDefinition(
     name="long_term_memory_retrieve",
     description="在长期记忆中按关键字搜索用户的历史对话摘要和偏好。当用户询问过去的交互或存储的偏好时使用。",
     arguments=[
-        ToolArgument("tenant_id", "string", "租户ID，用于隔离存储和检索数据"),
-        ToolArgument("thread_id", "string", "线程ID，用于限定搜索范围"),
         ToolArgument("query", "string", "搜索查询内容"),
         ToolArgument("limit", "integer", "最多返回条数，默认5", required=False)
     ],
@@ -36,8 +34,6 @@ store_episodic_memory_tool = ToolDefinition(
     name="store_episodic_memory",
     description="保存重要的用户信息供将来参考。当用户分享偏好、个人信息或重要事实时使用。",
     arguments=[
-        ToolArgument("tenant_id", "string", "租户ID，用于隔离存储和检索数据"),
-        ToolArgument("thread_id", "string", "线程ID，用于关联对话上下文"),
         ToolArgument("content", "string", "要存储的记忆内容"),
         ToolArgument("importance_score", "number", "记忆的相对重要程度，范围0-1", required=False),
         ToolArgument("tags", "array", "标签列表，用于分类和检索", required=False),

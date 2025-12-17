@@ -9,13 +9,17 @@
 - 消息处理抽象接口
 - 错误处理和降级机制
 - 智能体状态管理
+- 工具调用支持
 """
 
 from abc import ABC, abstractmethod
+import json
+from uuid import UUID
 
 from core.entities import WorkflowExecutionModel
-from infra.runtimes import LLMClient, CompletionsRequest, LLMResponse
-from libs.types import MessageParams, InputContent
+from core.tools import get_handler, get_tools_schema
+from infra.runtimes import LLMClient, CompletionsRequest, LLMResponse, TokenUsage
+from libs.types import MessageParams, InputContent, AssistantMessage, ToolMessage
 from utils import get_component_logger
 
 
@@ -67,19 +71,101 @@ class BaseAgent(ABC):
             dict: 更新后的对话状态
         """
         pass
-    
-    async def invoke_llm(self, request: CompletionsRequest) -> LLMResponse:
+
+    async def invoke_llm(
+        self,
+        request: CompletionsRequest,
+        tenant_id: str,
+        thread_id: UUID,
+        max_iterations: int = 3
+    ) -> LLMResponse:
         """
-        简单的LLM调用方法
+        调用 LLM 并支持工具调用
 
-        参数:
-            request: LLM请求
+        该方法实现完整的工具调用循环：
+        1. 调用 LLM，传入可用工具定义
+        2. 如果 LLM 请求工具调用，执行工具
+        3. 将工具结果返回给 LLM
+        4. LLM 生成最终回复
 
-        返回:
-            str: LLM响应内容
+        Args:
+            request: LLM 请求
+            tenant_id
+            thread_id
+            max_iterations: 最大工具调用迭代次数（防止无限循环）
+
+        Returns:
+            LLMResponse: 最终的 LLM 响应
         """
+        if not request.tools:
+            # 没有工具，直接调用 LLM
+            return await self.llm_client.completions(request)
 
-        return await self.llm_client.completions(request)
+        # 准备工具 schema
+        request.tools = get_tools_schema(request.tools)
+        request.tool_choice = "auto"
+
+        # 迭代调用：LLM → 工具执行 → LLM → ...
+        iteration = 0
+        accumulated_tokens = TokenUsage(input_tokens=0, output_tokens=0)
+
+        while iteration < max_iterations:
+            iteration += 1
+            self.logger.info(f"工具调用迭代 {iteration}/{max_iterations}")
+
+            # 调用 LLM
+            response = await self.llm_client.completions(request)
+
+            # 检查是否有工具调用
+            if not response.tool_calls or response.finish_reason == "stop":
+                self.logger.info("LLM 未请求工具调用，返回最终响应")
+                return response
+
+            self.logger.info(f"LLM 请求调用 {len(response.tool_calls)} 个工具")
+
+            accumulated_tokens.input_tokens += response.usage.input_tokens
+            accumulated_tokens.output_tokens += response.usage.output_tokens
+            response.usage = accumulated_tokens
+
+            # 将 assistant 的响应添加到消息历史（包含 tool_calls）
+            assistant_message = AssistantMessage(
+                role="assistant",
+                content=response.content,
+                tool_calls=[
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {
+                            "name": tc.name,
+                            "arguments": json.dumps(tc.arguments)
+                        }
+                    }
+                    for tc in response.tool_calls
+                ]
+            )
+            request.messages.append(assistant_message)
+
+            # 执行所有工具调用
+            for tool_call in response.tool_calls:
+                handler = get_handler(tool_call.name)
+                self.logger.info(f"执行工具: {tool_call.name}, 参数: {tool_call.arguments}")
+                result = await handler(
+                    tenant_id=tenant_id,
+                    thread_id=thread_id,
+                    **tool_call.arguments
+                )
+                result = json.dumps(result, ensure_ascii=False)
+
+                # 将工具结果添加到消息历史
+                tool_message = ToolMessage(
+                    role="tool",
+                    content=result,
+                    tool_call_id=tool_call.id
+                )
+                request.messages.append(tool_message)
+
+        self.logger.warning(f"达到最大工具调用迭代次数 {max_iterations}，返回最后响应")
+        return response
 
     def _input_to_text(self, messages: MessageParams) -> str:
         """

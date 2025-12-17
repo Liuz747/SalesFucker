@@ -50,7 +50,7 @@ class ToolCallData:
 @dataclass
 class LLMResponse:
     id: UUID | None
-    content: str | Mapping
+    content: str | Mapping | None
     provider: str
     model: str
     usage: TokenUsage

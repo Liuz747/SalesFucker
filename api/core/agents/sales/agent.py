@@ -11,11 +11,12 @@ Sales Agent
 - 自动管理助手回复的存储
 """
 
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from core.entities import WorkflowExecutionModel
 from core.memory import StorageManager
-from core.prompts.get_role_prompt import get_role_prompt, get_combined_system_prompt
+from core.prompts.get_role_prompt import get_combined_system_prompt
+from core.tools import get_tools_schema, long_term_memory_tool, store_episodic_memory_tool
 from infra.runtimes import CompletionsRequest
 from libs.types import Message
 from utils import get_current_datetime
@@ -92,7 +93,6 @@ class SalesAgent(BaseAgent):
             customer_input = state.input
             tenant_id = state.tenant_id
             thread_id = str(state.thread_id)
-            assistant_id = state.assistant_id
     
             matched_prompt = state.matched_prompt
             current_total_tokens = state.total_tokens
@@ -123,7 +123,13 @@ class SalesAgent(BaseAgent):
 
             # 生成个性化回复（基于匹配的提示词 + 人设 + 记忆）
             sales_response, token_info = await self.__generate_final_response(
-                user_text, matched_prompt, role_prompt, short_term_messages, long_term_memories
+                user_text,
+                matched_prompt,
+                role_prompt,
+                short_term_messages,
+                long_term_memories,
+                state.tenant_id,
+                state.thread_id
             )
 
             # 存储助手回复到记忆
@@ -179,10 +185,12 @@ class SalesAgent(BaseAgent):
         matched_prompt: dict,
         role_prompt: Message,
         short_term_messages: list,
-        long_term_memories: list
+        long_term_memories: list,
+        tenant_id: str,
+        thread_id: UUID
     ) -> tuple[str, dict]:
         """
-        基于匹配提示词、人设信息和记忆生成回复
+        基于匹配提示词、人设信息和记忆生成回复（支持工具调用）
 
         Args:
             customer_input: 客户输入
@@ -190,6 +198,8 @@ class SalesAgent(BaseAgent):
             role_prompt: 助理人设提示词（从get_role_prompt获取）
             short_term_messages: 短期记忆消息列表
             long_term_memories: 长期记忆摘要列表
+            tenant_id: 租户ID
+            thread_id: 线程ID
 
         Returns:
             tuple: (回复内容, token信息)
@@ -210,21 +220,28 @@ class SalesAgent(BaseAgent):
             llm_messages.extend(short_term_messages)  # 直接添加短期记忆消息
             llm_messages.append(Message(role="user", content=customer_input))
 
-            # 4. 调用 LLM
+            # 4. 创建 LLM 请求
             request = CompletionsRequest(
                 id=uuid4(),
                 provider="openrouter",
                 model="openai/gpt-5-mini",
                 temperature=0.7,  # 适度创造性
-                messages=llm_messages
+                messages=llm_messages,
+                tools=get_tools_schema([long_term_memory_tool, store_episodic_memory_tool]),
+                tool_choice="auto"
             )
 
-            llm_response = await self.invoke_llm(request)
+            # 5. 【关键】使用 invoke_llm 支持工具调用
+            llm_response = await self.invoke_llm(
+                request=request,
+                tenant_id=tenant_id,
+                thread_id=thread_id
+            )
 
-            # 5. 提取 token 信息
+            # 6. 提取 token 信息
             token_info = self._extract_token_info(llm_response)
 
-            # 6. 返回响应
+            # 7. 返回响应
             if llm_response and llm_response.content:
                 response_content = str(llm_response.content).strip()
                 self.logger.debug(f"LLM 回复预览: {response_content[:100]}...")

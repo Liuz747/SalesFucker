@@ -10,7 +10,16 @@ from .content_params import (
 from .customer import Sex
 from .infra_clients import InfraClients
 from .memory import MemoryType
-from .message_params import MessageParams, MessageType, Message
+from .message_params import (
+    MessageParams,
+    MessageType,
+    Message,
+    UserMessage,
+    AssistantMessage,
+    SystemMessage,
+    ToolMessage,
+    ToolCall
+)
 from .social_media_types import SocialPlatform, SocialMediaActionType, MethodType, TextBeautifyActionType
 
 
@@ -31,5 +40,10 @@ __all__ = [
     "Sex",
     "SocialMediaActionType",
     "SocialPlatform",
-    "TextBeautifyActionType"
+    "TextBeautifyActionType",
+    "UserMessage",
+    "AssistantMessage",
+    "SystemMessage",
+    "ToolMessage",
+    "ToolCall"
 ]

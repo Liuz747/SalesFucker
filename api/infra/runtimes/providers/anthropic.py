@@ -58,20 +58,19 @@ class AnthropicProvider(BaseProvider):
     async def completions(self, request: CompletionsRequest) -> LLMResponse:
         """
         发送聊天请求到Anthropic
-        
+
         参数:
             request: LLM请求
-            
+
         返回:
             LLMResponse: Anthropic响应
         """
         # 构建包含历史记录的对话上下文并处理多模态内容
         messages: list[MessageParam] = []
         for message in request.messages:
-            messages.append({
-                "role": message.role,
-                "content": self._format_message_content(message.content)
-            })
+            if message.content:
+                message.content = self._format_message_content(message.content)
+            messages.append(message)
 
         response = await self.client.messages.create(
             model=request.model or "claude-3-5-sonnet-20241022",
