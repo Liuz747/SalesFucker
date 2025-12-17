@@ -17,7 +17,7 @@ import json
 from uuid import UUID
 
 from core.entities import WorkflowExecutionModel
-from core.tools import get_handler, get_tools_schema
+from core.tools import get_handler
 from infra.runtimes import LLMClient, CompletionsRequest, LLMResponse, TokenUsage
 from libs.types import MessageParams, InputContent, AssistantMessage, ToolMessage
 from utils import get_component_logger
@@ -101,9 +101,6 @@ class BaseAgent(ABC):
             # 没有工具，直接调用 LLM
             return await self.llm_client.completions(request)
 
-        # 准备工具 schema
-        request.tools = get_tools_schema(request.tools)
-        request.tool_choice = "auto"
 
         # 迭代调用：LLM → 工具执行 → LLM → ...
         iteration = 0

@@ -107,10 +107,17 @@ class OpenAIProvider(BaseProvider):
         """
         # 构建包含历史记录的对话上下文并处理多模态内容
         messages: list[ChatCompletionMessageParam] = []
-        for message in request.messages:
-            if message.content:
-                message.content = self._format_message_content(message.content)
-            messages.append(message)
+        for m in request.messages:
+            if m.role in ("user", "assistant"):
+                msg = {
+                    "role": m.role,
+                    "content": self._format_message_content(m.content) if m.content else None
+                }
+                if getattr(m, "tool_calls", None):
+                    msg["tool_calls"] = m.tool_calls
+                messages.append(msg)
+            else:
+                messages.append(m.model_dump())
 
         response = await self.client.chat.completions.create(
             model=request.model or "gpt-4o-mini",
@@ -152,10 +159,17 @@ class OpenAIProvider(BaseProvider):
         """
         # 构建包含历史记录的对话上下文并处理多模态内容
         messages: list[ChatCompletionMessageParam] = []
-        for message in request.messages:
-            if message.content:
-                message.content = self._format_message_content(message.content)
-            messages.append(message)
+        for m in request.messages:
+            if m.role in ("user", "assistant"):
+                msg = {
+                    "role": m.role,
+                    "content": self._format_message_content(m.content) if m.content else None
+                }
+                if getattr(m, "tool_calls", None):
+                    msg["tool_calls"] = m.tool_calls
+                messages.append(msg)
+            else:
+                messages.append(m.model_dump())
 
         # 为OpenRouter使用JSON schema格式，为原生OpenAI使用.parse()
         if request.provider == "openrouter" and not request.model.startswith("openai/"):

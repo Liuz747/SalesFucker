@@ -67,7 +67,7 @@ class UserMessage(BaseModel):
 class SystemMessage(BaseModel):
     """系统提示消息"""
     role: Literal["system"]
-    content: InputContentParams
+    content: str
 
 
 # 消息参数类型
