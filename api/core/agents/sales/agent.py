@@ -224,8 +224,8 @@ class SalesAgent(BaseAgent):
             request = CompletionsRequest(
                 id=uuid4(),
                 provider="openrouter",
-                model="openai/gpt-5-mini",
-                temperature=0.7,  # 适度创造性
+                model="anthropic/claude-haiku-4.5",
+                temperature=0.6,
                 messages=llm_messages,
                 tools=get_tools_schema([long_term_memory_tool, store_episodic_memory_tool]),
                 tool_choice="auto"

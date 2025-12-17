@@ -115,7 +115,7 @@ async def create_run(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"运行处理失败 - 线程: {thread.thread_id}: {e}", exc_info=True)
+        logger.error(f"运行处理失败 - 线程: {thread_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"运行处理失败: {str(e)}")
 
 
@@ -250,7 +250,7 @@ async def create_background_run(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"后台运行创建失败 - 线程: {thread.thread_id}: {e}", exc_info=True)
+        logger.error(f"后台运行创建失败 - 线程: {thread_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"后台运行创建失败: {str(e)}")
 
 
