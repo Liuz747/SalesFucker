@@ -91,7 +91,9 @@ class AppointmentIntentAgent(BaseAgent):
             # 步骤2: 执行邀约意向分析
             intent_result = await self._analyze_appointment_intent(
                 current_input=user_text,
-                recent_messages=recent_user_messages
+                recent_messages=recent_user_messages,
+                tenant_id=state.tenant_id,
+                thread_id=str(state.thread_id)
             )
 
             self.logger.info(f"邀约意向分析结果 - 意向强度: {intent_result.get('intent_strength', 0)}, "
@@ -157,13 +159,15 @@ class AppointmentIntentAgent(BaseAgent):
             self.logger.error(f"提取用户消息失败: {e}")
             return []
 
-    async def _analyze_appointment_intent(self, current_input: str, recent_messages: list[str]) -> dict:
+    async def _analyze_appointment_intent(self, current_input: str, recent_messages: list[str], tenant_id: str, thread_id: str) -> dict:
         """
         分析邀约到店意向
 
         Args:
             current_input: 当前用户输入
             recent_messages: 最近用户消息列表
+            tenant_id: 租户ID
+            thread_id: 线程ID
 
         Returns:
             dict: 意向分析结果
@@ -178,8 +182,8 @@ class AppointmentIntentAgent(BaseAgent):
                 "conversation_stage": "multi_round_analysis"
             }
 
-            # 调用意向分析器
-            result = await self.intent_analyzer.analyze_intent(analysis_context)
+            # 调用意向分析器 - 传递必需的参数
+            result = await self.intent_analyzer.analyze_intent(analysis_context, tenant_id, thread_id)
 
             # 添加分析元数据
             result["analysis_metadata"] = {
@@ -246,16 +250,7 @@ class AppointmentIntentAgent(BaseAgent):
             intent_result, appointment_intent, recent_messages
         )
 
-        # 状态更新 - 直接设置到model字段避免并发冲突
-        state.appointment_intent = appointment_intent
-        state.business_outputs = business_outputs  # 新增：设置业务输出
-
-        # 备份存储在 values 结构中
-        if state.values is None:
-            state.values = {}
-        if state.values.get("agent_responses") is None:
-            state.values["agent_responses"] = {}
-
+        # 构建 agent_data
         agent_data = {
             "agent_type": "appointment_intent",
             "appointment_intent": appointment_intent,
@@ -267,23 +262,19 @@ class AppointmentIntentAgent(BaseAgent):
             "response_length": len(str(intent_result))
         }
 
-        state.values["agent_responses"][self.agent_id] = agent_data
-
-        # 更新活跃智能体列表
-        active_agents = state.active_agents
-        if active_agents is None:
-            active_agents = []
-        active_agents.append(self.agent_id)
-        state.active_agents = active_agents
-
         self.logger.info(f"appointment intent 字段已添加: strength={appointment_intent['intent_strength']}, "
                         f"window={appointment_intent['time_window']}")
         
-        # 添加 token 计数到顶层状态
-        state.input_tokens = token_info["input_tokens"]
-        state.output_tokens = token_info["output_tokens"]
-
-        return state
+        # 返回增量更新字典，让 LangGraph 的 Reducer 正确合并状态
+        # 这样 input_tokens 和 output_tokens 才能正确累加（使用 operator.add）
+        return {
+            "appointment_intent": appointment_intent,
+            "business_outputs": business_outputs,
+            "input_tokens": token_info["input_tokens"],
+            "output_tokens": token_info["output_tokens"],
+            "values": {"agent_responses": {self.agent_id: agent_data}},
+            "active_agents": [self.agent_id]
+        }
 
     def _generate_business_outputs(self, intent_result: dict, appointment_intent: dict, recent_messages: list[str]) -> dict:
         """

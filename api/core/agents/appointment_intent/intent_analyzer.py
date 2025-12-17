@@ -119,7 +119,7 @@ class AppointmentIntentAnalyzer:
 8. 必须包含准确的token使用统计
 """
 
-    async def analyze_intent(self, analysis_context: dict[str, Any]) -> dict[str, Any]:
+    async def analyze_intent(self, analysis_context: dict[str, Any], tenant_id: str, thread_id: str) -> dict[str, Any]:
         """
         分析邀约意向
 
@@ -128,6 +128,8 @@ class AppointmentIntentAnalyzer:
                 - current_input: 当前用户输入
                 - recent_messages: 最近用户消息列表
                 - message_count: 消息数量
+            tenant_id: 租户ID
+            thread_id: 线程ID
 
         Returns:
             dict: 意向分析结果
@@ -151,8 +153,8 @@ class AppointmentIntentAnalyzer:
                 max_tokens=800
             )
 
-            # 调用LLM
-            response = await self.invoke_llm(request)
+            # 调用LLM - 传递必需的参数
+            response = await self.invoke_llm(request, tenant_id, thread_id)
 
             # 解析响应
             result = self._parse_llm_response(response)
