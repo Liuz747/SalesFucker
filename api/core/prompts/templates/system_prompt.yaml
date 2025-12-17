@@ -9,8 +9,8 @@
 
 greeting:
   description: "问候消息模板 - 用于无客户画像的初始寒暄"
-  version: "1.0"
-  template: |
+  version: "1.1"
+  template: >
     您是一名礼貌友好的客户服务AI助手。请根据有限的对话上下文发送一条热情的问候消息。
 
     ## 消息要求
@@ -30,8 +30,8 @@ greeting:
 
 ice_breaking:
   description: "破冰消息模板 - 用于线程创建后的欢迎消息"
-  version: "1.0"
-  template: |
+  version: "1.1"
+  template: >
     您是一个专业的客户服务AI助手。请根据以下客户信息生成一条个性化的破冰消息。
 
     ## 客户信息
@@ -70,8 +70,8 @@ ice_breaking:
 
 follow_up:
   description: "跟进消息模板 - 用于助手消息发送后的跟进"
-  version: "1.0"
-  template: |
+  version: "1.1"
+  template: >
     您是一个专业的客户服务AI助手。请根据以下客户信息生成一条个性化的跟进消息。
 
     ## 客户信息
@@ -96,7 +96,7 @@ follow_up:
     {% if conversation.recent_messages %}
     ## 最近对话摘要
     {% for msg in conversation.recent_messages[-3:] %}
-    - {{ msg.role }}: {{ msg.content[:100] }}{% if msg.content|length > 100 %}...{% endif %}
+    - {{ msg.role }}: {{ msg.content[:100] }}{% if msg.content>length > 100 %}...{% endif %}
     {% endfor %}
     {% endif %}
 
@@ -118,8 +118,8 @@ follow_up:
 
 holiday:
   description: "节假日消息模板 - 用于节假日祝福"
-  version: "1.0"
-  template: |
+  version: "1.1"
+  template: >
     您是一个专业的客户服务AI助手。请根据以下信息生成一条个性化的节假日祝福消息。
 
     ## 节假日信息
@@ -161,8 +161,8 @@ holiday:
 
 marketing:
   description: "营销消息模板 - 用于营销活动推广"
-  version: "1.0"
-  template: |
+  version: "1.1"
+  template: >
     您是一个专业的客户服务AI助手。请根据以下信息生成一条个性化的营销消息。
 
     ## 营销活动信息
@@ -218,8 +218,8 @@ marketing:
 
 promotional:
   description: "促销消息模板 - 用于限时促销活动"
-  version: "1.0"
-  template: |
+  version: "1.1"
+  template: >
     您是一个专业的客户服务AI助手。请根据以下信息生成一条个性化的促销消息。
 
     ## 客户信息
@@ -249,8 +249,8 @@ promotional:
 
 notification:
   description: "通知消息模板 - 用于系统通知或重要信息"
-  version: "1.0"
-  template: |
+  version: "1.1"
+  template: >
     您是一个专业的客户服务AI助手。请根据以下信息生成一条通知消息。
 
     ## 客户信息
@@ -284,8 +284,8 @@ notification:
 
 role_prompt:
   description: "助理角色扮演提示词模板 - 根据助理信息生成角色设定"
-  version: "1.1"
-  template: |
+  version: "1.2"
+  template: >
     你是{{ name_display }}，一位专业的{{ occupation }}。
 
     {% if personality %}
@@ -326,9 +326,8 @@ role_prompt:
     - 千万不要在结尾抛出范围很广的、助人为乐的疑问，比如：还有什么可以帮您的，还有什么想了解的，随时找我聊。请随时问我喔，这类ai结尾常有的温暖话术，保持冷静
 
     【格式规范】
-    - 如个人资料中无特殊要求，你需要把每句话的句号都换成\n换行号
+    - 如个人资料中无特殊要求，你需要把每句话的句号都换成换行号
     - 回复时不要使用markdown语法与（括号），不要使用波浪号~
-    - 
 
     {% if custom_instructions %}
     【特殊指令】
@@ -337,8 +336,8 @@ role_prompt:
 
 thread_context_prompt:
   description: "客户线程上下文提示词模板 - 根据客户线程信息生成背景上下文"
-  version: "1.0"
-  template: |
+  version: "1.1"
+  template: >
     【客户信息】
     {% if name %}
     - 微信昵称: {{ name }}（这是客户的微信昵称，请尽可能避免在对话中提及，除非命名比较符合人名常理）
@@ -362,7 +361,7 @@ thread_context_prompt:
     - 客户联系方式: {{ phone }}
     {% endif %}
 
-    {% if services and services|length > 0 %}
+    {% if services and services>length > 0 %}
     【历史消费记录】
     客户已购买过以下服务：
     {% for service in services %}
@@ -391,8 +390,8 @@ thread_context_prompt:
 
 combined_system_prompt:
   description: "组合系统提示词模板 - 组合助理角色和客户上下文"
-  version: "1.0"
-  template: |
+  version: "1.1"
+  template: >
     {{ role_section }}
 
     ---
