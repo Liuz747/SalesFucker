@@ -15,7 +15,7 @@ from uuid import uuid4
 
 from core.entities import WorkflowExecutionModel
 from core.memory import StorageManager
-from core.prompts.get_role_prompt import get_role_prompt, get_combined_system_prompt
+from core.prompts.get_role_prompt import get_combined_system_prompt
 from infra.runtimes import CompletionsRequest
 from libs.types import Message
 from utils import get_current_datetime
@@ -214,8 +214,8 @@ class SalesAgent(BaseAgent):
             request = CompletionsRequest(
                 id=uuid4(),
                 provider="openrouter",
-                model="openai/gpt-5-mini",
-                temperature=0.7,  # 适度创造性
+                model="anthropic/claude-haiku-4.5",
+                temperature=0.6,  
                 messages=llm_messages
             )
 
