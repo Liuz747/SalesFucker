@@ -19,7 +19,7 @@ from core.prompts.get_role_prompt import get_combined_system_prompt
 from core.tools import get_tools_schema, long_term_memory_tool, store_episodic_memory_tool
 from infra.runtimes import CompletionsRequest
 from libs.types import Message
-from utils import get_current_datetime
+from utils import get_current_datetime, get_current_datetime_china
 from ..base import BaseAgent
 
 
@@ -121,7 +121,11 @@ class SalesAgent(BaseAgent):
             self.logger.info(f"记忆检索完成 - 短期: {len(short_term_messages)} 条, 长期: {len(long_term_memories)} 条")
 
 
-            # 生成个性化回复（基于匹配的提示词 + 人设 + 记忆）
+            # 获取当前时间
+            current_dt = get_current_datetime_china()
+            current_time_str = f"{current_dt.hour}:{current_dt.minute:02d} {current_dt.month}月{current_dt.day}日 周{current_dt.weekday()} {current_dt.year}年 "
+
+            # 生成个性化回复（基于匹配的提示词 + 人设 + 记忆 + 时间）
             sales_response, token_info = await self.__generate_final_response(
                 user_text,
                 matched_prompt,
@@ -129,7 +133,8 @@ class SalesAgent(BaseAgent):
                 short_term_messages,
                 long_term_memories,
                 state.tenant_id,
-                state.thread_id
+                state.thread_id,
+                current_time_str
             )
 
             # 存储助手回复到记忆
@@ -187,10 +192,11 @@ class SalesAgent(BaseAgent):
         short_term_messages: list,
         long_term_memories: list,
         tenant_id: str,
-        thread_id: UUID
+        thread_id: UUID,
+        current_time_str: str
     ) -> tuple[str, dict]:
         """
-        基于匹配提示词、人设信息和记忆生成回复（支持工具调用）
+        基于匹配提示词、人设信息、记忆和时间生成回复（支持工具调用）
 
         Args:
             customer_input: 客户输入
@@ -200,6 +206,7 @@ class SalesAgent(BaseAgent):
             long_term_memories: 长期记忆摘要列表
             tenant_id: 租户ID
             thread_id: 线程ID
+            current_time_str: 当前时间（中文格式，如"14:30 9月10日 周1 2025年"）
 
         Returns:
             tuple: (回复内容, token信息)
@@ -210,9 +217,9 @@ class SalesAgent(BaseAgent):
             tone = matched_prompt.get("tone", "专业、友好")
             strategy = matched_prompt.get("strategy", "标准服务")
 
-            # 2. 整合人设信息、长期记忆到系统提示
+            # 2. 整合人设信息、长期记忆、时间到系统提示
             enhanced_system_prompt = self._build_system_prompt_with_memory(
-                base_system_prompt, tone, strategy, role_prompt, long_term_memories
+                base_system_prompt, tone, strategy, role_prompt, long_term_memories, current_time_str
             )
 
             # 3. 构建消息列表（直接使用记忆消息）
@@ -254,7 +261,7 @@ class SalesAgent(BaseAgent):
             return self._get_fallback_response(matched_prompt), {"tokens_used": 0, "error": str(e)}
 
     def _build_system_prompt_with_memory(
-        self, base_prompt: str, tone: str, strategy: str, role_prompt: Message, summaries: list
+        self, base_prompt: str, tone: str, strategy: str, role_prompt: Message, summaries: list, current_time_str: str
     ) -> str:
         """
         构建增强的系统提示词
@@ -265,6 +272,7 @@ class SalesAgent(BaseAgent):
             strategy: 策略要求
             role_prompt: 助理人设提示词
             summaries: 长期记忆摘要列表
+            current_time_str: 当前时间（中文格式）
 
         Returns:
             str: 增强后的系统提示词
@@ -274,13 +282,11 @@ class SalesAgent(BaseAgent):
             # 如果有人设信息，将其作为核心提示，然后融合其他要求
             enhanced_prompt = f"""
 {role_prompt.content}
-
 【当前对话策略】
 {base_prompt}
-
 【语气要求】{tone}
 【策略要求】{strategy}
-
+【当前时间】{current_time_str}（不能向客户全盘播报具体的时间内容，只需要在闲聊时，适度根据当前时段使用即可）
 【回复要求】
 - 用中文回复，语言自然流畅
 - 控制在150字以内，每句话最多只能存在2个逗号。句号用\n换行号替代
@@ -292,10 +298,9 @@ class SalesAgent(BaseAgent):
             # 如果没有人设信息，使用原有逻辑
             enhanced_prompt = f"""
 {base_prompt}
-
 【语气要求】{tone}
 【策略要求】{strategy}
-
+【当前时间】{current_time_str}（不能向客户全盘播报具体的时间内容，只需要在闲聊时，适度根据当前时段使用即可）
 【回复要求】
 - 用中文回复，语言自然流畅
 - 控制在150字以内
