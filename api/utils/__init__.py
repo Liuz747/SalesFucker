@@ -13,6 +13,8 @@
 
 from .time_utils import (
     get_current_datetime,
+    get_current_timestamp,
+    get_current_timestamp_ms,
     get_processing_time_ms,
     get_processing_time,
     to_isoformat,
@@ -27,6 +29,8 @@ from .yaml_loader import load_yaml_file
 __all__ = [
     # 时间工具
     "get_current_datetime",
+    "get_current_timestamp",
+    "get_current_timestamp_ms",
     "get_processing_time_ms", 
     "get_processing_time",
     "to_isoformat",

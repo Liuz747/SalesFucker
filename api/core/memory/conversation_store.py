@@ -9,6 +9,7 @@ from uuid import UUID
 
 import msgpack
 
+from config import mas_config
 from libs.factory import infra_registry
 from libs.types import Message, MessageParams
 from utils import get_component_logger
@@ -59,7 +60,7 @@ class ConversationStore:
         async with self.redis_client.pipeline(transaction=True) as pipe:
             await pipe.rpush(key, *packed)
             await pipe.ltrim(key, -self.max_messages, -1)
-            await pipe.expire(key, 3600)
+            await pipe.expire(key, mas_config.conversation_ttl_seconds)
             result = await pipe.execute()
 
         # result[0] 是 RPUSH 长度, result[1] 是 LTRIM 返回值, result[2] 是 expire(True/False)
@@ -81,3 +82,24 @@ class ConversationStore:
         key = self._key(thread_id)
         await self.redis_client.ltrim(key, -keep_last, -1)
         logger.debug(f"[ConversationStore] shrink -> {keep_last}")
+
+    # ---------------- Metadata for Preservation ----------------
+    async def conversation_exists(self, thread_id: UUID) -> bool:
+        """检查对话是否存在于Redis"""
+        key = self._key(thread_id)
+        exists = await self.redis_client.exists(key)
+        return exists > 0
+
+    async def get_message_count(self, thread_id: UUID) -> int:
+        """
+        获取对话消息数量
+
+        Args:
+            thread_id: 对话线程ID
+
+        Returns:
+            int: 消息数量，如果对话不存在返回0
+        """
+        key = self._key(thread_id)
+        count = await self.redis_client.llen(key)
+        return int(count)

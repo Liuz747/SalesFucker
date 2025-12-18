@@ -10,6 +10,7 @@ from pydantic_settings import BaseSettings
 from .redis_config import RedisConfig
 from .elasticsearch_config import ElasticsearchConfig
 from .milvus_config import MilvusConfig
+from .conversation_config import ConversationConfig
 
 class DatabaseConfig(BaseSettings):
     """
@@ -82,7 +83,8 @@ class StorageConfig(
     DatabaseConfig,
     RedisConfig,
     ElasticsearchConfig,
-    MilvusConfig
+    MilvusConfig,
+    ConversationConfig
 ):
     """
     统一存储配置
@@ -92,5 +94,6 @@ class StorageConfig(
     - RedisConfig: Redis缓存配置
     - ElasticsearchConfig: ES记忆系统配置
     - MilvusConfig: Milvus向量数据库配置
+    - ConversationConfig: 对话保存和TTL配置
     """
     pass
