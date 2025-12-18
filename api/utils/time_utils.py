@@ -26,22 +26,17 @@ def get_current_datetime() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def get_current_datetime_china() -> datetime:
+def get_current_datetime_china() -> str:
     """
-    获取当前中国时区（Asia/Shanghai, UTC+8）的datetime对象
-
-    专门用于需要向中国用户展示本地时间的场景。
-    使用 zoneinfo 而不是固定的 UTC+8 偏移量，这样可以正确处理历史时间数据。
+    获取当前中国时区时间，格式化为中文字符串
 
     返回:
-        datetime: 当前中国时区的datetime对象
-
-    示例:
-        >>> dt = get_current_datetime_china()
-        >>> dt.hour  # 如果 UTC 是 10:00，这里会显示 18:00
-        18
+        str: 格式化的时间字符串，如 "14:30 9月10日 周一 2025年"
     """
-    return datetime.now(ZoneInfo("Asia/Shanghai"))
+    dt = datetime.now(ZoneInfo("Asia/Shanghai"))
+    weekdays = ["一", "二", "三", "四", "五", "六", "日"]
+    weekday = weekdays[dt.weekday()]
+    return f"{dt.hour}:{dt.minute:02d} {dt.month}月{dt.day}日 周{weekday} {dt.year}年"
 
 
 def get_current_timestamp_ms() -> int:

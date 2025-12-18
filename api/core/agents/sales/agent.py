@@ -120,10 +120,8 @@ class SalesAgent(BaseAgent):
             )
             self.logger.info(f"记忆检索完成 - 短期: {len(short_term_messages)} 条, 长期: {len(long_term_memories)} 条")
 
-
-            # 获取当前时间
-            current_dt = get_current_datetime_china()
-            current_time_str = f"{current_dt.hour}:{current_dt.minute:02d} {current_dt.month}月{current_dt.day}日 周{current_dt.weekday()} {current_dt.year}年 "
+            # 获取当前时间（中国时区）
+            current_time_str = get_current_datetime_china()
 
             # 生成个性化回复（基于匹配的提示词 + 人设 + 记忆 + 时间）
             sales_response, token_info = await self.__generate_final_response(
