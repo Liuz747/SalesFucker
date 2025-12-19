@@ -14,6 +14,7 @@ class MessageType(StrEnum):
     NOTIFICATION = "notification"
     TRIGGER = "trigger"
     SUGGESTION = "suggestion"
+    AWAKENING = "awakening"  # Thread awakening message
 
 
 class Message(BaseModel):
