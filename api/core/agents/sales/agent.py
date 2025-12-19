@@ -19,7 +19,7 @@ from core.prompts.get_role_prompt import get_combined_system_prompt
 from core.tools import get_tools_schema, long_term_memory_tool, store_episodic_memory_tool
 from infra.runtimes import CompletionsRequest
 from libs.types import Message
-from utils import get_current_datetime, get_current_datetime_china
+from utils import get_current_datetime, get_chinese_time
 from ..base import BaseAgent
 
 
@@ -120,9 +120,6 @@ class SalesAgent(BaseAgent):
             )
             self.logger.info(f"记忆检索完成 - 短期: {len(short_term_messages)} 条, 长期: {len(long_term_memories)} 条")
 
-            # 获取当前时间（中国时区）
-            current_time_str = get_current_datetime_china()
-
             # 生成个性化回复（基于匹配的提示词 + 人设 + 记忆 + 时间）
             sales_response, token_info = await self.__generate_final_response(
                 user_text,
@@ -131,8 +128,7 @@ class SalesAgent(BaseAgent):
                 short_term_messages,
                 long_term_memories,
                 state.tenant_id,
-                state.thread_id,
-                current_time_str
+                state.thread_id
             )
 
             # 存储助手回复到记忆
@@ -190,8 +186,7 @@ class SalesAgent(BaseAgent):
         short_term_messages: list,
         long_term_memories: list,
         tenant_id: str,
-        thread_id: UUID,
-        current_time_str: str
+        thread_id: UUID
     ) -> tuple[str, dict]:
         """
         基于匹配提示词、人设信息、记忆和时间生成回复（支持工具调用）
@@ -204,7 +199,6 @@ class SalesAgent(BaseAgent):
             long_term_memories: 长期记忆摘要列表
             tenant_id: 租户ID
             thread_id: 线程ID
-            current_time_str: 当前时间（中文格式，如"14:30 9月10日 周1 2025年"）
 
         Returns:
             tuple: (回复内容, token信息)
@@ -217,7 +211,12 @@ class SalesAgent(BaseAgent):
 
             # 2. 整合人设信息、长期记忆、时间到系统提示
             enhanced_system_prompt = self._build_system_prompt_with_memory(
-                base_system_prompt, tone, strategy, role_prompt, long_term_memories, current_time_str
+                base_system_prompt,
+                tone,
+                strategy,
+                role_prompt,
+                long_term_memories,
+                get_chinese_time()
             )
 
             # 3. 构建消息列表（直接使用记忆消息）

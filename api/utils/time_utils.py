@@ -9,7 +9,7 @@
 - 处理时间计算
 """
 
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import Optional
 from zoneinfo import ZoneInfo
 
@@ -26,17 +26,16 @@ def get_current_datetime() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def get_current_datetime_china() -> str:
+def get_chinese_time() -> str:
     """
     获取当前中国时区时间，格式化为中文字符串
 
     返回:
-        str: 格式化的时间字符串，如 "14:30 9月10日 周一 2025年"
+        str: 格式化的时间字符串，如 "2025年9月10日 周一 14时30分"
     """
     dt = datetime.now(ZoneInfo("Asia/Shanghai"))
     weekdays = ["一", "二", "三", "四", "五", "六", "日"]
-    weekday = weekdays[dt.weekday()]
-    return f"{dt.hour}:{dt.minute:02d} {dt.month}月{dt.day}日 周{weekday} {dt.year}年"
+    return f"{dt.year}年{dt.month}月{dt.day}日 周{weekdays[dt.weekday()]} {dt.hour:02d}时{dt.minute:02d}分"
 
 
 def get_current_timestamp_ms() -> int:
