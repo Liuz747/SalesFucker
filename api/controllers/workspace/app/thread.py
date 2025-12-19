@@ -88,7 +88,8 @@ async def create_thread(
         ]
 
         # 并发启动所有工作流
-        asyncio.create_task(asyncio.gather(*workflow_tasks, return_exceptions=True))
+        task = asyncio.create_task(asyncio.gather(*workflow_tasks, return_exceptions=True))
+        task.add_done_callback(lambda t: t.exception())
 
         return ThreadCreateResponse(message="线程创建成功", thread_id=thread_id)
         
