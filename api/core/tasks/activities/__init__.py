@@ -9,6 +9,11 @@ Temporal 活动注册
 from .callback_activities import send_callback_message
 from .llm_activities import invoke_task_llm
 from .monitoring_activities import check_thread_activity_status
+from .preservation_activities import (
+    check_preservation_needed,
+    evaluate_conversation_quality,
+    preserve_conversation_to_elasticsearch
+)
 # from .memory_activities import (
 #     get_customer_memory_context,
 #     update_customer_memory,
@@ -65,5 +70,8 @@ from .monitoring_activities import check_thread_activity_status
 __all__ = [
     "send_callback_message",
     "invoke_task_llm",
-    "check_thread_activity_status"
+    "check_thread_activity_status",
+    "check_preservation_needed",
+    "evaluate_conversation_quality",
+    "preserve_conversation_to_elasticsearch"
 ]
