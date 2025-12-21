@@ -18,9 +18,16 @@ from core.tasks.activities import (
     send_callback_message,
     check_preservation_needed,
     evaluate_conversation_quality,
-    preserve_conversation_to_elasticsearch
+    preserve_conversation_to_elasticsearch,
+    scan_inactive_threads,
+    prepare_awakening_context,
+    send_awakening_message
 )
-from core.tasks.workflows import GreetingWorkflow, ConversationPreservationWorkflow
+from core.tasks.workflows import (
+    GreetingWorkflow,
+    ConversationPreservationWorkflow,
+    ThreadAwakeningWorkflow
+)
 from libs.factory import infra_registry
 from utils import configure_logging, get_component_logger
 
@@ -41,7 +48,8 @@ async def main():
         task_queue=mas_config.TASK_QUEUE,
         workflows=[
             GreetingWorkflow,
-            ConversationPreservationWorkflow
+            ConversationPreservationWorkflow,
+            ThreadAwakeningWorkflow
         ],
         activities=[
             send_callback_message,
@@ -49,7 +57,10 @@ async def main():
             invoke_task_llm,
             check_preservation_needed,
             evaluate_conversation_quality,
-            preserve_conversation_to_elasticsearch
+            preserve_conversation_to_elasticsearch,
+            scan_inactive_threads,
+            prepare_awakening_context,
+            send_awakening_message
         ],
         max_concurrent_activities=mas_config.MAX_CONCURRENT_ACTIVITIES,
         max_concurrent_workflow_tasks=mas_config.WORKER_COUNT

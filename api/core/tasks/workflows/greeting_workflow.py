@@ -21,11 +21,14 @@ from temporalio.common import RetryPolicy
 from core.tasks.entities import ThreadStatus, MessagingResult, MessageType
 
 with workflow.unsafe.imports_passed_through():
+    from core.prompts.template_loader import get_prompt_template
     from core.tasks.activities import (
         check_thread_activity_status,
         invoke_task_llm,
         send_callback_message
     )
+    from libs.types import Message
+    from infra.runtimes import LLMClient
 
 
 @workflow.defn
@@ -56,7 +59,7 @@ class GreetingWorkflow:
             workflow.logger.info(f"线程监控工作流开始执行: thread_id={thread_id}")
 
             # 1. 等待5分钟（300秒）
-            await workflow.sleep(10)
+            await workflow.sleep(300)
 
             # 2. 检查线程状态是否仍为'idle'
             thread_status = await workflow.execute_activity(
@@ -74,10 +77,26 @@ class GreetingWorkflow:
                     metadata={"action": "skipped", "reason": "thread_has_activity", "thread_status": str(thread_status)}
                 )
 
+            model = "gpt-4o-mini"
+            provider = "openai"
+            temperature = 0.7
+            max_tokens = 1024
+            context = [
+                Message(role="user", content=get_prompt_template(MessageType.GREETING))
+            ]
+            fallback_prompt = "您好！我是您的专属助手，有什么可以帮助您的吗？"
+
             # 4. 线程仍为idle，生成自动消息
             content = await workflow.execute_activity(
                 invoke_task_llm,
-                args=[thread_id, MessageType.GREETING],
+                args=[
+                    model,
+                    provider,
+                    temperature,
+                    max_tokens,
+                    context,
+                    fallback_prompt
+                ],
                 start_to_close_timeout=timedelta(seconds=60),
                 retry_policy=self.retry_policy
             )

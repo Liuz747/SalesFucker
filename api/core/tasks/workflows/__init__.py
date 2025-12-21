@@ -13,6 +13,7 @@ Temporal工作流模块初始化
 
 from .greeting_workflow import GreetingWorkflow
 from .conversation_preservation_workflow import ConversationPreservationWorkflow
+from .thread_awakening_workflow import ThreadAwakeningWorkflow
 
 # def get_all_workflows() -> List[Type]:
 #     """获取所有注册的工作流类"""
@@ -27,5 +28,6 @@ from .conversation_preservation_workflow import ConversationPreservationWorkflow
 
 __all__ = [
     "GreetingWorkflow",
-    "ConversationPreservationWorkflow"
+    "ConversationPreservationWorkflow",
+    "ThreadAwakeningWorkflow"
 ]

@@ -7,12 +7,17 @@ Temporal 活动注册
 # from typing import Callable, List
 
 from .callback_activities import send_callback_message
-from .llm_activities import invoke_task_llm
+from .generate_message_activity import invoke_task_llm
 from .monitoring_activities import check_thread_activity_status
 from .preservation_activities import (
     check_preservation_needed,
     evaluate_conversation_quality,
     preserve_conversation_to_elasticsearch
+)
+from .awakening_activities import (
+    scan_inactive_threads,
+    prepare_awakening_context,
+    send_awakening_message
 )
 # from .memory_activities import (
 #     get_customer_memory_context,
@@ -73,5 +78,8 @@ __all__ = [
     "check_thread_activity_status",
     "check_preservation_needed",
     "evaluate_conversation_quality",
-    "preserve_conversation_to_elasticsearch"
+    "preserve_conversation_to_elasticsearch",
+    "scan_inactive_threads",
+    "prepare_awakening_context",
+    "send_awakening_message"
 ]
