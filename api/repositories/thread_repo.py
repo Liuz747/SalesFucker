@@ -169,7 +169,7 @@ class ThreadRepository:
             不活跃线程列表
         """
         try:
-            threshold = get_current_datetime() - timedelta(days=mas_config.AWAKENING_RETRY_INTERVAL_DAY)
+            threshold = get_current_datetime() - timedelta(days=mas_config.AWAKENING_RETRY_INTERVAL_DAYS)
 
             stmt = select(ThreadOrm).where(
                 and_(

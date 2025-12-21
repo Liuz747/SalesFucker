@@ -182,7 +182,7 @@ class ThreadService:
             raise
 
     @staticmethod
-    async def get_inactive_threads_for_awakening() -> list:
+    async def get_inactive_threads_for_awakening() -> list[Thread]:
         """
         获取需要唤醒的不活跃线程
 

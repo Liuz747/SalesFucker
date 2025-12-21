@@ -158,6 +158,15 @@ class AssistantDisabledException(AssistantException):
         super().__init__(detail=f"AI助手 {assistant_id} 已被禁用，无法处理请求")
 
 
+class AssistantInactiveException(AssistantException):
+    code = 1100005
+    message = "ASSISTANT_INACTIVE"
+    http_status_code = 403
+
+    def __init__(self, assistant_id: UUID, status: str):
+        super().__init__(detail=f"AI数字员工 {assistant_id} 未激活（当前状态: {status}），无法使用")
+
+
 class ThreadException(WorkspaceException):
     code = 1300001
     message = "THREAD_ERROR"

@@ -13,8 +13,8 @@
 from typing import Optional
 from uuid import UUID
 
-from libs.types import Message
-from schemas.exceptions import AssistantNotFoundException, ThreadNotFoundException
+from libs.types import AccountStatus, Message
+from schemas.exceptions import AssistantInactiveException, ThreadNotFoundException
 from services import AssistantService, ThreadService
 from .template_loader import get_prompt_template
 
@@ -39,7 +39,7 @@ async def get_role_prompt(
         Message: 包含role="system"的角色扮演系统提示词消息
 
     异常:
-        AssistantNotFoundException: 助理不存在时抛出
+        AssistantInactiveException: 助理不存在时抛出
 
     使用示例:
         >>> from uuid import UUID
@@ -51,8 +51,8 @@ async def get_role_prompt(
     # 通过服务层获取助理模型（自动处理缓存逻辑）
     assistant = await AssistantService.get_assistant_by_id(assistant_id, use_cache=use_cache)
 
-    if not assistant:
-        raise AssistantNotFoundException(str(assistant_id))
+    if assistant.status != AccountStatus.ACTIVE:
+        raise AssistantInactiveException(assistant_id, assistant.status.value) 
 
     # 准备模板上下文
     name_display = assistant.nickname or assistant.assistant_name
@@ -128,6 +128,7 @@ async def get_thread_context_prompt(
 async def get_combined_system_prompt(
     assistant_id: UUID,
     thread_id: UUID,
+    custom_instructions: Optional[str] = None,
     custom_context: Optional[str] = None
 ) -> Message:
     """
@@ -139,6 +140,7 @@ async def get_combined_system_prompt(
     参数:
         assistant_id: 助理ID
         thread_id: 线程ID
+        custom_instructions: 自定义人设指令
         custom_context: 自定义客户上下文
 
     返回:
@@ -146,7 +148,7 @@ async def get_combined_system_prompt(
     """
 
     # 生成两部分提示词
-    role_msg = await get_role_prompt(assistant_id, custom_context)
+    role_msg = await get_role_prompt(assistant_id, custom_instructions)
     thread_msg = await get_thread_context_prompt(thread_id, custom_context)
 
     # 使用组合模板
