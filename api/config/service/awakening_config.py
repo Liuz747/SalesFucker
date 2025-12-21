@@ -10,14 +10,9 @@ from pydantic_settings import BaseSettings
 class AwakeningConfig(BaseSettings):
     """线程唤醒工作流配置"""
 
-    AWAKENING_FIRST_ATTEMPT_DAYS: PositiveInt = Field(
+    AWAKENING_RETRY_INTERVAL_DAYS: PositiveInt = Field(
         default=2,
-        description="第一次唤醒的不活跃天数阈值"
-    )
-
-    AWAKENING_SECOND_ATTEMPT_DAYS: PositiveInt = Field(
-        default=2,
-        description="第二次唤醒的不活跃天数阈值"
+        description="唤醒重试间隔天数（线程不活跃多少天后触发唤醒）"
     )
 
     MAX_AWAKENING_ATTEMPTS: PositiveInt = Field(
@@ -36,14 +31,9 @@ class AwakeningConfig(BaseSettings):
     )
 
     @property
-    def first_attempt_seconds(self) -> int:
-        """计算第一次唤醒的阈值（秒）"""
-        return self.AWAKENING_FIRST_ATTEMPT_DAYS * 24 * 60 * 60
-
-    @property
-    def second_attempt_seconds(self) -> int:
-        """计算第二次唤醒的阈值（秒）"""
-        return self.AWAKENING_SECOND_ATTEMPT_DAYS * 24 * 60 * 60
+    def retry_interval_seconds(self) -> int:
+        """计算唤醒重试间隔（秒）"""
+        return self.AWAKENING_RETRY_INTERVAL_DAYS * 24 * 60 * 60
 
     @property
     def scan_interval_seconds(self) -> int:

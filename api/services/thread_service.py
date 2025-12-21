@@ -12,8 +12,8 @@
 """
 
 import asyncio
-from uuid import UUID
 from typing import Optional
+from uuid import UUID
 
 from infra.db import database_session
 from libs.factory import infra_registry
@@ -180,3 +180,57 @@ class ThreadService:
         except Exception as e:
             logger.error(f"线程更新失败: {e}")
             raise
+
+    @staticmethod
+    async def get_inactive_threads_for_awakening() -> list:
+        """
+        获取需要唤醒的不活跃线程
+
+        返回:
+            threads: 线程列表（包含业务模型数据）
+        """
+        try:
+            async with database_session() as session:
+                thread_orms = await ThreadRepository.get_inactive_threads(session)
+
+                # 转换为业务模型字典
+                thread_list = [Thread.to_model(orm) for orm in thread_orms]
+
+                logger.info(f"扫描不活跃线程完成: 找到 {len(thread_list)} 个线程")
+
+                return thread_list
+
+        except Exception as e:
+            logger.error(f"获取不活跃线程失败: {e}")
+            raise
+
+    @staticmethod
+    async def increment_awakening_attempt(thread_id: UUID) -> bool:
+        """
+        增加线程的唤醒尝试计数
+
+        参数:
+            thread_id: 线程ID
+
+        返回:
+            bool: 是否更新成功
+        """
+        try:
+            async with database_session() as session:
+                success = await ThreadRepository.increment_awakening_attempt(thread_id=thread_id, session=session)
+
+                if success:
+                    logger.info(f"唤醒计数增加成功: thread_id={thread_id}")
+
+                    # 异步清除Redis缓存，下次查询时重新加载
+                    redis_client = infra_registry.get_cached_clients().redis
+                    asyncio.create_task(
+                        redis_client.delete(f"thread:{str(thread_id)}")
+                    )
+
+                return success
+
+        except Exception as e:
+            logger.error(f"增加唤醒计数失败: thread_id={thread_id}, 错误: {e}")
+            raise
+

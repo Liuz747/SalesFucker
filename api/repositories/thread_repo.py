@@ -11,17 +11,19 @@
 - 依赖注入，支持外部会话管理
 """
 
-from uuid import UUID
+from datetime import timedelta
 from typing import Optional
+from uuid import UUID
 
 import msgpack
 from redis import Redis
-from sqlalchemy import select, update, func
+from sqlalchemy import select, update, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import mas_config
 from models import ThreadOrm, Thread
-from utils import get_component_logger
+from models.enums import ThreadStatus
+from utils import get_component_logger, get_current_datetime
 
 logger = get_component_logger(__name__, "ThreadRepository")
 
@@ -128,6 +130,7 @@ class ThreadRepository:
             redis_key = f"thread:{str(thread_model.thread_id)}"
             thread_data = thread_model.model_dump(mode='json')
 
+            # TODO: 更新Redis方法，setex已经进入废弃流程
             await redis_client.setex(
                 redis_key,
                 mas_config.REDIS_TTL,
@@ -153,3 +156,66 @@ class ThreadRepository:
         except Exception as e:
             logger.error(f"获取线程缓存失败: {thread_id}, 错误: {e}")
             raise
+
+    @staticmethod
+    async def get_inactive_threads(session: AsyncSession) -> list[ThreadOrm]:
+        """
+        查询不活跃线程（用于唤醒工作流）
+
+        参数:
+            session: 数据库会话
+
+        返回:
+            不活跃线程列表
+        """
+        try:
+            threshold = get_current_datetime() - timedelta(days=mas_config.AWAKENING_RETRY_INTERVAL_DAY)
+
+            stmt = select(ThreadOrm).where(
+                and_(
+                    # 未完成或失败的线程
+                    ThreadOrm.status.notin_([ThreadStatus.COMPLETED, ThreadStatus.FAILED]),
+                    # 未超过最大尝试次数
+                    ThreadOrm.awakening_attempt_count < mas_config.MAX_AWAKENING_ATTEMPTS,
+                    # 满足不活跃条件：指定天数未活动
+                    ThreadOrm.updated_at < threshold
+                )
+            ).order_by(ThreadOrm.updated_at.asc()).limit(mas_config.AWAKENING_BATCH_SIZE)
+
+            result = await session.execute(stmt)
+            return result.scalars().all()
+
+        except Exception as e:
+            logger.error(f"查询不活跃线程失败, 错误: {e}")
+            raise
+
+    @staticmethod
+    async def increment_awakening_attempt(thread_id: UUID, session: AsyncSession) -> bool:
+        """
+        增加线程的唤醒尝试计数
+
+        参数:
+            thread_id: 线程ID
+            session: 数据库会话
+
+        返回:
+            bool: 是否更新成功
+        """
+        try:
+            stmt = (
+                update(ThreadOrm)
+                .where(ThreadOrm.thread_id == thread_id)
+                .values(
+                    awakening_attempt_count=ThreadOrm.awakening_attempt_count + 1,
+                    last_awakening_sent_at=get_current_datetime(),
+                    updated_at=func.now()
+                )
+            )
+
+            result = await session.execute(stmt)
+            return result.rowcount > 0
+
+        except Exception as e:
+            logger.error(f"增加唤醒计数失败: thread_id={thread_id}, 错误: {e}")
+            raise
+
