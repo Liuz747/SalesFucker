@@ -79,11 +79,12 @@ async def create_run(
         # 使用编排器处理消息
         result = await orchestrator.process_conversation(workflow)
 
-        await ThreadService.update_thread_status(thread.thread_id, ThreadStatus.ACTIVE)
-
         processing_time = get_processing_time_ms(start_time)
 
         logger.info(f"运行处理完成 - 线程: {thread.thread_id}, 执行: {workflow_id}, 耗时: {processing_time:.2f}ms")
+
+        # 更新线程状态为ACTIVE
+        await ThreadService.update_thread_status(thread.thread_id, ThreadStatus.ACTIVE)
 
         # 构造 invitation
         invitation = result.business_outputs
@@ -103,8 +104,12 @@ async def create_run(
         )
 
     except HTTPException:
+        # HTTPException: 更新线程状态为FAILED
+        await ThreadService.update_thread_status(thread_id, ThreadStatus.FAILED)
         raise
     except Exception as e:
+        # 其他异常: 更新线程状态为FAILED
+        await ThreadService.update_thread_status(thread_id, ThreadStatus.FAILED)
         logger.error(f"运行处理失败 - 线程: {thread_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"运行处理失败: {str(e)}")
 
@@ -141,9 +146,10 @@ async def create_suggestion(
             tenant_id=tenant.tenant_id
         )
 
-        await ThreadService.update_thread_status(thread.thread_id, ThreadStatus.ACTIVE)
-
         processing_time = get_processing_time_ms(start_time)
+
+        # 更新线程状态为ACTIVE
+        await ThreadService.update_thread_status(thread.thread_id, ThreadStatus.ACTIVE)
 
         # 生成运行ID
         run_id = uuid4()
@@ -162,8 +168,12 @@ async def create_suggestion(
         )
 
     except HTTPException:
+        # HTTPException: 更新线程状态为FAILED
+        await ThreadService.update_thread_status(thread_id, ThreadStatus.FAILED)
         raise
     except Exception as e:
+        # 其他异常: 更新线程状态为FAILED
+        await ThreadService.update_thread_status(thread_id, ThreadStatus.FAILED)
         logger.error(f"建议生成失败 - 线程: {thread_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"建议生成失败: {str(e)}")
 

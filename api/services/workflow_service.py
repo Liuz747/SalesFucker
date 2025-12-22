@@ -63,6 +63,8 @@ class WorkflowService:
                 raise ThreadNotFoundException(thread_id)
 
             # 2. 验证线程状态
+            # 每个线程代表一个用户，拥有独立的记忆和上下文
+            # 允许FAILED线程重新运行，以便用户可以从错误中恢复
             if thread.status == ThreadStatus.BUSY:
                 raise HTTPException(
                     status_code=400,
