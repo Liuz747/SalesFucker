@@ -236,8 +236,12 @@ async def create_background_run(
         }
 
     except HTTPException:
+        # HTTPException: 更新线程状态为FAILED
+        await ThreadService.update_thread_status(thread_id, ThreadStatus.FAILED)
         raise
     except Exception as e:
+        # 其他异常: 更新线程状态为FAILED
+        await ThreadService.update_thread_status(thread_id, ThreadStatus.FAILED)
         logger.error(f"后台运行创建失败 - 线程: {thread_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"后台运行创建失败: {str(e)}")
 

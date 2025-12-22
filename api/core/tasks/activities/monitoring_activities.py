@@ -15,9 +15,9 @@ from uuid import UUID
 
 from temporalio import activity
 
+from libs.types import ThreadStatus
 from services import ThreadService
 from utils import get_component_logger
-from core.tasks.entities import ThreadStatus
 
 logger = get_component_logger(__name__)
 

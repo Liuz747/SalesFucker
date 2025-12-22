@@ -18,7 +18,7 @@ from uuid import UUID
 from temporalio import workflow
 from temporalio.common import RetryPolicy
 
-from core.tasks.entities import ThreadStatus, MessagingResult, MessageType
+from core.tasks.entities import MessagingResult, MessageType
 
 with workflow.unsafe.imports_passed_through():
     from core.prompts.template_loader import get_prompt_template
@@ -27,8 +27,7 @@ with workflow.unsafe.imports_passed_through():
         invoke_task_llm,
         send_callback_message
     )
-    from libs.types import Message
-    from infra.runtimes import LLMClient
+    from libs.types import Message, ThreadStatus
 
 
 @workflow.defn
