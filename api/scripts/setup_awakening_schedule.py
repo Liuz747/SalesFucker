@@ -13,7 +13,7 @@
     uv run python scripts/setup_awakening_schedule.py
 
 注意:
-- 只需设置一次，Schedule 会持久化在 Temporal 中
+- 如果 Schedule 已存在，会自动更新配置（支持配置热更新）
 - Schedule ID: thread-awakening-schedule
 - 可通过 Temporal UI 查看和管理 Schedule
 """
@@ -29,9 +29,9 @@ from temporalio.client import (
     Schedule,
     ScheduleActionStartWorkflow,
     ScheduleIntervalSpec,
-    SchedulePolicy,
     ScheduleSpec,
-    ScheduleState
+    ScheduleState,
+    ScheduleUpdate
 )
 
 from config import mas_config
@@ -60,8 +60,6 @@ async def main():
         temporal_client = infra_registry.get_cached_clients().temporal
         schedule_id = "thread-awakening-schedule"
 
-        logger.info(f"正在创建 Schedule: {schedule_id}")
-
         # 创建 Schedule
         schedule = Schedule(
             action=ScheduleActionStartWorkflow(
@@ -82,34 +80,52 @@ async def main():
             ),
         )
 
-        await temporal_client.create_schedule(
-            id=schedule_id,
-            schedule=schedule
-        )
+        # 尝试创建 Schedule
+        try:
+            logger.info(f"正在创建 Schedule: {schedule_id}")
+            await temporal_client.create_schedule(
+                id=schedule_id,
+                schedule=schedule
+            )
+            logger.info("✓ Schedule 已成功创建！")
+            logger.info(f"  - Schedule ID: {schedule_id}")
+            logger.info(f"  - 触发间隔: 每 {mas_config.AWAKENING_SCAN_INTERVAL_HOURS} 小时")
+            logger.info(f"  - 每次处理: {mas_config.AWAKENING_BATCH_SIZE} 个线程")
+            logger.info(f"  - Task Queue: {mas_config.TASK_QUEUE}")
 
-        logger.info("✓ Schedule 已成功创建！")
-        logger.info(f"  - Schedule ID: {schedule_id}")
-        logger.info(f"  - 触发间隔: 每 {mas_config.AWAKENING_SCAN_INTERVAL_HOURS} 小时")
-        logger.info(f"  - 每次处理: {mas_config.AWAKENING_BATCH_SIZE} 个线程")
-        logger.info(f"  - Task Queue: {mas_config.TASK_QUEUE}")
+        except Exception as e:
+            error_message = str(e).lower()
+
+            if "already exists" in error_message:
+                logger.info(f"ℹ Schedule 已存在，正在更新配置...")
+
+                # 获取现有 Schedule handle并更新
+                schedule_handle = temporal_client.get_schedule_handle(schedule_id)
+                await schedule_handle.update(
+                    lambda input: ScheduleUpdate(
+                        schedule=Schedule(
+                            action=schedule.action,
+                            spec=schedule.spec,
+                            state=schedule.state,
+                        )
+                    )
+                )
+
+                logger.info("✓ Schedule 已成功更新！")
+                logger.info(f"  - Schedule ID: {schedule_id}")
+                logger.info(f"  - 触发间隔: 每 {mas_config.AWAKENING_SCAN_INTERVAL_HOURS} 小时")
+                logger.info(f"  - 每次处理: {mas_config.AWAKENING_BATCH_SIZE} 个线程")
+                logger.info(f"  - Task Queue: {mas_config.TASK_QUEUE}")
+            else:
+                raise
+
         logger.info("")
         logger.info("Schedule 将自动周期性触发工作流，无需手动干预")
         logger.info("可在 Temporal UI 中查看和管理 Schedule")
 
     except Exception as e:
-        error_message = str(e).lower()
-
-        if "already exists" in error_message or "schedule already exists" in error_message:
-            logger.info("ℹ Schedule 已存在")
-            logger.info(f"  - Schedule ID: {schedule_id}")
-            logger.info("无需重复创建，Schedule 会持续运行")
-            logger.info("")
-            logger.info("如需修改配置:")
-            logger.info("  1. 删除现有 Schedule (Temporal UI 或 CLI)")
-            logger.info("  2. 重新运行此脚本")
-        else:
-            logger.error(f"✗ 创建 Schedule 失败: {e}", exc_info=True)
-            raise
+        logger.error(f"✗ Schedule 设置失败: {e}", exc_info=True)
+        raise
 
     finally:
         await infra_registry.shutdown_clients()
