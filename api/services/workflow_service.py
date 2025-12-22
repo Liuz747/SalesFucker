@@ -6,7 +6,7 @@ from uuid import UUID
 
 from fastapi import HTTPException
 
-from libs.types import AccountStatus
+from libs.types import AccountStatus, ThreadStatus
 from models import Thread
 from schemas.exceptions import (
     AssistantDisabledException,
@@ -62,21 +62,35 @@ class WorkflowService:
                 logger.warning(f"线程不存在: {thread_id}")
                 raise ThreadNotFoundException(thread_id)
 
-            # 2. 验证助理身份
+            # 2. 验证线程状态
+            if thread.status == ThreadStatus.BUSY:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"线程当前状态正在运行，无法处理运行请求。"
+                )
+
+            # 3. 验证助理身份
             assistant = await AssistantService.get_assistant_by_id(
                 assistant_id=assistant_id,
                 use_cache=use_cache
             )
 
-            # 3. 验证线程、助理、租户ID三者匹配
+            # 4. 验证线程、助理、租户ID三者匹配
             if not assistant.tenant_id == thread.tenant_id == tenant_id:
                 logger.warning(f"租户、数字员工、线程不匹配: thread_id={thread_id}")
                 raise TenantValidationException(tenant_id, "线程和数字员工不匹配")
 
-            # 4. 验证助理状态
+            # 5. 验证助理状态
             if assistant.status != AccountStatus.ACTIVE:
                 logger.warning(f"助理已被禁用: assistant_id={assistant_id}")
                 raise AssistantDisabledException(assistant_id)
+
+            if not thread.assistant_id:
+                thread.assistant_id = assistant_id
+
+            # 6. 更新线程状态为BUSY
+            thread.status = ThreadStatus.BUSY
+            thread = await ThreadService.update_thread_status(thread)
 
             logger.info(f"工作流权限验证成功 - 线程: {thread_id}")
             return thread

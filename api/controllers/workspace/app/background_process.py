@@ -15,11 +15,16 @@ from uuid import UUID
 
 from config import mas_config
 from core.app import Orchestrator
-from libs.types import MessageParams
-from models import ThreadStatus, WorkflowRun
+from libs.types import MessageParams, ThreadStatus
+from models import Thread, WorkflowRun
+from schemas.conversation_schema import CallbackPayload, WorkflowData
 from services import ThreadService
-from schemas.conversation_schema import CallbackPayload
-from utils import get_component_logger, get_current_datetime, get_processing_time_ms, ExternalClient
+from utils import (
+    get_component_logger,
+    get_current_datetime,
+    get_processing_time_ms,
+    ExternalClient
+)
 
 
 logger = get_component_logger(__name__, "BackgroundProcessor")
@@ -71,31 +76,21 @@ class BackgroundWorkflowProcessor:
         self,
         orchestrator: Orchestrator,
         run_id: UUID,
-        thread_id: UUID,
-        input: MessageParams,
-        assistant_id: UUID,
-        tenant_id: str
+        thread: Thread,
+        input: MessageParams
     ):
         """在后台处理工作流"""
         start_time = get_current_datetime()
-
-        logger.info(f"开始后台处理工作流 - 运行: {run_id}, 线程: {thread_id}")
+        callback_url = str(mas_config.CALLBACK_URL).rstrip('/') + self.callback_endpoint
+        logger.info(f"开始后台处理工作流 - 运行: {run_id}, 线程: {thread.thread_id}")
 
         try:
-            # 获取线程并更新状态为处理中
-            thread = await ThreadService.get_thread(thread_id)
-            if thread:
-                thread.assistant_id = assistant_id
-                thread.status = ThreadStatus.PROCESSING
-                await ThreadService.update_thread_status(thread)
-                logger.debug(f"线程状态更新为处理中: {thread_id}")
-
             # 创建工作流执行模型
             workflow = WorkflowRun(
                 workflow_id=run_id,
-                thread_id=thread_id,
-                assistant_id=assistant_id,
-                tenant_id=tenant_id,
+                thread_id=thread.thread_id,
+                assistant_id=thread.assistant_id,
+                tenant_id=thread.tenant_id,
                 input=input
             )
 
@@ -103,49 +98,52 @@ class BackgroundWorkflowProcessor:
             result = await orchestrator.process_conversation(workflow)
 
             # 构建工作流数据
-            workflow_data = {
-                "input": result.input,
-                "output": result.output,
-                "total_tokens": result.total_tokens
-            }
+            workflow_data = WorkflowData(
+                input=result.input,
+                output=result.output,
+                total_tokens=result.total_tokens
+            )
+
+            # 更新线程状态
+            thread.status = ThreadStatus.ACTIVE
+            await ThreadService.update_thread_status(thread)
+            logger.debug(f"线程状态更新: {thread.thread_id}")
 
             processing_time = get_processing_time_ms(start_time)
-            completed_at = get_current_datetime()
-
-            # 更新线程状态为完成
-            if thread:
-                thread.status = ThreadStatus.COMPLETED
-                await ThreadService.update_thread_status(thread)
-                logger.debug(f"线程状态更新为完成: {thread_id}")
 
             logger.info(f"工作流处理完成 - 运行: {run_id}, 工作流: {run_id}, 耗时: {processing_time:.2f}ms")
 
             payload = CallbackPayload(
                 run_id=run_id,
-                thread_id=thread_id,
-                status=ThreadStatus.COMPLETED,
+                thread_id=thread.thread_id,
+                assistant_id=thread.assistant_id,
+                tenant_id=thread.tenant_id,
+                status="completed",
                 data=workflow_data,
                 processing_time=processing_time,
-                finished_at=completed_at.isoformat(),
-                metadata={
-                    "tenant_id": tenant_id,
-                    "assistant_id": assistant_id
-                }
+                finished_at=get_current_datetime().isoformat()
             )
 
             # 发送回调
-            if mas_config.CALLBACK_URL:
-                callback_url = str(mas_config.CALLBACK_URL).rstrip('/') + self.callback_endpoint
-                await self.send_callback(callback_url, payload)
-            else:
-                logger.warning(f"回调URL未配置，跳过回调发送 - 运行: {run_id}")
+            await self.send_callback(callback_url, payload)
 
         except Exception as e:
             logger.error(f"后台处理失败 - 运行: {run_id}: {e}", exc_info=True)
 
             # 更新线程状态为失败
-            thread = await ThreadService.get_thread(thread_id)
-            if thread:
-                thread.status = ThreadStatus.FAILED
-                await ThreadService.update_thread_status(thread)
-                logger.debug(f"线程状态更新为失败: {thread_id}")
+            thread.status = ThreadStatus.FAILED
+            await ThreadService.update_thread_status(thread)
+            logger.debug(f"线程状态更新为失败: {thread.thread_id}")
+
+            # 发送失败回调
+            failure_payload = CallbackPayload(
+                run_id=run_id,
+                thread_id=thread.thread_id,
+                assistant_id=thread.assistant_id,
+                tenant_id=thread.tenant_id,
+                status="failed",
+                error=str(e),
+                processing_time=get_processing_time_ms(start_time),
+                finished_at=get_current_datetime().isoformat()
+            )
+            await self.send_callback(callback_url, failure_payload)

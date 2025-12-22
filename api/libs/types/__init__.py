@@ -20,7 +20,13 @@ from .message_params import (
     ToolMessage,
     ToolCall
 )
-from .social_media_types import SocialPlatform, SocialMediaActionType, MethodType, TextBeautifyActionType
+from .social_media_types import (
+    SocialPlatform,
+    SocialMediaActionType,
+    MethodType,
+    TextBeautifyActionType
+)
+from .thread_status import ThreadStatus
 
 
 __all__ = [
@@ -44,6 +50,7 @@ __all__ = [
     "UserMessage",
     "AssistantMessage",
     "SystemMessage",
+    "ThreadStatus",
     "ToolMessage",
     "ToolCall"
 ]

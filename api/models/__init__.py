@@ -21,7 +21,6 @@ from .conversation import (
     ThreadOrm,
     Thread
 )
-from .enums import ThreadStatus, TenantRole
 from .tenant import (
     TenantOrm,
     TenantModel
@@ -39,10 +38,6 @@ __all__ = [
     # Conversation
     "ThreadOrm",
     "Thread",
-
-    # Enums
-    "TenantRole",
-    "ThreadStatus",
 
     # Tenant
     "TenantOrm",

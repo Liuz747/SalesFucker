@@ -21,8 +21,8 @@ from sqlalchemy import select, update, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import mas_config
+from libs.types import ThreadStatus
 from models import ThreadOrm, Thread
-from models.enums import ThreadStatus
 from utils import get_component_logger, get_current_datetime
 
 logger = get_component_logger(__name__, "ThreadRepository")
@@ -173,8 +173,8 @@ class ThreadRepository:
 
             stmt = select(ThreadOrm).where(
                 and_(
-                    # 未完成或失败的线程
-                    ThreadOrm.status.notin_([ThreadStatus.COMPLETED, ThreadStatus.FAILED]),
+                    # 去掉失败的线程
+                    ThreadOrm.status != ThreadStatus.FAILED,
                     # 未超过最大尝试次数
                     ThreadOrm.awakening_attempt_count < mas_config.MAX_AWAKENING_ATTEMPTS,
                     # 满足不活跃条件：指定天数未活动

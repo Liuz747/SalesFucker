@@ -12,9 +12,11 @@
 
 from typing import Annotated
 from uuid import UUID, uuid4
+
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 
-from models import ThreadStatus, WorkflowRun, TenantModel
+from libs.types import ThreadStatus
+from models import WorkflowRun, TenantModel
 from schemas.conversation_schema import MessageCreateRequest, ThreadRunResponse
 from services import ThreadService, AudioService, WorkflowService
 from services.suggestion_service import SuggestionService
@@ -59,18 +61,6 @@ async def create_run(
 
         logger.info(f"开始运行处理 - 线程: {thread.thread_id}")
 
-        match thread.status:
-            case ThreadStatus.IDLE:
-                thread.status = ThreadStatus.ACTIVE
-                thread = await ThreadService.update_thread_status(thread)
-            case ThreadStatus.ACTIVE:
-                pass
-            case _:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"线程状态无效，无法处理运行请求。当前状态: {thread.status}"
-                )
-
         # 标准化输入（处理音频转录）
         normalized_input, asr_results = await AudioService.normalize_input(request.input, str(thread.thread_id))
 
@@ -89,6 +79,9 @@ async def create_run(
         # 使用编排器处理消息
         result = await orchestrator.process_conversation(workflow)
 
+        thread.status = ThreadStatus.ACTIVE
+        await ThreadService.update_thread_status(thread)
+
         processing_time = get_processing_time_ms(start_time)
 
         logger.info(f"运行处理完成 - 线程: {thread.thread_id}, 执行: {workflow_id}, 耗时: {processing_time:.2f}ms")
@@ -97,7 +90,7 @@ async def create_run(
         invitation = result.business_outputs
 
         # 返回标准化响应
-        response = ThreadRunResponse(
+        return ThreadRunResponse(
             run_id=workflow_id,
             thread_id=result.thread_id,
             status="completed",
@@ -109,8 +102,6 @@ async def create_run(
             multimodal_outputs=result.multimodal_outputs if result.multimodal_outputs else None,
             invitation=invitation
         )
-
-        return response
 
     except HTTPException:
         raise
@@ -150,6 +141,9 @@ async def create_suggestion(
             assistant_id=request.assistant_id,
             tenant_id=tenant.tenant_id
         )
+
+        thread.status = ThreadStatus.ACTIVE
+        await ThreadService.update_thread_status(thread)
 
         processing_time = get_processing_time_ms(start_time)
 
@@ -204,18 +198,6 @@ async def create_background_run(
 
         logger.info(f"开始后台运行处理 - 线程: {thread.thread_id}")
 
-        match thread.status:
-            case ThreadStatus.IDLE:
-                thread.status = ThreadStatus.ACTIVE
-                thread = await ThreadService.update_thread_status(thread)
-            case ThreadStatus.ACTIVE:
-                pass
-            case _:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"线程状态无效，无法处理运行请求。当前状态: {thread.status}，需要状态: {ThreadStatus.ACTIVE}"
-                )
-
         # 标准化输入（处理音频转录）
         normalized_input, _ = await AudioService.normalize_input(request.input, str(thread.thread_id))
 
@@ -231,9 +213,7 @@ async def create_background_run(
             processor.process_workflow_background,
             orchestrator=orchestrator,
             run_id=run_id,
-            thread_id=thread.thread_id,
-            assistant_id=request.assistant_id,
-            tenant_id=thread.tenant_id,
+            thread=thread,
             input=normalized_input
         )
 

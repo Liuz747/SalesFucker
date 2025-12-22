@@ -11,10 +11,9 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 from sqlalchemy import ARRAY, Boolean, Column, DateTime, Enum, Integer, String, Uuid, func
 
-from libs.types import Sex
+from libs.types import Sex, ThreadStatus
 from utils import get_current_datetime
 from .base import Base
-from .enums import ThreadStatus
 
 
 class ThreadOrm(Base):

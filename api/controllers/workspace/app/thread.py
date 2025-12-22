@@ -21,7 +21,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from config import mas_config
 from core.tasks.workflows import GreetingWorkflow, ConversationPreservationWorkflow
 from libs.factory import infra_registry
-from models import Thread, ThreadStatus, TenantModel
+from models import Thread, TenantModel
 from schemas import BaseResponse, ThreadPayload, ThreadCreateResponse
 from services import ThreadService
 from utils import get_component_logger
@@ -54,7 +54,6 @@ async def create_thread(
         # 创建业务模型对象
         thread = Thread(
             tenant_id=tenant.tenant_id,
-            status=ThreadStatus.IDLE,
             name=request.name,
             nickname=request.nickname,
             real_name=request.real_name,
@@ -126,23 +125,7 @@ async def get_thread(
                 detail="租户ID不匹配，无法访问此线程"
             )
 
-        return {
-            "thread_id": thread.thread_id,
-            "tenant_id": thread.tenant_id,
-            "assistant_id": thread.assistant_id,
-            "status": thread.status,
-            "name": thread.name,
-            "nickname": thread.nickname,
-            "real_name": thread.real_name,
-            "sex": thread.sex,
-            "age": thread.age,
-            "phone": thread.phone,
-            "occupation": thread.occupation,
-            "services": thread.services,
-            "is_converted": thread.is_converted,
-            "created_at": thread.created_at,
-            "updated_at": thread.updated_at
-        }
+        return thread
 
     except Exception as e:
         logger.error(f"线程获取失败: {e}", exc_info=True)
