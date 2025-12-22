@@ -105,8 +105,7 @@ class BackgroundWorkflowProcessor:
             )
 
             # 更新线程状态
-            thread.status = ThreadStatus.ACTIVE
-            await ThreadService.update_thread_status(thread)
+            await ThreadService.update_thread_status(thread.thread_id, ThreadStatus.ACTIVE)
             logger.debug(f"线程状态更新: {thread.thread_id}")
 
             processing_time = get_processing_time_ms(start_time)
@@ -131,8 +130,7 @@ class BackgroundWorkflowProcessor:
             logger.error(f"后台处理失败 - 运行: {run_id}: {e}", exc_info=True)
 
             # 更新线程状态为失败
-            thread.status = ThreadStatus.FAILED
-            await ThreadService.update_thread_status(thread)
+            await ThreadService.update_thread_status(thread.thread_id, ThreadStatus.FAILED)
             logger.debug(f"线程状态更新为失败: {thread.thread_id}")
 
             # 发送失败回调

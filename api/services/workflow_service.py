@@ -85,12 +85,13 @@ class WorkflowService:
                 logger.warning(f"助理已被禁用: assistant_id={assistant_id}")
                 raise AssistantDisabledException(assistant_id)
 
+            # 6. 更新线程状态为BUSY，同时绑定助理ID（如果未绑定）
+            update_fields = {"status": ThreadStatus.BUSY}
             if not thread.assistant_id:
+                update_fields["assistant_id"] = assistant_id
                 thread.assistant_id = assistant_id
 
-            # 6. 更新线程状态为BUSY
-            thread.status = ThreadStatus.BUSY
-            thread = await ThreadService.update_thread_status(thread)
+            await ThreadService.update_thread_fields(thread.thread_id, update_fields)
 
             logger.info(f"工作流权限验证成功 - 线程: {thread_id}")
             return thread

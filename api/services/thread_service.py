@@ -17,6 +17,7 @@ from uuid import UUID
 
 from infra.db import database_session
 from libs.factory import infra_registry
+from libs.types import ThreadStatus
 from repositories.thread_repo import ThreadRepository, Thread
 from schemas import ThreadPayload
 from schemas.exceptions import ThreadNotFoundException, TenantValidationException
@@ -99,29 +100,63 @@ class ThreadService:
             return None
     
     @staticmethod
-    async def update_thread_status(thread: Thread) -> Thread:
-        """更新线程"""
+    async def update_thread_status(thread_id: UUID, status: ThreadStatus) -> bool:
+        """
+        更新线程状态
+
+        参数:
+            thread_id: 线程ID
+            status: 新状态
+
+        返回:
+            bool: 是否更新成功
+        """
         try:
-            thread_orm = thread.to_orm()
-            
-            # 立即更新数据库
+            # 更新数据库中的状态
             async with database_session() as session:
-                updated_thread_orm = await ThreadRepository.update_thread_model(thread_orm, session)
+                flag = await ThreadRepository.update_thread_status(thread_id, status, session)
 
-            # 直接获取Redis客户端，使用连接池
-            redis_client = infra_registry.get_cached_clients().redis
+            if flag:
+                # 异步清除Redis缓存，下次查询时重新加载
+                redis_client = infra_registry.get_cached_clients().redis
+                asyncio.create_task(
+                    redis_client.delete(f"thread:{str(thread_id)}")
+                )
 
-            thread_model = Thread.to_model(updated_thread_orm)
+            return flag
 
-            # 异步更新Redis缓存
-            asyncio.create_task(
-                ThreadRepository.update_thread_cache(thread_model, redis_client)
-            )
-            
-            return thread_model
-            
         except Exception as e:
-            logger.error(f"线程更新失败: {e}")
+            logger.error(f"线程状态更新失败: thread_id={thread_id}, status={status}, 错误: {e}")
+            raise
+
+    @staticmethod
+    async def update_thread_fields(thread_id: UUID, fields: dict) -> bool:
+        """
+        更新线程字段（通用方法，可同时更新多个字段）
+
+        参数:
+            thread_id: 线程ID
+            fields: 要更新的字段字典
+
+        返回:
+            bool: 是否更新成功
+        """
+        try:
+            # 更新数据库中的字段
+            async with database_session() as session:
+                flag = await ThreadRepository.update_thread_field(thread_id, fields, session)
+
+            if flag:
+                # 异步清除Redis缓存，下次查询时重新加载
+                redis_client = infra_registry.get_cached_clients().redis
+                asyncio.create_task(
+                    redis_client.delete(f"thread:{str(thread_id)}")
+                )
+
+            return flag
+
+        except Exception as e:
+            logger.error(f"线程字段更新失败: thread_id={thread_id}, fields={fields}, 错误: {e}")
             raise
 
     @staticmethod

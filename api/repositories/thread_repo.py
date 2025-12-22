@@ -105,19 +105,12 @@ class ThreadRepository:
     async def update_thread_field(thread_id: UUID, value: dict, session: AsyncSession) -> bool:
         """更新线程数据库模型字段"""
         try:
-            value['updated_at'] = func.now()
             stmt = (
                 update(ThreadOrm)
                 .where(ThreadOrm.thread_id == thread_id)
-                .values(**value)
+                .values(updated_at=func.now(), **value)
             )
             result = await session.execute(stmt)
-            
-            if result.rowcount > 0:
-                logger.debug(f"更新线程字段: {thread_id}, 值: {value}")
-            else:
-                logger.warning(f"线程不存在，无法更新: {thread_id}")
-                
             return result.rowcount > 0
         except Exception as e:
             logger.error(f"更新线程数据库模型字段失败: {thread_id}, 值: {value}, 错误: {e}")
@@ -187,6 +180,36 @@ class ThreadRepository:
 
         except Exception as e:
             logger.error(f"查询不活跃线程失败, 错误: {e}")
+            raise
+
+    @staticmethod
+    async def update_thread_status(thread_id: UUID, status: ThreadStatus, session: AsyncSession) -> bool:
+        """
+        更新线程状态
+
+        参数:
+            thread_id: 线程ID
+            status: 状态
+            session: 数据库会话
+
+        返回:
+            bool: 是否更新成功
+        """
+        try:
+            stmt = (
+                update(ThreadOrm)
+                .where(ThreadOrm.thread_id == thread_id)
+                .values(
+                    status=status,
+                    updated_at=func.now()
+                )
+            )
+
+            result = await session.execute(stmt)
+            return result.rowcount > 0
+
+        except Exception as e:
+            logger.error(f"更新线程状态失败: thread_id={thread_id}, status={status}, 错误: {e}")
             raise
 
     @staticmethod

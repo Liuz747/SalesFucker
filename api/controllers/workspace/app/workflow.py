@@ -79,8 +79,7 @@ async def create_run(
         # 使用编排器处理消息
         result = await orchestrator.process_conversation(workflow)
 
-        thread.status = ThreadStatus.ACTIVE
-        await ThreadService.update_thread_status(thread)
+        await ThreadService.update_thread_status(thread.thread_id, ThreadStatus.ACTIVE)
 
         processing_time = get_processing_time_ms(start_time)
 
@@ -142,8 +141,7 @@ async def create_suggestion(
             tenant_id=tenant.tenant_id
         )
 
-        thread.status = ThreadStatus.ACTIVE
-        await ThreadService.update_thread_status(thread)
+        await ThreadService.update_thread_status(thread.thread_id, ThreadStatus.ACTIVE)
 
         processing_time = get_processing_time_ms(start_time)
 
