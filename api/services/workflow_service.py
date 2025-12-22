@@ -89,9 +89,8 @@ class WorkflowService:
             update_fields = {"status": ThreadStatus.BUSY}
             if not thread.assistant_id:
                 update_fields["assistant_id"] = assistant_id
-                thread.assistant_id = assistant_id
 
-            await ThreadService.update_thread_fields(thread.thread_id, update_fields)
+            thread = await ThreadService.update_thread_fields(thread.thread_id, update_fields)
 
             logger.info(f"工作流权限验证成功 - 线程: {thread_id}")
             return thread

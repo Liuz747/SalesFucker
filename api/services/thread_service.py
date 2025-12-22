@@ -130,7 +130,7 @@ class ThreadService:
             raise
 
     @staticmethod
-    async def update_thread_fields(thread_id: UUID, fields: dict) -> bool:
+    async def update_thread_fields(thread_id: UUID, fields: dict) -> Thread:
         """
         更新线程字段（通用方法，可同时更新多个字段）
 
@@ -139,21 +139,26 @@ class ThreadService:
             fields: 要更新的字段字典
 
         返回:
-            bool: 是否更新成功
+            Thread: 更新后的线程模型
         """
         try:
             # 更新数据库中的字段
             async with database_session() as session:
-                flag = await ThreadRepository.update_thread_field(thread_id, fields, session)
+                thread_orm = await ThreadRepository.update_thread_field(thread_id, fields, session)
 
-            if flag:
-                # 异步清除Redis缓存，下次查询时重新加载
-                redis_client = infra_registry.get_cached_clients().redis
-                asyncio.create_task(
-                    redis_client.delete(f"thread:{str(thread_id)}")
-                )
+            if not thread_orm:
+                raise ThreadNotFoundException(thread_id)
 
-            return flag
+            # 转换为业务模型
+            thread_model = Thread.to_model(thread_orm)
+
+            # 异步更新Redis缓存
+            redis_client = infra_registry.get_cached_clients().redis
+            asyncio.create_task(
+                ThreadRepository.update_thread_cache(thread_model, redis_client)
+            )
+
+            return thread_model
 
         except Exception as e:
             logger.error(f"线程字段更新失败: thread_id={thread_id}, fields={fields}, 错误: {e}")

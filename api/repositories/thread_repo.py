@@ -102,16 +102,17 @@ class ThreadRepository:
             raise
 
     @staticmethod
-    async def update_thread_field(thread_id: UUID, value: dict, session: AsyncSession) -> bool:
+    async def update_thread_field(thread_id: UUID, value: dict, session: AsyncSession) -> Optional[ThreadOrm]:
         """更新线程数据库模型字段"""
         try:
             stmt = (
                 update(ThreadOrm)
                 .where(ThreadOrm.thread_id == thread_id)
                 .values(updated_at=func.now(), **value)
+                .returning(ThreadOrm)
             )
             result = await session.execute(stmt)
-            return result.rowcount > 0
+            return result.scalar_one_or_none()
         except Exception as e:
             logger.error(f"更新线程数据库模型字段失败: {thread_id}, 值: {value}, 错误: {e}")
             raise
