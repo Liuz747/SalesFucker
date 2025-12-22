@@ -1,8 +1,8 @@
-"""add customer fields to threads
+"""create new migration files
 
-Revision ID: a2d91ce1b181
+Revision ID: 7a88598642d9
 Revises: 
-Create Date: 2025-12-10 16:14:42.498293
+Create Date: 2025-12-22 18:38:50.253660
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = 'a2d91ce1b181'
+revision: str = '7a88598642d9'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -62,12 +62,18 @@ def upgrade() -> None:
     sa.Column('thread_id', sa.Uuid(), server_default=sa.text('gen_random_uuid()'), nullable=False),
     sa.Column('tenant_id', sa.String(length=64), nullable=False),
     sa.Column('assistant_id', sa.Uuid(), nullable=True),
-    sa.Column('status', sa.Enum('IDLE', 'ACTIVE', 'PROCESSING', 'FAILED', 'PAUSED', 'DELETED', name='thread_status'), nullable=False),
+    sa.Column('status', sa.Enum('IDLE', 'ACTIVE', 'BUSY', 'FAILED', name='thread_status'), nullable=False),
     sa.Column('name', sa.String(length=128), nullable=True, comment='客户姓名'),
+    sa.Column('nickname', sa.String(length=128), nullable=True, comment='客户昵称'),
+    sa.Column('real_name', sa.String(length=128), nullable=True, comment='客户真实姓名'),
     sa.Column('sex', sa.Enum('MALE', 'FEMALE', 'OTHER', name='sex'), nullable=True, comment='客户性别'),
     sa.Column('age', sa.Integer(), nullable=True, comment='客户年龄'),
     sa.Column('phone', sa.String(length=32), nullable=True, comment='客户电话'),
     sa.Column('occupation', sa.String(length=128), nullable=True, comment='客户职业'),
+    sa.Column('services', sa.ARRAY(sa.String()), nullable=True, comment='客户已消费的服务列表'),
+    sa.Column('is_converted', sa.Boolean(), nullable=False, comment='客户是否已转化（已消费）'),
+    sa.Column('awakening_attempt_count', sa.Integer(), nullable=False, comment='唤醒消息发送次数'),
+    sa.Column('last_awakening_sent_at', sa.DateTime(timezone=True), nullable=True, comment='最后一次唤醒消息发送时间'),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.PrimaryKeyConstraint('thread_id')
