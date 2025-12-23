@@ -1,8 +1,8 @@
 """create new migration files
 
-Revision ID: 7a88598642d9
+Revision ID: b113bcd869ef
 Revises: 
-Create Date: 2025-12-22 18:38:50.253660
+Create Date: 2025-12-23 12:30:52.824248
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
-revision: str = '7a88598642d9'
+revision: str = 'b113bcd869ef'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -73,7 +73,7 @@ def upgrade() -> None:
     sa.Column('services', sa.ARRAY(sa.String()), nullable=True, comment='客户已消费的服务列表'),
     sa.Column('is_converted', sa.Boolean(), nullable=False, comment='客户是否已转化（已消费）'),
     sa.Column('awakening_attempt_count', sa.Integer(), nullable=False, comment='唤醒消息发送次数'),
-    sa.Column('last_awakening_sent_at', sa.DateTime(timezone=True), nullable=True, comment='最后一次唤醒消息发送时间'),
+    sa.Column('last_awakening_at', sa.DateTime(timezone=True), nullable=True, comment='最后一次互动时间'),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.PrimaryKeyConstraint('thread_id')
