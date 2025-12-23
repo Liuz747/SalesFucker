@@ -12,10 +12,10 @@ from temporalio import activity
 from config import mas_config
 from core.memory import StorageManager
 from core.prompts.get_role_prompt import get_combined_system_prompt
-from libs.types import Message, MessageParams, MessageType
+from libs.types import Message, MessageParams
 from models import Thread
 from services import ThreadService
-from utils import get_component_logger, ExternalClient
+from utils import get_component_logger
 
 logger = get_component_logger(__name__)
 
@@ -121,61 +121,20 @@ async def prepare_awakening_context(
 
 
 @activity.defn
-async def send_awakening_message(thread_id: UUID, content: str) -> dict:
+async def update_awakened_thread(thread_id: UUID) -> dict:
     """
-    发送唤醒消息并更新数据库
-
-    通过ExternalClient发送消息，通过服务层更新数据库
-
-    Args:
-        thread_id: 线程ID
-        content: 消息内容
+    更新唤醒过的线程
 
     Returns:
-        dict: 包含成功状态和尝试次数的字典
+        list: 线程列表
     """
-    try:
-        logger.info(f"发送唤醒消息: thread_id={thread_id}")
+    # 消息发送成功，通过服务层更新数据库
+    success = await ThreadService.increment_awakening_attempt(thread_id)
 
-        # 发送消息到回调API
-        callback_url = str(mas_config.CALLBACK_URL)
-        client = ExternalClient(base_url=callback_url)
+    if not success:
+        logger.error(f"更新线程唤醒计数失败: thread_id={thread_id}")
+        return {"success": False, "error": "database_update_failed"}
 
-        payload = {
-            "thread_id": str(thread_id),
-            "content": content,
-            "sender_type": "assistant",
-            "message_type": MessageType.AWAKENING,
-        }
+    logger.info(f"线程更新成功: thread_id={thread_id}")
 
-        response = await client.make_request(
-            method="POST",
-            endpoint="/api",
-            data=payload,
-            headers={"User-Agent": "MAS-Awakening-Workflow/1.0"},
-            timeout=30.0,
-            max_retries=3
-        )
-
-        # 消息发送成功，通过服务层更新数据库
-        success = await ThreadService.increment_awakening_attempt(thread_id)
-
-        if not success:
-            logger.error(f"更新线程唤醒计数失败: thread_id={thread_id}")
-            return {"success": False, "error": "database_update_failed"}
-
-        logger.info(
-            f"唤醒消息发送成功: thread_id={thread_id}"
-        )
-
-        return {"success": True}
-
-    except Exception as e:
-        logger.error(
-            f"发送唤醒消息失败: thread_id={thread_id}, error={e}",
-            exc_info=True
-        )
-        return {
-            "success": False,
-            "error": str(e)
-        }
+    return {"success": True}

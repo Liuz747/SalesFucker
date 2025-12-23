@@ -9,16 +9,16 @@ from datetime import timedelta
 from temporalio import workflow
 from temporalio.common import RetryPolicy
 
-from infra.runtimes import LLMClient
-
 # 安全导入活动和配置
 with workflow.unsafe.imports_passed_through():
     from core.tasks.activities import (
-        scan_inactive_threads,
-        prepare_awakening_context,
         invoke_task_llm,
-        send_awakening_message
+        scan_inactive_threads,
+        send_callback_message,
+        prepare_awakening_context,
+        update_awakened_thread
     )
+    from libs.types import MessageType
 
 
 @workflow.defn
@@ -132,18 +132,38 @@ class ThreadAwakeningWorkflow:
                 # Step 5: 发送唤醒消息
                 workflow.logger.info(f"发送唤醒消息: thread_id={thread_id}")
                 send_result = await workflow.execute_activity(
-                    send_awakening_message,
-                    args=[thread_id, response.content],
+                    send_callback_message,
+                    args=[
+                        thread_id,
+                        response.content,
+                        MessageType.AWAKENING,
+                        "/api"
+                    ],
                     start_to_close_timeout=timedelta(seconds=30),
                     retry_policy=self.retry_policy
                 )
 
-                # 更新统计
+                # Step 6: 更新线程唤醒计数
                 if send_result.get("success"):
-                    stats["sent"] += 1
-                    workflow.logger.info(
-                        f"✓ 唤醒消息发送成功: thread_id={thread_id}"
+                    workflow.logger.info(f"更新线程唤醒计数: thread_id={thread_id}")
+                    update_result = await workflow.execute_activity(
+                        update_awakened_thread,
+                        args=[thread_id],
+                        start_to_close_timeout=timedelta(seconds=30),
+                        retry_policy=self.retry_policy
                     )
+
+                    if update_result.get("success"):
+                        stats["sent"] += 1
+                        workflow.logger.info(
+                            f"✓ 唤醒消息发送成功并已更新计数: thread_id={thread_id}"
+                        )
+                    else:
+                        stats["failed"] += 1
+                        workflow.logger.error(
+                            f"✗ 消息发送成功但更新计数失败: thread_id={thread_id}, "
+                            f"error={update_result.get('error', 'unknown')}"
+                        )
                 else:
                     stats["failed"] += 1
                     workflow.logger.error(

@@ -17,7 +17,7 @@ from .preservation_activities import (
 from .awakening_activities import (
     scan_inactive_threads,
     prepare_awakening_context,
-    send_awakening_message
+    update_awakened_thread
 )
 
 def get_all_activities() -> list[Callable]:
@@ -34,7 +34,7 @@ def get_all_activities() -> list[Callable]:
         # 唤醒活动
         scan_inactive_threads,
         prepare_awakening_context,
-        send_awakening_message,
+        update_awakened_thread,
 
         # LLM 活动
         invoke_task_llm,
@@ -54,5 +54,5 @@ __all__ = [
     "preserve_conversation_to_elasticsearch",
     "scan_inactive_threads",
     "prepare_awakening_context",
-    "send_awakening_message"
+    "update_awakened_thread"
 ]
