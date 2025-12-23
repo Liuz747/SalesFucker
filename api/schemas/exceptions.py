@@ -364,3 +364,50 @@ class ASRDownloadException(AudioServiceException):
 
     def __init__(self):
         super().__init__(detail="下载转录结果失败")
+
+
+# ==================== 视频服务异常 ====================
+
+class VideoServiceException(BaseHTTPException):
+    code = 1600000
+    message = "VIDEO_SERVICE_ERROR"
+    http_status_code = 500
+
+
+class VideoConfigurationException(VideoServiceException):
+    code = 1600001
+    message = "VIDEO_CONFIGURATION_ERROR"
+    http_status_code = 500
+
+    def __init__(self):
+        super().__init__(detail="DASHSCOPE_API_KEY未配置，无法进行视频生成")
+
+
+class VideoSubmissionException(VideoServiceException):
+    code = 1600002
+    message = "VIDEO_SUBMISSION_FAILED"
+    http_status_code = 500
+
+    def __init__(self, reason: str = ""):
+        detail = "视频生成任务提交失败"
+        if reason:
+            detail += f": {reason}"
+        super().__init__(detail=detail)
+
+
+class VideoTaskNotFoundException(VideoServiceException):
+    code = 1600003
+    message = "VIDEO_TASK_NOT_FOUND"
+    http_status_code = 404
+
+    def __init__(self, task_id: str):
+        super().__init__(detail=f"视频任务 {task_id} 不存在")
+
+
+class VideoTaskTimeoutException(VideoServiceException):
+    code = 1600004
+    message = "VIDEO_TASK_TIMEOUT"
+    http_status_code = 408
+
+    def __init__(self, task_id: str, elapsed_time: int):
+        super().__init__(detail=f"视频生成任务超时 - task_id: {task_id}, 已等待: {elapsed_time}秒")
