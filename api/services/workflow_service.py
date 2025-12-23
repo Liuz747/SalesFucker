@@ -14,7 +14,7 @@ from schemas.exceptions import (
     TenantValidationException,
     ThreadNotFoundException
 )
-from utils import get_component_logger
+from utils import get_component_logger, get_current_datetime
 from .assistant_service import AssistantService
 from .thread_service import ThreadService
 
@@ -88,7 +88,10 @@ class WorkflowService:
                 raise AssistantDisabledException(assistant_id)
 
             # 6. 更新线程状态为BUSY，同时绑定助理ID（如果未绑定）
-            update_fields = {"status": ThreadStatus.BUSY}
+            update_fields = {
+                "status": ThreadStatus.BUSY,
+                "last_awakening_at": get_current_datetime(),
+            }
             if not thread.assistant_id:
                 update_fields["assistant_id"] = assistant_id
 

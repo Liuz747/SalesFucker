@@ -81,8 +81,8 @@ class ThreadAwakeningWorkflow:
                 "stats": stats
             }
 
-        model = "gpt-4o-mini"
-        provider = "openai"
+        model = "anthropic/claude-haiku-4.5"
+        provider = "openrouter"
         temperature = 0.8
         max_tokens = 1024
         fallback_prompt = "最近怎么样？"
@@ -134,10 +134,11 @@ class ThreadAwakeningWorkflow:
                 send_result = await workflow.execute_activity(
                     send_callback_message,
                     args=[
+                        thread_data.assistant_id,
                         thread_id,
                         response.content,
                         MessageType.AWAKENING,
-                        "/api"
+                        "/chat/ai/hook/event"
                     ],
                     start_to_close_timeout=timedelta(seconds=30),
                     retry_policy=self.retry_policy

@@ -19,7 +19,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends
 
 from config import mas_config
-from core.tasks.workflows import GreetingWorkflow, ConversationPreservationWorkflow
+from core.tasks.workflows import ConversationPreservationWorkflow
 from libs.factory import infra_registry
 from models import Thread, TenantModel
 from schemas import BaseResponse, ThreadPayload, ThreadCreateResponse
@@ -70,24 +70,15 @@ async def create_thread(
         # 启动Temporal工作流
         temporal_client = infra_registry.get_cached_clients().temporal
 
-        # 创建异步任务列表
-        workflow_tasks = [
-            temporal_client.start_workflow(
-                GreetingWorkflow.run,
-                thread_id,
-                id=f"greeting-{thread_id}",
-                task_queue=mas_config.TASK_QUEUE
-            ),
+        # 启动对话保留工作流
+        task = asyncio.create_task(
             temporal_client.start_workflow(
                 ConversationPreservationWorkflow.run,
                 args=[thread_id, tenant.tenant_id],
                 id=f"preservation-{thread_id}",
                 task_queue=mas_config.TASK_QUEUE
             )
-        ]
-
-        # 并发启动所有工作流
-        task = asyncio.create_task(asyncio.gather(*workflow_tasks, return_exceptions=True))
+        )
         task.add_done_callback(lambda t: t.exception())
 
         return ThreadCreateResponse(message="线程创建成功", thread_id=thread_id)

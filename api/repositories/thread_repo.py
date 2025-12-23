@@ -17,7 +17,7 @@ from uuid import UUID
 
 import msgpack
 from redis import Redis
-from sqlalchemy import select, update, func, and_
+from sqlalchemy import select, update, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import mas_config
@@ -171,10 +171,13 @@ class ThreadRepository:
                     ThreadOrm.status != ThreadStatus.FAILED,
                     # 未超过最大尝试次数
                     ThreadOrm.awakening_attempt_count < mas_config.MAX_AWAKENING_ATTEMPTS,
-                    # 满足不活跃条件：指定天数未活动
-                    ThreadOrm.updated_at < threshold
+                    # 满足不活跃条件：指定天数未活动或从未互动
+                    or_(
+                        ThreadOrm.last_awakening_at.is_(None),  # 从未互动
+                        ThreadOrm.last_awakening_at < threshold  # 超过指定天数未互动
+                    )
                 )
-            ).order_by(ThreadOrm.updated_at.asc()).limit(mas_config.AWAKENING_BATCH_SIZE)
+            ).order_by(ThreadOrm.last_awakening_at.asc()).limit(mas_config.AWAKENING_BATCH_SIZE)
 
             result = await session.execute(stmt)
             return result.scalars().all()
@@ -186,7 +189,7 @@ class ThreadRepository:
     @staticmethod
     async def update_thread_status(thread_id: UUID, status: ThreadStatus, session: AsyncSession) -> bool:
         """
-        更新线程状态
+        更新线程状态和最后互动时间
 
         参数:
             thread_id: 线程ID
@@ -202,6 +205,7 @@ class ThreadRepository:
                 .where(ThreadOrm.thread_id == thread_id)
                 .values(
                     status=status,
+                    last_awakening_at=func.now(),
                     updated_at=func.now()
                 )
             )
@@ -216,7 +220,7 @@ class ThreadRepository:
     @staticmethod
     async def increment_awakening_attempt(thread_id: UUID, session: AsyncSession) -> bool:
         """
-        增加线程的唤醒尝试计数
+        增加线程的唤醒尝试计数并更新最后互动时间
 
         参数:
             thread_id: 线程ID
@@ -231,7 +235,7 @@ class ThreadRepository:
                 .where(ThreadOrm.thread_id == thread_id)
                 .values(
                     awakening_attempt_count=ThreadOrm.awakening_attempt_count + 1,
-                    last_awakening_sent_at=get_current_datetime(),
+                    last_awakening_at=func.now(),
                     updated_at=func.now()
                 )
             )
