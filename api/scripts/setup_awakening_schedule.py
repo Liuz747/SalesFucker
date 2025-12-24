@@ -71,7 +71,7 @@ async def main():
                 # 每 N 小时触发一次
                 intervals=[
                     ScheduleIntervalSpec(
-                        every=timedelta(seconds=mas_config.scan_interval_seconds),
+                        every=timedelta(hours=mas_config.AWAKENING_SCAN_INTERVAL_HOURS),
                     )
                 ],
             ),

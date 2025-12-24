@@ -17,3 +17,7 @@ class AgentNodes:
     # 新增并行节点
     APPOINTMENT_INTENT_NODE = "appointment_intent_analysis"
     MATERIAL_INTENT_NODE = "material_intent_analysis"
+
+    # 触发事件节点
+    TRIGGER_CONTEXT = "trigger_context"
+    TRIGGER_MESSAGE_GENERATOR = "trigger_message_generator"

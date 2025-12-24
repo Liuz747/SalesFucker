@@ -29,13 +29,3 @@ class AwakeningConfig(BaseSettings):
         default=6,
         description="扫描间隔（小时）"
     )
-
-    @property
-    def retry_interval_seconds(self) -> int:
-        """计算唤醒重试间隔（秒）"""
-        return self.AWAKENING_RETRY_INTERVAL_DAYS * 24 * 60 * 60
-
-    @property
-    def scan_interval_seconds(self) -> int:
-        """计算扫描间隔（秒）"""
-        return self.AWAKENING_SCAN_INTERVAL_HOURS * 60 * 60
