@@ -19,5 +19,5 @@ class AgentNodes:
     MATERIAL_INTENT_NODE = "material_intent_analysis"
 
     # 触发事件节点
-    TRIGGER_CONTEXT = "trigger_context"
-    TRIGGER_MESSAGE_GENERATOR = "trigger_message_generator"
+    TRIGGER_INACTIVE = "trigger_inactive"
+    TRIGGER_ENGAGEMENT = "trigger_engagement"
