@@ -43,7 +43,8 @@ class StateManager:
             input=workflow.input,
             started_at=workflow.created_at,
             exception_count=0,
-            total_tokens=0
+            total_tokens=0,
+            trigger_metadata=workflow.trigger_metadata
         )
     
     def create_error_state(

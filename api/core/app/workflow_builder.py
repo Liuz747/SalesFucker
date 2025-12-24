@@ -11,8 +11,6 @@
 - 工作流状态管理
 """
 
-from typing import Type
-
 from langgraph.graph import StateGraph
 
 from utils import get_component_logger
@@ -35,7 +33,7 @@ class WorkflowBuilder:
         workflow: 具体工作流实现
     """
     
-    def __init__(self, workflow: Type[BaseWorkflow]):
+    def __init__(self, workflow: type[BaseWorkflow]):
         """
         初始化工作流构建器
         

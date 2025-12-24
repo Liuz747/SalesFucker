@@ -91,6 +91,7 @@ class BackgroundWorkflowProcessor:
                 thread_id=thread.thread_id,
                 assistant_id=thread.assistant_id,
                 tenant_id=thread.tenant_id,
+                type="chat",
                 input=input
             )
 

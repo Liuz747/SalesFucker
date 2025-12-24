@@ -26,7 +26,12 @@ from utils import (
     get_processing_time,
     flush_traces
 )
-from ..graphs import ChatWorkflow, TestWorkflow, SentimentChatWorkflow
+from ..graphs import (
+    ChatWorkflow,
+    TestWorkflow,
+    SentimentChatWorkflow,
+    TriggerEngagementWorkflow
+)
 from .state_manager import StateManager
 from .workflow_builder import WorkflowBuilder
 
@@ -78,6 +83,11 @@ class Orchestrator:
         start_time = get_current_datetime()
 
         try:
+            # 创建工作流
+            if workflow.type == "trigger":
+                self.workflow_builder = WorkflowBuilder(TriggerEngagementWorkflow)
+                self.graph = self.workflow_builder.build_graph()
+
             # 构建初始工作流状态
             initial_state = self.state_manager.create_initial_state(workflow)
 

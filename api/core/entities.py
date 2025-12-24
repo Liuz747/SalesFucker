@@ -4,10 +4,11 @@
 支持LangGraph并发状态更新和并行节点执行。
 """
 
+from collections.abc import Mapping
 from datetime import datetime
-from typing import Annotated, Any, Optional, TypedDict
-from uuid import UUID
 import operator
+from typing import Annotated, Optional
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
@@ -87,50 +88,6 @@ def merge_list(left: Optional[list], right: Optional[list]) -> Optional[list]:
     return left + right
 
 
-# ==============================
-# LangGraph 状态类型定义
-# ==============================
-
-class WorkflowState(TypedDict):
-    """
-    LangGraph工作流状态类型定义
-
-    使用Annotated类型和Reducer函数支持并发状态更新。
-    """
-    # 基础字段
-    workflow_id: str
-    thread_id: str
-    tenant_id: str
-    input: Any
-    context: Optional[list[dict]]  # 用户上下文
-
-    # 并行节点专用字段 - 使用Reducer避免并发冲突
-    sentiment_analysis: Annotated[Optional[dict], safe_merge_dict]
-    appointment_intent: Annotated[Optional[dict], safe_merge_dict]
-    material_intent: Annotated[Optional[dict], safe_merge_dict]
-
-    # 统一的状态收集器 - 使用专门的Reducer
-    values: Annotated[Optional[dict], merge_agent_results]
-
-    # 全局状态字段
-    journey_stage: Optional[str]
-    matched_prompt: Optional[dict]
-
-    # Token 统计字段
-    input_tokens: Annotated[int, operator.add]
-    output_tokens: Annotated[int, operator.add]
-    total_tokens: Optional[int]
-    
-    # 元数据字段
-    error_message: Optional[str]
-    exception_count: int
-    started_at: str
-    finished_at: Optional[str]
-
-    # 并行执行控制
-    parallel_execution: Optional[dict]
-    active_agents: Annotated[Optional[list], merge_list]
-
 
 class WorkflowExecutionModel(BaseModel):
     """
@@ -145,7 +102,7 @@ class WorkflowExecutionModel(BaseModel):
     assistant_id: UUID = Field(description="助手标识符")
     tenant_id: str = Field(description="租户标识符")
 
-    input: MessageParams = Field(description="输入消息列表")
+    input: MessageParams | None = Field(description="输入消息列表")
     output: Optional[str] = Field(default=None, description="文本输出内容")
 
     # 多模态输出 - 支持音频、图像、视频等
@@ -182,6 +139,9 @@ class WorkflowExecutionModel(BaseModel):
     # 工作流状态字段
     journey_stage: Optional[str] = Field(default=None, description="客户旅程阶段")
     matched_prompt: Optional[dict] = Field(default=None, description="匹配的提示词信息")
+
+    # 触发事件元数据
+    trigger_metadata: Mapping | None = Field(default=None, description="触发事件元数据：event_type, services等")
 
     model_config = {
         "arbitrary_types_allowed": True

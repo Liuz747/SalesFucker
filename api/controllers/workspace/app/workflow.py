@@ -73,6 +73,7 @@ async def create_run(
             thread_id=thread.thread_id,
             assistant_id=request.assistant_id,
             tenant_id=thread.tenant_id,
+            type="chat",
             input=normalized_input
         )
 
