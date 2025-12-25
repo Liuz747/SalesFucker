@@ -165,7 +165,7 @@ class ThreadRepository:
         try:
             # 临时测试修改
             # threshold = get_current_datetime() - timedelta(days=mas_config.AWAKENING_RETRY_INTERVAL_DAYS)
-            threshold = get_current_datetime() - timedelta(minutes=mas_config.AWAKENING_RETRY_INTERVAL_DAYS)
+            threshold = get_current_datetime() - timedelta(hours=mas_config.AWAKENING_RETRY_INTERVAL_DAYS)
 
             stmt = select(ThreadOrm).where(
                 and_(

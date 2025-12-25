@@ -51,12 +51,10 @@ async def main():
     logger.info(f"配置:")
     # 临时测试修改
     # logger.info(f"  - 唤醒重试间隔: {mas_config.AWAKENING_RETRY_INTERVAL_DAYS} 天")
-    logger.info(f"  - 唤醒重试间隔: {mas_config.AWAKENING_RETRY_INTERVAL_DAYS} 分钟")
+    logger.info(f"  - 唤醒重试间隔: {mas_config.AWAKENING_RETRY_INTERVAL_DAYS} 小时")
     logger.info(f"  - 最大尝试次数: {mas_config.MAX_AWAKENING_ATTEMPTS}")
     logger.info(f"  - 批次大小: {mas_config.AWAKENING_BATCH_SIZE}")
-    # 临时测试修改
-    # logger.info(f"  - 扫描间隔: {mas_config.AWAKENING_SCAN_INTERVAL_HOURS} 小时")
-    logger.info(f"  - 扫描间隔: {mas_config.AWAKENING_SCAN_INTERVAL_HOURS} 分钟")
+    logger.info(f"  - 扫描间隔: {mas_config.AWAKENING_SCAN_INTERVAL_HOURS} 小时")
 
     try:
         # 初始化基础设施
@@ -76,9 +74,7 @@ async def main():
                 # 每 N 小时触发一次
                 intervals=[
                     ScheduleIntervalSpec(
-                        # 临时测试修改
-                        # every=timedelta(hours=mas_config.AWAKENING_SCAN_INTERVAL_HOURS),
-                        every=timedelta(minutes=mas_config.AWAKENING_SCAN_INTERVAL_HOURS),
+                        every=timedelta(hours=mas_config.AWAKENING_SCAN_INTERVAL_HOURS),
                     )
                 ],
             ),
@@ -96,9 +92,7 @@ async def main():
             )
             logger.info("✓ Schedule 已成功创建！")
             logger.info(f"  - Schedule ID: {schedule_id}")
-            # 临时测试修改
-            # logger.info(f"  - 触发间隔: 每 {mas_config.AWAKENING_SCAN_INTERVAL_HOURS} 小时")
-            logger.info(f"  - 触发间隔: 每 {mas_config.AWAKENING_SCAN_INTERVAL_HOURS} 分钟")
+            logger.info(f"  - 触发间隔: 每 {mas_config.AWAKENING_SCAN_INTERVAL_HOURS} 小时")
             logger.info(f"  - 每次处理: {mas_config.AWAKENING_BATCH_SIZE} 个线程")
             logger.info(f"  - Task Queue: {mas_config.TASK_QUEUE}")
 
@@ -120,9 +114,7 @@ async def main():
 
             logger.info("✓ Schedule 已成功更新！")
             logger.info(f"  - Schedule ID: {schedule_id}")
-            # 临时测试修改
-            # logger.info(f"  - 触发间隔: 每 {mas_config.AWAKENING_SCAN_INTERVAL_HOURS} 小时")
-            logger.info(f"  - 触发间隔: 每 {mas_config.AWAKENING_SCAN_INTERVAL_HOURS} 分钟")
+            logger.info(f"  - 触发间隔: 每 {mas_config.AWAKENING_SCAN_INTERVAL_HOURS} 小时")
             logger.info(f"  - 每次处理: {mas_config.AWAKENING_BATCH_SIZE} 个线程")
             logger.info(f"  - Task Queue: {mas_config.TASK_QUEUE}")
 

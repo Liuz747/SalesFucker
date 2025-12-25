@@ -29,3 +29,23 @@ class AwakeningConfig(BaseSettings):
         default=6,
         description="扫描间隔（小时）"
     )
+
+    # DND (Do Not Disturb) 配置
+    DND_ENABLED: bool = Field(
+        default=True,
+        description="是否启用免打扰功能"
+    )
+
+    DND_START_HOUR: int = Field(
+        default=0,
+        ge=0,
+        le=23,
+        description="免打扰开始时间（小时，24小时制，默认0点）"
+    )
+
+    DND_END_HOUR: int = Field(
+        default=8,
+        ge=0,
+        le=23,
+        description="免打扰结束时间（小时，24小时制，默认8点）"
+    )

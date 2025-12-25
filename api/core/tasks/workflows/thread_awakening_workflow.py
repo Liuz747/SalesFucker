@@ -19,6 +19,7 @@ with workflow.unsafe.imports_passed_through():
         update_awakened_thread
     )
     from libs.types import MessageType
+    from utils import is_dnd_active
 
 
 @workflow.defn
@@ -91,6 +92,15 @@ class ThreadAwakeningWorkflow:
         for thread_data in threads:
             try:
                 thread_id = thread_data.thread_id
+
+                # 检查是否在免打扰时段
+                if is_dnd_active():
+                    workflow.logger.info(
+                        f"当前在免打扰时段，跳过线程: thread_id={thread_id}"
+                    )
+                    stats["skipped"] += 1
+                    continue
+
                 workflow.logger.info(
                     f"处理线程: {getattr(thread_data, 'name', None)} (id={thread_id}, "
                     f"attempt={thread_data.awakening_attempt_count})"
@@ -149,12 +159,16 @@ class ThreadAwakeningWorkflow:
                     workflow.logger.info(f"更新线程唤醒计数: thread_id={thread_id}")
                     update_result = await workflow.execute_activity(
                         update_awakened_thread,
-                        args=[thread_id],
+                        args=[
+                            thread_data.tenant_id,
+                            thread_id,
+                            response.content
+                        ],
                         start_to_close_timeout=timedelta(seconds=30),
                         retry_policy=self.retry_policy
                     )
 
-                    if update_result.get("success"):
+                    if update_result:
                         stats["sent"] += 1
                         workflow.logger.info(
                             f"✓ 唤醒消息发送成功并已更新计数: thread_id={thread_id}"
@@ -162,8 +176,7 @@ class ThreadAwakeningWorkflow:
                     else:
                         stats["failed"] += 1
                         workflow.logger.error(
-                            f"✗ 消息发送成功但更新计数失败: thread_id={thread_id}, "
-                            f"error={update_result.get('error', 'unknown')}"
+                            f"✗ 消息发送成功但更新计数失败: thread_id={thread_id}"
                         )
                 else:
                     stats["failed"] += 1

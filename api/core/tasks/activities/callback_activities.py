@@ -45,7 +45,7 @@ async def send_callback_message(
             "threadId": str(thread_id),
             "eventId": task_name,
             "eventTime": get_current_timestamp_ms(),
-            "eventContent": json.dumps(event_content),
+            "eventContent": json.dumps(event_content, ensure_ascii=False),
         }
 
         response = await client.make_request(

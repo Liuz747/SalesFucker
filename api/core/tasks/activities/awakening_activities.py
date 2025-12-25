@@ -86,7 +86,7 @@ async def prepare_awakening_context(
             "## 任务\n"
             # 临时测试修改
             # f"客户已经{mas_config.AWAKENING_RETRY_INTERVAL_DAYS}天没有发消息了\n"
-            f"客户已经{mas_config.AWAKENING_RETRY_INTERVAL_DAYS}分钟没有发消息了\n"
+            f"客户已经{mas_config.AWAKENING_RETRY_INTERVAL_DAYS}小时没有发消息了\n"
             "生成一条自然、个性化的唤醒消息（1-2句话，不超过50字）\n\n"
             "要求:\n"
             "1. 基于客户背景和对话历史，体现个性化\n"
@@ -123,20 +123,31 @@ async def prepare_awakening_context(
 
 
 @activity.defn
-async def update_awakened_thread(thread_id: UUID) -> dict:
+async def update_awakened_thread(
+    tenant_id: str,
+    thread_id: UUID,
+    content: str
+) -> bool:
     """
     更新唤醒过的线程
 
+    Args:
+        tenant_id: 租户ID
+        thread_id: 线程ID
+        content: 助手回复内容
+
     Returns:
-        list: 线程列表
+        bool: 数据库更新是否成功
     """
+
+    logger.info(f"更新唤醒过的线程: thread_id={thread_id}")
+    storage_manager = StorageManager()
+
+    await storage_manager.store_messages(
+        tenant_id=tenant_id,
+        thread_id=thread_id,
+        message=[Message(role="assistant", content=content)]
+    )
+
     # 消息发送成功，通过服务层更新数据库
-    success = await ThreadService.increment_awakening_attempt(thread_id)
-
-    if not success:
-        logger.error(f"更新线程唤醒计数失败: thread_id={thread_id}")
-        return {"success": False, "error": "database_update_failed"}
-
-    logger.info(f"线程更新成功: thread_id={thread_id}")
-
-    return {"success": True}
+    return await ThreadService.increment_awakening_attempt(thread_id)
