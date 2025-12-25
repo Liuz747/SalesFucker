@@ -21,7 +21,7 @@ class AwakeningConfig(BaseSettings):
     )
 
     AWAKENING_BATCH_SIZE: PositiveInt = Field(
-        default=50,
+        default=300,
         description="每批次处理的线程数量"
     )
 

@@ -84,7 +84,9 @@ async def prepare_awakening_context(
 
         instructions = (
             "## 任务\n"
-            f"客户已经{mas_config.AWAKENING_RETRY_INTERVAL_DAYS}天没有发消息了\n"
+            # 临时测试修改
+            # f"客户已经{mas_config.AWAKENING_RETRY_INTERVAL_DAYS}天没有发消息了\n"
+            f"客户已经{mas_config.AWAKENING_RETRY_INTERVAL_DAYS}分钟没有发消息了\n"
             "生成一条自然、个性化的唤醒消息（1-2句话，不超过50字）\n\n"
             "要求:\n"
             "1. 基于客户背景和对话历史，体现个性化\n"
