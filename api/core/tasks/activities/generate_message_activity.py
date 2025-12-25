@@ -28,9 +28,12 @@ async def invoke_task_llm(
     max_tokens: int,
     messages: MessageParams,
     fallback_prompt: str
-):
+) -> LLMResponse:
     """
     调用任务LLM活动
+
+    Returns:
+        LLMResponse: LLM 响应对象（包含生成的内容）
     """
     req_id = uuid4()
     try:
