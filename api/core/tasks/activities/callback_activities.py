@@ -41,8 +41,8 @@ async def send_callback_message(
         }
 
         payload = {
-            "assistantId": assistant_id,
-            "threadId": thread_id,
+            "assistantId": str(assistant_id),
+            "threadId": str(thread_id),
             "eventId": task_name,
             "eventTime": get_current_timestamp_ms(),
             "eventContent": json.dumps(event_content),

@@ -167,12 +167,6 @@ class ThreadRepository:
             # threshold = get_current_datetime() - timedelta(days=mas_config.AWAKENING_RETRY_INTERVAL_DAYS)
             threshold = get_current_datetime() - timedelta(minutes=mas_config.AWAKENING_RETRY_INTERVAL_DAYS)
 
-            # 临时测试修改
-            logger.info(f"查询不活跃线程 - 当前时间: {get_current_datetime()}, ")
-            logger.info(f"阈值时间: {threshold}, ")
-            logger.info(f"间隔: {mas_config.AWAKENING_RETRY_INTERVAL_DAYS} 分钟, ")
-            logger.info(f"最大尝试次数: {mas_config.MAX_AWAKENING_ATTEMPTS}")
-
             stmt = select(ThreadOrm).where(
                 and_(
                     # 去掉失败的线程
@@ -188,16 +182,7 @@ class ThreadRepository:
             ).order_by(ThreadOrm.last_awakening_at.asc()).limit(mas_config.AWAKENING_BATCH_SIZE)
 
             result = await session.execute(stmt)
-
-            # 临时测试修改
-            threads = result.scalars().all()
-            logger.info(f"查询结果: 找到 {len(threads)} 个不活跃线程")
-            for thread in threads[:5]:  # 只记录前5个
-                logger.info(f"  - 线程: {thread.thread_id}, 状态: {thread.status}, ")
-                logger.info(f"唤醒次数: {thread.awakening_attempt_count}, ")
-                logger.info(f"最后唤醒时间: {thread.last_awakening_at}")
-
-            return threads
+            return result.scalars().all()
 
         except Exception as e:
             logger.error(f"查询不活跃线程失败, 错误: {e}")

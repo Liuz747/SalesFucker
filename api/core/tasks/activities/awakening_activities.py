@@ -32,10 +32,6 @@ async def scan_inactive_threads() -> list[Thread]:
     """
     try:
         logger.info("扫描不活跃线程")
-        # 临时测试修改
-        logger.info(f"配置参数: AWAKENING_RETRY_INTERVAL_DAYS={mas_config.AWAKENING_RETRY_INTERVAL_DAYS}, ")
-        logger.info(f"MAX_AWAKENING_ATTEMPTS={mas_config.MAX_AWAKENING_ATTEMPTS}, ")
-        logger.info(f"AWAKENING_BATCH_SIZE={mas_config.AWAKENING_BATCH_SIZE}")
 
         # 通过服务层获取不活跃线程
         return await ThreadService.get_inactive_threads_for_awakening()
