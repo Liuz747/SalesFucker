@@ -136,7 +136,7 @@ class ThreadAwakeningWorkflow:
                     args=[
                         thread_data.assistant_id,
                         thread_id,
-                        response.get("content"),
+                        response.content,
                         MessageType.AWAKENING,
                         "/chat/ai/hook/event"
                     ],
