@@ -197,7 +197,7 @@ class ThreadRepository:
                 logger.info(f"唤醒次数: {thread.awakening_attempt_count}, ")
                 logger.info(f"最后唤醒时间: {thread.last_awakening_at}")
 
-            return result.scalars().all()
+            return threads
 
         except Exception as e:
             logger.error(f"查询不活跃线程失败, 错误: {e}")
