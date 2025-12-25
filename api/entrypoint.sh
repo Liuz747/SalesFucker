@@ -22,8 +22,8 @@ if [ "$MODE" = "api" ]; then
     echo "Launching FastAPI server..."
     exec uv run main.py
 elif [ "$MODE" = "worker" ]; then
-    # echo "Setting up Temporal schedules..."
-    # uv run scripts/setup_awakening_schedule.py || echo "⚠ Schedule setup failed or already exists, continuing..."
+    echo "Setting up Temporal schedules..."
+    uv run scripts/setup_awakening_schedule.py || echo "⚠ Schedule setup failed or already exists, continuing..."
     echo "Launching Temporal worker..."
     exec uv run temporal-worker.py
 else

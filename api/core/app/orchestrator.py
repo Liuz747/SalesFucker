@@ -30,7 +30,7 @@ from ..graphs import (
     ChatWorkflow,
     TestWorkflow,
     SentimentChatWorkflow,
-    TriggerEngagementWorkflow
+    # TriggerEngagementWorkflow
 )
 from .state_manager import StateManager
 from .workflow_builder import WorkflowBuilder
@@ -84,9 +84,9 @@ class Orchestrator:
 
         try:
             # 创建工作流
-            if workflow.type == "trigger":
-                self.workflow_builder = WorkflowBuilder(TriggerEngagementWorkflow)
-                self.graph = self.workflow_builder.build_graph()
+            # if workflow.type == "trigger":
+            #     self.workflow_builder = WorkflowBuilder(TriggerEngagementWorkflow)
+            #     self.graph = self.workflow_builder.build_graph()
 
             # 构建初始工作流状态
             initial_state = self.state_manager.create_initial_state(workflow)

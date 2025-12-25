@@ -11,7 +11,7 @@ def get_all_workflows() -> list[type]:
     """获取所有注册的工作流类"""
     return [
         ConversationPreservationWorkflow,
-        # ThreadAwakeningWorkflow  # Disabled
+        ThreadAwakeningWorkflow
     ]
 
 
