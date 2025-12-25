@@ -31,7 +31,8 @@ from temporalio.client import (
     ScheduleIntervalSpec,
     ScheduleSpec,
     ScheduleState,
-    ScheduleUpdate
+    ScheduleUpdate,
+    ScheduleAlreadyRunningError
 )
 
 from config import mas_config
@@ -101,33 +102,29 @@ async def main():
             logger.info(f"  - 每次处理: {mas_config.AWAKENING_BATCH_SIZE} 个线程")
             logger.info(f"  - Task Queue: {mas_config.TASK_QUEUE}")
 
-        except Exception as e:
-            error_message = str(e).lower()
+        except ScheduleAlreadyRunningError:
+            # 处理 Schedule 已存在/运行中的情况
+            logger.info(f"ℹ Schedule 已存在，正在更新配置...")
 
-            if "already exists" in error_message:
-                logger.info(f"ℹ Schedule 已存在，正在更新配置...")
-
-                # 获取现有 Schedule handle并更新
-                schedule_handle = temporal_client.get_schedule_handle(schedule_id)
-                await schedule_handle.update(
-                    lambda input: ScheduleUpdate(
-                        schedule=Schedule(
-                            action=schedule.action,
-                            spec=schedule.spec,
-                            state=schedule.state,
-                        )
+            # 获取现有 Schedule handle并更新
+            schedule_handle = temporal_client.get_schedule_handle(schedule_id)
+            await schedule_handle.update(
+                lambda input: ScheduleUpdate(
+                    schedule=Schedule(
+                        action=schedule.action,
+                        spec=schedule.spec,
+                        state=schedule.state,
                     )
                 )
+            )
 
-                logger.info("✓ Schedule 已成功更新！")
-                logger.info(f"  - Schedule ID: {schedule_id}")
-                # 临时测试修改
-                # logger.info(f"  - 触发间隔: 每 {mas_config.AWAKENING_SCAN_INTERVAL_HOURS} 小时")
-                logger.info(f"  - 触发间隔: 每 {mas_config.AWAKENING_SCAN_INTERVAL_HOURS} 分钟")
-                logger.info(f"  - 每次处理: {mas_config.AWAKENING_BATCH_SIZE} 个线程")
-                logger.info(f"  - Task Queue: {mas_config.TASK_QUEUE}")
-            else:
-                raise
+            logger.info("✓ Schedule 已成功更新！")
+            logger.info(f"  - Schedule ID: {schedule_id}")
+            # 临时测试修改
+            # logger.info(f"  - 触发间隔: 每 {mas_config.AWAKENING_SCAN_INTERVAL_HOURS} 小时")
+            logger.info(f"  - 触发间隔: 每 {mas_config.AWAKENING_SCAN_INTERVAL_HOURS} 分钟")
+            logger.info(f"  - 每次处理: {mas_config.AWAKENING_BATCH_SIZE} 个线程")
+            logger.info(f"  - Task Queue: {mas_config.TASK_QUEUE}")
 
         logger.info("")
         logger.info("Schedule 将自动周期性触发工作流，无需手动干预")
