@@ -44,7 +44,7 @@ class AppointmentIntentAgent(BaseAgent):
         # 初始化意向分析器
         self.intent_analyzer = AppointmentIntentAnalyzer(
             llm_provider="openrouter",
-            llm_model="openai/gpt-4o-mini",
+            llm_model="anthropic/claude-haiku-4.5",
             invoke_llm_fn=self.invoke_llm
         )
 
@@ -246,9 +246,7 @@ class AppointmentIntentAgent(BaseAgent):
         }
 
         # 处理实体提取结果，生成 business_outputs
-        business_outputs = self._generate_business_outputs(
-            intent_result, appointment_intent, recent_messages
-        )
+        business_outputs = self._generate_business_outputs(intent_result)
 
         # 构建 agent_data
         agent_data = {
@@ -276,22 +274,20 @@ class AppointmentIntentAgent(BaseAgent):
             "active_agents": [self.agent_id]
         }
 
-    def _generate_business_outputs(self, intent_result: dict, appointment_intent: dict, recent_messages: list[str]) -> dict:
+    def _generate_business_outputs(self, intent_result: dict) -> dict:
         """
         基于意向分析结果生成业务输出
 
         Args:
             intent_result: LLM分析结果
-            appointment_intent: 标准化的意向信息
-            recent_messages: 最近的用户消息
 
         Returns:
             dict: 结构化的业务输出，包含邀约信息
+                格式: {status, time, service, name, phone}
+                status: 0=不邀约, 1=确认邀约
+                当status=1时，time必须有值（时间戳毫秒）
         """
         try:
-            # 优化生成逻辑：只要有有效实体信息就生成business_outputs，不仅依赖recommendation
-            # 这样可以更好地处理各种意图场景，提高邀约信息提取的健壮性
-
             # 提取实体信息
             extracted_entities = intent_result.get("extracted_entities", {})
             entity_confidence = extracted_entities.get("entity_confidence", {})
@@ -299,47 +295,37 @@ class AppointmentIntentAgent(BaseAgent):
             # 获取时间表达式
             time_expression = extracted_entities.get("time_expression")
 
-            # 检查是否有足够的有效实体信息来生成邀约
-            has_valid_entities = False
-            if extracted_entities.get("name") and entity_confidence.get("name", 0) > 0.5:
-                has_valid_entities = True
-            if time_expression and entity_confidence.get("time_expression", 0) > 0.3:  # 降低时间置信度要求
-                has_valid_entities = True
-            if extracted_entities.get("phone") and entity_confidence.get("phone", 0) > 0.5:
-                has_valid_entities = True
-
-            # 如果没有任何有效实体信息，则不生成business_outputs
-            if not has_valid_entities:
-                self.logger.debug("未提取到有效实体信息，跳过business_outputs生成")
-                return None
-
             # 解析时间
-            parsed_time = None
-            if time_expression and entity_confidence.get("time_expression", 0) > 0.5:
+            parsed_time = 0
+            if time_expression:
+                time_confidence = entity_confidence.get("time_expression", 0)
                 timestamp_ms, parse_info = parse_appointment_time(time_expression)
                 if timestamp_ms:
                     parsed_time = timestamp_ms
-                    self.logger.info(f"时间解析成功: {time_expression} -> {timestamp_ms} ({parse_info.get('method', 'unknown')})")
+                    self.logger.info(f"时间解析成功: {time_expression} -> {timestamp_ms} (置信度: {time_confidence}, 方法: {parse_info.get('method', 'unknown')})")
                 else:
                     self.logger.warning(f"时间解析失败: {time_expression} - {parse_info.get('error', 'unknown error')}")
 
-            # 构建邀约信息
+            # 确定邀约状态
+            # status: 0=不邀约, 1=确认邀约
+            # 确认邀约的条件：意向强度>=0.6 且 有有效时间
+            intent_strength = intent_result.get("intent_strength", 0)
+
+            # 只有当意向强度足够且时间已解析成功时，才确认邀约
+            if intent_strength >= 0.6 and parsed_time > 0:
+                status = 1  # 确认邀约
+            else:
+                status = 0  # 不邀约
+                if intent_strength >= 0.6 and parsed_time == 0:
+                    self.logger.warning(f"意向强度足够({intent_strength})但时间未解析成功，无法确认邀约")
+
+            # 构建简洁的邀约信息
             invitation_data = {
-                "status": 1,  # 1表示待确认的邀约
-                "time": parsed_time or 0,
+                "status": status,
+                "time": parsed_time if status == 1 else 0,  # 只有确认邀约时才返回时间
                 "service": extracted_entities.get("service"),
                 "name": extracted_entities.get("name"),
-                "phone": self._parse_phone_number(extracted_entities.get("phone")) if extracted_entities.get("phone") else None,
-                # 添加元数据信息
-                "extraction_metadata": {
-                    "intent_strength": appointment_intent.get("intent_strength", 0),
-                    "confidence": appointment_intent.get("confidence", 0),
-                    "entity_confidence": entity_confidence,
-                    "time_expression_original": time_expression,
-                    "time_parse_info": parse_info if time_expression else None,
-                    "analyzed_message_count": len(recent_messages),
-                    "extraction_timestamp": get_current_datetime().isoformat()
-                }
+                "phone": self._parse_phone_number(extracted_entities.get("phone")) if extracted_entities.get("phone") else None
             }
 
             self.logger.info(f"生成邀约信息: status={invitation_data['status']}, "
@@ -352,7 +338,14 @@ class AppointmentIntentAgent(BaseAgent):
 
         except Exception as e:
             self.logger.error(f"生成业务输出失败: {e}", exc_info=True)
-            return None
+            # 返回默认的不邀约状态
+            return {
+                "status": 0,
+                "time": 0,
+                "service": None,
+                "name": None,
+                "phone": None
+            }
 
     def _parse_phone_number(self, phone_str: str) -> Optional[int]:
         """

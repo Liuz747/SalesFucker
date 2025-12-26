@@ -6,7 +6,6 @@
 """
 
 import asyncio
-from collections.abc import Mapping
 from pathlib import Path
 from typing import Type
 from uuid import uuid4
@@ -92,7 +91,7 @@ class MomentsAnalysisService:
         ]
         request = CompletionsRequest(
             id=run_id,
-            model="openai/gpt-4o-mini",  # 文本分析使用更经济的模型
+            model="openai/gpt-5o-mini",  # 文本分析使用更经济的模型
             provider="openrouter",
             temperature=0.3,
             max_tokens=2000,  # 朋友圈分析通常不需要很长的回复

@@ -41,7 +41,7 @@ class MaterialIntentAgent(BaseAgent):
         # 初始化意向分析器
         self.intent_analyzer = MaterialIntentAnalyzer(
             llm_provider="openrouter",
-            llm_model="openai/gpt-4o-mini",
+            llm_model="anthropic/claude-haiku-4.5",
             invoke_llm_fn=self.invoke_llm
         )
 
