@@ -44,7 +44,6 @@ class MomentsAnalysisService:
         self.config_path = str(config_path)
         self.storage_manager = StorageManager()
 
-
     async def invoke_llm_multimodal(
         self,
         system_prompt: str,
@@ -91,10 +90,10 @@ class MomentsAnalysisService:
         ]
         request = CompletionsRequest(
             id=run_id,
-            model="openai/gpt-5-mini",  # 文本分析使用更经济的模型
+            model="openai/gpt-5",  # 文本分析使用更经济的模型
             provider="openrouter",
-            temperature=0.3,
-            max_tokens=2000,  # 朋友圈分析通常不需要很长的回复
+            temperature=1,
+            max_tokens=1000,  # 朋友圈分析通常不需要很长的回复
             messages=messages,
             output_model=output_model
         )

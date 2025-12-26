@@ -146,7 +146,7 @@ async def update_awakened_thread(
     await storage_manager.store_messages(
         tenant_id=tenant_id,
         thread_id=thread_id,
-        message=[Message(role="assistant", content=content)]
+        messages=[Message(role="assistant", content=content)]
     )
 
     # 消息发送成功，通过服务层更新数据库

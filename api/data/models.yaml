@@ -101,20 +101,19 @@
       type: "text"
       enabled: true
 
-- id: "zenmux"
-  type: "openai"
-  name: "Zenmux"
-  base_url: "https://api.zenmux.com/v1"
-  enabled: true
-  models:
-    - id: "gpt-4o"
-      provider: "zenmux"
-      name: "GPT-4 Omni"
-      type: "text"
-      enabled: true
-    - id: "gpt-4o-mini"
-      provider: "zenmux"
-      name: "GPT-4 Omni Mini"
-      type: "text"
-      enabled: true
-
+# - id: "zenmux"
+#   type: "openai"
+#   name: "Zenmux"
+#   base_url: "https://api.zenmux.com/v1"
+#   enabled: true
+#   models:
+#     - id: "gpt-4o"
+#       provider: "zenmux"
+#       name: "GPT-4 Omni"
+#       type: "text"
+#       enabled: true
+#     - id: "gpt-4o-mini"
+#       provider: "zenmux"
+#       name: "GPT-4 Omni Mini"
+#       type: "text"
+#       enabled: true
