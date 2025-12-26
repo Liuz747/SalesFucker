@@ -10,7 +10,7 @@ from pydantic_settings import BaseSettings
 class AwakeningConfig(BaseSettings):
     """线程唤醒工作流配置"""
 
-    AWAKENING_RETRY_INTERVAL_DAYS: PositiveInt = Field(
+    INACTIVE_INTERVAL_DAYS: PositiveInt = Field(
         default=2,
         description="唤醒重试间隔天数（线程不活跃多少天后触发唤醒）"
     )

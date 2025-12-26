@@ -90,7 +90,7 @@ class WorkflowService:
             # 6. 更新线程状态为BUSY，同时绑定助理ID（如果未绑定），并重置唤醒计数
             update_fields = {
                 "status": ThreadStatus.BUSY,
-                "last_awakening_at": get_current_datetime(),
+                "last_interaction_at": get_current_datetime(),
                 "awakening_attempt_count": 0,
             }
             if not thread.assistant_id:

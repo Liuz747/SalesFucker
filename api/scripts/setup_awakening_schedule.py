@@ -50,8 +50,8 @@ async def main():
     logger.info("========== 线程唤醒 Schedule 设置器 ==========")
     logger.info(f"配置:")
     # 临时测试修改
-    # logger.info(f"  - 唤醒重试间隔: {mas_config.AWAKENING_RETRY_INTERVAL_DAYS} 天")
-    logger.info(f"  - 唤醒重试间隔: {mas_config.AWAKENING_RETRY_INTERVAL_DAYS} 小时")
+    # logger.info(f"  - 唤醒重试间隔: {mas_config.INACTIVE_INTERVAL_DAYS} 天")
+    logger.info(f"  - 唤醒重试间隔: {mas_config.INACTIVE_INTERVAL_DAYS} 小时")
     logger.info(f"  - 最大尝试次数: {mas_config.MAX_AWAKENING_ATTEMPTS}")
     logger.info(f"  - 批次大小: {mas_config.AWAKENING_BATCH_SIZE}")
     logger.info(f"  - 扫描间隔: {mas_config.AWAKENING_SCAN_INTERVAL_HOURS} 小时")

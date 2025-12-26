@@ -164,8 +164,8 @@ class ThreadRepository:
         """
         try:
             # 临时测试修改
-            # threshold = get_current_datetime() - timedelta(days=mas_config.AWAKENING_RETRY_INTERVAL_DAYS)
-            threshold = get_current_datetime() - timedelta(hours=mas_config.AWAKENING_RETRY_INTERVAL_DAYS)
+            # threshold = get_current_datetime() - timedelta(days=mas_config.INACTIVE_INTERVAL_DAYS)
+            threshold = get_current_datetime() - timedelta(hours=mas_config.INACTIVE_INTERVAL_DAYS)
 
             stmt = select(ThreadOrm).where(
                 and_(
@@ -175,11 +175,11 @@ class ThreadRepository:
                     ThreadOrm.awakening_attempt_count < mas_config.MAX_AWAKENING_ATTEMPTS,
                     # 满足不活跃条件：指定天数未活动或从未互动
                     or_(
-                        ThreadOrm.last_awakening_at.is_(None),  # 从未互动
-                        ThreadOrm.last_awakening_at < threshold  # 超过指定天数未互动
+                        ThreadOrm.last_interaction_at.is_(None),  # 从未互动
+                        ThreadOrm.last_interaction_at < threshold  # 超过指定天数未互动
                     )
                 )
-            ).order_by(ThreadOrm.last_awakening_at.asc()).limit(mas_config.AWAKENING_BATCH_SIZE)
+            ).order_by(ThreadOrm.last_interaction_at.asc()).limit(mas_config.AWAKENING_BATCH_SIZE)
 
             result = await session.execute(stmt)
             return result.scalars().all()
@@ -207,7 +207,7 @@ class ThreadRepository:
                 .where(ThreadOrm.thread_id == thread_id)
                 .values(
                     status=status,
-                    last_awakening_at=func.now(),
+                    last_interaction_at=func.now(),
                     updated_at=func.now()
                 )
             )
@@ -237,7 +237,7 @@ class ThreadRepository:
                 .where(ThreadOrm.thread_id == thread_id)
                 .values(
                     awakening_attempt_count=ThreadOrm.awakening_attempt_count + 1,
-                    last_awakening_at=func.now(),
+                    last_interaction_at=func.now(),
                     updated_at=func.now()
                 )
             )
