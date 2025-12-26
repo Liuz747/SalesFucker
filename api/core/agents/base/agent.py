@@ -105,6 +105,7 @@ class BaseAgent(ABC):
         # 迭代调用：LLM → 工具执行 → LLM → ...
         iteration = 0
         accumulated_tokens = TokenUsage(input_tokens=0, output_tokens=0)
+        first_content = None
 
         while iteration < max_iterations:
             iteration += 1
@@ -116,9 +117,19 @@ class BaseAgent(ABC):
             # 检查是否有工具调用
             if not response.tool_calls or response.finish_reason == "stop":
                 self.logger.info("LLM 未请求工具调用，返回最终响应")
+
+                # 如果当前响应没有content，但之前的迭代有content，则使用之前保存的content
+                if not response.content and first_content:
+                    self.logger.info("当前响应无内容，使用之前迭代中的content")
+                    response.content = first_content
+
                 return response
 
             self.logger.info(f"LLM 请求调用 {len(response.tool_calls)} 个工具")
+
+            # 保存第一次迭代的content
+            if iteration == 1 and response.content:
+                first_content = response.content
 
             accumulated_tokens.input_tokens += response.usage.input_tokens
             accumulated_tokens.output_tokens += response.usage.output_tokens
@@ -162,6 +173,12 @@ class BaseAgent(ABC):
                 request.messages.append(tool_message)
 
         self.logger.warning(f"达到最大工具调用迭代次数 {max_iterations}，返回最后响应")
+
+        # 如果最后的响应没有content，使用第一次迭代的content
+        if not response.content and first_content:
+            self.logger.info("达到最大迭代次数，使用第一次迭代的content")
+            response.content = first_content
+
         return response
 
     def _input_to_text(self, messages: MessageParams) -> str:
