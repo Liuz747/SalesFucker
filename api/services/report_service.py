@@ -201,7 +201,7 @@ class ReportService:
             request = CompletionsRequest(
                 id=str(uuid4()),
                 provider="openrouter",
-                model="qwen/qwen-plus-2025-07-28", # 或使用 gpt-4o 等
+                model="qwen/qwen-plus-2025-07-28",
                 messages=llm_messages,
                 thread_id=thread_id,
                 temperature=0.7
