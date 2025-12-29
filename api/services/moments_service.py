@@ -13,16 +13,15 @@ from uuid import uuid4
 from pydantic import BaseModel
 
 from config import mas_config
+from core.memory import StorageManager
 from infra.cache import get_redis_client
-from infra.runtimes import LLMClient, CompletionsRequest
-from infra.runtimes.entities.llm import LLMResponse
+from infra.runtimes import LLMClient, CompletionsRequest, LLMResponse
 from libs.types import MethodType, Message, InputContent, InputType, MemoryType
 from schemas.social_media_schema import (
     MomentsAnalysisRequest,
     MomentsAnalysisResponse,
     SocialMediaActionType,
 )
-from core.memory import StorageManager
 from utils import get_component_logger, load_yaml_file
 
 
@@ -305,4 +304,3 @@ class MomentsAnalysisService:
         except Exception as e:
             logger.error(f"存储朋友圈记忆失败: {e}", exc_info=True)
             # 不抛出异常，以免影响主流程
-

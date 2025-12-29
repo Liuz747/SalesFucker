@@ -15,7 +15,7 @@ from fastapi import APIRouter, HTTPException, Depends
 
 from models import TenantModel
 from schemas.conversation_schema import ThreadRunResponse
-from services.analysis_service import generate_analysis
+from services import generate_analysis
 from ..wraps import validate_and_get_tenant
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms
 

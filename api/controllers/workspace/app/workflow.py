@@ -18,8 +18,12 @@ from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
 from libs.types import ThreadStatus
 from models import WorkflowRun, TenantModel
 from schemas.conversation_schema import MessageCreateRequest, ThreadRunResponse
-from services import ThreadService, AudioService, WorkflowService
-from services.suggestion_service import SuggestionService
+from services import (
+    AudioService,
+    ThreadService,
+    WorkflowService,
+    generate_suggestions
+)
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms
 from ..wraps import (
     validate_and_get_tenant,
@@ -140,7 +144,7 @@ async def create_suggestion(
 
         # 生成建议
         start_time = get_current_datetime()
-        suggestions_list, input_tokens, output_tokens = await SuggestionService.generate_suggestions(
+        suggestions_list, input_tokens, output_tokens = await generate_suggestions(
             input_content=normalized_input,
             thread_id=thread_id,
             assistant_id=request.assistant_id,
