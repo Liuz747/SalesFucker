@@ -11,12 +11,11 @@
 - 租户规则管理
 """
 
-from typing import Dict, Any
+from typing import Any
 
-from ..base import BaseAgent
+from core.agents import BaseAgent
 from .rule_manager import ComplianceRuleManager
 from .checker import ComplianceChecker
-from utils import get_current_datetime
 
 
 class ComplianceAgent(BaseAgent):
@@ -52,7 +51,7 @@ class ComplianceAgent(BaseAgent):
         # LLM integration for enhanced analysis
         
         # 租户特定配置
-        self.tenant_rules: Dict[str, Any] = {}
+        self.tenant_rules: dict[str, Any] = {}
         
         self.logger.info(f"合规审查智能体初始化完成: {self.agent_id}")
     
@@ -69,8 +68,6 @@ class ComplianceAgent(BaseAgent):
         返回:
             ThreadState: 更新后的对话状态
         """
-        start_time = get_current_datetime()
-        
         try:
             customer_input = state.get("customer_input", "")
             
@@ -151,7 +148,7 @@ class ComplianceAgent(BaseAgent):
         
         return success
 
-    async def _enhanced_compliance_check(self, customer_input: str) -> Dict[str, Any]:
+    async def _enhanced_compliance_check(self, customer_input: str) -> dict[str, Any]:
         """
         执行增强的合规检查 (规则 + LLM分析)
         
@@ -161,7 +158,7 @@ class ComplianceAgent(BaseAgent):
             customer_input: 客户输入文本
             
         返回:
-            Dict[str, Any]: 综合合规检查结果
+            dict[str, Any]: 综合合规检查结果
         """
         try:
             # 1. 执行传统规则检查 (快速、确定性)
@@ -186,7 +183,7 @@ class ComplianceAgent(BaseAgent):
             fallback_result["llm_error"] = str(e)
             return fallback_result
     
-    async def _llm_compliance_analysis(self, customer_input: str) -> Dict[str, Any]:
+    async def _llm_compliance_analysis(self, customer_input: str) -> dict[str, Any]:
         """
         使用LLM进行合规分析
         
@@ -194,7 +191,7 @@ class ComplianceAgent(BaseAgent):
             customer_input: 客户输入文本
             
         返回:
-            Dict[str, Any]: LLM分析结果
+            dict[str, Any]: LLM分析结果
         """
         try:
             # 简化的合规分析提示词
@@ -237,7 +234,7 @@ class ComplianceAgent(BaseAgent):
                 "llm_fallback": True
             }
     
-    def _merge_compliance_results(self, rule_result: Dict[str, Any], llm_result: Dict[str, Any]) -> Dict[str, Any]:
+    def _merge_compliance_results(self, rule_result: dict[str, Any], llm_result: dict[str, Any]) -> dict[str, Any]:
         """
         合并规则检查和LLM分析结果
         
@@ -246,7 +243,7 @@ class ComplianceAgent(BaseAgent):
             llm_result: LLM分析结果
             
         返回:
-            Dict[str, Any]: 综合分析结果
+            dict[str, Any]: 综合分析结果
         """
         # 以更严格的状态为准
         rule_status = rule_result.get("status", "approved")

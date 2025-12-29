@@ -14,10 +14,10 @@ from langfuse import observe
 
 from typing import Optional
 
+from core.agents import BaseAgent
 from core.entities import WorkflowExecutionModel
 from core.memory import StorageManager
 from utils import get_current_datetime
-from ..base import BaseAgent
 from .intent_analyzer import AppointmentIntentAnalyzer
 from utils.appointment_time_parser import parse_appointment_time
 

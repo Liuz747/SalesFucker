@@ -11,16 +11,15 @@ Sales Agent
 - 自动管理助手回复的存储
 """
 
-from uuid import UUID, uuid4
+from uuid import UUID
 
+from core.agents import BaseAgent
 from core.entities import WorkflowExecutionModel
-from core.memory import StorageManager
 from core.prompts.get_role_prompt import get_combined_system_prompt
 from core.tools import get_tools_schema, long_term_memory_tool, store_episodic_memory_tool
 from infra.runtimes import CompletionsRequest
 from libs.types import Message
 from utils import get_current_datetime, get_chinese_time
-from ..base import BaseAgent
 
 
 class SalesAgent(BaseAgent):
@@ -127,7 +126,8 @@ class SalesAgent(BaseAgent):
                 short_term_messages,
                 long_term_memories,
                 state.tenant_id,
-                state.thread_id
+                state.thread_id,
+                state.workflow_id
             )
 
             # 存储助手回复到记忆
@@ -185,7 +185,8 @@ class SalesAgent(BaseAgent):
         short_term_messages: list,
         long_term_memories: list,
         tenant_id: str,
-        thread_id: UUID
+        thread_id: UUID,
+        run_id: UUID
     ) -> tuple[str, dict]:
         """
         基于匹配提示词、人设信息、记忆和时间生成回复（支持工具调用）
@@ -198,6 +199,7 @@ class SalesAgent(BaseAgent):
             long_term_memories: 长期记忆摘要列表
             tenant_id: 租户ID
             thread_id: 线程ID
+            run_id: 工作流执行ID
 
         Returns:
             tuple: (回复内容, token信息)
@@ -225,7 +227,7 @@ class SalesAgent(BaseAgent):
 
             # 4. 创建 LLM 请求
             request = CompletionsRequest(
-                id=uuid4(),
+                id=run_id,
                 provider="openrouter",
                 model="anthropic/claude-haiku-4.5",
                 temperature=0.6,

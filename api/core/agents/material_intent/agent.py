@@ -17,12 +17,12 @@ from typing import Any
 
 from langfuse import observe
 
+from core.agents import BaseAgent
 from core.entities import WorkflowExecutionModel
 from core.memory import StorageManager
 from infra.runtimes import CompletionsRequest, LLMResponse
 from libs.types import Message
 from utils import get_current_datetime, get_component_logger
-from ..base import BaseAgent
 
 logger = get_component_logger(__name__, "IntentAgent")
 

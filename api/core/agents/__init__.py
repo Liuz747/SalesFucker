@@ -7,7 +7,7 @@
 - 销售智能体 (Sales Agent)
 """
 
-from .base import BaseAgent, AgentMessage
+from .base.agent import BaseAgent
 from .chat.agent import ChatAgent
 from .compliance import ComplianceAgent, ComplianceRule, ComplianceRuleManager
 from .intent.agent import IntentAgent
@@ -18,7 +18,6 @@ from .sentiment.agent import SentimentAnalysisAgent
 
 __all__ = [
     "BaseAgent",
-    "AgentMessage",
     "ChatAgent",
     "ComplianceAgent",
     "ComplianceRule",

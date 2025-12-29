@@ -5,13 +5,13 @@ from uuid import UUID
 
 from langfuse import observe
 
+from core.agents import BaseAgent
 from core.entities import WorkflowExecutionModel
 from core.prompts.template_loader import get_prompt_template
 from infra.runtimes import CompletionsRequest, LLMResponse
 from libs.types import Message, MessageParams
 from utils import get_current_datetime, get_component_logger, get_processing_time
 from utils.appointment_time_parser import parse_appointment_time
-from ..base import BaseAgent
 
 logger = get_component_logger(__name__, "IntentAgent")
 

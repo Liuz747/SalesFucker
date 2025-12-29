@@ -7,12 +7,17 @@
 from collections.abc import Mapping
 from datetime import datetime
 import operator
-from typing import Annotated, Optional
+from typing import Annotated, Any, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from libs.types import MessageParams, OutputContentParams, OutputType
+from libs.types import (
+    MessageParams,
+    MessageType,
+    OutputContentParams,
+    OutputType
+)
 from utils import get_current_datetime
 
 
@@ -88,6 +93,37 @@ def merge_list(left: Optional[list], right: Optional[list]) -> Optional[list]:
     return left + right
 
 
+class AgentMessage(BaseModel):
+    """
+    智能体消息标准格式类
+    
+    定义智能体之间通信的标准消息格式，包含完整的上下文信息和元数据。
+    支持多种消息类型和优先级管理。
+    
+    属性:
+        sender: 发送方智能体ID
+        message_type: 消息类型(查询/响应/通知/触发/建议)
+        context: 消息上下文信息
+        payload: 消息特定数据载荷
+    """
+    
+    # 消息基本信息
+    sender: str = Field(description="发送方智能体的唯一标识符")
+    message_type: MessageType = Field(
+        description="消息类型：query=查询, response=响应, notification=通知, trigger=触发, suggestion=建议"
+    )
+    
+    # 上下文信息
+    context: dict[str, Any] = Field(
+        default_factory=dict, 
+        description="消息上下文信息，包含处理消息所需的环境数据"
+    )
+    # 消息内容
+    payload: dict[str, Any] = Field(
+        default_factory=dict, 
+        description="消息特定数据载荷，包含具体的处理数据"
+    )
+
 
 class WorkflowExecutionModel(BaseModel):
     """
@@ -101,7 +137,6 @@ class WorkflowExecutionModel(BaseModel):
     thread_id: UUID = Field(description="线程标识符")
     assistant_id: UUID = Field(description="助手标识符")
     tenant_id: str = Field(description="租户标识符")
-
     input: MessageParams | None = Field(description="输入消息列表")
     output: Optional[str] = Field(default=None, description="文本输出内容")
 
@@ -114,39 +149,29 @@ class WorkflowExecutionModel(BaseModel):
         default=None,
         description="输出类型列表，例如：['output_audio', 'output_image']"
     )
+    active_agents: Annotated[Optional[list], merge_list] = Field(default=None)
+    values: Annotated[Optional[dict], merge_agent_results] = Field(default=None, description="工作流节点交互的状态")
+    intent_analysis: Annotated[Optional[dict], safe_merge_dict] = Field(default=None)
+    sentiment_analysis: Annotated[Optional[dict], safe_merge_dict] = Field(default=None)
+    # 传递业务输出
+    business_outputs: Optional[dict] = Field(default=None, description="结构化业务输出")
+    journey_stage: Optional[str] = Field(default=None, description="客户旅程阶段")
+    matched_prompt: Optional[dict] = Field(default=None, description="匹配的提示词信息")
 
-    # Token 统计字段
     input_tokens: Annotated[int, operator.add] = Field(default=0, description="输入Token数")
     output_tokens: Annotated[int, operator.add] = Field(default=0, description="输出Token数")
     total_tokens: Optional[int] = Field(default=None, description="总Token数")
     error_message: Optional[str] = Field(default=None, description="错误信息")
     exception_count: int = Field(default=0, description="异常次数")
 
-    started_at: datetime = Field(default_factory=get_current_datetime, description="开始时间")
-    finished_at: Optional[datetime] = Field(default=None, description="结束时间")
-
-    sentiment_analysis: Annotated[Optional[dict], safe_merge_dict] = Field(default=None)
-
-    # 统一意向分析字段（新格式）
-    intent_analysis: Annotated[Optional[dict], safe_merge_dict] = Field(default=None)
-
     # 向后兼容的意向字段（将来废弃）
     appointment_intent: Annotated[Optional[dict], safe_merge_dict] = Field(default=None)
     material_intent: Annotated[Optional[dict], safe_merge_dict] = Field(default=None)
-
-    values: Annotated[Optional[dict], merge_agent_results] = Field(default=None, description="工作流节点交互的状态")
-    
-    # 传递业务输出
-    business_outputs: Optional[dict] = Field(default=None, description="结构化业务输出")
-
-    active_agents: Annotated[Optional[list], merge_list] = Field(default=None)
-
-    # 工作流状态字段
-    journey_stage: Optional[str] = Field(default=None, description="客户旅程阶段")
-    matched_prompt: Optional[dict] = Field(default=None, description="匹配的提示词信息")
-
     # 触发事件元数据
     trigger_metadata: Mapping | None = Field(default=None, description="触发事件元数据：event_type, services等")
+
+    started_at: datetime = Field(default_factory=get_current_datetime, description="开始时间")
+    finished_at: Optional[datetime] = Field(default=None, description="结束时间")
 
     model_config = {
         "arbitrary_types_allowed": True

@@ -13,10 +13,10 @@ Sentiment Analysis Agent
 
 from langfuse import observe
 
+from core.agents import BaseAgent
 from core.entities import WorkflowExecutionModel
 from libs.types import MessageParams, MemoryType
 from utils import get_current_datetime
-from ..base import BaseAgent
 from .multimodal_input_processor import MultimodalInputProcessor
 from .sentiment_analyzer import SentimentAnalyzer
 from .sales_prompt_generator import SalesPromptGenerator

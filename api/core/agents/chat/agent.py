@@ -1,10 +1,16 @@
 from langfuse import observe
 
+from core.agents import BaseAgent
 from core.entities import WorkflowExecutionModel
 from infra.runtimes import CompletionsRequest
-from libs.types import Message, MessageParams, InputContent, InputType, OutputType
+from libs.types import (
+    InputContent,
+    InputType,
+    Message,
+    MessageParams, 
+    OutputType
+)
 from utils import get_current_datetime, get_processing_time_ms
-from ..base import BaseAgent
 
 
 class ChatAgent(BaseAgent):

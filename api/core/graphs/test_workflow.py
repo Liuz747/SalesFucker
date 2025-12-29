@@ -6,10 +6,9 @@ from typing import Any
 
 from langgraph.graph import StateGraph
 
-from core.agents.base import BaseAgent
+from core.agents import BaseAgent
 from .base_workflow import BaseWorkflow
 
-from core.agents.base import BaseAgent
 
 class TestWorkflow(BaseWorkflow):
     """最小单节点测试工作流"""
