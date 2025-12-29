@@ -2,7 +2,7 @@ Test Suite Structure
 
 Standardized layout:
 
-- auth/: Authentication & authorization tests (e.g., JWKS verification)
+- auth/: Authentication & authorization tests
 - api/: FastAPI endpoint tests
 - agents/: Agent unit/integration tests
 - llm/: Multi-LLM providers, router, optimizer tests
