@@ -10,7 +10,7 @@ from core.memory import StorageManager
 from core.prompts.template_loader import get_prompt_template
 from infra.runtimes import CompletionsRequest, LLMResponse
 from libs.types import Message, MessageParams
-from utils import get_current_datetime, get_component_logger
+from utils import get_current_datetime, get_component_logger, get_processing_time
 from utils.appointment_time_parser import parse_appointment_time
 from ..base import BaseAgent
 
@@ -75,23 +75,21 @@ class IntentAgent(BaseAgent):
             )
 
             # 提取两种意向的结果
-            material_intent = intent_result.get("material_intent", {})
+            assets_intent = intent_result.get("assets_intent", {})
             appointment_intent = intent_result.get("appointment_intent", {})
 
             logger.info(
                 f"统一意向分析结果 - "
-                f"素材意向detected={material_intent.get('detected', False)}, "
-                f"urgency={material_intent.get('urgency_level', 'low')}, "
+                f"素材意向detected={assets_intent.get('detected', False)}, "
+                f"urgency={assets_intent.get('urgency_level', 'low')}, "
                 f"邀约意向detected={appointment_intent.get('detected', False)}, "
                 f"strength={appointment_intent.get('intent_strength', 0)}"
             )
 
             # 步骤3: 更新对话状态
-            updated_state = self._update_state_with_intent(
-                intent_result, recent_user_messages
-            )
+            updated_state = self._update_state_with_intent(intent_result, recent_user_messages)
 
-            processing_time = (get_current_datetime() - start_time).total_seconds()
+            processing_time = get_processing_time(start_time)
             logger.info(f"意向分析完成: 耗时{processing_time:.2f}s")
             logger.info("=== Intent Agent 处理完成 ===")
 
@@ -119,7 +117,7 @@ class IntentAgent(BaseAgent):
             run_id: 运行ID
 
         Returns:
-            dict: 统一意向分析结果，包含material_intent和appointment_intent
+            dict: 统一意向分析结果，包含assets_intent和appointment_intent
         """
         try:
             # 构建LLM请求
@@ -208,27 +206,27 @@ class IntentAgent(BaseAgent):
             dict: 验证后的结果
         """
         # 验证素材意向
-        material = result.get("material_intent", {})
+        asset = result.get("assets_intent", {})
 
         # 验证urgency_level
         valid_urgency = ["high", "medium", "low"]
-        if material.get("urgency_level") not in valid_urgency:
-            material["urgency_level"] = "medium"
+        if asset.get("urgency_level") not in valid_urgency:
+            asset["urgency_level"] = "medium"
 
         # 验证recommendation
         valid_recommendations = ["send_immediately", "send_soon", "wait_for_confirmation", "no_material"]
-        if material.get("recommendation") not in valid_recommendations:
-            material["recommendation"] = "wait_for_confirmation"
+        if asset.get("recommendation") not in valid_recommendations:
+            asset["recommendation"] = "wait_for_confirmation"
 
         # 验证数值范围
-        material["priority_score"] = max(0.0, min(1.0, material.get("priority_score", 0.5)))
-        material["confidence"] = max(0.0, min(1.0, material.get("confidence", 0.5)))
+        asset["priority_score"] = max(0.0, min(1.0, asset.get("priority_score", 0.5)))
+        asset["confidence"] = max(0.0, min(1.0, asset.get("confidence", 0.5)))
 
         # 确保必要字段存在
-        material.setdefault("detected", False)
-        material.setdefault("material_types", [])
-        material.setdefault("specific_requests", [])
-        material.setdefault("summary", "")
+        asset.setdefault("detected", False)
+        asset.setdefault("asset_types", [])
+        asset.setdefault("specific_requests", [])
+        asset.setdefault("summary", "")
 
         # 验证邀约意向
         appointment = result.get("appointment_intent", {})
@@ -267,25 +265,13 @@ class IntentAgent(BaseAgent):
             dict: 降级结果，包含两种意向的默认值
         """
         return {
-            "material_intent": {
+            "assets_intent": {
                 "detected": False,
-                "urgency_level": "medium",
-                "material_types": [],
-                "priority_score": 0.5,
-                "confidence": 0.0,
-                "specific_requests": [],
-                "recommendation": "wait_for_confirmation",
-                "summary": f"素材意向分析失败: {error}"
+                "recommendation": "wait_for_confirmation"
             },
             "appointment_intent": {
                 "detected": False,
-                "intent_strength": 0.0,
-                "time_window": "unknown",
-                "confidence": 0.0,
-                "signals": [],
-                "recommendation": "no_appointment",
-                "extracted_entities": {},
-                "summary": f"邀约意向分析失败: {error}"
+                "recommendation": "no_appointment"
             },
             "timestamp": get_current_datetime().isoformat(),
             "input_tokens": response.usage.input_tokens if response else 0,
@@ -408,7 +394,7 @@ class IntentAgent(BaseAgent):
     def _update_state_with_intent(
         self,
         intent_result: dict,
-        recent_messages: list[str]
+        recent_messages: list[Message]
     ) -> dict:
         """
         更新状态，添加统一意向信息
@@ -420,47 +406,29 @@ class IntentAgent(BaseAgent):
         Returns:
             dict: 更新后的状态，包含intent_analysis和向后兼容字段
         """
-        current_time = get_current_datetime()
-
-        # 提取分析元数据
-        material_intent_data = intent_result.get("material_intent", {})
-        appointment_intent_data = intent_result.get("appointment_intent", {})
-
         # 更新token信息
         input_tokens = intent_result.get("input_tokens")
         output_tokens = intent_result.get("output_tokens")
-
-        # 构建统一的 intent_analysis 字段（新格式）
-        intent_analysis = {
-            "material_intent": material_intent_data,
-            "appointment_intent": appointment_intent_data,
-            "timestamp": current_time.isoformat()
-        }
 
         # 生成业务输出
         business_outputs = self._generate_business_outputs(intent_result)
 
         # 构建 agent_data
         agent_data = {
-            "agent_type": "intent_analysis",
-            "intent_analysis": intent_analysis,
+            "agent_name": "intent_analysis",
+            "intent_analysis": intent_result,
             "business_outputs": business_outputs,
             "analyzed_messages": recent_messages,
-            "timestamp": current_time,
+            "timestamp": intent_result.get("timestamp"),
             "input_tokens": input_tokens,
             "output_tokens": output_tokens
         }
 
-        logger.info(
-            f"统一意向字段已添加: "
-            f"material_detected={material_intent_data.get('detected', False)}, "
-            f"appointment_detected={appointment_intent_data.get('detected', False)}, "
-            f"business_status={business_outputs.get('status', 0)}"
-        )
+        logger.info(f"意向字段已添加: business_status={business_outputs.get('status', 0)}")
 
         # 返回增量更新字典，让 LangGraph 的 Reducer 正确合并状态
         return {
-            "intent_analysis": intent_analysis,
+            "intent_analysis": intent_result,
             "business_outputs": business_outputs,
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,

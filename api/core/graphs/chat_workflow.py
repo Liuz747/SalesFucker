@@ -29,7 +29,7 @@ class ChatWorkflow(BaseWorkflow):
     实现具体的聊天对话流程，包括情感分析、邀约意向分析、素材意向分析和销售处理。
 
     并行架构特点：
-    - 真正并行执行：sentiment_analysis、appointment_intent_analysis、material_intent_analysis 同时运行
+    - 真正并行执行：sentiment_analysis、intent_analysis同时运行
     - 状态安全合并：使用LangGraph Reducer机制避免并发更新冲突
     - 智能状态管理：每个agent写入专用字段，通过Reducer合并最终状态
     - 错误隔离：单个并行节点失败不影响其他节点和整体流程
@@ -38,7 +38,7 @@ class ChatWorkflow(BaseWorkflow):
     START → parallel_coordinator → [并行节点组] → result_aggregator → sales_agent → END
 
     工作流程（顺序模式）：
-    START → sentiment_analysis → appointment_intent_analysis → material_intent_analysis → sales_agent → END
+    START → sentiment_analysis → intent_analysis → sales_agent → END
 
     记忆管理已下沉到各智能体内部，不再依赖工作流层级的统一处理。
 
@@ -248,8 +248,8 @@ class ChatWorkflow(BaseWorkflow):
                     update_dict["intent_analysis"] = result_state["intent_analysis"]
                     # 从intent_analysis中提取到独立字段（供其他agents使用）
                     intent_data = result_state["intent_analysis"]
-                    if "material_intent" in intent_data:
-                        update_dict["material_intent"] = intent_data["material_intent"]
+                    if "assets_intent" in intent_data:
+                        update_dict["material_intent"] = intent_data["assets_intent"]
                     if "appointment_intent" in intent_data:
                         update_dict["appointment_intent"] = intent_data["appointment_intent"]
                 if "business_outputs" in result_state:
@@ -395,7 +395,7 @@ class ChatWorkflow(BaseWorkflow):
                         if "intent_analysis" in state_dict and state_dict["intent_analysis"] is not None:
                             aggregated_results["intent_analysis"] = state_dict["intent_analysis"]
                         if "material_intent" in state_dict and state_dict["material_intent"] is not None:
-                            aggregated_results["material_intent"] = state_dict["material_intent"]
+                            aggregated_results["assets_intent"] = state_dict["material_intent"]
                         if "appointment_intent" in state_dict and state_dict["appointment_intent"] is not None:
                             aggregated_results["appointment_intent"] = state_dict["appointment_intent"]
                         if "business_outputs" in state_dict and state_dict["business_outputs"] is not None:

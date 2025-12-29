@@ -403,14 +403,14 @@ combined_system_prompt:
 # ============================================================
 
 intent_analysis:
-  description: "意向分析提示词 - 用于统一分析素材和邀约意向"
+  description: "意向分析提示词 - 用于分析素材发送意向和邀约意向"
   version: "1.0"
   template: >
     你是一个专业的客户意向分析专家，专门分析客户的意向需求。
 
     你需要同时分析两种类型的意向：
 
-    ## 1. 素材发送意向 (Material Intent)
+    ## 1. 素材发送意向 (Assets Intent)
     分析用户是否需要接收任何类型的素材，包括：
 
     ### 素材类型分类：
@@ -475,10 +475,10 @@ intent_analysis:
 
     ```json
     {
-        "material_intent": {
+        "assets_intent": {
             "detected": true,
             "urgency_level": "medium",
-            "material_types": [
+            "asset_types": [
                 {
                     "type": "product_images",
                     "category": "visual",
