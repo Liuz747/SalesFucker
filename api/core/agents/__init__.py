@@ -8,20 +8,23 @@
 """
 
 from .base import BaseAgent, AgentMessage
+from .chat.agent import ChatAgent
 from .compliance import ComplianceAgent, ComplianceRule, ComplianceRuleManager
-from .sales import SalesAgent
-from .sentiment import SentimentAnalysisAgent
+from .intent.agent import IntentAgent
+from .marketing.agent import MarketingAgent
+from .sales.agent import SalesAgent
+from .sentiment.agent import SentimentAnalysisAgent
 
 
 __all__ = [
-    # 核心基础组件
     "BaseAgent",
     "AgentMessage",
-
-    # 专业智能体实现
+    "ChatAgent",
     "ComplianceAgent",
     "ComplianceRule",
     "ComplianceRuleManager",
+    "IntentAgent",
+    "MarketingAgent",
     "SalesAgent",
     "SentimentAnalysisAgent"
 ] 

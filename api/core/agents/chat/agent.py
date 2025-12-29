@@ -6,6 +6,7 @@ from libs.types import Message, MessageParams, InputContent, InputType, OutputTy
 from utils import get_current_datetime, get_processing_time_ms
 from ..base import BaseAgent
 
+
 class ChatAgent(BaseAgent):
     """
     聊天机器人智能体

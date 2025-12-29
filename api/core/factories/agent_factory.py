@@ -10,13 +10,13 @@
 - 简化的智能体访问
 """
 
-from core.agents.base import BaseAgent
-from core.agents.sales import SalesAgent
-from core.agents.sentiment import SentimentAnalysisAgent
-from core.agents.chat.agent import ChatAgent
+from core.agents import BaseAgent
+from core.agents import ChatAgent
+from core.agents import IntentAgent
+from core.agents import SalesAgent
+from core.agents import SentimentAnalysisAgent
 from core.agents.appointment_intent import AppointmentIntentAgent
 from core.agents.material_intent import MaterialIntentAgent
-from core.agents.intent import IntentAgent
 # from core.agents.trigger_context import TriggerInactiveAgent, TriggerEngagementAgent
 from libs.constants import AgentNodes
 from utils import get_component_logger

@@ -11,8 +11,10 @@
 - 提供简洁的处理结果
 """
 
-from typing import Dict, Any, List, Tuple, Sequence
+from collections.abc import Sequence
+from typing import Any
 from uuid import uuid4
+
 from libs.types import InputContentParams, InputContent, InputType, Message, MessageParams
 from infra.runtimes import LLMClient, CompletionsRequest
 from utils import LoggerMixin
@@ -77,7 +79,7 @@ class MultimodalInputProcessor(LoggerMixin):
             "item_count": total_items
         }
 
-    async def _extract_text_from_multimodal(self, input_sequence: Sequence[InputContent]) -> Tuple[str, Dict[str, Any]]:
+    async def _extract_text_from_multimodal(self, input_sequence: Sequence[InputContent]) -> tuple[str, dict[str, Any]]:
         """
         从多模态输入序列中提取文字
 
@@ -149,7 +151,7 @@ class MultimodalInputProcessor(LoggerMixin):
                 "error": str(e)
             }
 
-    async def _llm_extract_text(self, messages: List[Dict[str, Any]]) -> str:
+    async def _llm_extract_text(self, messages: list[dict[str, Any]]) -> str:
         """
         使用LLM提取多模态内容的文字描述
 

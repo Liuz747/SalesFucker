@@ -1,5 +1,6 @@
+from collections.abc import Sequence
 from enum import StrEnum
-from typing import Any, Optional, Sequence, TypeAlias
+from typing import Any, Optional, TypeAlias
 
 from pydantic import BaseModel, Field, field_validator
 

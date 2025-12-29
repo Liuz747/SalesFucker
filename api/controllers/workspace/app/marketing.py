@@ -9,7 +9,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Depends
 
-from core.agents.marketing import MarketingAgent
+from core.agents import MarketingAgent
 from models import TenantModel
 from schemas.marketing_schema import MarketingPlanRequest, MarketingPlanResponse
 from utils import get_component_logger, get_current_datetime, get_processing_time

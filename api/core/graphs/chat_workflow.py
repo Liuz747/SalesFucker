@@ -11,7 +11,7 @@ from uuid import uuid4
 from langgraph.graph import StateGraph, START, END
 
 from config import mas_config
-from core.agents.base import BaseAgent
+from core.agents import BaseAgent
 from libs.constants import AgentNodes
 from utils import get_component_logger
 from utils.llm_debug_wrapper import LLMDebugWrapper
@@ -21,6 +21,7 @@ logger = get_component_logger(__name__)
 
 # 并行执行配置开关
 ENABLE_PARALLEL_EXECUTION = os.getenv("ENABLE_PARALLEL_EXECUTION", "true").lower() == "true"
+
 
 class ChatWorkflow(BaseWorkflow):
     """
