@@ -23,8 +23,8 @@ class IntentAgent(BaseAgent):
     通过单次LLM调用同时分析素材发送意向和邀约到店意向。
 
     设计特点：
-    - 上下文共享：5轮对话历史为两种意向提供充分上下文
-    - 结构化输出：清晰的JSON格式，包含两种意向的完整分析
+    - 上下文共享：短期对话历史为意向分析提供充分上下文
+    - 结构化输出：清晰的JSON格式，包含意向的完整分析
     - 实体提取：自动提取邀约相关的实体信息
     - 业务集成：生成CRM集成所需的business_outputs
     """
@@ -55,7 +55,6 @@ class IntentAgent(BaseAgent):
 
         try:
             logger.info("=== Intent Analysis Agent ===")
-            logger.debug(f"分析意向 - 输入: {str(state.input)[:100]}...")
 
             # 步骤1: 检索记忆上下文
             short_term_messages, _ = await self.memory_manager.retrieve_context(
@@ -97,7 +96,6 @@ class IntentAgent(BaseAgent):
 
         except Exception as e:
             logger.error(f"意向分析失败: {e}", exc_info=True)
-            logger.error(f"失败时的输入: {state.input}")
             raise
 
     async def _analyze_intent(
@@ -345,11 +343,11 @@ class IntentAgent(BaseAgent):
                 "phone": self._parse_phone_number(extracted_entities.get("phone")) if extracted_entities.get("phone") else None
             }
 
-            logger.info(f"生成邀约信息: status={invitation_data['status']}, "
-                       f"time={invitation_data['time']}, "
-                       f"service={invitation_data['service']}, "
-                       f"name={invitation_data['name']}, "
-                       f"phone={invitation_data['phone']}")
+            logger.info(f"生成邀约信息: \nstatus={invitation_data['status']}, ")
+            logger.info(f"time={invitation_data['time']}, ")
+            logger.info(f"service={invitation_data['service']}, ")
+            logger.info(f"name={invitation_data['name']}, ")
+            logger.info(f"phone={invitation_data['phone']}")
 
             return invitation_data
 
