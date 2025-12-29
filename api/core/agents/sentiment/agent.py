@@ -14,7 +14,6 @@ Sentiment Analysis Agent
 from langfuse import observe
 
 from core.entities import WorkflowExecutionModel
-from core.memory import StorageManager
 from libs.types import MessageParams, MemoryType
 from utils import get_current_datetime
 from ..base import BaseAgent
@@ -39,7 +38,7 @@ class SentimentAnalysisAgent(BaseAgent):
     def __init__(self):
         super().__init__()
 
-        self.memory_manager = StorageManager()
+        self.agent_name = "sentiment_analysis"
         self.prompt_matcher = PromptMatcher()
 
         # 初始化核心组件
@@ -191,7 +190,7 @@ class SentimentAnalysisAgent(BaseAgent):
                 "journey_stage": journey_stage,        #  添加旅程信息
                 "processed_input": processed_text,
                 "multimodal_context": multimodal_context,
-                "agent_id": self.agent_id,
+                "agent_name": self.agent_name,
                 "token_usage": token_info,             # 标准化的token信息
                 "tokens_used": token_info["total_tokens"]  # 向后兼容
             }
@@ -203,8 +202,8 @@ class SentimentAnalysisAgent(BaseAgent):
                 "journey_stage": journey_stage,
                 "input_tokens": token_info["input_tokens"],
                 "output_tokens": token_info["output_tokens"],
-                "values": {"agent_responses": {self.agent_id: agent_data}},
-                "active_agents": [self.agent_id]
+                "values": {"agent_responses": {self.agent_name: agent_data}},
+                "active_agents": [self.agent_name]
             }
 
             # self.logger.info(f"情感分析完成: 耗时{processing_time:.2f}s, 情感={sentiment_result.get('sentiment')}, 旅程={journey_stage}")

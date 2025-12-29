@@ -6,7 +6,6 @@ from uuid import UUID
 from langfuse import observe
 
 from core.entities import WorkflowExecutionModel
-from core.memory import StorageManager
 from core.prompts.template_loader import get_prompt_template
 from infra.runtimes import CompletionsRequest, LLMResponse
 from libs.types import Message, MessageParams
@@ -32,7 +31,8 @@ class IntentAgent(BaseAgent):
 
     def __init__(self):
         super().__init__()
-        self.memory_manager = StorageManager()
+
+        self.agent_name = "intent_analysis"
 
     @observe(name="intent-analysis", as_type="generation")
     async def process_conversation(self, state: WorkflowExecutionModel) -> dict:
@@ -415,7 +415,7 @@ class IntentAgent(BaseAgent):
 
         # 构建 agent_data
         agent_data = {
-            "agent_name": "intent_analysis",
+            "agent_name": self.agent_name,
             "intent_analysis": intent_result,
             "business_outputs": business_outputs,
             "analyzed_messages": recent_messages,
@@ -432,6 +432,6 @@ class IntentAgent(BaseAgent):
             "business_outputs": business_outputs,
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
-            "values": {"agent_responses": {self.agent_id: agent_data}},
-            "active_agents": [self.agent_id]
+            "values": {"agent_responses": {self.agent_name: agent_data}},
+            "active_agents": [self.agent_name]
         }

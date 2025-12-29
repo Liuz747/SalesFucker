@@ -13,7 +13,7 @@
 
 from typing import Dict, Any
 
-from ..base import BaseAgent, parse_json_response
+from ..base import BaseAgent
 from .rule_manager import ComplianceRuleManager
 from .checker import ComplianceChecker
 from utils import get_current_datetime
@@ -215,15 +215,15 @@ class ComplianceAgent(BaseAgent):
             messages = [{"role": "user", "content": prompt}]
             response = await self.llm_call(messages, temperature=0.3)
 
-            # 解析结构化响应
-            default_result = {
-                "status": "approved",
-                "violations": [],
-                "severity": "low",
-                "user_message": "",
-                "recommended_action": "proceed"
-            }
-            return parse_json_response(response, default_result=default_result)
+            # # 解析结构化响应
+            # default_result = {
+            #     "status": "approved",
+            #     "violations": [],
+            #     "severity": "low",
+            #     "user_message": "",
+            #     "recommended_action": "proceed"
+            # }
+            return response
 
         except Exception as e:
             self.logger.warning(f"LLM合规分析失败: {e}")

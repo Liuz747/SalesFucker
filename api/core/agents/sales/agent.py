@@ -34,8 +34,7 @@ class SalesAgent(BaseAgent):
     def __init__(self):
         super().__init__()
 
-        # 记忆管理
-        self.memory_manager = StorageManager()
+        self.agent_name = "sales_agent"
 
     def _format_user_context(self, context_list: list[dict]) -> str:
         """格式化用户上下文"""
@@ -169,8 +168,8 @@ class SalesAgent(BaseAgent):
                 "input_tokens": token_usage["input_tokens"],
                 "output_tokens": token_usage["output_tokens"],
                 "total_tokens": current_total_tokens + token_usage["total_tokens"],
-                "values": {"agent_responses": {self.agent_id: agent_data}},
-                "active_agents": [self.agent_id]
+                "values": {"agent_responses": {self.agent_name: agent_data}},
+                "active_agents": [self.agent_name]
             }
 
         except Exception as e:

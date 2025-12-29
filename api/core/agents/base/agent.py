@@ -17,6 +17,7 @@ import json
 from uuid import UUID
 
 from core.entities import WorkflowExecutionModel
+from core.memory import StorageManager
 from core.tools import get_handler
 from infra.runtimes import LLMClient, CompletionsRequest, LLMResponse, TokenUsage
 from libs.types import MessageParams, InputContent, AssistantMessage, ToolMessage
@@ -42,17 +43,9 @@ class BaseAgent(ABC):
     """
     
     def __init__(self):
-        # Auto-derive agent_id from class name
-        class_name = self.__class__.__name__
-        if class_name.endswith('Agent'):
-            self.agent_id = class_name[:-5].lower()  # ComplianceAgent -> compliance
-        else:
-            self.agent_id = class_name.lower()
-
-        # 初始化LLM客户端
+        # 初始化组件
         self.llm_client = LLMClient()
-
-        # 初始化其他组件
+        self.memory_manager = StorageManager()
         self.logger = get_component_logger(__name__)
     
     
@@ -183,10 +176,10 @@ class BaseAgent(ABC):
 
     def _input_to_text(self, messages: MessageParams) -> str:
         """
-        将输入转换为文本（仅提取用户消息）
+        将输入转换为文本
 
         该方法处理多种输入格式，统一转换为纯文本字符串。
-        只提取role为"user"的消息内容，过滤掉assistant消息。
+        仅提取用户的消息内容，用于长期记忆的检索。
 
         参数:
             messages: 输入内容
