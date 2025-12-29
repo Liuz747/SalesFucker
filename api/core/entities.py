@@ -126,6 +126,11 @@ class WorkflowExecutionModel(BaseModel):
     finished_at: Optional[datetime] = Field(default=None, description="结束时间")
 
     sentiment_analysis: Annotated[Optional[dict], safe_merge_dict] = Field(default=None)
+
+    # 统一意向分析字段（新格式）
+    intent_analysis: Annotated[Optional[dict], safe_merge_dict] = Field(default=None)
+
+    # 向后兼容的意向字段（将来废弃）
     appointment_intent: Annotated[Optional[dict], safe_merge_dict] = Field(default=None)
     material_intent: Annotated[Optional[dict], safe_merge_dict] = Field(default=None)
 

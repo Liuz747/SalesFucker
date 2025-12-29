@@ -71,17 +71,17 @@ class SalesAgent(BaseAgent):
     async def process_conversation(self, state: WorkflowExecutionModel) -> dict:
         """
         处理对话状态，生成销售回复
-        
+
         工作流程：
         1. 获取 SentimentAgent 确定的策略提示词
         2. 检索记忆上下文（长期+短期）
         3. 构建包含上下文的 LLM 提示词
         4. 生成回复
         5. 存储回复并更新状态
-        
+
         Args:
             state: 当前工作流执行状态
-            
+
         Returns:
             dict: 状态更新增量，包含 sales_response
         """
@@ -93,7 +93,7 @@ class SalesAgent(BaseAgent):
             customer_input = state.input
             tenant_id = state.tenant_id
             thread_id = str(state.thread_id)
-    
+
             matched_prompt = state.matched_prompt
             current_total_tokens = state.total_tokens
 
