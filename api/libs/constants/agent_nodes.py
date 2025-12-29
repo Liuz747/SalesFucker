@@ -12,10 +12,6 @@ class AgentNodes:
     INTENT_NODE = "intent_analysis"
     SALES_NODE = "sales_agent"
 
-    # 新增并行节点
-    APPOINTMENT_INTENT_NODE = "appointment_intent_analysis"
-    MATERIAL_INTENT_NODE = "material_intent_analysis"
-
     # 触发事件节点
     TRIGGER_INACTIVE = "trigger_inactive"
     TRIGGER_ENGAGEMENT = "trigger_engagement"

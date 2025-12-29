@@ -143,9 +143,7 @@ class ChatWorkflow(BaseWorkflow):
             # 并行执行模式
             parallel_nodes = [
                 AgentNodes.SENTIMENT_NODE,
-                AgentNodes.INTENT_NODE,
-                # AgentNodes.APPOINTMENT_INTENT_NODE,
-                # AgentNodes.MATERIAL_INTENT_NODE
+                AgentNodes.INTENT_NODE
             ]
 
             # START → 并行协调节点
@@ -172,10 +170,6 @@ class ChatWorkflow(BaseWorkflow):
             graph.add_edge(AgentNodes.INTENT_NODE, AgentNodes.SALES_NODE)
             logger.debug("顺序执行架构边定义完成 - sentiment → intent_analysis → sales")
 
-            # graph.add_edge(AgentNodes.SENTIMENT_NODE, AgentNodes.APPOINTMENT_INTENT_NODE)
-            # graph.add_edge(AgentNodes.APPOINTMENT_INTENT_NODE, AgentNodes.MATERIAL_INTENT_NODE)
-            # graph.add_edge(AgentNodes.MATERIAL_INTENT_NODE, AgentNodes.SALES_NODE)
-    
     def _set_entry_exit_points(self, graph: StateGraph):
         """
         设置工作流入口和出口点 - 支持两种执行模式
@@ -232,16 +226,6 @@ class ChatWorkflow(BaseWorkflow):
                     update_dict["journey_stage"] = result_state["journey_stage"]
                 if "matched_prompt" in result_state:
                     update_dict["matched_prompt"] = result_state["matched_prompt"]
-
-            elif node_name == AgentNodes.APPOINTMENT_INTENT_NODE:
-                if "appointment_intent" in result_state:
-                    update_dict["appointment_intent"] = result_state["appointment_intent"]
-                if "business_outputs" in result_state:
-                    update_dict["business_outputs"] = result_state["business_outputs"]
-
-            elif node_name == AgentNodes.MATERIAL_INTENT_NODE:
-                if "material_intent" in result_state:
-                    update_dict["material_intent"] = result_state["material_intent"]
 
             elif node_name == AgentNodes.INTENT_NODE:
                 # 统一意向分析节点 - 处理新的intent_analysis字段
@@ -329,9 +313,7 @@ class ChatWorkflow(BaseWorkflow):
                 # 初始化并行执行上下文
                 parallel_nodes_list = [
                     AgentNodes.SENTIMENT_NODE,
-                    AgentNodes.INTENT_NODE,
-                    # AgentNodes.APPOINTMENT_INTENT_NODE,
-                    # AgentNodes.MATERIAL_INTENT_NODE
+                    AgentNodes.INTENT_NODE
                 ]
 
                 parallel_context = {
@@ -382,35 +364,12 @@ class ChatWorkflow(BaseWorkflow):
 
                 # 收集所有并行节点的结果
                 aggregated_results = {}
-                parallel_nodes = [
-                    AgentNodes.SENTIMENT_NODE,
-                    AgentNodes.INTENT_NODE,
-                    # AgentNodes.APPOINTMENT_INTENT_NODE,
-                    # AgentNodes.MATERIAL_INTENT_NODE
-                ]
 
-                # 从状态中提取各节点的结果
-                for node_name in parallel_nodes:
-                    if node_name == AgentNodes.INTENT_NODE:
-                        # 统一意向节点 - 提取intent_analysis, material_intent, appointment_intent
-                        if "intent_analysis" in state_dict and state_dict["intent_analysis"] is not None:
-                            aggregated_results["intent_analysis"] = state_dict["intent_analysis"]
-                        if "material_intent" in state_dict and state_dict["material_intent"] is not None:
-                            aggregated_results["assets_intent"] = state_dict["material_intent"]
-                        if "appointment_intent" in state_dict and state_dict["appointment_intent"] is not None:
-                            aggregated_results["appointment_intent"] = state_dict["appointment_intent"]
-                        if "business_outputs" in state_dict and state_dict["business_outputs"] is not None:
-                            aggregated_results["business_outputs"] = state_dict["business_outputs"]
-                    # field_name = node_name.replace("_analysis", "") if "analysis" in node_name else node_name
-                    # if field_name == "sentiment":
-                    #     field_name = "sentiment_analysis"
-                    # elif field_name == "appointment":
-                    #     field_name = "appointment_intent"
-                    # elif field_name == "material":
-                    #     field_name = "material_intent"
-
-                    # if field_name in state_dict and state_dict[field_name] is not None:
-                    #     aggregated_results[field_name] = state_dict[field_name]
+                # 统一意向节点 - 提取intent_analysis
+                if "intent_analysis" in state_dict and state_dict["intent_analysis"] is not None:
+                    aggregated_results["intent_analysis"] = state_dict["intent_analysis"]
+                if "business_outputs" in state_dict and state_dict["business_outputs"] is not None:
+                    aggregated_results["business_outputs"] = state_dict["business_outputs"]
 
                 # 更新聚合状态
                 values_update = state_dict.get("values", {})

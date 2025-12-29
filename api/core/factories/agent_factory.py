@@ -15,8 +15,6 @@ from core.agents import ChatAgent
 from core.agents import IntentAgent
 from core.agents import SalesAgent
 from core.agents import SentimentAnalysisAgent
-from core.agents.appointment_intent import AppointmentIntentAgent
-from core.agents.material_intent import MaterialIntentAgent
 # from core.agents.trigger_context import TriggerInactiveAgent, TriggerEngagementAgent
 from libs.constants import AgentNodes
 from utils import get_component_logger
@@ -28,8 +26,6 @@ logger = get_component_logger(__name__)
 AGENT_NODE_MAPPING = {
     AgentNodes.SENTIMENT_NODE: SentimentAnalysisAgent,
     AgentNodes.SALES_NODE: SalesAgent,
-    AgentNodes.APPOINTMENT_INTENT_NODE: AppointmentIntentAgent,
-    AgentNodes.MATERIAL_INTENT_NODE: MaterialIntentAgent,
     AgentNodes.INTENT_NODE: IntentAgent,
     # AgentNodes.TRIGGER_INACTIVE: TriggerInactiveAgent,
     # AgentNodes.TRIGGER_ENGAGEMENT: TriggerEngagementAgent,
