@@ -35,37 +35,6 @@ class SalesAgent(BaseAgent):
 
         self.agent_name = "sales_agent"
 
-    def _format_user_context(self, context_list: list[dict]) -> str:
-        """格式化用户上下文"""
-        if not context_list:
-            return ""
-            
-        # 映射字典
-        type_map = {
-            "area": "所在地区",
-            "job": "职业",
-            "wx_nickname": "微信昵称",
-            "signature": "个性签名",
-            "headImg": "头像URL"
-        }
-        
-        lines = []
-        for item in context_list:
-            type_val = item.get("type")
-            content = item.get("content")
-            
-            # 跳过空内容
-            if not content:
-                continue
-                
-            label = type_map.get(type_val, type_val) # 如果不在映射中，使用原始type
-            lines.append(f"- {label}: {content}")
-            
-        if not lines:
-            return ""
-            
-        return "【客户档案资料】\n" + "\n".join(lines)
-
     async def process_conversation(self, state: WorkflowExecutionModel) -> dict:
         """
         处理对话状态，生成销售回复
@@ -173,7 +142,7 @@ class SalesAgent(BaseAgent):
             }
 
         except Exception as e:
-            self.logger.error(f"销售代理处理失败: {e}", exc_info=True)
+            self.logger.error(f"Sales Agent处理失败: {e}", exc_info=True)
             raise e
 
 
@@ -247,7 +216,7 @@ class SalesAgent(BaseAgent):
             token_info = self._extract_token_info(llm_response)
 
             # 7. 返回响应
-            if llm_response and llm_response.content:
+            if llm_response.content:
                 response_content = str(llm_response.content).strip()
                 self.logger.debug(f"LLM 回复预览: {response_content[:100]}...")
                 return response_content, token_info

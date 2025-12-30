@@ -157,19 +157,13 @@ class WorkflowExecutionModel(BaseModel):
     business_outputs: Optional[dict] = Field(default=None, description="结构化业务输出")
     journey_stage: Optional[str] = Field(default=None, description="客户旅程阶段")
     matched_prompt: Optional[dict] = Field(default=None, description="匹配的提示词信息")
-
     input_tokens: Annotated[int, operator.add] = Field(default=0, description="输入Token数")
     output_tokens: Annotated[int, operator.add] = Field(default=0, description="输出Token数")
-    total_tokens: Optional[int] = Field(default=None, description="总Token数")
+    total_tokens: Optional[int] = Field(default=0, description="总Token数")
     error_message: Optional[str] = Field(default=None, description="错误信息")
     exception_count: int = Field(default=0, description="异常次数")
-
-    # 向后兼容的意向字段（将来废弃）
-    appointment_intent: Annotated[Optional[dict], safe_merge_dict] = Field(default=None)
-    material_intent: Annotated[Optional[dict], safe_merge_dict] = Field(default=None)
     # 触发事件元数据
     trigger_metadata: Mapping | None = Field(default=None, description="触发事件元数据：event_type, services等")
-
     started_at: datetime = Field(default_factory=get_current_datetime, description="开始时间")
     finished_at: Optional[datetime] = Field(default=None, description="结束时间")
 
