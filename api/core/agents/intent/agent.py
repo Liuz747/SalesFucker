@@ -74,15 +74,18 @@ class IntentAgent(BaseAgent):
             )
 
             # 提取两种意向的结果
-            assets_intent = intent_result.get("assets_intent", {})
-            appointment_intent = intent_result.get("appointment_intent", {})
+            assets_intent = intent_result.get("assets_intent")
+            appointment_intent = intent_result.get("appointment_intent")
+            audio_output_intent = intent_result.get("audio_output_intent")
 
             logger.info(
                 f"统一意向分析结果 - "
                 f"素材意向detected={assets_intent.get('detected', False)}, "
                 f"urgency={assets_intent.get('urgency_level', 'low')}, "
                 f"邀约意向detected={appointment_intent.get('detected', False)}, "
-                f"strength={appointment_intent.get('intent_strength', 0)}"
+                f"strength={appointment_intent.get('intent_strength', 0)}, "
+                f"音频输出detected={audio_output_intent.get('detected', False)}, "
+                f"trigger={audio_output_intent.get('trigger_reason', 'none')}"
             )
 
             # 步骤3: 更新对话状态
@@ -249,6 +252,21 @@ class IntentAgent(BaseAgent):
         appointment.setdefault("extracted_entities", {})
         appointment.setdefault("summary", "")
 
+        # 验证音频输出意向
+        audio_output = result.get("audio_output_intent", {})
+
+        # 验证trigger_reason
+        valid_triggers = ["user_sent_audio", "explicit_request", "context_preference", "none"]
+        if audio_output.get("trigger_reason") not in valid_triggers:
+            audio_output["trigger_reason"] = "none"
+
+        # 验证数值范围
+        audio_output["confidence"] = max(0.0, min(1.0, audio_output.get("confidence", 0.5)))
+
+        # 确保必要字段存在
+        audio_output.setdefault("detected", False)
+        audio_output.setdefault("summary", "")
+
         return result
 
     def _get_fallback_result(self, response: LLMResponse = None, error: str = "") -> dict:
@@ -260,7 +278,7 @@ class IntentAgent(BaseAgent):
             error: 错误信息
 
         Returns:
-            dict: 降级结果，包含两种意向的默认值
+            dict: 降级结果，包含三种意向的默认值
         """
         return {
             "assets_intent": {
@@ -270,6 +288,10 @@ class IntentAgent(BaseAgent):
             "appointment_intent": {
                 "detected": False,
                 "recommendation": "no_appointment"
+            },
+            "audio_output_intent": {
+                "detected": False,
+                "trigger_reason": "none"
             },
             "timestamp": get_current_datetime().isoformat(),
             "input_tokens": response.usage.input_tokens if response else 0,
@@ -402,7 +424,7 @@ class IntentAgent(BaseAgent):
             recent_messages: 分析用的消息列表
 
         Returns:
-            dict: 更新后的状态，包含intent_analysis和向后兼容字段
+            dict: 更新后的状态，包含intent_analysis、actions
         """
         # 更新token信息
         input_tokens = intent_result.get("input_tokens")
@@ -410,6 +432,13 @@ class IntentAgent(BaseAgent):
 
         # 生成业务输出
         business_outputs = self._generate_business_outputs(intent_result)
+
+        # 根据音频输出意向更新actions字段
+        actions = []
+        audio_output_intent = intent_result.get("audio_output_intent", {})
+        if audio_output_intent.get("detected", False):
+            actions.append("output_audio")
+            logger.info(f"检测到音频输出意向，添加output_audio到actions: trigger={audio_output_intent.get('trigger_reason')}")
 
         # 构建 agent_data
         agent_data = {
@@ -426,6 +455,7 @@ class IntentAgent(BaseAgent):
 
         # 返回增量更新字典，让 LangGraph 的 Reducer 正确合并状态
         return {
+            "actions": actions,
             "intent_analysis": intent_result,
             "business_outputs": business_outputs,
             "input_tokens": input_tokens,

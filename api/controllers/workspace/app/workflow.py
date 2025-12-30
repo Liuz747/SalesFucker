@@ -82,7 +82,7 @@ async def create_run(
         )
 
         # 使用编排器处理消息
-        result = await orchestrator.process_conversation(workflow)
+        result = await orchestrator.dispatch(workflow)
 
         processing_time = get_processing_time_ms(start_time)
 

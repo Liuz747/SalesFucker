@@ -63,7 +63,7 @@ class Orchestrator:
         self.graph = self.workflow_builder.build_graph()
 
     @observe(name="multi-agent-conversation", as_type="span")
-    async def process_conversation(self, workflow: WorkflowRun) -> WorkflowExecutionModel:
+    async def dispatch(self, workflow: WorkflowRun) -> WorkflowExecutionModel:
         """
         处理客户对话的主入口函数
 

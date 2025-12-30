@@ -96,7 +96,7 @@ class BackgroundWorkflowProcessor:
             )
 
             # 使用编排器处理消息 - 核心工作流调用
-            result = await orchestrator.process_conversation(workflow)
+            result = await orchestrator.dispatch(workflow)
 
             # 构建工作流数据
             workflow_data = WorkflowData(

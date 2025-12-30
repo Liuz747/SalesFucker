@@ -122,7 +122,18 @@ class BaseAgent(ABC):
 
             # 保存第一次迭代的content
             if iteration == 1 and response.content:
-                first_content = response.content
+                tmp_content = response.content
+
+                markers = ['\nantml:', '\nHuman:']
+
+                positions = [pos for marker in markers if (pos := tmp_content.find(marker)) != -1]
+
+                if positions:
+                    cut_pos = min(positions)
+                    tmp_content = tmp_content[:cut_pos]
+                    self.logger.info("检测到回复被XML污染，已清理。")
+
+                first_content = tmp_content.rstrip()
 
             accumulated_tokens.input_tokens += response.usage.input_tokens
             accumulated_tokens.output_tokens += response.usage.output_tokens
