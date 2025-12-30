@@ -72,13 +72,13 @@ mas-v0.2/
 │   ├── models/               # 数据模型
 │   ├── schemas/              # API 请求/响应模型
 │   ├── scripts/              # 工具脚本（数据库迁移、初始化等）
-│   └── test/                 # 测试套件（Pytest）
+│   └── tests/                 # 测试套件（Pytest）
 ├── docker/                         # Docker 编排配置
 │   ├── docker-compose.dev.yml      # 开发环境配置
 │   └── docker-compose.yml          # 生产环境配置
 ├── docs/                           # 项目文档
-│   ├── DEPLOYMENT.md               # 部署指南
-│   ├── MULTI_LLM_USAGE.md          # 多 LLM 配置说明
+│   ├── deployment.md               # 部署指南
+│   ├── LLM_usage.md          # 多 LLM 配置说明
 │   └── database_migrations.md      # 数据库迁移指南
 ├── web/                  # Next.js 前端应用
 └── README.md             # 当前文件
@@ -154,7 +154,7 @@ cd api
 uv run pytest
 
 # 运行特定测试文件
-uv run pytest test/agents/test_agents.py
+uv run pytest tests/agents/test_agents.py
 
 # 生成覆盖率报告
 uv run pytest --cov=. --cov-report=term-missing
@@ -228,7 +228,7 @@ uv run scripts/database.py downgrade <revision_id>
 |------|------|------|
 | `/v1/assistants` | POST | 创建智能助理 |
 | `/v1/assistants/{assistant_id}` | GET | 查看助理详情 |
-| `/v1/assistants/{assistant_id}` | POST | 更新助理配置 |
+| `/v1/assistants/{assistant_id}/info` | POST | 更新助理配置 |
 | `/v1/assistants/{assistant_id}` | DELETE | 删除助理 |
 
 ### 营销专员 (`/v1/marketing`)
@@ -264,9 +264,9 @@ uv run scripts/database.py downgrade <revision_id>
 | 文档 | 描述 |
 |------|------|
 | [`docs/README.md`](docs/README.md) | 英文版项目概览 |
-| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | 部署指南（开发/生产环境） |
+| [`docs/deployment.md`](docs/deployment.md) | 部署指南（开发/生产环境） |
 | [`docs/database_migrations.md`](docs/database_migrations.md) | 数据库迁移最佳实践 |
-| [`docs/MULTI_LLM_USAGE.md`](docs/MULTI_LLM_USAGE.md) | 多 LLM 运行时配置指南 |
+| [`docs/LLM_usage.md`](docs/LLM_usage.md) | 多 LLM 运行时配置指南 |
 | [`docs/message-storage-strategy.md`](docs/message-storage-strategy.md) | 会话存储策略说明 |
 
 

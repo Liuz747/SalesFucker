@@ -72,13 +72,13 @@ mas-v0.2/
 │   ├── models/               # Data models
 │   ├── schemas/              # API request/response models
 │   ├── scripts/              # Utility scripts (database migrations, initialization, etc.)
-│   └── test/                 # Test suite (Pytest)
+│   └── tests/                 # Test suite (Pytest)
 ├── docker/                   # Docker orchestration configuration
 │   ├── docker-compose.dev.yml    # Development environment config
 │   └── docker-compose.yml        # Production environment config
 ├── docs/                     # Project documentation
-│   ├── DEPLOYMENT.md         # Deployment guide
-│   ├── MULTI_LLM_USAGE.md    # Multi-LLM configuration guide
+│   ├── deployment.md         # Deployment guide
+│   ├── LLM_usage.md    # Multi-LLM configuration guide
 │   └── database_migrations.md # Database migration guide
 ├── web/                      # Next.js frontend application
 └── README.md                 # Main README (Chinese)
@@ -152,7 +152,7 @@ cd api
 uv run pytest
 
 # Run specific test file
-uv run pytest test/agents/test_agents.py
+uv run pytest tests/agents/test_agents.py
 
 # Generate coverage report
 uv run pytest --cov=. --cov-report=term-missing
@@ -226,7 +226,7 @@ uv run scripts/database.py downgrade <revision_id>
 |----------|--------|-------------|
 | `/v1/assistants` | POST | Create intelligent assistant |
 | `/v1/assistants/{assistant_id}` | GET | View assistant details |
-| `/v1/assistants/{assistant_id}` | POST | Update assistant configuration |
+| `/v1/assistants/{assistant_id}/info` | POST | Update assistant configuration |
 | `/v1/assistants/{assistant_id}` | DELETE | Delete assistant |
 
 ### Marketing Specialist (`/v1/marketing`)
@@ -261,9 +261,9 @@ uv run scripts/database.py downgrade <revision_id>
 
 | Document | Description |
 |----------|-------------|
-| [`DEPLOYMENT.md`](DEPLOYMENT.md) | Deployment guide (development/production environments) |
+| [`deployment.md`](deployment.md) | Deployment guide (development/production environments) |
 | [`database_migrations.md`](database_migrations.md) | Database migration best practices |
-| [`MULTI_LLM_USAGE.md`](MULTI_LLM_USAGE.md) | Multi-LLM runtime configuration guide |
+| [`LLM_usage.md`](LLM_usage.md) | Multi-LLM runtime configuration guide |
 | [`message-storage-strategy.md`](message-storage-strategy.md) | Conversation storage strategy documentation |
 
 

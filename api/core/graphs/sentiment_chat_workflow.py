@@ -43,7 +43,7 @@ class SentimentChatWorkflow(BaseWorkflow):
         """
         self.agents = agents
 
-    def _register_nodes(self, graph: StateGraph):
+    def register_nodes(self, graph: StateGraph):
         """
         注册工作流节点
 
@@ -62,7 +62,7 @@ class SentimentChatWorkflow(BaseWorkflow):
 
         logger.debug(f"已注册 {len(node_mappings)} 个工作流节点")
 
-    def _define_edges(self, graph: StateGraph):
+    def define_edges(self, graph: StateGraph):
         """
         定义节点间连接边
 
@@ -76,7 +76,7 @@ class SentimentChatWorkflow(BaseWorkflow):
 
         logger.debug("工作流边定义完成 - sentiment -> chat")
 
-    def _set_entry_exit_points(self, graph: StateGraph):
+    def set_entry_exit_points(self, graph: StateGraph):
         """
         设置工作流入口和出口点
 

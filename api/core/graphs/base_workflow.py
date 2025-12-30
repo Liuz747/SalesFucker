@@ -22,7 +22,7 @@ class BaseWorkflow(ABC):
         pass
     
     @abstractmethod
-    def _register_nodes(self, graph: StateGraph):
+    def register_nodes(self, graph: StateGraph):
         """
         注册工作流节点
         
@@ -32,7 +32,7 @@ class BaseWorkflow(ABC):
         pass
     
     @abstractmethod
-    def _define_edges(self, graph: StateGraph):
+    def define_edges(self, graph: StateGraph):
         """
         定义节点间连接边
         
@@ -42,7 +42,7 @@ class BaseWorkflow(ABC):
         pass
     
     @abstractmethod
-    def _set_entry_exit_points(self, graph: StateGraph):
+    def set_entry_exit_points(self, graph: StateGraph):
         """
         设置工作流入口和出口点
         

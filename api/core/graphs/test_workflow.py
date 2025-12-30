@@ -17,14 +17,14 @@ class TestWorkflow(BaseWorkflow):
         """初始化测试工作流"""
         self.agents = agents
     
-    def _register_nodes(self, graph: StateGraph):
+    def register_nodes(self, graph: StateGraph):
         """注册单个代理节点用于独立测试"""
         graph.add_node("single_node", self._single_node)
 
-    def _define_edges(self, graph: StateGraph):
+    def define_edges(self, graph: StateGraph):
         pass
     
-    def _set_entry_exit_points(self, graph: StateGraph):
+    def set_entry_exit_points(self, graph: StateGraph):
         """设置入口和出口为同一单节点"""
         graph.set_entry_point("single_node")
         graph.set_finish_point("single_node")
