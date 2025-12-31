@@ -12,27 +12,33 @@ from utils import load_yaml_file, get_component_logger
 logger = get_component_logger(__name__)
 
 
-def get_prompt_template(template_name: str, **context) -> Optional[str]:
+def get_prompt_template(
+    template_name: str,
+    template_file: str = "system_prompt.yaml",
+    **context
+) -> Optional[str]:
     """
     根据模板名称获取提示词模板
 
     Args:
         template_name: 模板名称 (ice_breaking, role_prompt, thread_context_prompt, etc.)
+        template_file: YAML模板文件名，默认为 "system_prompt.yaml"
         **context: 传递给Jinja2的上下文变量
 
     Returns:
         Optional[str]: 模板字符串，如果不存在则返回None
 
     Examples:
-        # 获取模板字符串
+        # 获取默认模板文件中的模板
         >>> rendered = get_prompt_template("role_prompt",
+        ...                                 template_file="analytics_prompts.yaml",
         ...                                 name_display="小美",
         ...                                 occupation="美妆顾问")
     """
     try:
         # 获取模板文件路径
         current_dir = Path(__file__).parent
-        template_path = current_dir / "templates" / "system_prompt.yaml"
+        template_path = current_dir / "templates" / template_file
 
         # 加载YAML配置
         config = load_yaml_file(template_path)
