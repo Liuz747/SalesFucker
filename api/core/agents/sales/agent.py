@@ -15,10 +15,11 @@ from uuid import UUID
 
 from core.agents import BaseAgent
 from core.entities import WorkflowExecutionModel
-from core.prompts.get_role_prompt import get_combined_system_prompt
+from core.prompts.template_loader import get_prompt_template
 from core.tools import get_tools_schema, long_term_memory_tool, store_episodic_memory_tool
 from infra.runtimes import CompletionsRequest
 from libs.types import Message
+from services import AssistantService, ThreadService
 from utils import get_current_datetime, get_chinese_time, get_processing_time
 
 
@@ -61,14 +62,57 @@ class SalesAgent(BaseAgent):
             if not matched_prompt:
                 matched_prompt = {}
 
-            # 获取助理人设信息
-            role_prompt = None
+            # 获取助理和客户信息
+            role_prompt_content = None
+            thread_context_content = None
             try:
-                role_prompt = await get_combined_system_prompt(state.assistant_id, state.thread_id)
-                self.logger.info(f"已获取助理人设信息: {role_prompt.content[:100]}...")
+                # 获取助理信息
+                assistant = await AssistantService.get_assistant_by_id(state.assistant_id, use_cache=True)
+                name_display = assistant.nickname or assistant.assistant_name
+                profile_lines = None
+
+                if assistant.profile:
+                    profile_lines = [
+                        f"- {key.replace('_', ' ').title()}: {value}"
+                        for key, value in assistant.profile.items()
+                        if value is not None and value != ""
+                    ]
+
+                # 使用模板加载器生成角色提示词
+                role_prompt_content = get_prompt_template(
+                    "role_prompt",
+                    name_display=name_display,
+                    occupation=assistant.occupation,
+                    personality=assistant.personality,
+                    industry=assistant.industry,
+                    sex=assistant.sex,
+                    address=assistant.address,
+                    profile_lines=profile_lines,
+                    custom_instructions=None
+                )
+                self.logger.info(f"已获取助理人设信息: {role_prompt_content[:100] if role_prompt_content else 'None'}...")
+
+                # 获取客户线程信息
+                thread = await ThreadService.get_thread(state.thread_id)
+                if thread:
+                    thread_context_content = get_prompt_template(
+                        "thread_context_prompt",
+                        name=thread.name,
+                        nickname=thread.nickname,
+                        real_name=thread.real_name,
+                        sex=thread.sex.value if thread.sex else None,
+                        age=thread.age,
+                        occupation=thread.occupation,
+                        phone=thread.phone,
+                        services=thread.services,
+                        is_converted=thread.is_converted,
+                        custom_context=None
+                    )
+                    self.logger.info(f"已获取客户线程信息")
             except Exception as e:
-                self.logger.warning(f"获取助理人设信息失败: {e}")
-                role_prompt = None
+                self.logger.warning(f"获取助理或客户信息失败: {e}")
+                role_prompt_content = None
+                thread_context_content = None
 
             self.logger.info(f"sales agent 匹配提示词: {matched_prompt.get('matched_key', 'unknown')}")
 
@@ -81,11 +125,19 @@ class SalesAgent(BaseAgent):
             )
             self.logger.info(f"记忆检索完成 - 短期: {len(short_term_messages)} 条, 长期: {len(long_term_memories)} 条")
 
-            # 生成个性化回复（基于匹配的提示词 + 人设 + 记忆 + 时间）
+            # 获取意向分析结果
+            intent_analysis = state.intent_analysis if hasattr(state, 'intent_analysis') else None
+            if intent_analysis:
+                self.logger.info(f"已获取意向分析结果")
+                self.logger.debug(f"意向分析详情: {intent_analysis}")
+
+            # 生成个性化回复（基于匹配的提示词 + 人设 + 记忆 + 时间 + 意向）
             sales_response, token_info = await self.__generate_final_response(
                 user_text,
                 matched_prompt,
-                role_prompt,
+                role_prompt_content,
+                thread_context_content,
+                intent_analysis,
                 short_term_messages,
                 long_term_memories,
                 state.tenant_id,
@@ -143,7 +195,9 @@ class SalesAgent(BaseAgent):
         self,
         customer_input: str,
         matched_prompt: dict,
-        role_prompt: Message,
+        role_prompt_content: str,
+        thread_context_content: str,
+        intent_analysis: dict,
         short_term_messages: list,
         long_term_memories: list,
         tenant_id: str,
@@ -151,12 +205,14 @@ class SalesAgent(BaseAgent):
         run_id: UUID
     ) -> tuple[str, dict]:
         """
-        基于匹配提示词、人设信息、记忆和时间生成回复（支持工具调用）
+        基于匹配提示词、人设信息、意向分析、记忆和时间生成回复（支持工具调用）
 
         Args:
             customer_input: 客户输入
             matched_prompt: SentimentAgent 匹配的提示词
-            role_prompt: 助理人设提示词（从get_role_prompt获取）
+            role_prompt_content: 助理人设提示词内容
+            thread_context_content: 客户线程上下文内容
+            intent_analysis: 意向分析结果（包含appointment_intent和audio_output_intent）
             short_term_messages: 短期记忆消息列表
             long_term_memories: 长期记忆摘要列表
             tenant_id: 租户ID
@@ -172,12 +228,14 @@ class SalesAgent(BaseAgent):
             tone = matched_prompt.get("tone", "专业、友好")
             strategy = matched_prompt.get("strategy", "标准服务")
 
-            # 2. 整合人设信息、长期记忆、时间到系统提示
+            # 2. 整合人设信息、客户上下文、意向分析、长期记忆、时间到系统提示
             enhanced_system_prompt = self._build_system_prompt_with_memory(
                 base_system_prompt,
                 tone,
                 strategy,
-                role_prompt,
+                role_prompt_content,
+                thread_context_content,
+                intent_analysis,
                 long_term_memories,
                 get_chinese_time()
             )
@@ -221,67 +279,57 @@ class SalesAgent(BaseAgent):
             return self._get_fallback_response(matched_prompt), {"tokens_used": 0, "error": str(e)}
 
     def _build_system_prompt_with_memory(
-        self, base_prompt: str, tone: str, strategy: str, role_prompt: Message, summaries: list, current_time_str: str
+        self,
+        base_prompt: str,
+        tone: str,
+        strategy: str,
+        role_prompt_content: str,
+        thread_context_content: str,
+        intent_analysis: dict,
+        summaries: list,
+        current_time_str: str
     ) -> str:
         """
-        构建增强的系统提示词
+        使用模板加载器构建增强的系统提示词
 
         Args:
             base_prompt: 基础系统提示词
             tone: 语气要求
             strategy: 策略要求
-            role_prompt: 助理人设提示词
+            role_prompt_content: 助理人设提示词内容
+            thread_context_content: 客户线程上下文内容
+            intent_analysis: 意向分析结果
             summaries: 长期记忆摘要列表
             current_time_str: 当前时间（中文格式）
 
         Returns:
             str: 增强后的系统提示词
         """
-        # 构建基础提示，优先使用人设信息
-        if role_prompt and role_prompt.content:
-            # 如果有人设信息，将其作为核心提示，然后融合其他要求
-            enhanced_prompt = f"""
-{role_prompt.content}
-【当前对话策略】
-{base_prompt}
-【语气要求】{tone}
-【策略要求】{strategy}
-【当前时间】{current_time_str}（不能向客户全盘播报具体的时间内容，只需要在闲聊时，适度根据当前时段使用即可）
-【回复要求】
-- 用中文回复，语言自然流畅
-- 控制在150字以内，每句话最多只能存在2个逗号。句号用\n换行号替代
-- 体现个性化，避免模板化回复
-- 根据客户历史适度调整策略
-- 始终保持上述人设特征进行对话
-            """.strip()
-        else:
-            # 如果没有人设信息，使用原有逻辑
-            enhanced_prompt = f"""
-{base_prompt}
-【语气要求】{tone}
-【策略要求】{strategy}
-【当前时间】{current_time_str}（不能向客户全盘播报具体的时间内容，只需要在闲聊时，适度根据当前时段使用即可）
-【回复要求】
-- 用中文回复，语言自然流畅
-- 控制在150字以内
-- 体现个性化，避免模板化回复
-- 根据客户历史适度调整策略
-            """.strip()
+        # 提取意向分析中的关键信息
+        appointment_intent = None
+        audio_output_intent = None
 
-        # 添加长期记忆（如果有）
-        if summaries:
-            memory_lines = []
-            for idx, summary in enumerate(summaries[:3], 1):  # 最多3条摘要
-                content = summary.get("content") or ""
-                tags = summary.get("tags") or []
-                tag_display = (
-                    f" (标签: {', '.join(str(tag) for tag in tags)})"
-                    if tags
-                    else ""
-                )
-                memory_lines.append(f"{idx}. {content[:100]}{tag_display}")  # 限制长度
+        if intent_analysis:
+            appointment_intent = intent_analysis.get("appointment_intent")
+            audio_output_intent = intent_analysis.get("audio_output_intent")
 
-            enhanced_prompt += f"\n\n【客户历史背景】\n" + "\n".join(memory_lines)
+        enhanced_prompt = get_prompt_template(
+            template_name="sales",
+            template_file="agent_prompt.yaml",
+            base_prompt=base_prompt,
+            tone=tone,
+            strategy=strategy,
+            role_prompt=role_prompt_content,
+            thread_context=thread_context_content,
+            appointment_intent=appointment_intent,
+            audio_output_intent=audio_output_intent,
+            summaries=summaries,
+            current_time=current_time_str
+        )
+
+        if enhanced_prompt is None:
+            self.logger.error("销售代理模板未找到，使用基础提示词")
+            return base_prompt
 
         return enhanced_prompt
 
