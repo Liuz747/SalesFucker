@@ -70,17 +70,16 @@ class ComplianceAgent(BaseAgent):
         """
         try:
             customer_input = state.get("customer_input", "")
-            
+
             # 执行综合合规检查 (规则 + LLM分析)
             compliance_result = await self._enhanced_compliance_check(customer_input)
-            
+
             # 更新对话状态
             state["compliance_result"] = compliance_result
-            state.setdefault("active_agents", []).append(self.agent_id)
-            
+
             # 根据合规结果确定后续处理
             self._update_conversation_state(state, compliance_result)
-            
+
             return state
             
         except Exception as e:
