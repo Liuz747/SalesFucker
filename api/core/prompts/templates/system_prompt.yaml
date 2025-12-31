@@ -96,7 +96,7 @@ follow_up:
     {% if conversation.recent_messages %}
     ## 最近对话摘要
     {% for msg in conversation.recent_messages[-3:] %}
-    - {{ msg.role }}: {{ msg.content[:100] }}{% if msg.content>length > 100 %}...{% endif %}
+    - {{ msg.role }}: {{ msg.content[:100] }}{% if msg.content|length > 100 %}...{% endif %}
     {% endfor %}
     {% endif %}
 
@@ -361,7 +361,7 @@ thread_context_prompt:
     - 客户联系方式: {{ phone }}
     {% endif %}
 
-    {% if services and services>length > 0 %}
+    {% if services and services|length > 0 %}
     【历史消费记录】
     客户已购买过以下服务：
     {% for service in services %}
