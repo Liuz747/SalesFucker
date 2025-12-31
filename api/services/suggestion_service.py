@@ -6,7 +6,7 @@ import json
 import re
 from uuid import UUID
 
-from core.memory.conversation_store import ConversationStore
+from core.memory import ConversationStore
 from infra.db import database_session
 from infra.runtimes import LLMClient
 from libs.types import Message, MessageParams

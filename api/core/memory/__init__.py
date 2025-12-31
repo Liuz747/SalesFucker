@@ -20,6 +20,7 @@ from .preservation_heuristics import conversation_quality_evaluator
 from .storage_manager import StorageManager
 from .summarize import SummarizationService
 
+
 __all__ = [
     'ConversationStore',
     'ElasticsearchIndex',

@@ -14,7 +14,6 @@ from libs.factory import infra_registry
 from libs.types import Message, MessageParams
 from utils import get_component_logger
 
-
 logger = get_component_logger(__name__)
 
 
