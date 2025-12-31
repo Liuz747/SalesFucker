@@ -65,35 +65,3 @@ def get_agent_logger(agent_id: str) -> logging.Logger:
         logging.Logger: 智能体日志器
     """
     return get_component_logger("agents", agent_id)
-
-
-class LoggerMixin:
-    """
-    日志混入类
-    
-    为需要日志功能的类提供标准化的日志器。
-    """
-    
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self._logger = None
-    
-    def get_logger(self, identifier: Optional[str] = None) -> logging.Logger:
-        """
-        获取或创建日志器
-        
-        参数:
-            identifier: 可选标识符
-            
-        返回:
-            logging.Logger: 日志器实例
-        """
-        if self._logger is None:
-            component_name = self.__class__.__module__
-            self._logger = get_component_logger(component_name, identifier)
-        return self._logger
-    
-    @property
-    def logger(self) -> logging.Logger:
-        """日志器属性"""
-        return self.get_logger() 

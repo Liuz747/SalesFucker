@@ -32,7 +32,6 @@ class SalesAgent(BaseAgent):
 
     def __init__(self):
         super().__init__()
-
         self.agent_name = "sales_agent"
 
     async def process_conversation(self, state: WorkflowExecutionModel) -> dict:
@@ -57,12 +56,7 @@ class SalesAgent(BaseAgent):
         try:
             self.logger.info("=== Sales Agent 开始处理 ===")
 
-            customer_input = state.input
-            tenant_id = state.tenant_id
-            thread_id = str(state.thread_id)
-
             matched_prompt = state.matched_prompt
-            current_total_tokens = state.total_tokens
 
             if not matched_prompt:
                 matched_prompt = {}
@@ -79,10 +73,10 @@ class SalesAgent(BaseAgent):
             self.logger.info(f"sales agent 匹配提示词: {matched_prompt.get('matched_key', 'unknown')}")
 
             # 解析用户输入为文本
-            user_text = self._input_to_text(customer_input)
+            user_text = self._input_to_text(state.input)
             short_term_messages, long_term_memories = await self.memory_manager.retrieve_context(
-                tenant_id=tenant_id,
-                thread_id=thread_id,
+                tenant_id=state.tenant_id,
+                thread_id=state.thread_id,
                 query_text=user_text,
             )
             self.logger.info(f"记忆检索完成 - 短期: {len(short_term_messages)} 条, 长期: {len(long_term_memories)} 条")
@@ -100,16 +94,15 @@ class SalesAgent(BaseAgent):
             )
 
             # 存储助手回复到记忆
-            if sales_response and tenant_id and thread_id:
-                try:
-                    await self.memory_manager.save_assistant_message(
-                        tenant_id=tenant_id,
-                        thread_id=thread_id,
-                        message=sales_response,
-                    )
-                    self.logger.debug("助手回复已保存到记忆")
-                except Exception as e:
-                    self.logger.error(f"保存助手回复失败: {e}")
+            try:
+                await self.memory_manager.save_assistant_message(
+                    tenant_id=state.tenant_id,
+                    thread_id=state.thread_id,
+                    message=sales_response,
+                )
+                self.logger.debug("助手回复已保存到记忆")
+            except Exception as e:
+                self.logger.error(f"保存助手回复失败: {e}")
 
             # 更新状态 - 返回增量字典
             
@@ -122,8 +115,8 @@ class SalesAgent(BaseAgent):
             agent_data = {
                 "agent_type": "sales",
                 "sales_response": sales_response,
-                "response": sales_response,  # 标准化的响应字段
-                "token_usage": token_usage,  # 标准化的token信息
+                "response": sales_response,
+                "token_usage": token_usage,
                 "timestamp": get_current_datetime(),
                 "response_length": len(sales_response)
             }
@@ -133,10 +126,10 @@ class SalesAgent(BaseAgent):
             self.logger.info("=== Sales Agent 处理完成 ===")
 
             return {
-                "output": sales_response, # 更新最终输出
+                "output": sales_response,
                 "input_tokens": token_usage["input_tokens"],
                 "output_tokens": token_usage["output_tokens"],
-                "total_tokens": current_total_tokens + token_usage["total_tokens"],
+                "total_tokens": state.total_tokens + token_usage["total_tokens"],
                 "values": {"agent_responses": {self.agent_name: agent_data}},
                 "active_agents": [self.agent_name]
             }

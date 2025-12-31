@@ -18,7 +18,9 @@ from uuid import uuid4
 
 from infra.runtimes import CompletionsRequest
 from libs.types import Message
-from utils import LoggerMixin
+from utils import get_component_logger
+
+logger = get_component_logger(__name__)
 
 
 class SentimentAnalysisStrategy(ABC):
@@ -253,7 +255,7 @@ class LLMSentimentAnalyzer(SentimentAnalysisStrategy):
         return validated
 
 
-class SentimentAnalyzer(LoggerMixin):
+class SentimentAnalyzer():
     """
     情感分析器主类
 
@@ -261,7 +263,6 @@ class SentimentAnalyzer(LoggerMixin):
     """
 
     def __init__(self, llm_provider: str, llm_model: str, invoke_llm_fn):
-        super().__init__()
         self.llm_provider = llm_provider
         self.llm_model = llm_model
 
@@ -270,7 +271,7 @@ class SentimentAnalyzer(LoggerMixin):
             LLMSentimentAnalyzer(llm_provider, llm_model, invoke_llm_fn)
         ]
 
-        self.logger.info(f"情感分析llm: {llm_provider}/{llm_model}")
+        logger.info(f"情感分析llm: {llm_provider}/{llm_model}")
 
     async def analyze_sentiment(
         self,
@@ -298,7 +299,7 @@ class SentimentAnalyzer(LoggerMixin):
                 result["llm_provider"] = self.llm_provider
                 return result
             except Exception as e:
-                self.logger.warning(f"策略{type(strategy).__name__}失败: {e}")
+                logger.warning(f"策略{type(strategy).__name__}失败: {e}")
                 continue
 
         # 所有策略都失败，返回默认结果

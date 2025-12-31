@@ -17,10 +17,12 @@ from uuid import uuid4
 
 from libs.types import InputContentParams, InputContent, InputType, Message, MessageParams
 from infra.runtimes import LLMClient, CompletionsRequest
-from utils import LoggerMixin
+from utils import get_component_logger
+
+logger = get_component_logger(__name__)
 
 
-class MultimodalInputProcessor(LoggerMixin):
+class MultimodalInputProcessor():
     """
     简化的多模态输入处理器
 
@@ -28,7 +30,6 @@ class MultimodalInputProcessor(LoggerMixin):
     """
 
     def __init__(self, tenant_id: str = None):
-        super().__init__()
         self.tenant_id = tenant_id
         self.llm_client = LLMClient()
 
@@ -141,7 +142,7 @@ class MultimodalInputProcessor(LoggerMixin):
             return extracted_text or "无有效内容", context
 
         except Exception as e:
-            self.logger.error(f"多模态处理失败: {e}")
+            logger.error(f"多模态处理失败: {e}")
             # 降级处理：尝试提取所有文本内容
             fallback_text = self._extract_fallback_text(input_sequence)
             return fallback_text, {
@@ -196,18 +197,18 @@ class MultimodalInputProcessor(LoggerMixin):
                 messages=llm_messages
             )
 
-            self.logger.info(f"调用多模态LLM进行图片分析: {len(content_list)}个内容项")
+            logger.info(f"调用多模态LLM进行图片分析: {len(content_list)}个内容项")
             response = await self.llm_client.completions(request)
             
             # 5. 处理响应
             content = response.content
             result_text = content.get("content", "") if isinstance(content, dict) else str(content)
             
-            self.logger.info(f"图片分析完成，描述长度: {len(result_text)}")
+            logger.info(f"图片分析完成，描述长度: {len(result_text)}")
             return result_text
 
         except Exception as e:
-            self.logger.error(f"LLM提取多模态文字失败: {e}", exc_info=True)
+            logger.error(f"LLM提取多模态文字失败: {e}", exc_info=True)
             # 降级处理：简单拼接
             text_parts = []
             for msg in messages:

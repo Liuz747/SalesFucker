@@ -18,9 +18,9 @@ from core.entities import WorkflowExecutionModel
 from libs.types import MessageParams, MemoryType
 from utils import get_current_datetime
 from .multimodal_input_processor import MultimodalInputProcessor
-from .sentiment_analyzer import SentimentAnalyzer
-from .sales_prompt_generator import SalesPromptGenerator
 from .prompt_matcher import PromptMatcher
+from .sentiment_analyzer import SentimentAnalyzer
+
 
 class SentimentAnalysisAgent(BaseAgent):
     """
@@ -50,8 +50,6 @@ class SentimentAnalysisAgent(BaseAgent):
             invoke_llm_fn=self.invoke_llm
         )
 
-        self.prompt_generator = SalesPromptGenerator()
-
     @observe(name="sentiment-analysis", as_type="generation")
     async def process_conversation(self, state: WorkflowExecutionModel) -> dict:
         """
@@ -72,8 +70,6 @@ class SentimentAnalysisAgent(BaseAgent):
         Returns:
             dict: 更新后的状态增量，包含 sentiment_analysis, matched_prompt 等
         """
-        start_time = get_current_datetime()
-
         try:
             self.logger.info("=== Sentiment Agent ===")
 
@@ -369,15 +365,3 @@ class SentimentAnalysisAgent(BaseAgent):
             self.logger.error(f"基于历史的情感分析失败: {e}")
             # 降级处理：只分析当前文本
             return await self.sentiment_analyzer.analyze_sentiment(current_text, context)
-
-    async def _generate_prompt(self, sentiment_result: dict, context: dict) -> str:
-        """生成销售提示词"""
-        try:
-            # 使用prompt_generator生成个性化提示词
-            sales_prompt = self.prompt_generator.generate_prompt(sentiment_result, context)
-
-            self.logger.info(f"成功生成sales_prompt，长度: {len(sales_prompt)}")
-            return sales_prompt
-
-        except Exception as e:
-            self.logger.error(f"提示词生成失败: {e}")

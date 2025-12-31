@@ -23,7 +23,7 @@ from .time_utils import (
     from_timestamp,
     is_dnd_active
 )
-from .logger_utils import get_component_logger, LoggerMixin, configure_logging
+from .logger_utils import get_component_logger, configure_logging
 from .tracer_client import flush_traces
 from .external_client import ExternalClient
 from .yaml_loader import load_yaml_file
@@ -43,7 +43,6 @@ __all__ = [
 
     # 日志工具
     "get_component_logger",
-    "LoggerMixin",
     "configure_logging",
 
     # 外部HTTP请求工具
