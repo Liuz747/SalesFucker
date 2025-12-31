@@ -19,7 +19,7 @@ from core.prompts.get_role_prompt import get_combined_system_prompt
 from core.tools import get_tools_schema, long_term_memory_tool, store_episodic_memory_tool
 from infra.runtimes import CompletionsRequest
 from libs.types import Message
-from utils import get_current_datetime, get_chinese_time
+from utils import get_current_datetime, get_chinese_time, get_processing_time
 
 
 class SalesAgent(BaseAgent):
@@ -113,7 +113,8 @@ class SalesAgent(BaseAgent):
             }
 
             agent_data = {
-                "agent_type": "sales",
+                "agent_id": self.agent_name,
+                "agent_type": "chat",
                 "sales_response": sales_response,
                 "response": sales_response,
                 "token_usage": token_usage,
@@ -121,7 +122,7 @@ class SalesAgent(BaseAgent):
                 "response_length": len(sales_response)
             }
 
-            processing_time = (get_current_datetime() - start_time).total_seconds()
+            processing_time = get_processing_time(start_time)
             self.logger.info(f"最终回复生成完成: 耗时{processing_time:.2f}s, 长度={len(sales_response)}, tokens={token_info.get('total_tokens', 0)}")
             self.logger.info("=== Sales Agent 处理完成 ===")
 
@@ -130,8 +131,7 @@ class SalesAgent(BaseAgent):
                 "input_tokens": token_usage["input_tokens"],
                 "output_tokens": token_usage["output_tokens"],
                 "total_tokens": state.total_tokens + token_usage["total_tokens"],
-                "values": {"agent_responses": {self.agent_name: agent_data}},
-                "active_agents": [self.agent_name]
+                "values": {"agent_responses": {self.agent_name: agent_data}}
             }
 
         except Exception as e:
@@ -312,4 +312,3 @@ class SalesAgent(BaseAgent):
             return "太好了！"
         else:
             return "感谢您的咨询。"
-

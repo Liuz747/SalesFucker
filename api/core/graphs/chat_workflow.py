@@ -165,12 +165,6 @@ class ChatWorkflow(BaseWorkflow):
                 logger.warning(f"Agent {node_name} 返回非字典结果: {type(result_state)}")
                 return {"input_tokens": 0, "output_tokens": 0}
 
-            # 确保活跃agents列表包含当前节点
-            if "active_agents" not in result_state:
-                current_active = state.active_agents or []
-                if node_name not in current_active:
-                    result_state["active_agents"] = current_active + [node_name]
-
             logger.debug(f"节点 {node_name} 执行完成")
 
             # 直接返回agent的结果，LangGraph的Reducer会自动处理合并

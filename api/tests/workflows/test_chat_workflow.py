@@ -195,12 +195,11 @@ class TestChatWorkflowSequentialMode:
         assert isinstance(result, dict), "结果应该是字典类型"
         assert result["workflow_id"] == simple_workflow_state.workflow_id
 
-        # 验证agents执行了 (至少sales agent应该执行)
-        logger.info(f"活跃agents: {result.get('active_agents', [])}")
-        assert AgentNodes.SALES_NODE in result.get("active_agents", []), "Sales agent应该执行"
+        # 验证agents执行了 (通过检查输出字段)
+        assert "output" in result or "sales_response" in result, "Sales agent应该产生输出"
 
-        # 验证至少有一些agent执行了
-        assert len(result.get("active_agents", [])) >= 1, "至少应该有一个agent执行"
+        # 验证至少有sentiment或intent分析结果
+        assert "sentiment_analysis" in result or "intent_analysis" in result, "应该有分析结果"
 
         # 验证sentiment分析结果 (可能因为错误而缺失，所以只检查存在性)
         if "sentiment_analysis" in result:
@@ -269,7 +268,9 @@ class TestChatWorkflowSequentialMode:
 
         # 验证workflow完成
         assert isinstance(result, dict)
-        logger.info(f"活跃agents: {result.get('active_agents', [])}")
+
+        # 验证有分析输出
+        assert "sentiment_analysis" in result or "intent_analysis" in result, "应该有分析结果"
 
         # 验证情感分析识别 (如果存在)
         if "sentiment_analysis" in result:
@@ -299,7 +300,6 @@ class TestChatWorkflowSequentialMode:
 
         # 验证处理了复杂需求
         assert isinstance(result, dict)
-        logger.info(f"活跃agents: {result.get('active_agents', [])}")
 
         # 验证至少有分析结果
         has_analysis = "intent_analysis" in result or "sentiment_analysis" in result
@@ -334,15 +334,12 @@ class TestChatWorkflowParallelMode:
         assert isinstance(result, dict)
         assert result["workflow_id"] == simple_workflow_state.workflow_id
 
-        # 验证并行节点都执行了
-        logger.info(f"并行模式 - 活跃agents: {result.get('active_agents', [])}")
-        assert AgentNodes.SENTIMENT_NODE in result.get("active_agents", [])
-        assert AgentNodes.INTENT_NODE in result.get("active_agents", [])
-        assert AgentNodes.SALES_NODE in result.get("active_agents", [])
+        # 验证并行节点都执行了（通过检查它们的输出字段）
+        assert "sentiment_analysis" in result, "Sentiment节点应该执行"
+        assert "intent_analysis" in result, "Intent节点应该执行"
+        assert ("output" in result or "sales_response" in result), "Sales节点应该执行"
 
         # 验证并行节点的结果
-        assert "sentiment_analysis" in result
-        assert "intent_analysis" in result
         logger.info(f"并行执行 - 情感: {result['sentiment_analysis']}")
         logger.info(f"并行执行 - 意向: {result['intent_analysis']}")
 
@@ -494,13 +491,13 @@ class TestChatWorkflowModeComparison:
         # 由于我们只保留了result_par，重新执行顺序模式获取结果
         result_seq = await graph_seq.ainvoke(state_copy_1)
 
-        # 验证两种模式都执行了所有agents
-        agents_seq = set(result_seq.get("active_agents", []))
-        agents_par = set(result_par.get("active_agents", []))
+        # 验证两种模式都执行了所有agents（通过检查输出字段）
+        seq_has_all = "sentiment_analysis" in result_seq and "intent_analysis" in result_seq and ("output" in result_seq or "sales_response" in result_seq)
+        par_has_all = "sentiment_analysis" in result_par and "intent_analysis" in result_par and ("output" in result_par or "sales_response" in result_par)
 
-        assert agents_seq == agents_par, "两种模式应该执行相同的agents"
-        logger.info(f"顺序模式agents: {agents_seq}")
-        logger.info(f"并行模式agents: {agents_par}")
+        assert seq_has_all, "顺序模式应该执行所有agents"
+        assert par_has_all, "并行模式应该执行所有agents"
+        logger.info("两种模式都成功执行了所有agents")
 
         # 验证两种模式都产生了有效输出
         output_seq = result_seq.get("output") or result_seq.get("sales_response")
@@ -703,7 +700,8 @@ class TestChatWorkflowErrorHandling:
         assert isinstance(result, dict)
         assert result["workflow_id"] == long_input_state.workflow_id
 
-        logger.info(f"极长输入测试 - 活跃agents: {result.get('active_agents', [])}")
+        # 验证有输出
+        assert "output" in result or "sales_response" in result, "应该有销售回复"
         logger.info(f"Token统计: input={result.get('input_tokens', 0)}, output={result.get('output_tokens', 0)}")
         logger.info("✓ 极长输入处理成功")
 

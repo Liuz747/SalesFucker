@@ -149,7 +149,6 @@ class WorkflowExecutionModel(BaseModel):
         default=None,
         description="输出类型列表，例如：['output_audio', 'output_image']"
     )
-    active_agents: Annotated[Optional[list], merge_list] = Field(default=None)
     values: Annotated[Optional[dict], merge_agent_results] = Field(default=None, description="工作流节点交互的状态")
     intent_analysis: Annotated[Optional[dict], safe_merge_dict] = Field(default=None)
     sentiment_analysis: Annotated[Optional[dict], safe_merge_dict] = Field(default=None)
@@ -166,7 +165,3 @@ class WorkflowExecutionModel(BaseModel):
     trigger_metadata: Mapping | None = Field(default=None, description="触发事件元数据：event_type, services等")
     started_at: datetime = Field(default_factory=get_current_datetime, description="开始时间")
     finished_at: Optional[datetime] = Field(default=None, description="结束时间")
-
-    model_config = {
-        "arbitrary_types_allowed": True
-    }

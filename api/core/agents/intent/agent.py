@@ -442,7 +442,8 @@ class IntentAgent(BaseAgent):
 
         # 构建 agent_data
         agent_data = {
-            "agent_name": self.agent_name,
+            "agent_id": self.agent_name,
+            "agent_type": "analytics",
             "intent_analysis": intent_result,
             "business_outputs": business_outputs,
             "analyzed_messages": recent_messages,
@@ -460,6 +461,5 @@ class IntentAgent(BaseAgent):
             "business_outputs": business_outputs,
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
-            "values": {"agent_responses": {self.agent_name: agent_data}},
-            "active_agents": [self.agent_name]
+            "values": {"agent_responses": {self.agent_name: agent_data}}
         }
