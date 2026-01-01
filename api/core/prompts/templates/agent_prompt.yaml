@@ -13,7 +13,6 @@ sales:
     {% endif %}
 
     {% if thread_context %}
-
     ---
 
     {{ thread_context }}
@@ -29,7 +28,7 @@ sales:
 
     【当前时间】{{ current_time }}（不能向客户全盘播报具体的时间内容，只需要在闲聊时，适度根据当前时段使用即可）
 
-    {% if appointment_intent and appointment_intent.detected %}
+    {% if appointment_intent.detected %}
 
     【邀约意向检测】
     系统检测到客户有到店/预约意向：
@@ -58,12 +57,10 @@ sales:
     {% endif %}
     {% endif %}
 
-    {% if audio_output_intent and audio_output_intent.detected %}
+    {% if audio_output_intent.detected %}
 
     【音频输出意向检测】
-    系统检测到需要生成语音输出：
-    - 触发原因: {% if audio_output_intent.trigger_reason == "user_sent_audio" %}用户发送了语音消息{% elif audio_output_intent.trigger_reason == "explicit_request" %}用户明确要求语音回复{% elif audio_output_intent.trigger_reason == "context_preference" %}上下文显示用户偏好语音{% else %}未知原因{% endif %}
-    - 置信度: {{ "%.0f"|format(audio_output_intent.confidence * 100) }}%
+    系统检测到需要生成语音输出
 
     【音频回复要求】
     CRITICAL: 你的回复将通过TTS转换为语音播放，请遵循以下规则：
@@ -75,17 +72,22 @@ sales:
     - 语句要简短清晰，每句话10-15字为宜
     - 总长度控制在100字以内
     - 语气要自然亲切，就像面对面聊天一样
+    - 【禁止】绝对不要在回复开头或任何位置添加"【语音消息】"、"[语音消息]"、"语音消息"等标记
+    - 【禁止】不要添加任何说明这是语音消息的前缀或后缀
+    - 直接开始说话内容，就像你在微信里直接发语音一样
 
     正确示例：
     "好的 我明白了 这个产品确实挺适合你的 要不要我给你详细介绍一下"
 
     错误示例（不要这样写）：
     "好的，我明白了！这个产品确实挺适合你的😊，要不要我给你详细介绍一下？"
+    "【语音消息】好的 我明白了"
+    "[语音消息]这个产品确实挺适合你的"
     {% endif %}
 
     【回复要求】
     - 用中文回复，语言自然流畅
-    {% if audio_output_intent and audio_output_intent.detected %}
+    {% if audio_output_intent.detected %}
     - 控制在100字以内，使用口语化表达，不使用任何标点符号和特殊符号
     {% else %}
     - 控制在150字以内，每句话最多只能存在2个逗号。句号用\n换行号替代
@@ -95,15 +97,15 @@ sales:
     {% if role_prompt %}
     - 始终保持上述人设特征进行对话
     {% endif %}
-    {% if appointment_intent and appointment_intent.detected %}
+    {% if appointment_intent.detected %}
     - 根据邀约意向检测结果调整回复语气和内容
     {% endif %}
 
     {% if summaries and summaries|length > 0 %}
 
     【客户历史背景】
-    {% for summary in summaries[:3] %}
-    {{ loop.index }}. {{ summary.content[:100] }}{% if summary.tags %} (标签: {{ summary.tags|join(', ') }}){% endif %}
+    {% for summary in summaries[:5] %}
+    {{ loop.index }}. {{ summary.content }}{% if summary.tags %} (标签: {{ summary.tags|join(', ') }}){% endif %}
     {% endfor %}
     {% endif %}
 

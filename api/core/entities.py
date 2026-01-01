@@ -150,12 +150,12 @@ class WorkflowExecutionModel(BaseModel):
         description="输出类型列表，例如：['output_audio', 'output_image']"
     )
     values: Annotated[Optional[dict], merge_agent_results] = Field(default=None, description="工作流节点交互的状态")
-    intent_analysis: Annotated[Optional[dict], safe_merge_dict] = Field(default=None)
-    sentiment_analysis: Annotated[Optional[dict], safe_merge_dict] = Field(default=None)
+    intent_analysis: Annotated[dict, safe_merge_dict] = Field(default_factory=dict, description="意向分析结果")
+    sentiment_analysis: Annotated[dict, safe_merge_dict] = Field(default_factory=dict, description="情感分析结果")
     # 传递业务输出
     business_outputs: Annotated[Optional[dict], safe_merge_dict] = Field(default=None, description="结构化业务输出")
     journey_stage: Optional[str] = Field(default=None, description="客户旅程阶段")
-    matched_prompt: Optional[dict] = Field(default=None, description="匹配的提示词信息")
+    matched_prompt: dict = Field(default_factory=dict, description="匹配的提示词信息")
     input_tokens: Annotated[int, operator.add] = Field(default=0, description="输入Token数")
     output_tokens: Annotated[int, operator.add] = Field(default=0, description="输出Token数")
     total_tokens: Optional[int] = Field(default=0, description="总Token数")
