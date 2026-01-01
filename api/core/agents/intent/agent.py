@@ -122,13 +122,20 @@ class IntentAgent(BaseAgent):
         """
         try:
             # 构建LLM请求
-            system_prompt = [Message(role="system", content=get_prompt_template("intent_analysis"))]
+            system_prompt = get_prompt_template(
+                template_name="intent_analysis",
+                template_file="agent_prompt.yaml"
+            )
+            messages = [
+                Message(role="system", content=system_prompt),
+                *inputs
+            ]
 
             request = CompletionsRequest(
                 id=run_id,
                 provider="openrouter",
                 model="anthropic/claude-haiku-4.5",
-                messages=system_prompt + inputs,
+                messages=messages,
                 temperature=0.1,
                 max_tokens=1200
             )
