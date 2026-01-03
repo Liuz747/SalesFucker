@@ -14,8 +14,8 @@ import aiohttp
 from config import mas_config
 from core.entities import WorkflowExecutionModel
 from libs.types import OutputContent, OutputType
-from services.assistant_service import AssistantService
-from utils.logger_utils import get_component_logger
+from services import AssistantService
+from utils import get_component_logger
 
 logger = get_component_logger(__name__)
 

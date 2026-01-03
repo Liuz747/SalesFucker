@@ -7,8 +7,8 @@ import json
 from uuid import UUID
 from typing import Any
 
-from infra.ops.temporal_client import get_temporal_client
-from utils.logger_utils import get_component_logger
+from libs.factory import infra_registry
+from utils import get_component_logger
 
 logger = get_component_logger(__name__)
 
@@ -39,7 +39,16 @@ async def trigger_workflow(
         logger.info(f"开始触发工作流 - 租户: {tenant_id}, 工作流: {workflow_name}")
 
         # 获取Temporal客户端
-        temporal_client = await get_temporal_client()
+        temporal_client = infra_registry.get_cached_clients().temporal
+        if temporal_client is None:
+            logger.error("Temporal客户端未初始化或不可用")
+            return {
+                "success": False,
+                "workflow_id": None,
+                "workflow_name": workflow_name,
+                "status": "failed",
+                "error": "Temporal客户端不可用"
+            }
 
         # 构建工作流ID（包含租户隔离）	
         workflow_id = f"{tenant_id}-{workflow_name}-{UUID().hex[:8]}"

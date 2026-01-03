@@ -17,7 +17,7 @@ from uuid import UUID
 from langfuse import observe, get_client
 
 from core.entities import WorkflowExecutionModel
-from core.tools.utils import generate_audio_output
+from core.tools import generate_audio_output
 from libs.types import OutputType
 from models import WorkflowRun
 from utils import (

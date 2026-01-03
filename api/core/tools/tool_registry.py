@@ -8,7 +8,6 @@ from collections.abc import Callable
 from typing import Any
 
 from utils import get_component_logger
-
 from .entities import ToolArgument, ToolDefinition
 from .search_context import search_conversation_context
 from .store_episodic import store_episodic_memory
