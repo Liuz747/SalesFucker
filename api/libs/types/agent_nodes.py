@@ -3,13 +3,13 @@ from enum import StrEnum
 
 class AgentNodeType(StrEnum):
     """
-    工作流智能体节点类型枚举
+    Agent节点类型
 
-    定义工作流中可用的智能体节点标识符。
+    定义工作流中可用的Agent节点标识符。
     """
 
     # 核心分析节点
-    CHAT = "chat"
+    CHAT = "chat_agent"
     COMPLIANCE = "compliance_review"
     SENTIMENT = "sentiment_analysis"
     INTENT = "intent_analysis"

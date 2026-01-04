@@ -43,14 +43,14 @@ class ChatWorkflow(BaseWorkflow):
     - 可配置执行模式（并行/顺序）
     """
 
-    def __init__(self, agents: dict[str, BaseAgent]):
+    def __init__(self, agents: dict[AgentNodeType, BaseAgent]):
         """
         初始化聊天工作流
 
         Args:
             agents: 智能体字典，需要包含所有必要的节点agents
         """
-        self.agents = agents
+        super().__init__(agents)
         self.enable_parallel = ENABLE_PARALLEL_EXECUTION
         
         # 自动根据全局日志级别决定是否启用LLM调试日志
@@ -65,7 +65,7 @@ class ChatWorkflow(BaseWorkflow):
         for name, agent in self.agents.items():
             if not isinstance(agent.llm_client, LLMDebugWrapper):
                 agent.llm_client = LLMDebugWrapper(agent.llm_client, name, logger)
-                logger.debug(f"已为节点 {name} 启用LLM调试日志")
+                logger.debug(f"已为Agent节点 {name} 启用LLM调试日志")
 
     def register_nodes(self, graph: StateGraph):
         """
@@ -140,7 +140,11 @@ class ChatWorkflow(BaseWorkflow):
             # 并行模式的入口出口点已在_define_edges中通过START/END设置
             logger.debug("并行执行架构入口出口点已通过START/END设置")
     
-    async def _process_agent_node(self, state: WorkflowExecutionModel, node_name: str) -> dict:
+    async def _process_agent_node(
+            self,
+            state: WorkflowExecutionModel,
+            node_name: AgentNodeType
+    ) -> dict:
         """
         通用智能体节点处理方法
 
@@ -155,8 +159,8 @@ class ChatWorkflow(BaseWorkflow):
         """
         agent = self.agents.get(node_name)
         if not agent:
-            logger.error(f"智能体未找到: {node_name}")
-            raise ValueError(f"Agent '{node_name}' not found")
+            logger.error(f"Agent未找到: {node_name}")
+            raise ValueError(f"Agent未找到: '{node_name}'")
 
         try:
             result_state = await agent.process_conversation(state)
@@ -175,8 +179,8 @@ class ChatWorkflow(BaseWorkflow):
             # 即使出错也返回token字段，避免阻塞其他并行节点
             return {"input_tokens": 0, "output_tokens": 0}
 
-    def _create_agent_node(self, node_name: str):
-        """创建智能体节点的通用方法"""
+    def _create_agent_node(self, node_name: AgentNodeType):
+        """创建Agent节点的通用方法"""
         async def agent_node(state: WorkflowExecutionModel) -> dict:
             return await self._process_agent_node(state, node_name)
         return agent_node

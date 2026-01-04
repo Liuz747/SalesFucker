@@ -36,14 +36,14 @@ AGENT_NODE_MAPPING = {
 }
 
 
-def create_agents_set() -> dict[str, BaseAgent]:
+def create_agents_set() -> dict[AgentNodeType, BaseAgent]:
     """
-    创建完整的智能体集合
+    创建完整的Agent集合
 
     返回:
-        dict[str, BaseAgent]: 智能体集合 {"agent_type": agent_instance}
+        dict[AgentNodeType, BaseAgent]: 智能体集合 {AgentNodeType: agent_instance}
     """
-    agents: dict[str, BaseAgent] = {}
+    agents: dict[AgentNodeType, BaseAgent] = {}
 
     # 基于工作流节点名创建智能体集合
     for node_name, agent_class in AGENT_NODE_MAPPING.items():
