@@ -7,8 +7,6 @@ API Package - Multi-Agent System API
 - workspace/: 工作空间组件
 - inner/: 内部组件
 - middleware/: 中间件组件
-- exceptions.py: 异常处理
-- dependencies.py: 依赖注入
 
 核心功能:
 - 智能体管理和测试
@@ -46,4 +44,4 @@ app_router.include_router(completion_router, prefix="/messages", tags=["messages
 app_router.include_router(health_router, tags=["health"])
 
 
-__version__ = "0.2.1"
+__version__ = "0.2.3"

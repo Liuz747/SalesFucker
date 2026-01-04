@@ -18,7 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from models import TenantModel, AssistantModel
 from schemas import AssistantCreateRequest, AssistantCreateResponse, AssistantUpdateRequest, BaseResponse
-from schemas.exceptions import AssistantNotFoundException
+from libs.exceptions import AssistantNotFoundException
 from services.assistant_service import AssistantService
 from utils import get_component_logger
 from ..wraps import validate_and_get_tenant

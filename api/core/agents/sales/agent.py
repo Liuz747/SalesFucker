@@ -19,7 +19,7 @@ from core.prompts.template_loader import get_prompt_template
 from core.tools import get_tools_schema, long_term_memory_tool, store_episodic_memory_tool
 from infra.runtimes import CompletionsRequest
 from libs.types import AccountStatus, Message, MessageParams
-from schemas.exceptions import AssistantInactiveException
+from libs.exceptions import AssistantInactiveException
 from services import AssistantService, ThreadService
 from utils import (
     get_chinese_time,

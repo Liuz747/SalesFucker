@@ -23,7 +23,7 @@ from config import mas_config
 from controllers import app_router, __version__
 from controllers.middleware import JWTMiddleware
 from libs.factory import infra_registry
-from schemas.exceptions import BaseHTTPException
+from libs.exceptions import BaseHTTPException
 from utils import get_component_logger, configure_logging, to_isoformat
 
 # 配置日志

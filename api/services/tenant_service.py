@@ -19,7 +19,7 @@ from sqlalchemy.exc import IntegrityError
 from infra.db import database_session
 from infra.cache import get_redis_client
 from repositories.tenant_repo import TenantRepository, TenantModel, AccountStatus
-from schemas.exceptions import TenantNotFoundException, TenantAlreadyExistsException
+from libs.exceptions import TenantNotFoundException, TenantAlreadyExistsException
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "TenantService")

@@ -20,7 +20,7 @@ from libs.factory import infra_registry
 from libs.types import ThreadStatus
 from repositories.thread_repo import ThreadRepository, Thread
 from schemas import ThreadPayload
-from schemas.exceptions import ThreadNotFoundException, TenantValidationException
+from libs.exceptions import ThreadNotFoundException, TenantValidationException
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "ThreadService")

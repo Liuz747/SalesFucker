@@ -17,7 +17,7 @@ from schemas import (
     TenantSyncRequest,
     TenantUpdateRequest,
 )
-from schemas.exceptions import (
+from libs.exceptions import (
     TenantManagementException,
     TenantNotFoundException,
     TenantSyncException,

@@ -12,7 +12,7 @@ from libs.types import (
     Message,
     MessageParams,
 )
-from schemas.exceptions import (
+from libs.exceptions import (
     ASRConfigurationException,
     ASRUrlValidationException,
     ASRTranscriptionException,
