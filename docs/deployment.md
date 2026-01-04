@@ -76,7 +76,7 @@ At least one LLM provider API key is required:
 ```bash
 # Clone the repository
 git clone <repository-url>
-cd mas-v0.2
+cd mas
 
 # Navigate to API directory
 cd api
@@ -90,7 +90,7 @@ cp .env.example .env
 From the project root directory:
 
 ```bash
-cd mas-v0.2/docker
+cd mas/docker
 
 # Start core services
 docker compose -f docker-compose.dev.yml up -d
@@ -151,7 +151,7 @@ The frontend will be available at http://localhost:3000
 The project uses Docker Compose for building production container images.
 
 ```bash
-cd mas-v0.2/docker
+cd mas/docker
 
 # Build all images
 docker compose -f docker-compose.build.yml build
@@ -167,7 +167,7 @@ docker image ls
 
 ```bash
 # Set your registry URL
-export REGISTRY_URL=registry.example.com/mas-v0.2
+export REGISTRY_URL=registry.example.com/mas
 
 # Tag images
 docker tag api:latest ${REGISTRY_URL}/api:latest
@@ -193,7 +193,7 @@ The build process creates the following images:
 To start the test environment with all required services:
 
 ```bash
-cd mas-v0.2/docker
+cd mas/docker
 
 # Start test environment
 docker compose --profile test up -d
@@ -263,7 +263,7 @@ vim .env
 ### Docker Compose Deployment
 
 ```bash
-cd mas-v0.2/docker
+cd mas/docker
 
 # Start all services
 docker compose up -d

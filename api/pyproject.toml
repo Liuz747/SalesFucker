@@ -1,6 +1,6 @@
 [project]
-name = "mas-v0.2"
-version = "0.1.0"
+name = "mas"
+version = "0.2.3"
 description = "Multi-Agent System for Digital Marketing"
 authors = [
     {name = "HuanMu Team", email = "consumerclone@outlook.com"}

@@ -56,7 +56,7 @@ The platform integrates mainstream storage solutions including Redis, Elasticsea
 ## 📂 Project Structure
 
 ```text
-mas-v0.2/
+mas/
 ├── api/                      # FastAPI backend service and LangGraph agent workflows
 │   ├── controllers/          # API routing layer
 │   ├── core/                 # Core business capability modules
@@ -99,7 +99,7 @@ mas-v0.2/
 
 ```bash
 git clone <repo-url>
-cd mas-v0.2
+cd mas
 ```
 
 #### 2. Start Infrastructure Services
