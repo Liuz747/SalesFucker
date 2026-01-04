@@ -5,7 +5,7 @@ from langgraph.graph import StateGraph, START, END
 from config import mas_config
 from core.agents import BaseAgent
 from core.entities import WorkflowExecutionModel
-from libs.constants import AgentNodes
+from libs.types import AgentNodeType
 from utils import get_component_logger
 from utils.llm_debug_wrapper import LLMDebugWrapper
 from .base_workflow import BaseWorkflow
@@ -98,8 +98,8 @@ class ChatWorkflow(BaseWorkflow):
         if self.enable_parallel:
             # 并行执行模式：START同时触发两个并行节点
             parallel_nodes = [
-                AgentNodes.SENTIMENT_NODE,
-                AgentNodes.INTENT_NODE
+                AgentNodeType.SENTIMENT,
+                AgentNodeType.INTENT
             ]
 
             # START → 并行节点组（同时执行）
@@ -108,16 +108,16 @@ class ChatWorkflow(BaseWorkflow):
 
             # 并行节点 → Sales节点
             for node in parallel_nodes:
-                graph.add_edge(node, AgentNodes.SALES_NODE)
+                graph.add_edge(node, AgentNodeType.SALES)
 
             # 销售节点 → END
-            graph.add_edge(AgentNodes.SALES_NODE, END)
+            graph.add_edge(AgentNodeType.SALES, END)
 
             logger.debug("并行执行架构边定义完成 - START → [sentiment, intent] → sales → END")
         else:
             # 顺序执行模式
-            graph.add_edge(AgentNodes.SENTIMENT_NODE, AgentNodes.INTENT_NODE)
-            graph.add_edge(AgentNodes.INTENT_NODE, AgentNodes.SALES_NODE)
+            graph.add_edge(AgentNodeType.SENTIMENT, AgentNodeType.INTENT)
+            graph.add_edge(AgentNodeType.INTENT, AgentNodeType.SALES)
             logger.debug("顺序执行架构边定义完成 - sentiment → intent → sales")
 
     def set_entry_exit_points(self, graph: StateGraph):
@@ -133,8 +133,8 @@ class ChatWorkflow(BaseWorkflow):
         """
         if not self.enable_parallel:
             # 顺序模式需要显式设置入口出口点
-            graph.set_entry_point(AgentNodes.SENTIMENT_NODE)
-            graph.set_finish_point(AgentNodes.SALES_NODE)
+            graph.set_entry_point(AgentNodeType.SENTIMENT)
+            graph.set_finish_point(AgentNodeType.SALES)
             logger.debug("顺序执行架构入口出口点设置完成 - sentiment → sales")
         else:
             # 并行模式的入口出口点已在_define_edges中通过START/END设置

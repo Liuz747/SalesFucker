@@ -1,12 +1,9 @@
-"""
-数字员工测试工作流
-"""
-
 from typing import Any
 
 from langgraph.graph import StateGraph
 
 from core.agents import BaseAgent
+from libs.types import AgentNodeType
 from .base_workflow import BaseWorkflow
 
 
@@ -31,6 +28,8 @@ class TestWorkflow(BaseWorkflow):
 
     async def _single_node(self, state: dict[str, Any]) -> dict[str, Any]:
         """按 target_node 运行对应代理并直接返回结果"""
-        target_node = "chat_agent"  # Use ChatAgent for testing
+        target_node = AgentNodeType.CHAT
         agent = self.agents.get(target_node)
+        if not agent:
+            raise ValueError(f"Agent '{target_node}' 未找到")
         return await agent.process_conversation(state)

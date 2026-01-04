@@ -40,9 +40,8 @@ import pytest
 
 from core.app.workflow_builder import WorkflowBuilder
 from core.entities import WorkflowExecutionModel
-from libs.constants import AgentNodes
+from libs.types import AgentNodeType, UserMessage
 from libs.factory import infra_registry
-from libs.types import UserMessage
 from utils import get_component_logger, get_current_datetime
 
 logger = get_component_logger(__name__)

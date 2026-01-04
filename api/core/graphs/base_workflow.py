@@ -1,9 +1,3 @@
-"""
-基础工作流类
-
-定义工作流的抽象接口和通用功能。
-"""
-
 from abc import ABC, abstractmethod
 
 from langgraph.graph import StateGraph
