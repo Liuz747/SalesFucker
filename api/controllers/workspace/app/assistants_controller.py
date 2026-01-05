@@ -19,7 +19,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from models import TenantModel, AssistantModel
 from schemas import AssistantCreateRequest, AssistantCreateResponse, AssistantUpdateRequest, BaseResponse
 from libs.exceptions import AssistantNotFoundException
-from services.assistant_service import AssistantService
+from services import AssistantService
 from utils import get_component_logger
 from ..wraps import validate_and_get_tenant
 
@@ -209,7 +209,7 @@ async def delete_assistant(
 
         is_delete = await AssistantService.delete_assistant(assistant_id, force)
 
-        if is_delete is True:
+        if is_delete:
             logger.info(f"助理删除成功: {assistant_id}")
             return BaseResponse(message="助理删除成功")
         else:

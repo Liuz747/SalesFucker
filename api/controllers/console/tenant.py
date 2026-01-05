@@ -91,12 +91,11 @@ async def update_tenant(
     try:
         logger.info(f"租户更新请求: {tenant_id}")
 
-        if not request.features and not request.status:
+        if not request.status:
             raise ValueError
 
         await TenantService.update_tenant(
             tenant_id,
-            request.features.model_dump(exclude_none=True) if request.features else None,
             request.status
         )
 
