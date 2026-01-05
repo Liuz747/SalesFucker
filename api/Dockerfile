@@ -1,5 +1,5 @@
 # Use local base image with Python 3.13
-ARG REGISTRY_URL
+ARG REGISTRY_URL=localhost:5000
 FROM ${REGISTRY_URL}/api-base:latest
 
 # Set working directory
