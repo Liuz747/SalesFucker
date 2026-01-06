@@ -124,7 +124,13 @@ async def generate_analysis(
         )
 
         response = await llm_client.completions(request)
-        content = re.sub(r'^```(?:json)?\s*|\s*```$', '', response.content)
+
+        match = re.search(r'```(?:json)?\s*(.*?)\s*```', response.content, re.DOTALL)
+        if match:
+            content = match.group(1)
+        else:
+            content = response.content.strip()
+
         logger.debug(f"[LLM] {thread_id}，收到{analysis_type}返回信息")
 
         result = {
@@ -135,9 +141,9 @@ async def generate_analysis(
 
         try:
             result["result"] = json.loads(content)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
             # 降级处理：如果无法解析，返回原始内容
-            logger.warning(f"Failed to parse {analysis_type} JSON response")
+            logger.warning(f"Failed to parse {analysis_type} JSON response: {e}")
 
         return result
 
