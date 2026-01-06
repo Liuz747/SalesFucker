@@ -11,6 +11,7 @@
 - 依赖注入，支持外部会话管理
 """
 
+from collections.abc import Sequence
 from datetime import timedelta
 from typing import Optional
 from uuid import UUID
@@ -152,7 +153,7 @@ class ThreadRepository:
             raise
 
     @staticmethod
-    async def get_inactive_threads(session: AsyncSession) -> list[ThreadOrm]:
+    async def get_inactive_threads(session: AsyncSession) -> Sequence[ThreadOrm]:
         """
         查询不活跃线程（用于唤醒工作流）
 
