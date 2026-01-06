@@ -17,5 +17,5 @@ build-api-base: ## Build and push base image with all dependencies
 	docker push $(REGISTRY_URL)/api-base:$(API_IMAGE_TAG)
 
 build-api: ## Build and push API application image
-	cd docker && docker compose -f docker-compose.build.yml build api
+	cd docker && docker compose -f docker-compose.build.yml build --no-cache api
 	docker push $(REGISTRY_URL)/api:$(API_IMAGE_TAG)
