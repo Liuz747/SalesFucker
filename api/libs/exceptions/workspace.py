@@ -171,3 +171,35 @@ class WorkflowExecutionException(WorkflowException):
         if reason:
             detail += f": {reason}"
         super().__init__(detail=detail)
+
+
+# ============================================
+# 记忆相关异常
+# ============================================
+
+class MemoryException(WorkspaceException):
+    """记忆异常基类"""
+    code = 1600001
+    message = "MEMORY_ERROR"
+    http_status_code = 500
+
+
+class MemoryInsertionException(MemoryException):
+    """记忆插入失败异常"""
+    code = 1600002
+    message = "MEMORY_INSERTION_FAILED"
+
+    def __init__(self, reason: str = ""):
+        detail = "记忆插入失败"
+        if reason:
+            detail += f": {reason}"
+        super().__init__(detail)
+
+
+class MemoryInsertFailureException(MemoryException):
+    code = 1600003
+    message = "MEMORY_INSERT_FAILURE"
+
+    def __init__(self):
+        detail = "全部记忆插入失败"
+        super().__init__(detail)

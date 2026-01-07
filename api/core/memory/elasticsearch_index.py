@@ -39,10 +39,10 @@ class ElasticsearchIndex:
     def client(self) -> AsyncElasticsearch:
         """获取集中管理的 Elasticsearch 客户端。"""
         if self._es_client is None:
-            clients = infra_registry.get_cached_clients()
-            if clients is None or clients.elasticsearch is None:
+            client = infra_registry.get_cached_clients().elasticsearch
+            if client is None:
                 raise RuntimeError("Elasticsearch客户端未初始化，请先调用 infra_registry.create_clients()")
-            self._es_client = clients.elasticsearch
+            self._es_client = client
         return self._es_client
 
     # --------------------------------------------------------------------
@@ -117,7 +117,7 @@ class ElasticsearchIndex:
             tenant_id: 租户ID
             thread_id: 对话线程ID
             limit: 返回结果数量限制，默认20
-            memory_types: 需要的记忆类型过滤（默认仅long term）
+            memory_type: 需要的记忆类型过滤（默认仅long term）
 
         Returns:
             list[dict]: 摘要列表，按创建时间降序排列
