@@ -16,7 +16,7 @@ class WorkspaceException(BaseHTTPException):
 
 
 # ============================================
-# 助手相关异常
+# 数字员工相关异常
 # ============================================
 
 class AssistantException(WorkspaceException):
@@ -31,8 +31,8 @@ class AssistantNotFoundException(AssistantException):
     message = "ASSISTANT_NOT_FOUND"
     http_status_code = 404
 
-    def __init__(self, assistant_id: str):
-        super().__init__(detail=f"AI助手 {assistant_id} 不存在")
+    def __init__(self, assistant_id: UUID):
+        super().__init__(detail=f"AI数字员工 {assistant_id} 不存在")
 
 
 class AssistantUnavailableException(AssistantException):
@@ -41,8 +41,8 @@ class AssistantUnavailableException(AssistantException):
     message = "ASSISTANT_UNAVAILABLE"
     http_status_code = 503
 
-    def __init__(self, assistant_id: str):
-        super().__init__(detail=f"AI助手 {assistant_id} 暂时不可用")
+    def __init__(self, assistant_id: UUID):
+        super().__init__(detail=f"AI数字员工 {assistant_id} 暂时不可用")
 
 
 class AssistantConflictException(AssistantException):
@@ -51,8 +51,8 @@ class AssistantConflictException(AssistantException):
     message = "ASSISTANT_CONFLICT"
     http_status_code = 503
 
-    def __init__(self, assistant_id: str):
-        super().__init__(detail=f"AI助手 {assistant_id} 已存在")
+    def __init__(self, assistant_id: UUID):
+        super().__init__(detail=f"AI数字员工 {assistant_id} 已存在")
 
 
 class AssistantDisabledException(AssistantException):
@@ -61,8 +61,8 @@ class AssistantDisabledException(AssistantException):
     message = "ASSISTANT_DISABLED"
     http_status_code = 400
 
-    def __init__(self, assistant_id: UUID | str):
-        super().__init__(detail=f"AI助手 {assistant_id} 已被禁用，无法处理请求")
+    def __init__(self, assistant_id: UUID):
+        super().__init__(detail=f"AI数字员工 {assistant_id} 已被禁用，无法处理请求")
 
 
 class AssistantInactiveException(AssistantException):
