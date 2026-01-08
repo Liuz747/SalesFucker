@@ -10,7 +10,8 @@
 from typing import Any, Optional
 
 from pydantic import BaseModel, Field
-from utils.time_utils import get_current_timestamp_ms
+
+from utils import get_current_timestamp_ms
 
 
 class BaseResponse(BaseModel):

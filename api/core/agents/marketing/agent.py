@@ -86,7 +86,7 @@ class MarketingAgent(BaseAgent):
             )
 
             # 3. 调用LLM生成计划
-            llm_response = await self._generate_plans(conversation_history)
+            llm_response = await self._generate_plans(conversation_history, tenant_id)
 
             # 4. 解析结构化输出
             response, plan_options = self._parse_structured_output(llm_response.content)
@@ -116,10 +116,8 @@ class MarketingAgent(BaseAgent):
             logger.error(f"营销计划生成失败: {e}", exc_info=True)
             raise
 
-    def _build_marketing_prompt(
-        self,
-        content: str
-    ) -> str:
+    @staticmethod
+    def _build_marketing_prompt(content: str) -> str:
         """
         构建营销提示词
 
@@ -151,20 +149,22 @@ class MarketingAgent(BaseAgent):
         )
 
     @observe(name="llm-generation", as_type="generation")
-    async def _generate_plans(self, user_input: list) -> LLMResponse:
+    async def _generate_plans(self, user_input: list, tenant_id: str) -> LLMResponse:
         """
         调用LLM生成营销计划
 
         参数:
             user_input: 完整提示词
+            tenant_id: 租户ID
 
         返回:
             LLMResponse
         """
         try:
             # 构建LLM请求
+            request_id = uuid4()
             request = CompletionsRequest(
-                id=uuid4(),
+                id=request_id,
                 provider="openrouter",
                 model="openai/gpt-oss-120b:exacto",
                 temperature=0.7,
@@ -174,13 +174,18 @@ class MarketingAgent(BaseAgent):
             )
 
             # 调用LLM
-            return await self.invoke_llm(request)
+            return await self.invoke_llm(
+                request=request,
+                tenant_id=tenant_id,
+                thread_id=request_id
+            )
 
         except Exception as e:
             logger.error(f"LLM调用失败: {e}", exc_info=True)
             raise
 
-    def _parse_structured_output(self, llm_response: str) -> tuple[str, list[dict]]:
+    @staticmethod
+    def _parse_structured_output(llm_response: str) -> tuple[str, list[dict]]:
         """
         解析LLM的结构化输出
 
