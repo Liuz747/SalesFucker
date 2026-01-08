@@ -1,6 +1,6 @@
 # MAS - Marketing Agent System
 
-<div align="center">
+<div style="text-align: center;">
 
 [![Python](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green.svg)](https://fastapi.tiangolo.com/)
@@ -56,7 +56,7 @@ The platform integrates mainstream storage solutions including Redis, Elasticsea
 ## 📂 Project Structure
 
 ```text
-mas-v0.2/
+mas/
 ├── api/                      # FastAPI backend service and LangGraph agent workflows
 │   ├── controllers/          # API routing layer
 │   ├── core/                 # Core business capability modules
@@ -99,7 +99,7 @@ mas-v0.2/
 
 ```bash
 git clone <repo-url>
-cd mas-v0.2
+cd mas
 ```
 
 #### 2. Start Infrastructure Services
@@ -264,15 +264,13 @@ uv run scripts/database.py downgrade <revision_id>
 | [`deployment.md`](deployment.md) | Deployment guide (development/production environments) |
 | [`database_migrations.md`](database_migrations.md) | Database migration best practices |
 | [`LLM_usage.md`](LLM_usage.md) | Multi-LLM runtime configuration guide |
-| [`message-storage-strategy.md`](message-storage-strategy.md) | Conversation storage strategy documentation |
-
 
 ## 🤝 Support
 
 - **Email**: consumerclone@outlook.com
 - **Team**: HuanMu Team
 
-<div align="center">
+<div style="text-align: center;">
 
 **Made with ❤️ by HuanMu Team**
 

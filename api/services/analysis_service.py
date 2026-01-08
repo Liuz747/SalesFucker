@@ -73,9 +73,21 @@ async def generate_analysis(
             [m.get('content', '') for m in long_term_memories]
         ) if long_term_memories else "无长期记忆"
 
-        # 3. 构建 Prompt
+        # 3. 格式化短期对话历史为文本
+        conversation_text = ""
+        for msg in short_term_messages:
+            role_label = "【客户】" if msg.role == "user" else "【员工】"
+            # 处理多模态内容
+            if isinstance(msg.content, list):
+                text_parts = [item.content for item in msg.content]
+                content = " ".join(text_parts)
+            else:
+                content = msg.content
+            conversation_text += f"{role_label}: {content}\n"
+
+        # 4. 构建 Prompt
         template_path = Path(__file__).parent.parent / "data" / "analysis_prompts.yaml"
-        
+
         # 加载YAML配置
         config = load_yaml_file(template_path)
 
@@ -94,9 +106,11 @@ async def generate_analysis(
 
         system_prompt = template_config.get("prompt").format(memory_content=long_term_context)
 
-        # 4. 准备 LLM 消息
-        llm_messages = [Message(role="system", content=system_prompt)]
-        llm_messages.extend(short_term_messages)
+        # 5. 准备 LLM 消息
+        llm_messages = [
+            Message(role="system", content=system_prompt),
+            Message(role="user", content=f"请根据以下对话内容，按照相应要求做出分析：\n\n{conversation_text}")
+        ]
 
         # 5. 调用 LLM
         llm_client = LLMClient()
@@ -110,8 +124,14 @@ async def generate_analysis(
         )
 
         response = await llm_client.completions(request)
-        content = re.sub(r'^```(?:json)?\s*|\s*```$', '', response.content)
-        logger.debug(f"[LLM] {thread_id}，收到返回信息")
+
+        match = re.search(r'```(?:json)?\s*(.*?)\s*```', response.content, re.DOTALL)
+        if match:
+            content = match.group(1)
+        else:
+            content = response.content.strip()
+
+        logger.debug(f"[LLM] {thread_id}，收到{analysis_type}返回信息")
 
         result = {
             "result": content,
@@ -121,9 +141,9 @@ async def generate_analysis(
 
         try:
             result["result"] = json.loads(content)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
             # 降级处理：如果无法解析，返回原始内容
-            logger.warning(f"Failed to parse {analysis_type} JSON response")
+            logger.warning(f"Failed to parse {analysis_type} JSON response: {e}")
 
         return result
 

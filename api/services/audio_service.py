@@ -12,7 +12,7 @@ from libs.types import (
     Message,
     MessageParams,
 )
-from schemas.exceptions import (
+from libs.exceptions import (
     ASRConfigurationException,
     ASRUrlValidationException,
     ASRTranscriptionException,
@@ -110,7 +110,7 @@ class AudioService:
                         async with aiohttp.ClientSession() as session:
                             async with session.get(transcription_url) as response:
                                 if response.status != 200:
-                                    raise ASRDownloadException(response.status)
+                                    raise ASRDownloadException()
                                 json_content = await response.json()
 
                         transcripts = json_content.get('transcripts', [])

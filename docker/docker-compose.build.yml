@@ -5,38 +5,9 @@ services:
     build:
       context: ../api
       dockerfile: Dockerfile
-    image: ${REGISTRY_URL}/api:latest
-    ports:
-      - "8000:8000"
-    environment:
-      - APP_KEY=${APP_KEY}
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
-      - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY}
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
-      - DB_HOST=${DB_HOST}
-      - DB_PORT=${DB_PORT:-5432}
-      - DB_NAME=${DB_NAME}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PWD=${POSTGRES_PWD}
-      - REDIS_HOST=${REDIS_HOST}
-      - REDIS_PORT=${REDIS_PORT:-6379}
-      - REDIS_USERNAME=${REDIS_USERNAME:-}
-      - REDIS_PASSWORD=${REDIS_PASSWORD}
-      - MILVUS_HOST=${MILVUS_HOST}
-      - MILVUS_PORT=${MILVUS_PORT:-19530}
-      - ELASTIC_HOST=${ELASTIC_HOST}
-      - ELASTIC_PORT=${ELASTIC_PORT:-9200}
-      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
-      - TEMPORAL_HOST=${TEMPORAL_HOST}
-      - TEMPORAL_PORT=${TEMPORAL_PORT:-7233}
-      - TEMPORAL_NAMESPACE=${TEMPORAL_NAMESPACE:-default}
-      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
-      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
-      - LANGFUSE_HOST=${LANGFUSE_HOST}
-      - CALLBACK_URL=${CALLBACK_URL}
-    restart: unless-stopped
+      args:
+        - REGISTRY_URL=${REGISTRY_URL}
+    image: ${REGISTRY_URL}/api:${API_IMAGE_TAG:-latest}
 
   langfuse-web:
     build:

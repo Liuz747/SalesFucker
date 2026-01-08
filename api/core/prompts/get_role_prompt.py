@@ -14,7 +14,7 @@ from typing import Optional
 from uuid import UUID
 
 from libs.types import AccountStatus, Message
-from schemas.exceptions import AssistantInactiveException, ThreadNotFoundException
+from libs.exceptions import AssistantInactiveException, ThreadNotFoundException
 from services import AssistantService, ThreadService
 from .template_loader import get_prompt_template
 

@@ -16,8 +16,8 @@ from fastapi import APIRouter, HTTPException, Depends
 from models import TenantModel
 from schemas.conversation_schema import ThreadRunResponse
 from services import generate_analysis
-from ..wraps import validate_and_get_tenant
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms
+from ..wraps import validate_and_get_tenant
 
 logger = get_component_logger(__name__, "AnalysisRouter")
 
@@ -162,7 +162,7 @@ async def generate_thread_profile(
             status = "failed"
             response_content = error_message
         elif isinstance(response_content, dict):
-            extracted = response_content.get("综合以上分析，形成用户的整体画像描述")
+            extracted = response_content.get("overall_profile")
             if extracted:
                 response_content = extracted
             else:

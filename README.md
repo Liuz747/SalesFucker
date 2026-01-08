@@ -1,6 +1,6 @@
 # MAS - 智能营销助手系统
 
-<div align="center">
+<div style="text-align: center;">
 
 [![Python](https://img.shields.io/badge/python-3.13+-blue.svg)](https://www.python.org/downloads/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green.svg)](https://fastapi.tiangolo.com/)
@@ -56,7 +56,7 @@ MAS（Marketing Agent System）是一个企业级多智能体营销助手平台�
 ## 📂 项目结构
 
 ```text
-mas-v0.2/
+mas/
 ├── api/                      # FastAPI 后端服务与 LangGraph 智能体工作流
 │   ├── controllers/          # API 路由层
 │   ├── core/                 # 核心业务能力模块
@@ -99,7 +99,7 @@ mas-v0.2/
 
 ```bash
 git clone <repo-url>
-cd mas-v0.2
+cd mas
 ```
 
 #### 2. 启动依赖服务
@@ -267,15 +267,13 @@ uv run scripts/database.py downgrade <revision_id>
 | [`docs/deployment.md`](docs/deployment.md) | 部署指南（开发/生产环境） |
 | [`docs/database_migrations.md`](docs/database_migrations.md) | 数据库迁移最佳实践 |
 | [`docs/LLM_usage.md`](docs/LLM_usage.md) | 多 LLM 运行时配置指南 |
-| [`docs/message-storage-strategy.md`](docs/message-storage-strategy.md) | 会话存储策略说明 |
-
 
 ## 🤝 技术支持
 
 - **邮箱**: consumerclone@outlook.com
 - **团队**: HuanMu Team
 
-<div align="center">
+<div style="text-align: center;">
 
 **Made with ❤️ by HuanMu Team**
 

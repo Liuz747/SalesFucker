@@ -1,24 +1,20 @@
-"""
-数字员工测试工作流
-"""
-
-from typing import Any
-
 from langgraph.graph import StateGraph
 
 from core.agents import BaseAgent
+from core.entities import WorkflowExecutionModel
+from libs.types import AgentNodeType
 from .base_workflow import BaseWorkflow
 
 
 class TestWorkflow(BaseWorkflow):
-    """最小单节点测试工作流"""
+    """最小单Agent节点测试工作流"""
     
-    def __init__(self, agents: dict[str, BaseAgent]):
+    def __init__(self, agents: dict[AgentNodeType, BaseAgent]):
         """初始化测试工作流"""
-        self.agents = agents
+        super().__init__(agents)
     
     def register_nodes(self, graph: StateGraph):
-        """注册单个代理节点用于独立测试"""
+        """注册单个Agent节点用于独立测试"""
         graph.add_node("single_node", self._single_node)
 
     def define_edges(self, graph: StateGraph):
@@ -29,8 +25,10 @@ class TestWorkflow(BaseWorkflow):
         graph.set_entry_point("single_node")
         graph.set_finish_point("single_node")
 
-    async def _single_node(self, state: dict[str, Any]) -> dict[str, Any]:
-        """按 target_node 运行对应代理并直接返回结果"""
-        target_node = "chat_agent"  # Use ChatAgent for testing
+    async def _single_node(self, state: WorkflowExecutionModel) -> dict:
+        """按 target_node 运行对应Agent并直接返回结果"""
+        target_node = AgentNodeType.CHAT
         agent = self.agents.get(target_node)
+        if not agent:
+            raise ValueError(f"Agent '{target_node}' 未找到")
         return await agent.process_conversation(state)

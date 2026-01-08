@@ -1,4 +1,5 @@
 from .account import AccountStatus
+from .agent_nodes import AgentNodeType
 from .content_params import (
     InputContentParams,
     InputType,
@@ -32,6 +33,7 @@ from .thread_status import ThreadStatus
 
 __all__ = [
     "AccountStatus",
+    "AgentNodeType",
     "EventType",
     "InfraClients",
     "InputContent",

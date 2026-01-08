@@ -10,13 +10,16 @@
 - 简化的智能体访问
 """
 
-from core.agents import BaseAgent
-from core.agents import ChatAgent
-from core.agents import IntentAgent
-from core.agents import SalesAgent
-from core.agents import SentimentAnalysisAgent
-# from core.agents.trigger_context import TriggerInactiveAgent, TriggerEngagementAgent
-from libs.constants import AgentNodes
+from core.agents import (
+    BaseAgent,
+    ChatAgent,
+    IntentAgent,
+    SalesAgent,
+    SentimentAnalysisAgent,
+    # TriggerInactiveAgent,
+    # TriggerEngagementAgent
+)
+from libs.types import AgentNodeType
 from utils import get_component_logger
 
 logger = get_component_logger(__name__)
@@ -24,23 +27,23 @@ logger = get_component_logger(__name__)
 
 # 工作流节点名 -> 智能体类 映射
 AGENT_NODE_MAPPING = {
-    AgentNodes.SENTIMENT_NODE: SentimentAnalysisAgent,
-    AgentNodes.SALES_NODE: SalesAgent,
-    AgentNodes.INTENT_NODE: IntentAgent,
-    # AgentNodes.TRIGGER_INACTIVE: TriggerInactiveAgent,
-    # AgentNodes.TRIGGER_ENGAGEMENT: TriggerEngagementAgent,
-    "chat_agent": ChatAgent,
+    AgentNodeType.SENTIMENT: SentimentAnalysisAgent,
+    AgentNodeType.SALES: SalesAgent,
+    AgentNodeType.INTENT: IntentAgent,
+    # AgentNodeType.TRIGGER_INACTIVE: TriggerInactiveAgent,
+    # AgentNodeType.TRIGGER_ENGAGEMENT: TriggerEngagementAgent,
+    AgentNodeType.CHAT: ChatAgent,
 }
 
 
-def create_agents_set() -> dict[str, BaseAgent]:
+def create_agents_set() -> dict[AgentNodeType, BaseAgent]:
     """
-    创建完整的智能体集合
+    创建完整的Agent集合
 
     返回:
-        dict[str, BaseAgent]: 智能体集合 {"agent_type": agent_instance}
+        dict[AgentNodeType, BaseAgent]: 智能体集合 {AgentNodeType: agent_instance}
     """
-    agents: dict[str, BaseAgent] = {}
+    agents: dict[AgentNodeType, BaseAgent] = {}
 
     # 基于工作流节点名创建智能体集合
     for node_name, agent_class in AGENT_NODE_MAPPING.items():
