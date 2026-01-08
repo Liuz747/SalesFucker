@@ -81,6 +81,7 @@ async def create_memory_index(client: AsyncElasticsearch, force_recreate: bool =
     - 时间戳和TTL支持
 
     Args:
+        client: 异步ES客户端实例
         force_recreate: 是否强制重建索引（会删除现有数据）
 
     Returns:

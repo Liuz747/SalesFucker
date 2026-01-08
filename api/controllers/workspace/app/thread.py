@@ -19,9 +19,9 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Depends
 
 from config import mas_config
-from core.tasks.workflows import GreetingWorkflow
+from core.tasks.workflows import ConversationPreservationWorkflow
 from libs.factory import infra_registry
-from models import Thread, ThreadStatus, TenantModel
+from models import Thread, TenantModel
 from schemas import BaseResponse, ThreadPayload, ThreadCreateResponse
 from services import ThreadService
 from utils import get_component_logger
@@ -54,7 +54,6 @@ async def create_thread(
         # 创建业务模型对象
         thread = Thread(
             tenant_id=tenant.tenant_id,
-            status=ThreadStatus.IDLE,
             name=request.name,
             nickname=request.nickname,
             real_name=request.real_name,
@@ -68,16 +67,20 @@ async def create_thread(
         
         thread_id = await ThreadService.create_thread(thread)
 
+        # 启动Temporal工作流
         temporal_client = infra_registry.get_cached_clients().temporal
-        asyncio.create_task(
+
+        # 启动对话保留工作流
+        task = asyncio.create_task(
             temporal_client.start_workflow(
-                GreetingWorkflow.run,
-                thread_id,
-                id=f"greeting-{thread_id}",
+                ConversationPreservationWorkflow.run,
+                args=[thread_id, tenant.tenant_id],
+                id=f"preservation-{thread_id}",
                 task_queue=mas_config.TASK_QUEUE
             )
         )
-        
+        task.add_done_callback(lambda t: t.exception())
+
         return ThreadCreateResponse(message="线程创建成功", thread_id=thread_id)
         
     except HTTPException:
@@ -113,23 +116,7 @@ async def get_thread(
                 detail="租户ID不匹配，无法访问此线程"
             )
 
-        return {
-            "thread_id": thread.thread_id,
-            "tenant_id": thread.tenant_id,
-            "assistant_id": thread.assistant_id,
-            "status": thread.status,
-            "name": thread.name,
-            "nickname": thread.nickname,
-            "real_name": thread.real_name,
-            "sex": thread.sex,
-            "age": thread.age,
-            "phone": thread.phone,
-            "occupation": thread.occupation,
-            "services": thread.services,
-            "is_converted": thread.is_converted,
-            "created_at": thread.created_at,
-            "updated_at": thread.updated_at
-        }
+        return thread
 
     except Exception as e:
         logger.error(f"线程获取失败: {e}", exc_info=True)

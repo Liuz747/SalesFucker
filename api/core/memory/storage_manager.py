@@ -55,7 +55,7 @@ class StorageManager:
         logger.info("StorageManager initialized")
 
     @staticmethod
-    def _extract_text(content: InputContentParams) -> str:
+    def extract_text(content: InputContentParams) -> str:
         """
         从 InputContentParams 中提取纯文本内容
 
@@ -106,7 +106,6 @@ class StorageManager:
 
         return total_messages
 
-    # TODO: 需要考虑当客户聊天轮次在Redis有效期内没有达到存长期记忆threshold的场景该怎么解决
     async def add_episodic_memory(
         self,
         tenant_id: str,
@@ -187,9 +186,9 @@ class StorageManager:
             if not recent_messages:
                 return False
 
-            # 生成摘要 - 使用 _extract_text 处理多模态内容
+            # 生成摘要 - 使用 extract_text 处理多模态内容
             text_block = "\n".join([
-                f"{msg.role}: {self._extract_text(msg.content)}"
+                f"{msg.role}: {self.extract_text(msg.content)}"
                 for msg in recent_messages
             ])
             summary_content = await self.summarization_service.generate_summary(text_block)
@@ -301,3 +300,27 @@ class StorageManager:
             logger.info("Expired memories cleanup completed")
         except Exception as e:
             logger.error(f"Failed to cleanup expired memories: {e}")
+
+    async def delete_es_memory(
+        self,
+        memory_id: str,
+        tenant_id: str,
+        thread_id: UUID
+    ):
+        """
+        删除指定的记忆条目
+
+        Args:
+            memory_id: 记忆文档ID
+            tenant_id: 租户ID
+            thread_id: 线程ID
+        """
+        try:
+            await self.elasticsearch_index.delete_by_id(
+                memory_id,
+                tenant_id,
+                thread_id
+            )
+        except Exception as e:
+            logger.error(f"Failed to delete memory {memory_id}: {e}")
+            raise

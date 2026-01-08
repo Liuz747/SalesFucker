@@ -12,14 +12,15 @@
 """
 
 import asyncio
-from uuid import UUID
 from typing import Optional
+from uuid import UUID
 
 from infra.db import database_session
 from libs.factory import infra_registry
+from libs.types import ThreadStatus
 from repositories.thread_repo import ThreadRepository, Thread
 from schemas import ThreadPayload
-from schemas.exceptions import ThreadNotFoundException, TenantValidationException
+from libs.exceptions import ThreadNotFoundException, TenantValidationException
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "ThreadService")
@@ -44,23 +45,19 @@ class ThreadService:
         try:
             thread_orm = thread.to_orm()
             
+            # 1. 立即写入数据库
             async with database_session() as session:
-                # 1. 立即写入数据库
                 thread_orm = await ThreadRepository.insert_thread(thread_orm, session)
 
-            if thread_orm:
-                # 2. 异步更新Redis缓存
-                redis_client = infra_registry.get_cached_clients().redis
-                thread_model = Thread.to_model(thread_orm)
-                asyncio.create_task(
-                    ThreadRepository.update_thread_cache(thread_model, redis_client)
-                )
+            # 2. 异步更新Redis缓存
+            redis_client = infra_registry.get_cached_clients().redis
+            thread_model = Thread.to_model(thread_orm)
+            asyncio.create_task(
+                ThreadRepository.update_thread_cache(thread_model, redis_client)
+            )
 
-                
-                logger.debug(f"线程写入redis缓存成功: {thread_model.thread_id}")
-                return thread_model.thread_id
-            
-            return None
+            logger.debug(f"线程写入redis缓存成功: {thread_model.thread_id}")
+            return thread_model.thread_id
 
         except Exception as e:
             logger.error(f"线程创建失败: {e}")
@@ -99,29 +96,68 @@ class ThreadService:
             return None
     
     @staticmethod
-    async def update_thread_status(thread: Thread) -> Thread:
-        """更新线程"""
+    async def update_thread_status(thread_id: UUID, status: ThreadStatus) -> bool:
+        """
+        更新线程状态
+
+        参数:
+            thread_id: 线程ID
+            status: 新状态
+
+        返回:
+            bool: 是否更新成功
+        """
         try:
-            thread_orm = thread.to_orm()
-            
-            # 立即更新数据库
+            # 更新数据库中的状态
             async with database_session() as session:
-                updated_thread_orm = await ThreadRepository.update_thread_model(thread_orm, session)
+                flag = await ThreadRepository.update_thread_status(thread_id, status, session)
 
-            # 直接获取Redis客户端，使用连接池
-            redis_client = infra_registry.get_cached_clients().redis
+            if flag:
+                # 异步清除Redis缓存，下次查询时重新加载
+                redis_client = infra_registry.get_cached_clients().redis
+                asyncio.create_task(
+                    redis_client.delete(f"thread:{str(thread_id)}")
+                )
 
-            thread_model = Thread.to_model(updated_thread_orm)
+            return flag
+
+        except Exception as e:
+            logger.error(f"线程状态更新失败: thread_id={thread_id}, status={status}, 错误: {e}")
+            raise
+
+    @staticmethod
+    async def update_thread_fields(thread_id: UUID, fields: dict) -> Thread:
+        """
+        更新线程字段（通用方法，可同时更新多个字段）
+
+        参数:
+            thread_id: 线程ID
+            fields: 要更新的字段字典
+
+        返回:
+            Thread: 更新后的线程模型
+        """
+        try:
+            # 更新数据库中的字段
+            async with database_session() as session:
+                thread_orm = await ThreadRepository.update_thread_field(thread_id, fields, session)
+
+            if not thread_orm:
+                raise ThreadNotFoundException(thread_id)
+
+            # 转换为业务模型
+            thread_model = Thread.to_model(thread_orm)
 
             # 异步更新Redis缓存
+            redis_client = infra_registry.get_cached_clients().redis
             asyncio.create_task(
                 ThreadRepository.update_thread_cache(thread_model, redis_client)
             )
-            
+
             return thread_model
-            
+
         except Exception as e:
-            logger.error(f"线程更新失败: {e}")
+            logger.error(f"线程字段更新失败: thread_id={thread_id}, fields={fields}, 错误: {e}")
             raise
 
     @staticmethod
@@ -180,3 +216,57 @@ class ThreadService:
         except Exception as e:
             logger.error(f"线程更新失败: {e}")
             raise
+
+    @staticmethod
+    async def get_inactive_threads_for_awakening() -> list[Thread]:
+        """
+        获取需要唤醒的不活跃线程
+
+        返回:
+            threads: 线程列表（包含业务模型数据）
+        """
+        try:
+            async with database_session() as session:
+                thread_orms = await ThreadRepository.get_inactive_threads(session)
+
+                # 转换为业务模型字典
+                thread_list = [Thread.to_model(orm) for orm in thread_orms]
+
+                logger.info(f"扫描不活跃线程完成: 找到 {len(thread_list)} 个线程")
+
+                return thread_list
+
+        except Exception as e:
+            logger.error(f"获取不活跃线程失败: {e}")
+            raise
+
+    @staticmethod
+    async def increment_awakening_attempt(thread_id: UUID) -> bool:
+        """
+        增加线程的唤醒尝试计数
+
+        参数:
+            thread_id: 线程ID
+
+        返回:
+            bool: 是否更新成功
+        """
+        try:
+            async with database_session() as session:
+                success = await ThreadRepository.increment_awakening_attempt(thread_id=thread_id, session=session)
+
+                if success:
+                    logger.info(f"唤醒计数增加成功: thread_id={thread_id}")
+
+                    # 异步清除Redis缓存，下次查询时重新加载
+                    redis_client = infra_registry.get_cached_clients().redis
+                    asyncio.create_task(
+                        redis_client.delete(f"thread:{str(thread_id)}")
+                    )
+
+                return success
+
+        except Exception as e:
+            logger.error(f"增加唤醒计数失败: thread_id={thread_id}, 错误: {e}")
+            raise
+

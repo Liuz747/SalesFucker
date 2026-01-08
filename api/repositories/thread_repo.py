@@ -11,17 +11,20 @@
 - 依赖注入，支持外部会话管理
 """
 
-from uuid import UUID
+from collections.abc import Sequence
+from datetime import timedelta
 from typing import Optional
+from uuid import UUID
 
 import msgpack
 from redis import Redis
-from sqlalchemy import select, update, func
+from sqlalchemy import select, update, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import mas_config
+from libs.types import ThreadStatus
 from models import ThreadOrm, Thread
-from utils import get_component_logger
+from utils import get_component_logger, get_current_datetime
 
 logger = get_component_logger(__name__, "ThreadRepository")
 
@@ -56,7 +59,7 @@ class ThreadRepository:
             raise
 
     @staticmethod
-    async def insert_thread(thread: ThreadOrm, session: AsyncSession) -> Optional[ThreadOrm]:
+    async def insert_thread(thread: ThreadOrm, session: AsyncSession) -> ThreadOrm:
         """创建线程数据库模型"""
         try:
             session.add(thread)
@@ -100,23 +103,17 @@ class ThreadRepository:
             raise
 
     @staticmethod
-    async def update_thread_field(thread_id: UUID, value: dict, session: AsyncSession) -> bool:
+    async def update_thread_field(thread_id: UUID, value: dict, session: AsyncSession) -> Optional[ThreadOrm]:
         """更新线程数据库模型字段"""
         try:
-            value['updated_at'] = func.now()
             stmt = (
                 update(ThreadOrm)
                 .where(ThreadOrm.thread_id == thread_id)
-                .values(**value)
+                .values(updated_at=func.now(), **value)
+                .returning(ThreadOrm)
             )
             result = await session.execute(stmt)
-            
-            if result.rowcount > 0:
-                logger.debug(f"更新线程字段: {thread_id}, 值: {value}")
-            else:
-                logger.warning(f"线程不存在，无法更新: {thread_id}")
-                
-            return result.rowcount > 0
+            return result.scalar_one_or_none()
         except Exception as e:
             logger.error(f"更新线程数据库模型字段失败: {thread_id}, 值: {value}, 错误: {e}")
             raise
@@ -128,6 +125,7 @@ class ThreadRepository:
             redis_key = f"thread:{str(thread_model.thread_id)}"
             thread_data = thread_model.model_dump(mode='json')
 
+            # TODO: 更新Redis方法，setex已经进入废弃流程
             await redis_client.setex(
                 redis_key,
                 mas_config.REDIS_TTL,
@@ -153,3 +151,102 @@ class ThreadRepository:
         except Exception as e:
             logger.error(f"获取线程缓存失败: {thread_id}, 错误: {e}")
             raise
+
+    @staticmethod
+    async def get_inactive_threads(session: AsyncSession) -> Sequence[ThreadOrm]:
+        """
+        查询不活跃线程（用于唤醒工作流）
+
+        参数:
+            session: 数据库会话
+
+        返回:
+            不活跃线程列表
+        """
+        try:
+            # 临时测试修改
+            # threshold = get_current_datetime() - timedelta(days=mas_config.INACTIVE_INTERVAL_DAYS)
+            threshold = get_current_datetime() - timedelta(hours=mas_config.INACTIVE_INTERVAL_DAYS)
+
+            stmt = select(ThreadOrm).where(
+                and_(
+                    # 去掉失败的线程
+                    ThreadOrm.status != ThreadStatus.FAILED,
+                    # 未超过最大尝试次数
+                    ThreadOrm.awakening_attempt_count < mas_config.MAX_AWAKENING_ATTEMPTS,
+                    # 满足不活跃条件：指定天数未活动或从未互动
+                    or_(
+                        ThreadOrm.last_interaction_at.is_(None),  # 从未互动
+                        ThreadOrm.last_interaction_at < threshold  # 超过指定天数未互动
+                    )
+                )
+            ).order_by(ThreadOrm.last_interaction_at.asc()).limit(mas_config.AWAKENING_BATCH_SIZE)
+
+            result = await session.execute(stmt)
+            return result.scalars().all()
+
+        except Exception as e:
+            logger.error(f"查询不活跃线程失败, 错误: {e}")
+            raise
+
+    @staticmethod
+    async def update_thread_status(thread_id: UUID, status: ThreadStatus, session: AsyncSession) -> bool:
+        """
+        更新线程状态和最后互动时间
+
+        参数:
+            thread_id: 线程ID
+            status: 状态
+            session: 数据库会话
+
+        返回:
+            bool: 是否更新成功
+        """
+        try:
+            stmt = (
+                update(ThreadOrm)
+                .where(ThreadOrm.thread_id == thread_id)
+                .values(
+                    status=status,
+                    last_interaction_at=func.now(),
+                    updated_at=func.now()
+                )
+            )
+
+            result = await session.execute(stmt)
+            return result.rowcount > 0
+
+        except Exception as e:
+            logger.error(f"更新线程状态失败: thread_id={thread_id}, status={status}, 错误: {e}")
+            raise
+
+    @staticmethod
+    async def increment_awakening_attempt(thread_id: UUID, session: AsyncSession) -> bool:
+        """
+        增加线程的唤醒尝试计数并更新最后互动时间
+
+        参数:
+            thread_id: 线程ID
+            session: 数据库会话
+
+        返回:
+            bool: 是否更新成功
+        """
+        try:
+            stmt = (
+                update(ThreadOrm)
+                .where(ThreadOrm.thread_id == thread_id)
+                .values(
+                    awakening_attempt_count=ThreadOrm.awakening_attempt_count + 1,
+                    last_interaction_at=func.now(),
+                    updated_at=func.now()
+                )
+            )
+
+            result = await session.execute(stmt)
+            return result.rowcount > 0
+
+        except Exception as e:
+            logger.error(f"增加唤醒计数失败: thread_id={thread_id}, 错误: {e}")
+            raise
+

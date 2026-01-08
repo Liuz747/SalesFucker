@@ -11,14 +11,12 @@
 - 工作流状态管理
 """
 
-from typing import Type
-
 from langgraph.graph import StateGraph
 
 from utils import get_component_logger
 from core.entities import WorkflowExecutionModel
-from ..graphs import BaseWorkflow
 from ..factories import create_agents_set
+from ..graphs import BaseWorkflow
 
 
 logger = get_component_logger(__name__)
@@ -35,7 +33,7 @@ class WorkflowBuilder:
         workflow: 具体工作流实现
     """
     
-    def __init__(self, workflow: Type[BaseWorkflow]):
+    def __init__(self, workflow: type[BaseWorkflow]):
         """
         初始化工作流构建器
         
@@ -59,13 +57,13 @@ class WorkflowBuilder:
         graph = StateGraph(WorkflowExecutionModel)
         
         # 注册节点处理函数
-        self.workflow._register_nodes(graph)
+        self.workflow.register_nodes(graph)
         
         # 定义节点间的连接关系
-        self.workflow._define_edges(graph)
+        self.workflow.define_edges(graph)
         
         # 设置入口和出口点
-        self.workflow._set_entry_exit_points(graph)
+        self.workflow.set_entry_exit_points(graph)
         
         # 编译工作流图
         compiled_graph = graph.compile()

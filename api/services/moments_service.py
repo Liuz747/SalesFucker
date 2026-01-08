@@ -6,7 +6,6 @@
 """
 
 import asyncio
-from collections.abc import Mapping
 from pathlib import Path
 from typing import Type
 from uuid import uuid4
@@ -14,16 +13,15 @@ from uuid import uuid4
 from pydantic import BaseModel
 
 from config import mas_config
+from core.memory import StorageManager
 from infra.cache import get_redis_client
-from infra.runtimes import LLMClient, CompletionsRequest
-from infra.runtimes.entities.llm import LLMResponse
+from infra.runtimes import LLMClient, CompletionsRequest, LLMResponse
 from libs.types import MethodType, Message, InputContent, InputType, MemoryType
 from schemas.social_media_schema import (
     MomentsAnalysisRequest,
     MomentsAnalysisResponse,
     SocialMediaActionType,
 )
-from core.memory import StorageManager
 from utils import get_component_logger, load_yaml_file
 
 
@@ -44,7 +42,6 @@ class MomentsAnalysisService:
         self.client = LLMClient()
         self.config_path = str(config_path)
         self.storage_manager = StorageManager()
-
 
     async def invoke_llm_multimodal(
         self,
@@ -92,10 +89,10 @@ class MomentsAnalysisService:
         ]
         request = CompletionsRequest(
             id=run_id,
-            model="openai/gpt-4o-mini",  # 文本分析使用更经济的模型
+            model="openai/gpt-5",  # 文本分析使用更经济的模型
             provider="openrouter",
-            temperature=0.3,
-            max_tokens=2000,  # 朋友圈分析通常不需要很长的回复
+            temperature=1,
+            max_tokens=1000,  # 朋友圈分析通常不需要很长的回复
             messages=messages,
             output_model=output_model
         )
@@ -136,7 +133,8 @@ class MomentsAnalysisService:
             logger.exception(f"朋友圈提示词获取失败：{e}")
             raise
 
-    def build_moments_prompt(self, request: MomentsAnalysisRequest) -> str:
+    @staticmethod
+    def build_moments_prompt(request: MomentsAnalysisRequest) -> str:
         """构建朋友圈分析提示词"""
         moment_descriptions = []
         for idx, moment in enumerate(request.task_list, 1):
@@ -236,25 +234,6 @@ class MomentsAnalysisService:
             logger.exception(f"朋友圈分析失败: {e}")
             raise MomentsServiceError(f"朋友圈内容分析失败: {str(e)}")
 
-    async def reload_prompt(self, method: MethodType):
-        """重载提示词缓存"""
-        redis_client = await get_redis_client()
-        cache_key = f"social_media_prompt:{method}"
-
-        yaml_content = load_yaml_file(self.config_path)
-        method_data = yaml_content.get(method)
-        if not method_data:
-            logger.error(f"未找到提示词配置: {method}")
-            raise
-
-        prompt = method_data.get("prompt")
-        if not prompt:
-            logger.error(f"配置中缺少 'prompt' 字段: {method}")
-            raise
-
-        await redis_client.set(cache_key, prompt, ex=mas_config.REDIS_TTL)
-        logger.info(f"朋友圈提示词重载成功: {method}")
-
     async def _store_moments_memories(
         self,
         request: MomentsAnalysisRequest,
@@ -307,4 +286,3 @@ class MomentsAnalysisService:
         except Exception as e:
             logger.error(f"存储朋友圈记忆失败: {e}", exc_info=True)
             # 不抛出异常，以免影响主流程
-

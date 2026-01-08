@@ -17,7 +17,7 @@ from uuid import UUID
 from langfuse import observe, get_client
 
 from core.entities import WorkflowExecutionModel
-from core.tools.utils import generate_audio_output
+from core.tools import generate_audio_output
 from libs.types import OutputType
 from models import WorkflowRun
 from utils import (
@@ -26,7 +26,11 @@ from utils import (
     get_processing_time,
     flush_traces
 )
-from ..graphs import ChatWorkflow, TestWorkflow, SentimentChatWorkflow
+from ..graphs import (
+    ChatWorkflow,
+    TestWorkflow,
+    # TriggerEngagementWorkflow
+)
 from .state_manager import StateManager
 from .workflow_builder import WorkflowBuilder
 
@@ -58,7 +62,7 @@ class Orchestrator:
         self.graph = self.workflow_builder.build_graph()
 
     @observe(name="multi-agent-conversation", as_type="span")
-    async def process_conversation(self, workflow: WorkflowRun) -> WorkflowExecutionModel:
+    async def dispatch(self, workflow: WorkflowRun) -> WorkflowExecutionModel:
         """
         处理客户对话的主入口函数
 
@@ -78,6 +82,11 @@ class Orchestrator:
         start_time = get_current_datetime()
 
         try:
+            # 创建工作流
+            # if workflow.type == "trigger":
+            #     self.workflow_builder = WorkflowBuilder(TriggerEngagementWorkflow)
+            #     self.graph = self.workflow_builder.build_graph()
+
             # 构建初始工作流状态
             initial_state = self.state_manager.create_initial_state(workflow)
 

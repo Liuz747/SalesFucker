@@ -9,7 +9,7 @@ from uuid import UUID
 
 from core.memory import ElasticsearchIndex
 from libs.types import MemoryType
-from utils.logger_utils import get_component_logger
+from utils import get_component_logger
 
 logger = get_component_logger(__name__)
 

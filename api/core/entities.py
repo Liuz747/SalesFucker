@@ -4,14 +4,20 @@
 支持LangGraph并发状态更新和并行节点执行。
 """
 
+from collections.abc import Mapping
 from datetime import datetime
-from typing import Annotated, Any, Optional, TypedDict
-from uuid import UUID
 import operator
+from typing import Annotated, Any, Optional
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-from libs.types import MessageParams, OutputContentParams, OutputType
+from libs.types import (
+    MessageParams,
+    MessageType,
+    OutputContentParams,
+    OutputType
+)
 from utils import get_current_datetime
 
 
@@ -87,49 +93,36 @@ def merge_list(left: Optional[list], right: Optional[list]) -> Optional[list]:
     return left + right
 
 
-# ==============================
-# LangGraph 状态类型定义
-# ==============================
-
-class WorkflowState(TypedDict):
+class AgentMessage(BaseModel):
     """
-    LangGraph工作流状态类型定义
-
-    使用Annotated类型和Reducer函数支持并发状态更新。
-    """
-    # 基础字段
-    workflow_id: str
-    thread_id: str
-    tenant_id: str
-    input: Any
-    context: Optional[list[dict]]  # 用户上下文
-
-    # 并行节点专用字段 - 使用Reducer避免并发冲突
-    sentiment_analysis: Annotated[Optional[dict], safe_merge_dict]
-    appointment_intent: Annotated[Optional[dict], safe_merge_dict]
-    material_intent: Annotated[Optional[dict], safe_merge_dict]
-
-    # 统一的状态收集器 - 使用专门的Reducer
-    values: Annotated[Optional[dict], merge_agent_results]
-
-    # 全局状态字段
-    journey_stage: Optional[str]
-    matched_prompt: Optional[dict]
-
-    # Token 统计字段
-    input_tokens: Annotated[int, operator.add]
-    output_tokens: Annotated[int, operator.add]
-    total_tokens: Optional[int]
+    智能体消息标准格式类
     
-    # 元数据字段
-    error_message: Optional[str]
-    exception_count: int
-    started_at: str
-    finished_at: Optional[str]
-
-    # 并行执行控制
-    parallel_execution: Optional[dict]
-    active_agents: Annotated[Optional[list], merge_list]
+    定义智能体之间通信的标准消息格式，包含完整的上下文信息和元数据。
+    支持多种消息类型和优先级管理。
+    
+    属性:
+        sender: 发送方智能体ID
+        message_type: 消息类型(查询/响应/通知/触发/建议)
+        context: 消息上下文信息
+        payload: 消息特定数据载荷
+    """
+    
+    # 消息基本信息
+    sender: str = Field(description="发送方智能体的唯一标识符")
+    message_type: MessageType = Field(
+        description="消息类型：query=查询, response=响应, notification=通知, trigger=触发, suggestion=建议"
+    )
+    
+    # 上下文信息
+    context: dict[str, Any] = Field(
+        default_factory=dict, 
+        description="消息上下文信息，包含处理消息所需的环境数据"
+    )
+    # 消息内容
+    payload: dict[str, Any] = Field(
+        default_factory=dict, 
+        description="消息特定数据载荷，包含具体的处理数据"
+    )
 
 
 class WorkflowExecutionModel(BaseModel):
@@ -144,8 +137,7 @@ class WorkflowExecutionModel(BaseModel):
     thread_id: UUID = Field(description="线程标识符")
     assistant_id: UUID = Field(description="助手标识符")
     tenant_id: str = Field(description="租户标识符")
-
-    input: MessageParams = Field(description="输入消息列表")
+    input: MessageParams | None = Field(description="输入消息列表")
     output: Optional[str] = Field(default=None, description="文本输出内容")
 
     # 多模态输出 - 支持音频、图像、视频等
@@ -153,37 +145,23 @@ class WorkflowExecutionModel(BaseModel):
         default=None,
         description="多模态输出列表（音频、图像、视频等）"
     )
-    actions: Optional[list[OutputType]] = Field(
+    actions: Annotated[Optional[list[OutputType]], merge_list] = Field(
         default=None,
         description="输出类型列表，例如：['output_audio', 'output_image']"
     )
-
-    # Token 统计字段
+    values: Annotated[Optional[dict], merge_agent_results] = Field(default=None, description="工作流节点交互的状态")
+    intent_analysis: Annotated[dict, safe_merge_dict] = Field(default_factory=dict, description="意向分析结果")
+    sentiment_analysis: Annotated[dict, safe_merge_dict] = Field(default_factory=dict, description="情感分析结果")
+    # 传递业务输出
+    business_outputs: Annotated[Optional[dict], safe_merge_dict] = Field(default=None, description="结构化业务输出")
+    journey_stage: Optional[str] = Field(default=None, description="客户旅程阶段")
+    matched_prompt: dict = Field(default_factory=dict, description="匹配的提示词信息")
     input_tokens: Annotated[int, operator.add] = Field(default=0, description="输入Token数")
     output_tokens: Annotated[int, operator.add] = Field(default=0, description="输出Token数")
-    total_tokens: Optional[int] = Field(default=None, description="总Token数")
+    total_tokens: Optional[int] = Field(default=0, description="总Token数")
     error_message: Optional[str] = Field(default=None, description="错误信息")
     exception_count: int = Field(default=0, description="异常次数")
-
+    # 触发事件元数据
+    trigger_metadata: Mapping | None = Field(default=None, description="触发事件元数据：event_type, services等")
     started_at: datetime = Field(default_factory=get_current_datetime, description="开始时间")
     finished_at: Optional[datetime] = Field(default=None, description="结束时间")
-
-    sentiment_analysis: Annotated[Optional[dict], safe_merge_dict] = Field(default=None)
-    appointment_intent: Annotated[Optional[dict], safe_merge_dict] = Field(default=None)
-    material_intent: Annotated[Optional[dict], safe_merge_dict] = Field(default=None)
-
-    values: Annotated[Optional[dict], merge_agent_results] = Field(default=None, description="工作流节点交互的状态")
-    
-    # 传递业务输出
-    business_outputs: Optional[dict] = Field(default=None, description="结构化业务输出")
-
-    active_agents: Annotated[Optional[list], merge_list] = Field(default=None)
-
-    # 工作流状态字段
-    journey_stage: Optional[str] = Field(default=None, description="客户旅程阶段")
-    matched_prompt: Optional[dict] = Field(default=None, description="匹配的提示词信息")
-
-    model_config = {
-        "arbitrary_types_allowed": True
-    }
-

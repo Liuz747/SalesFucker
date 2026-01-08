@@ -11,10 +11,9 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 from sqlalchemy import ARRAY, Boolean, Column, DateTime, Enum, Integer, String, Uuid, func
 
-from libs.types import Sex
+from libs.types import Sex, ThreadStatus
 from utils import get_current_datetime
 from .base import Base
-from .enums import ThreadStatus
 
 
 class ThreadOrm(Base):
@@ -34,7 +33,9 @@ class ThreadOrm(Base):
     phone = Column(String(32), index=True, comment="客户电话")
     occupation = Column(String(128), comment="客户职业")
     services = Column(ARRAY(String), default=[], comment="客户已消费的服务列表")
-    is_converted = Column(Boolean, default=False, comment="客户是否已转化（已消费）")
+    is_converted = Column(Boolean, default=False, nullable=False, comment="客户是否已转化（已消费）")
+    awakening_attempt_count = Column(Integer, default=0, nullable=False, comment="唤醒消息发送次数")
+    last_interaction_at = Column(DateTime(timezone=True), comment="最后一次互动时间")
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
@@ -55,6 +56,8 @@ class Thread(BaseModel):
     occupation: Optional[str] = Field(None, description="客户职业")
     services: list[str] = Field(default_factory=list, description="客户已消费的服务列表")
     is_converted: bool = Field(default=False, description="客户是否已转化（已消费）")
+    awakening_attempt_count: int = Field(default=0, description="唤醒消息发送次数")
+    last_interaction_at: Optional[datetime] = Field(None, description="最后一次互动时间")
     created_at: datetime = Field(default_factory=get_current_datetime, description="创建时间")
     updated_at: datetime = Field(default_factory=get_current_datetime, description="更新时间")
 
@@ -74,7 +77,9 @@ class Thread(BaseModel):
             phone=thread_orm.phone,
             occupation=thread_orm.occupation,
             services=thread_orm.services or [],
-            is_converted=thread_orm.is_converted or False,
+            is_converted=thread_orm.is_converted,
+            awakening_attempt_count=thread_orm.awakening_attempt_count,
+            last_interaction_at=thread_orm.last_interaction_at,
             created_at=thread_orm.created_at,
             updated_at=thread_orm.updated_at
         )
@@ -95,6 +100,8 @@ class Thread(BaseModel):
             occupation=self.occupation,
             services=self.services,
             is_converted=self.is_converted,
+            awakening_attempt_count=self.awakening_attempt_count,
+            last_interaction_at=self.last_interaction_at,
             created_at=self.created_at,
             updated_at=self.updated_at
         )

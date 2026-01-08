@@ -123,5 +123,3 @@ async def test_admin_access(service: ServiceContext = Depends(require_service_sc
             "is_admin": service.is_admin()
         }
     }
-
-

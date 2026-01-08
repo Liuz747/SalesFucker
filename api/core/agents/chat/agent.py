@@ -1,11 +1,17 @@
 from langfuse import observe
 
+from core.agents import BaseAgent
 from core.entities import WorkflowExecutionModel
-from core.memory import StorageManager
 from infra.runtimes import CompletionsRequest
-from libs.types import Message, MessageParams, InputContent, InputType, OutputType
+from libs.types import (
+    InputContent,
+    InputType,
+    Message,
+    MessageParams, 
+    OutputType
+)
 from utils import get_current_datetime, get_processing_time_ms
-from ..base import BaseAgent
+
 
 class ChatAgent(BaseAgent):
     """
@@ -18,7 +24,7 @@ class ChatAgent(BaseAgent):
     def __init__(self):
         super().__init__()
 
-        self.agent_id = "chat_agent"
+        self.agent_name = "chat_agent"
 
         # 简单聊天提示词模板
         self.chat_prompt =  """
@@ -30,8 +36,7 @@ class ChatAgent(BaseAgent):
                             - 如果不确定，诚实地说明
                             - 回复要简洁明了
                             """
-        self.memory_manager = StorageManager()
-        self.logger.info(f"ChatAgent初始化完成: {self.agent_id}")
+        self.logger.info("ChatAgent初始化完成")
 
     @observe(name="chat-agent-conversation", as_type="span")
     async def process_conversation(self, state: WorkflowExecutionModel) -> dict:
@@ -102,7 +107,7 @@ class ChatAgent(BaseAgent):
             processing_time = get_processing_time_ms(start_time)
 
             updated_value = {
-                "agent_id": self.agent_id,
+                "agent_name": self.agent_name,
                 "chat_response": chat_response.content,
                 "processing_time_ms": processing_time,
                 "timestamp": get_current_datetime().isoformat(),
@@ -138,7 +143,7 @@ class ChatAgent(BaseAgent):
 
             # 创建错误状态的values字典 (替换现有values)
             error_values = {
-                "agent_id": self.agent_id,
+                "agent_name": self.agent_name,
                 "error": str(e),
                 "timestamp": get_current_datetime().isoformat(),
                 "status": "failed"

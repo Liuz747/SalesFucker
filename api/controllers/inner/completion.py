@@ -51,19 +51,9 @@ async def send_message(request: ChatRequest):
             output_model=CalendarEvent,
             max_tokens=request.max_tokens
         )
-        
-        # 发送请求
-        response = await client.completions(llm_request)
-        
+
         # 返回响应
-        return {
-            "chat_id": response.id,
-            "response": response.content,
-            "provider": response.provider,
-            "model": response.model,
-            "usage": response.usage,
-            "cost": response.cost
-        }
+        return await client.completions(llm_request)
         
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"聊天失败: {str(e)}")
@@ -95,18 +85,8 @@ async def test_responses_api(request: ChatRequest):
             max_tokens=request.max_tokens
         )
 
-        # 发送请求
-        response = await client.responses(llm_request)
-
         # 返回响应
-        return {
-            "chat_id": response.id,
-            "response": response.content,
-            "provider": response.provider,
-            "model": response.model,
-            "usage": response.usage,
-            "cost": response.cost
-        }
+        return await client.responses(llm_request)
 
     except Exception as e:
         logger.error(f"Responses API调用失败: {str(e)}")

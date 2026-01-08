@@ -36,7 +36,7 @@ class LLMConfig:
             'anthropic': mas_config.ANTHROPIC_API_KEY,
             'gemini': mas_config.GOOGLE_API_KEY,
             'openrouter': mas_config.OPENROUTER_API_KEY,
-            'zenmux': mas_config.ZENMUX_API_KEY,
+            # 'zenmux': mas_config.ZENMUX_API_KEY,
         }
         
         for provider_config in yaml_content:

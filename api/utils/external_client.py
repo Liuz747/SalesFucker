@@ -6,7 +6,7 @@
 
 import asyncio
 import aiohttp
-from typing import Dict, Any, Optional
+from typing import Any, Optional
 
 from .logger_utils import get_component_logger
 
@@ -16,7 +16,7 @@ logger = get_component_logger(__name__, "ExternalClient")
 class ExternalClient:
     """外部客户端"""
     
-    def __init__(self, base_url: Optional[str] = None, config: Optional[Dict] = None):
+    def __init__(self, base_url: Optional[str] = None, config: Optional[dict] = None):
         self.base_url = base_url.rstrip("/") if base_url else None
         self.config = config or {}
 
@@ -24,12 +24,12 @@ class ExternalClient:
         self,
         method: str,
         endpoint: str,
-        data: Optional[Dict[str, Any]] = None,
-        params: Optional[Dict[str, Any]] = None,
-        headers: Optional[Dict[str, str]] = None,
+        data: Optional[dict[str, Any]] = None,
+        params: Optional[dict[str, Any]] = None,
+        headers: Optional[dict[str, str]] = None,
         timeout: float = 10.0,
         max_retries: int = 2
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         发送HTTP请求
         

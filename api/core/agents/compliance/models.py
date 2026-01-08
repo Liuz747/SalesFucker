@@ -11,7 +11,7 @@
 """
 
 import re
-from typing import Dict, Any, List, Optional
+from typing import Any, Optional
 from dataclasses import dataclass
 
 from .types import RuleSeverity, RuleAction, RuleCategory
@@ -49,7 +49,7 @@ class ComplianceRule:
     tenant_specific: bool = False
     enabled: bool = True
     category: RuleCategory = RuleCategory.CONTENT
-    tags: List[str] = None
+    tags: list[str] = None
     
     def __post_init__(self):
         """初始化后处理，编译正则表达式"""
@@ -60,7 +60,7 @@ class ComplianceRule:
         except re.error as e:
             raise ValueError(f"无效的正则表达式模式: {self.pattern}, 错误: {e}")
     
-    def check(self, text: str) -> Optional[Dict[str, Any]]:
+    def check(self, text: str) -> Optional[dict[str, Any]]:
         """
         检查文本是否违反此规则
         
@@ -68,7 +68,7 @@ class ComplianceRule:
             text: 要检查的文本
             
         返回:
-            Optional[Dict[str, Any]]: 如果违规则返回违规信息，否则返回None
+            Optional[dict[str, Any]]: 如果违规则返回违规信息，否则返回None
         """
         if not self.enabled:
             return None

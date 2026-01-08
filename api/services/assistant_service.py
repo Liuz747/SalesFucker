@@ -20,7 +20,7 @@ from libs.factory import infra_registry
 from models import AssistantModel
 from repositories.assistant_repo import AssistantRepository
 from schemas import AssistantCreateRequest, AssistantUpdateRequest
-from schemas.exceptions import AssistantNotFoundException, TenantNotFoundException, TenantValidationException
+from libs.exceptions import AssistantNotFoundException, TenantNotFoundException, TenantValidationException
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "AssistantService")

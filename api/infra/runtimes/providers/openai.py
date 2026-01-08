@@ -1,7 +1,7 @@
 """
 OpenAI供应商实现
 
-提供OpenAI GPT系列模型的调用功能。
+提供OpenAI GPT系列模型的调用功能，支持函数调用（Function Calling）。
 """
 
 from collections.abc import Sequence
@@ -11,9 +11,16 @@ import openai
 from openai.types.chat import ChatCompletionMessageParam, ChatCompletionContentPartParam
 from pydantic import ValidationError
 
-from ..entities import LLMResponse, Provider, CompletionsRequest, ResponseMessageRequest, TokenUsage
-from .base import BaseProvider
 from utils import get_component_logger
+from ..entities import (
+    LLMResponse,
+    Provider,
+    CompletionsRequest,
+    ResponseMessageRequest,
+    ToolCallData,
+    TokenUsage
+)
+from .base import BaseProvider
 
 logger = get_component_logger(__name__, "OpenAIProvider")
 
@@ -59,6 +66,35 @@ class OpenAIProvider(BaseProvider):
                 })
         return formatted
 
+    def _parse_tool_calls(self, message) -> list[ToolCallData] | None:
+        """
+        解析 OpenAI 响应中的工具调用
+
+        参数:
+            message: OpenAI ChatCompletionMessage
+
+        返回:
+            list[ToolCallData] | None: 解析后的工具调用列表
+        """
+        if not message.tool_calls:
+            return None
+
+        tool_calls = []
+        for tc in message.tool_calls:
+            try:
+                arguments = json.loads(tc.function.arguments)
+            except json.JSONDecodeError:
+                logger.warning(f"工具调用参数解析失败: {tc.function.arguments}")
+                arguments = {}
+
+            tool_calls.append(ToolCallData(
+                id=tc.id,
+                name=tc.function.name,
+                arguments=arguments
+            ))
+
+        return tool_calls
+
     async def completions(self, request: CompletionsRequest) -> LLMResponse:
         """
         发送聊天请求到OpenAI
@@ -71,29 +107,42 @@ class OpenAIProvider(BaseProvider):
         """
         # 构建包含历史记录的对话上下文并处理多模态内容
         messages: list[ChatCompletionMessageParam] = []
-        for message in request.messages:
-            messages.append({
-                "role": message.role,
-                "content": self._format_message_content(message.content)
-            })
+        for m in request.messages:
+            if m.role in ("user", "assistant"):
+                msg = {
+                    "role": m.role,
+                    "content": self._format_message_content(m.content) if m.content else None
+                }
+                if getattr(m, "tool_calls", None):
+                    msg["tool_calls"] = m.tool_calls
+                messages.append(msg)
+            else:
+                messages.append(m.model_dump())
 
         response = await self.client.chat.completions.create(
             model=request.model or "gpt-4o-mini",
             messages=messages,
             temperature=request.temperature,
-            max_completion_tokens=request.max_tokens
+            max_completion_tokens=request.max_tokens,
+            tools=request.tools,
+            tool_choice=request.tool_choice
         )
+
+        message = response.choices[0].message
+        tool_calls = self._parse_tool_calls(message)
 
         llm_response = LLMResponse(
             id=request.id,
-            content=response.choices[0].message.content,
+            content=message.content,
             provider=request.provider,
             model=response.model,
             usage=TokenUsage(
                 input_tokens=response.usage.prompt_tokens,
                 output_tokens=response.usage.completion_tokens,
             ),
-            cost=self._calculate_cost(response.usage, response.model)
+            cost=self._calculate_cost(response.usage, response.model),
+            tool_calls=tool_calls,
+            finish_reason=response.choices[0].finish_reason
         )
 
         return llm_response
@@ -110,11 +159,17 @@ class OpenAIProvider(BaseProvider):
         """
         # 构建包含历史记录的对话上下文并处理多模态内容
         messages: list[ChatCompletionMessageParam] = []
-        for message in request.messages:
-            messages.append({
-                "role": message.role,
-                "content": self._format_message_content(message.content)
-            })
+        for m in request.messages:
+            if m.role in ("user", "assistant"):
+                msg = {
+                    "role": m.role,
+                    "content": self._format_message_content(m.content) if m.content else None
+                }
+                if getattr(m, "tool_calls", None):
+                    msg["tool_calls"] = m.tool_calls
+                messages.append(msg)
+            else:
+                messages.append(m.model_dump())
 
         # 为OpenRouter使用JSON schema格式，为原生OpenAI使用.parse()
         if request.provider == "openrouter" and not request.model.startswith("openai/"):

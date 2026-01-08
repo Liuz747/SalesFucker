@@ -11,7 +11,6 @@ from typing import Optional
 
 import msgpack
 from redis import Redis, RedisError
-from redis.exceptions import RedisError
 from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 

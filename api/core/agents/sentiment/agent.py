@@ -13,15 +13,14 @@ Sentiment Analysis Agent
 
 from langfuse import observe
 
+from core.agents import BaseAgent
 from core.entities import WorkflowExecutionModel
-from core.memory import StorageManager
 from libs.types import MessageParams, MemoryType
 from utils import get_current_datetime
-from ..base import BaseAgent
 from .multimodal_input_processor import MultimodalInputProcessor
-from .sentiment_analyzer import SentimentAnalyzer
-from .sales_prompt_generator import SalesPromptGenerator
 from .prompt_matcher import PromptMatcher
+from .sentiment_analyzer import SentimentAnalyzer
+
 
 class SentimentAnalysisAgent(BaseAgent):
     """
@@ -39,7 +38,7 @@ class SentimentAnalysisAgent(BaseAgent):
     def __init__(self):
         super().__init__()
 
-        self.memory_manager = StorageManager()
+        self.agent_name = "sentiment_analysis"
         self.prompt_matcher = PromptMatcher()
 
         # 初始化核心组件
@@ -50,8 +49,6 @@ class SentimentAnalysisAgent(BaseAgent):
             llm_model="openai/gpt-5-mini",
             invoke_llm_fn=self.invoke_llm
         )
-
-        self.prompt_generator = SalesPromptGenerator()
 
     @observe(name="sentiment-analysis", as_type="generation")
     async def process_conversation(self, state: WorkflowExecutionModel) -> dict:
@@ -73,8 +70,6 @@ class SentimentAnalysisAgent(BaseAgent):
         Returns:
             dict: 更新后的状态增量，包含 sentiment_analysis, matched_prompt 等
         """
-        start_time = get_current_datetime()
-
         try:
             self.logger.info("=== Sentiment Agent ===")
 
@@ -174,26 +169,26 @@ class SentimentAnalysisAgent(BaseAgent):
             }
 
             agent_data = {
-                "agent_type": "sentiment",
+                "agent_id": self.agent_name,
+                "agent_type": "analytics",
                 "sentiment_analysis": sentiment_result,
                 "matched_prompt": matched_prompt,
                 "journey_stage": journey_stage,
                 "processed_input": processed_text,
                 "timestamp": current_time,
-                "token_usage": token_info,             # 标准化的token信息
-                "tokens_used": token_info["total_tokens"],  # 向后兼容
-                "response_length": len(str(sentiment_result))
+                "token_usage": token_info,
+                "tokens_used": token_info["total_tokens"]
             }
             
             # 构造 sentiment_analysis 更新对象
             sentiment_analysis_update = {
                 **sentiment_result,
-                "journey_stage": journey_stage,        #  添加旅程信息
+                "journey_stage": journey_stage,
                 "processed_input": processed_text,
                 "multimodal_context": multimodal_context,
-                "agent_id": self.agent_id,
-                "token_usage": token_info,             # 标准化的token信息
-                "tokens_used": token_info["total_tokens"]  # 向后兼容
+                "agent_name": self.agent_name,
+                "token_usage": token_info,
+                "tokens_used": token_info["total_tokens"]
             }
             
             # 构造返回的增量状态
@@ -203,8 +198,7 @@ class SentimentAnalysisAgent(BaseAgent):
                 "journey_stage": journey_stage,
                 "input_tokens": token_info["input_tokens"],
                 "output_tokens": token_info["output_tokens"],
-                "values": {"agent_responses": {self.agent_id: agent_data}},
-                "active_agents": [self.agent_id]
+                "values": {"agent_responses": {self.agent_name: agent_data}}
             }
 
             # self.logger.info(f"情感分析完成: 耗时{processing_time:.2f}s, 情感={sentiment_result.get('sentiment')}, 旅程={journey_stage}")
@@ -370,15 +364,3 @@ class SentimentAnalysisAgent(BaseAgent):
             self.logger.error(f"基于历史的情感分析失败: {e}")
             # 降级处理：只分析当前文本
             return await self.sentiment_analyzer.analyze_sentiment(current_text, context)
-
-    async def _generate_prompt(self, sentiment_result: dict, context: dict) -> str:
-        """生成销售提示词"""
-        try:
-            # 使用prompt_generator生成个性化提示词
-            sales_prompt = self.prompt_generator.generate_prompt(sentiment_result, context)
-
-            self.logger.info(f"成功生成sales_prompt，长度: {len(sales_prompt)}")
-            return sales_prompt
-
-        except Exception as e:
-            self.logger.error(f"提示词生成失败: {e}")

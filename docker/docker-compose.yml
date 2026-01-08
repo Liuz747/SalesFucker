@@ -33,6 +33,8 @@ x-shared-var: &shared-mas-env
   # Temporal
   TEMPORAL_HOST: ${TEMPORAL_HOST}
   TEMPORAL_PORT: ${TEMPORAL_PORT:-7233}
+  INACTIVE_INTERVAL_DAYS: ${INACTIVE_INTERVAL_DAYS:-12}
+  AWAKENING_SCAN_INTERVAL_HOURS: ${AWAKENING_SCAN_INTERVAL_HOURS:-1}
   # Observability
   LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY}
   LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY}
@@ -44,6 +46,8 @@ services:
     image: ${REGISTRY_URL}/api:latest
     environment:
       <<: *shared-mas-env
+      DEBUG: true
+      LOG_LEVEL: DEBUG
     depends_on: &mas-depends-on
       milvus-standalone:
         condition: service_healthy
@@ -210,6 +214,7 @@ services:
     volumes:
       - es_data:/usr/share/elasticsearch/data
       - es_plugins:/usr/share/elasticsearch/plugins
+      - es_config:/usr/share/elasticsearch/config
     networks:
       - mas-network
 
@@ -364,6 +369,7 @@ volumes:
   minio_data:
   es_data:
   es_plugins:
+  es_config:
   etcd_data:
   milvus_data:
 

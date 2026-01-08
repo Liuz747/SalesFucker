@@ -1,20 +1,16 @@
-"""
-工作流执行业务服务层
-"""
-
 from uuid import UUID
 
 from fastapi import HTTPException
 
-from libs.types import AccountStatus
+from libs.types import AccountStatus, ThreadStatus
 from models import Thread
-from schemas.exceptions import (
+from libs.exceptions import (
     AssistantDisabledException,
     BaseHTTPException,
     TenantValidationException,
     ThreadNotFoundException
 )
-from utils import get_component_logger
+from utils import get_component_logger, get_current_datetime
 from .assistant_service import AssistantService
 from .thread_service import ThreadService
 
@@ -62,21 +58,41 @@ class WorkflowService:
                 logger.warning(f"线程不存在: {thread_id}")
                 raise ThreadNotFoundException(thread_id)
 
-            # 2. 验证助理身份
+            # 2. 验证线程状态
+            # 每个线程代表一个用户，拥有独立的记忆和上下文
+            # 允许FAILED线程重新运行，以便用户可以从错误中恢复
+            if thread.status == ThreadStatus.BUSY:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"线程当前状态正在运行，无法处理运行请求。"
+                )
+
+            # 3. 验证助理身份
             assistant = await AssistantService.get_assistant_by_id(
                 assistant_id=assistant_id,
                 use_cache=use_cache
             )
 
-            # 3. 验证线程、助理、租户ID三者匹配
+            # 4. 验证线程、助理、租户ID三者匹配
             if not assistant.tenant_id == thread.tenant_id == tenant_id:
                 logger.warning(f"租户、数字员工、线程不匹配: thread_id={thread_id}")
                 raise TenantValidationException(tenant_id, "线程和数字员工不匹配")
 
-            # 4. 验证助理状态
+            # 5. 验证助理状态
             if assistant.status != AccountStatus.ACTIVE:
                 logger.warning(f"助理已被禁用: assistant_id={assistant_id}")
                 raise AssistantDisabledException(assistant_id)
+
+            # 6. 更新线程状态为BUSY，同时绑定助理ID（如果未绑定），并重置唤醒计数
+            update_fields = {
+                "status": ThreadStatus.BUSY,
+                "last_interaction_at": get_current_datetime(),
+                "awakening_attempt_count": 0,
+            }
+            if not thread.assistant_id:
+                update_fields["assistant_id"] = assistant_id
+
+            thread = await ThreadService.update_thread_fields(thread.thread_id, update_fields)
 
             logger.info(f"工作流权限验证成功 - 线程: {thread_id}")
             return thread

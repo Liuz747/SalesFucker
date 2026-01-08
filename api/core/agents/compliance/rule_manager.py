@@ -11,7 +11,7 @@
 - 规则统计信息
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Any, Optional
 from .models import ComplianceRule
 from .types import RuleSeverity
 
@@ -30,8 +30,8 @@ class ComplianceRuleManager:
     
     def __init__(self):
         """初始化规则管理器"""
-        self.rules: Dict[str, ComplianceRule] = {}
-        self.categories: Dict[str, List[str]] = {}
+        self.rules: dict[str, ComplianceRule] = {}
+        self.categories: dict[str, list[str]] = {}
     
     def add_rule(self, rule: ComplianceRule) -> bool:
         """
@@ -79,7 +79,7 @@ class ComplianceRuleManager:
         del self.rules[rule_id]
         return True
     
-    def update_rule(self, rule_id: str, updates: Dict[str, Any]) -> bool:
+    def update_rule(self, rule_id: str, updates: dict[str, Any]) -> bool:
         """
         更新规则属性
         
@@ -115,16 +115,16 @@ class ComplianceRuleManager:
         """
         return self.rules.get(rule_id)
     
-    def get_enabled_rules(self) -> List[ComplianceRule]:
+    def get_enabled_rules(self) -> list[ComplianceRule]:
         """
         获取所有启用的规则
         
         返回:
-            List[ComplianceRule]: 启用的规则列表
+            list[ComplianceRule]: 启用的规则列表
         """
         return [rule for rule in self.rules.values() if rule.enabled]
     
-    def get_rules_by_category(self, category: str) -> List[ComplianceRule]:
+    def get_rules_by_category(self, category: str) -> list[ComplianceRule]:
         """
         根据分类获取规则
         
@@ -137,7 +137,7 @@ class ComplianceRuleManager:
         rule_ids = self.categories.get(category, [])
         return [self.rules[rule_id] for rule_id in rule_ids]
     
-    def get_rules_by_severity(self, severity: RuleSeverity) -> List[ComplianceRule]:
+    def get_rules_by_severity(self, severity: RuleSeverity) -> list[ComplianceRule]:
         """
         根据严重级别获取规则
         
@@ -145,11 +145,11 @@ class ComplianceRuleManager:
             severity: 严重级别
             
         返回:
-            List[ComplianceRule]: 指定严重级别的规则列表
+            list[ComplianceRule]: 指定严重级别的规则列表
         """
         return [rule for rule in self.rules.values() if rule.severity == severity]
     
-    def check_text(self, text: str, categories: Optional[List[str]] = None) -> List[Dict[str, Any]]:
+    def check_text(self, text: str, categories: Optional[list[str]] = None) -> list[dict[str, Any]]:
         """
         检查文本是否违反规则
         
@@ -158,7 +158,7 @@ class ComplianceRuleManager:
             categories: 可选的规则分类过滤
             
         返回:
-            List[Dict[str, Any]]: 违规信息列表
+            list[dict[str, Any]]: 违规信息列表
         """
         violations = []
         
@@ -179,12 +179,12 @@ class ComplianceRuleManager:
         
         return violations
     
-    def get_statistics(self) -> Dict[str, Any]:
+    def get_statistics(self) -> dict[str, Any]:
         """
         获取规则集统计信息
         
         返回:
-            Dict[str, Any]: 统计信息
+            dict[str, Any]: 统计信息
         """
         enabled_count = sum(1 for rule in self.rules.values() if rule.enabled)
         

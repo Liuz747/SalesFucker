@@ -16,12 +16,15 @@
 
 from .conversation_store import ConversationStore
 from .elasticsearch_index import ElasticsearchIndex
+from .preservation_heuristics import conversation_quality_evaluator
 from .storage_manager import StorageManager
 from .summarize import SummarizationService
+
 
 __all__ = [
     'ConversationStore',
     'ElasticsearchIndex',
     'StorageManager',
     'SummarizationService',
+    "conversation_quality_evaluator"
 ]

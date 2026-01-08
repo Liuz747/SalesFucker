@@ -1,12 +1,10 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-
-Composing repository contribution guide (56s • Esc to interrupt)
 The API root groups production code under domain-focused folders: `core/` holds agent logic, workflows, and
 multimodal utilities; `controllers/` exposes FastAPI routers and middleware; `infra/` manages db, cache, and runtime
-integrations. Persistence models live in `models/` and `repositories/`, while configuration helpers sit in `config/
-`. Tests mirror this layout inside `test/`, with subdirectories for `api/`, `agents/`, `llm/`, and `auth/`. Reusable
+integrations. Persistence models live in `models/` and `repositories/`, while configuration helpers sit in `config/`. 
+Tests mirror this layout inside `tests/`, with subdirectories for `api/`, `agents/`, `llm/`, and `auth/`. Reusable
 helpers and constants are in `libs/` and `utils/`. Entry points include `main.py` for the FastAPI app and `scripts/`
 for environment automation.
 
@@ -21,7 +19,7 @@ Pydantic model conventions for request/response schemas and snake_case filenames
 `utils.get_component_logger` to align formatting.
 
 ## Testing Guidelines
-Use `pytest` with `pytest-asyncio` for async routines and adhere to the directory-specific scopes documented in `test/README.md`. Name test modules after the unit
+Use `pytest` with `pytest-asyncio` for async routines and adhere to the directory-specific scopes documented in `tests/README.md`. Name test modules after the unit
 under test (e.g., `test_thread_performance.py`) and functions with `test_`. Mock external services—Redis, LLM providers, HTTP calls—via fixtures or monkeypatching. Add
 regression tests whenever changing agent behaviors or routing logic.
 

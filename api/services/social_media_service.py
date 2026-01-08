@@ -4,7 +4,6 @@
 封装 LLM 调用、提示词拼装和结果解析逻辑，为控制器提供复用能力。
 """
 
-from collections.abc import Mapping
 from pathlib import Path
 from typing import Type
 from time import time
@@ -14,8 +13,7 @@ from pydantic import BaseModel
 
 from config import mas_config
 from infra.cache import get_redis_client
-from infra.runtimes import LLMClient, CompletionsRequest
-from infra.runtimes.entities.llm import LLMResponse
+from infra.runtimes import LLMClient, CompletionsRequest, LLMResponse
 from libs.types import MethodType, Message, TextBeautifyActionType
 from schemas.social_media_schema import (
     CommentGenerationRequest,

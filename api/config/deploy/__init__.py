@@ -39,6 +39,11 @@ class DeploymentConfig(BaseSettings):
         default="PRODUCTION",
     )
 
+    APP_TIMEZONE: str = Field(
+        description="应用程序时区，用于处理时间和日期",
+        default="Asia/Shanghai",
+    )
+
     # 回调配置
     CALLBACK_URL: HttpUrl | None = Field(
         description="后台工作流完成后的回调URL地址",

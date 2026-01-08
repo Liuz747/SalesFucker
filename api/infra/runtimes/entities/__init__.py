@@ -3,7 +3,8 @@ from .llm import (
     LLMResponse,
     ResponseMessageRequest,
     CompletionsRequest,
-    TokenUsage
+    TokenUsage,
+    ToolCallData
 )
 from .providers import Provider, ProviderType
 from .models import Model, ModelType
@@ -13,6 +14,7 @@ __all__ = [
     "ResponseMessageRequest",
     "LLMRequest",
     "LLMResponse",
+    "ToolCallData",
     "Provider",
     "ProviderType",
     "Model",

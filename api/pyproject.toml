@@ -1,12 +1,12 @@
 [project]
-name = "mas-v0.2"
-version = "0.1.0"
+name = "mas"
+version = "0.2.3"
 description = "Multi-Agent System for Digital Marketing"
 authors = [
     {name = "HuanMu Team", email = "consumerclone@outlook.com"}
 ]
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.13"
 
 dependencies = [
     "aiofiles>=25.1.0",

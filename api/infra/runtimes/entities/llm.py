@@ -1,6 +1,6 @@
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Type
+from typing import Any, Literal, Type
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -22,7 +22,7 @@ class LLMRequest:
     temperature: float = 0.7
     max_tokens: int | None = None
     stream: bool = False
-    thread_id: UUID | None = None
+    thread_id: UUID | None = None          # TODO: Look for other usage of this field, see if can be deleted.
     output_model: Type[BaseModel] | None = None
 
 
@@ -35,13 +35,25 @@ class ResponseMessageRequest(LLMRequest):
 @dataclass(kw_only=True)
 class CompletionsRequest(LLMRequest):
     messages: MessageParams
+    tools: list[dict[str, Any]] | None = None
+    tool_choice: Literal["auto", "required", "none"] | None = None
 
 
-@dataclass 
+@dataclass
+class ToolCallData:
+    """LLM 返回的工具调用数据"""
+    id: str
+    name: str
+    arguments: dict[str, Any]
+
+
+@dataclass
 class LLMResponse:
     id: UUID | None
-    content: str | Mapping
+    content: str | Mapping | None
     provider: str
     model: str
     usage: TokenUsage
     cost: float = 0.0
+    tool_calls: list[ToolCallData] | None = None
+    finish_reason: str | None = None

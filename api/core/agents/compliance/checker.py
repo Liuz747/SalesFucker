@@ -11,7 +11,7 @@
 - 用户友好消息生成
 """
 
-from typing import Dict, Any, List
+from typing import Any
 from datetime import datetime
 
 from .rule_manager import ComplianceRuleManager
@@ -40,7 +40,7 @@ class ComplianceChecker:
         self.rule_set = rule_set
         self.agent_id = agent_id
     
-    async def perform_compliance_check(self, text: str) -> Dict[str, Any]:
+    async def perform_compliance_check(self, text: str) -> dict[str, Any]:
         """
         执行综合合规性检查
         
@@ -51,7 +51,7 @@ class ComplianceChecker:
             text: 待检查的文本内容
             
         返回:
-            Dict[str, Any]: 合规检查结果
+            dict[str, Any]: 合规检查结果
         """
         if not text or not text.strip():
             return self._create_empty_result()
@@ -73,12 +73,12 @@ class ComplianceChecker:
             status, violations, highest_severity, user_message
         )
     
-    def _create_empty_result(self) -> Dict[str, Any]:
+    def _create_empty_result(self) -> dict[str, Any]:
         """
         创建空文本的合规检查结果
         
         返回:
-            Dict[str, Any]: 空文本的检查结果
+            dict[str, Any]: 空文本的检查结果
         """
         return {
             "status": "approved",
@@ -90,8 +90,8 @@ class ComplianceChecker:
             "timestamp": datetime.utcnow().isoformat()
         }
     
-    def _create_compliance_result(self, status: str, violations: List[Dict[str, Any]], 
-                                highest_severity: str, user_message: str) -> Dict[str, Any]:
+    def _create_compliance_result(self, status: str, violations: list[dict[str, Any]], 
+                                highest_severity: str, user_message: str) -> dict[str, Any]:
         """
         构建完整的合规检查结果
         
@@ -102,7 +102,7 @@ class ComplianceChecker:
             user_message: 用户消息
             
         返回:
-            Dict[str, Any]: 完整的检查结果
+            dict[str, Any]: 完整的检查结果
         """
         return {
             "status": status,
@@ -116,7 +116,7 @@ class ComplianceChecker:
             "timestamp": datetime.utcnow().isoformat()
         }
     
-    def _determine_highest_severity(self, violations: List[Dict[str, Any]]) -> str:
+    def _determine_highest_severity(self, violations: list[dict[str, Any]]) -> str:
         """
         确定违规的最高严重级别
         
@@ -141,7 +141,7 @@ class ComplianceChecker:
         
         return highest_severity
     
-    def _determine_compliance_status(self, violations: List[Dict[str, Any]], 
+    def _determine_compliance_status(self, violations: list[dict[str, Any]], 
                                    highest_severity: str) -> str:
         """
         根据违规情况确定合规状态
@@ -167,7 +167,7 @@ class ComplianceChecker:
         
         return "approved"
     
-    def _generate_user_message(self, status: str, violations: List[Dict[str, Any]]) -> str:
+    def _generate_user_message(self, status: str, violations: list[dict[str, Any]]) -> str:
         """
         根据合规状态生成用户友好的消息
         
@@ -193,7 +193,7 @@ class ComplianceChecker:
         
         return ""
     
-    def _generate_blocked_message(self, violations: List[Dict[str, Any]]) -> str:
+    def _generate_blocked_message(self, violations: list[dict[str, Any]]) -> str:
         """
         生成阻止状态的用户消息
         
