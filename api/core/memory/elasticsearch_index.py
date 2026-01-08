@@ -229,8 +229,54 @@ class ElasticsearchIndex:
             logger.warning(f"[ElasticsearchIndex] Failed to update metadata: {e}")
 
     # --------------------------------------------------------------------
-    # Delete expired memory entries
+    # Delete memory entries
     # --------------------------------------------------------------------
+    async def delete_by_id(
+        self,
+        memory_id: str,
+        tenant_id: str,
+        thread_id: UUID
+    ):
+        """
+        根据记忆ID删除单条记忆
+
+        Args:
+            memory_id: 记忆文档ID
+            tenant_id: 租户ID
+            thread_id: 线程ID
+        """
+        query = {
+            "bool": {
+                "filter": [
+                    {"ids": {"values": [memory_id]}},
+                    {"term": {"tenant_id": tenant_id}},
+                    {"term": {"thread_id": str(thread_id)}}
+                ]
+            }
+        }
+
+        try:
+            result = await self.client.delete_by_query(
+                index=self.index_name,
+                query=query,
+                conflicts="proceed"
+            )
+
+            if not result.get("deleted"):
+                logger.warning(
+                    f"[ElasticsearchIndex] Memory not found or access denied: "
+                    f"memory_id={memory_id}, thread_id={thread_id}"
+                )
+                raise NotFoundError(f"Memory {memory_id} not found", None, None)
+
+            logger.info(f"[ElasticsearchIndex] Deleted memory: {memory_id}")
+
+        except NotFoundError:
+            raise
+        except Exception as e:
+            logger.error(f"[ElasticsearchIndex] Failed to delete memory {memory_id}: {e}")
+            raise
+
     async def delete_expired(self):
         """
         删除所有过期的记忆文档

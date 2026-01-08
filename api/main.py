@@ -24,7 +24,7 @@ from controllers import app_router, __version__
 from controllers.middleware import JWTMiddleware
 from libs.factory import infra_registry
 from libs.exceptions import BaseHTTPException
-from utils import get_component_logger, configure_logging, to_isoformat
+from utils import get_component_logger, configure_logging, get_current_timestamp
 
 # 配置日志
 logger = get_component_logger(__name__)
@@ -83,7 +83,7 @@ async def api_exception_handler(_, exc: BaseHTTPException):
         status_code=exc.http_status_code,
         content={
             **exc.data,
-            "timestamp": to_isoformat()
+            "timestamp": get_current_timestamp()
         }
     )
 

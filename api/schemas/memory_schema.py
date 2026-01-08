@@ -43,3 +43,10 @@ class MemoryInsertResponse(BaseResponse):
     """手动记忆插入响应"""
 
     results: list[MemoryInsertResult] = Field(description="详细结果列表")
+
+
+class MemoryDeleteRequest(BaseModel):
+    """记忆删除请求"""
+
+    thread_id: UUID = Field(description="对话线程ID")
+    memory_id: str = Field(description="记忆ID")

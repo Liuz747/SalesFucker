@@ -13,9 +13,12 @@
 from typing import Optional
 from uuid import UUID
 
+from elasticsearch import NotFoundError
+
 from core.memory import StorageManager
+from libs.exceptions import MemoryNotFoundException, MemoryDeletionException
 from libs.types import MemoryType
-from schemas.memory_schema import MemoryInsertSummary, MemoryInsertResult
+from schemas import MemoryInsertSummary, MemoryInsertResult
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "MemoryService")
@@ -156,3 +159,38 @@ class MemoryService:
                 success=False,
                 error=str(e)
             )
+
+    @staticmethod
+    async def delete_memory(
+        tenant_id: str,
+        thread_id: UUID,
+        memory_id: str
+    ):
+        """
+        删除指定的记忆
+
+        Args:
+            tenant_id: 租户ID
+            thread_id: 线程ID
+            memory_id: 记忆ID
+
+        Raises:
+            MemoryNotFoundException: 记忆不存在或无权访问
+            MemoryDeletionException: 删除失败
+        """
+        try:
+            storage_manager = StorageManager()
+            await storage_manager.delete_es_memory(
+                memory_id,
+                tenant_id,
+                thread_id
+            )
+
+            logger.info(f"记忆删除成功: memory_id={memory_id}")
+
+        except NotFoundError:
+            logger.error(f"记忆不存在或无权访问: memory_id={memory_id}")
+            raise MemoryNotFoundException(memory_id)
+        except Exception as e:
+            logger.error(f"记忆删除失败: memory_id={memory_id}, error={e}", exc_info=True)
+            raise MemoryDeletionException(reason=str(e))

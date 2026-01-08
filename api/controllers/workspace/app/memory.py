@@ -12,13 +12,16 @@ from libs.exceptions import (
     BaseHTTPException,
     MemoryInsertionException,
     MemoryInsertFailureException,
+    MemoryDeletionException,
     ThreadNotFoundException,
     ThreadAccessDeniedException
 )
 from models import TenantModel
-from schemas.memory_schema import (
+from schemas import (
+    BaseResponse,
     MemoryInsertRequest,
-    MemoryInsertResponse
+    MemoryInsertResponse,
+    MemoryDeleteRequest
 )
 from services import MemoryService, ThreadService
 from utils import get_component_logger
@@ -74,3 +77,39 @@ async def insert_memory(
     except Exception as e:
         logger.error(f"记忆插入失败: {e}", exc_info=True)
         raise MemoryInsertionException(reason=str(e))
+
+
+@router.post("/delete", response_model=BaseResponse)
+async def delete_inserted_memory(
+    request: MemoryDeleteRequest,
+    tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)]
+):
+    """
+    删除指定的记忆
+
+    验证线程存在且租户有权访问后删除记忆。
+    """
+    try:
+        # 验证线程存在且租户有权访问
+        thread = await ThreadService.get_thread(request.thread_id)
+
+        if not thread:
+            raise ThreadNotFoundException(request.thread_id)
+
+        if thread.tenant_id != tenant.tenant_id:
+            raise ThreadAccessDeniedException(request.thread_id, tenant.tenant_id)
+
+        # 删除记忆
+        await MemoryService.delete_memory(
+            tenant_id=tenant.tenant_id,
+            thread_id=request.thread_id,
+            memory_id=request.memory_id
+        )
+
+        return BaseResponse(message="记忆删除成功")
+
+    except BaseHTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"记忆删除失败: {e}", exc_info=True)
+        raise MemoryDeletionException(reason=str(e))

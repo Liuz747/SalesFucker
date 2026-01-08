@@ -203,3 +203,25 @@ class MemoryInsertFailureException(MemoryException):
     def __init__(self):
         detail = "全部记忆插入失败"
         super().__init__(detail)
+
+
+class MemoryNotFoundException(MemoryException):
+    """记忆不存在异常"""
+    code = 1600004
+    message = "MEMORY_NOT_FOUND"
+    http_status_code = 404
+
+    def __init__(self, memory_id: str):
+        super().__init__(detail=f"记忆 {memory_id} 不存在")
+
+
+class MemoryDeletionException(MemoryException):
+    """记忆删除失败异常"""
+    code = 1600005
+    message = "MEMORY_DELETION_FAILED"
+
+    def __init__(self, reason: str = ""):
+        detail = "记忆删除失败"
+        if reason:
+            detail += f": {reason}"
+        super().__init__(detail)
