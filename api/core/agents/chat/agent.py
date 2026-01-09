@@ -34,8 +34,6 @@ class ChatAgent(BaseAgent):
                             - 保持友好和专业的语调
                             - 提供准确、有用的信息
                             - 如果不确定，诚实地说明
-                            - 回复要简洁明了
-                            """
         self.logger.info("ChatAgent初始化完成")
 
     @observe(name="chat-agent-conversation", as_type="span")
