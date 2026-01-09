@@ -190,6 +190,8 @@ class SalesAgent(BaseAgent):
         strategy = state.matched_prompt.get("strategy", "标准服务")
         appointment_intent = state.intent_analysis.get("appointment_intent")
         audio_output_intent = state.intent_analysis.get("audio_output_intent")
+        assets_intent = state.intent_analysis.get("assets_intent")
+        assets_data = state.assets_data
         role_prompt_content = None
         thread_context_content = None
 
@@ -260,6 +262,8 @@ class SalesAgent(BaseAgent):
             thread_context=thread_context_content,
             appointment_intent=appointment_intent,
             audio_output_intent=audio_output_intent,
+            assets_intent=assets_intent,
+            assets_data=assets_data,
             summaries=long_term_memories,
             current_time=get_chinese_time()
         )

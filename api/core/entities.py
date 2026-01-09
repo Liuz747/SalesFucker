@@ -154,6 +154,8 @@ class WorkflowExecutionModel(BaseModel):
     sentiment_analysis: Annotated[dict, safe_merge_dict] = Field(default_factory=dict, description="情感分析结果")
     # 传递业务输出
     business_outputs: Annotated[Optional[dict], safe_merge_dict] = Field(default=None, description="结构化业务输出")
+    # 素材数据
+    assets_data: Annotated[Optional[dict], safe_merge_dict] = Field(default=None, description="素材查询结果数据")
     journey_stage: Optional[str] = Field(default=None, description="客户旅程阶段")
     matched_prompt: dict = Field(default_factory=dict, description="匹配的提示词信息")
     input_tokens: Annotated[int, add] = Field(default=0, description="输入Token数")

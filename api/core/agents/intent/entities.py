@@ -46,6 +46,7 @@ class AssetsIntent(BaseModel):
     detected: bool = Field(default=False, description="是否检测到素材意向")
     urgency_level: Literal["high", "medium", "low"] = Field(default="medium", description="紧急程度")
     asset_types: list[AssetType] = Field(default_factory=list, description="需要的素材类型列表")
+    keywords: list[str] = Field(default_factory=list, description="用于搜索素材的关键词列表")
     confidence: float = Field(
         default=0.5,
         ge=0.0,

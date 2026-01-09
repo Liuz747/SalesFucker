@@ -57,6 +57,48 @@ sales:
     {% endif %}
     {% endif %}
 
+    {% if assets_intent.detected %}
+
+    【素材发送意向检测】
+    系统检测到客户需要接收素材信息：
+    - 意向置信度: {{ "%.0f"|format(assets_intent.confidence * 100) }}%
+    - 紧急程度: {% if assets_intent.urgency_level == "high" %}高{% elif assets_intent.urgency_level == "medium" %}中等{% else %}低{% endif %}
+    {% if assets_intent.keywords and assets_intent.keywords|length > 0 %}
+    - 搜索关键词: {{ assets_intent.keywords|join('、') }}
+    {% endif %}
+
+    {% if assets_data and assets_data.assets and assets_data.assets|length > 0 %}
+    【已筛选素材】
+    系统已根据客户需求筛选出 {{ assets_data.assets|length }} 个相关素材{% if assets_data.filtered %}（从 {{ assets_data.total }} 个素材中智能筛选）{% endif %}：
+
+    {% for asset in assets_data.assets[:5] %}
+    {{ loop.index }}. {% if asset.name %}{{ asset.name }}{% else %}素材 #{{ asset.id }}{% endif %}
+       {% if asset.content %}简介: {{ asset.content[:50] }}{% if asset.content|length > 50 %}...{% endif %}{% endif %}
+       {% if asset.matched_keywords %}(匹配: {{ asset.matched_keywords|join(', ') }}){% endif %}
+    {% endfor %}
+    {% if assets_data.assets|length > 5 %}
+    ... 还有 {{ assets_data.assets|length - 5 }} 个相关素材
+    {% endif %}
+
+    【素材回复指导】
+    - 系统将自动发送这些素材给客户，你只需要用文字回复
+    - 在回复中自然地提及这些素材，引导客户查看
+    - 可以简要介绍素材的亮点或使用建议
+    - 语气要热情专业，展现对产品/服务的了解
+    - 不要在回复中列举所有素材名称，保持简洁
+    - 如果客户有具体问题，优先回答问题，再引导查看素材
+
+    示例回复：
+    "好的！我给您发了几个相关的产品资料，您可以看看\n这些都是我们的明星产品，效果特别好\n如果有什么问题随时问我哦"
+    {% else %}
+    【素材状态】
+    系统未找到匹配的素材，请正常回复客户，可以：
+    - 询问客户更具体的需求
+    - 说明稍后会发送相关资料
+    - 提供其他帮助方式
+    {% endif %}
+    {% endif %}
+
     {% if audio_output_intent.detected %}
 
     【音频输出意向检测】
@@ -99,6 +141,9 @@ sales:
     {% endif %}
     {% if appointment_intent.detected %}
     - 根据邀约意向检测结果调整回复语气和内容
+    {% endif %}
+    {% if assets_intent.detected %}
+    - 自然地提及即将发送的素材，引导客户查看
     {% endif %}
 
     {% if summaries and summaries|length > 0 %}
@@ -158,11 +203,25 @@ intent_analysis:
     - service_menu: 服务菜单（项目介绍、套餐详情）
     - appointment_guide: 预约指南（预约流程、注意事项）
 
+    ### 关键词提取（CRITICAL）：
+    **当检测到素材意向时，必须提取3-5个关键词用于搜索素材库**
+
+    关键词提取规则：
+    - 提取用户查询中的核心名词和关键概念
+    - 包括：产品名称、服务类型、功效描述、品牌名称、特定主题
+    - 优先提取具体的、有区分度的词汇
+    - 避免提取停用词（的、了、是、在等）
+    - 关键词应该是2-4个字的中文词汇
+
+    示例：
+    - 用户："给我发一些美白精华的产品图片" → keywords: ["美白", "精华", "产品"]
+    - 用户："有没有祛痘的护肤品推荐" → keywords: ["祛痘", "护肤品"]
+    - 用户："想看看你们店的环境照片" → keywords: ["门店", "环境", "照片"]
+    - 用户："发个价格表给我看看" → keywords: ["价格表"]
+
     ### 评估维度：
     - urgency_level: "high" (用户心情愉悦) | "medium" (正常聊天) | "low" (负面意向/拒绝)
-    - priority_score: 0.0-1.0 数值
     - confidence: 0.0-1.0，表示分析的确定程度
-    - recommendation: "send_immediately" | "send_soon" | "wait_for_confirmation" | "no_material"
 
     ---
 
@@ -178,15 +237,12 @@ intent_analysis:
     ### 评估维度：
     - intent_strength: 0.0-1.0 意向强度
     - time_window: "immediate" | "this_week" | "this_month" | "unknown"
-    - confidence: 0.0-1.0 置信度
-    - recommendation: "suggest_appointment" | "wait_signal" | "no_appointment"
 
     ### 实体提取（仅从用户明确陈述中提取）：
     - service: 服务项目名称
     - name: 客户姓名
     - phone: 联系电话（11位手机号）
     - time_expression: 时间表达式（如"明天"、"下周三"、"这周末"）
-    - entity_confidence: 每个实体的置信度 0.0-1.0
 
     ---
 
@@ -205,10 +261,10 @@ intent_analysis:
     - trigger_reason: "user_sent_audio" | "explicit_request" | "context_preference" | "none"
 
     ### 判断规则：
-    - 如果用户发送了语音消息 → detected=true, trigger_reason="user_sent_audio"
-    - 如果用户明确要求语音 → detected=true, trigger_reason="explicit_request"
-    - 如果用户暗示偏好语音 → detected=true, trigger_reason="context_preference"
-    - 默认情况 → detected=false, trigger_reason="none"
+    - 如果用户发送了语音消息 → detected=true
+    - 如果用户明确要求语音 → detected=true
+    - 如果用户暗示偏好语音 → detected=true
+    - 默认情况 → detected=false
 
     ---
 
@@ -230,30 +286,19 @@ intent_analysis:
                     "specifics": ["产品包装图", "使用效果对比图"]
                 }
             ],
-            "priority_score": 0.75,
+            "keywords": ["美白", "精华", "产品"],
             "confidence": 0.85,
-            "specific_requests": ["想看产品效果"],
-            "recommendation": "send_soon",
             "summary": "用户表现出对产品图片的明确需求"
         },
         "appointment_intent": {
             "detected": true,
             "intent_strength": 0.8,
             "time_window": "this_week",
-            "confidence": 0.85,
-            "signals": ["明确提到想来店里看看"],
-            "recommendation": "suggest_appointment",
             "extracted_entities": {
                 "service": "美容护理",
                 "name": "李女士",
                 "phone": "13812345678",
-                "time_expression": "这周末",
-                "entity_confidence": {
-                    "service": 0.9,
-                    "name": 0.95,
-                    "phone": 1.0,
-                    "time_expression": 0.8
-                }
+                "time_expression": "这周末"
             },
             "summary": "用户明确表达了本周到店意向"
         },
@@ -274,15 +319,19 @@ intent_analysis:
       - 素材意向 = 信息传递（向客户发送素材）
       - 邀约意向 = 物理访问（客户来店里或预约服务）
       - 音频输出意向 = 输出方式偏好（用户偏好语音回复）
-    4. **音频输出意向检测**：
+    4. **关键词提取（素材意向）**：
+      - 当 assets_intent.detected = true 时，**必须**提取 keywords 字段
+      - keywords 应包含 3-5 个最相关的搜索关键词
+      - 如果无法提取关键词，设置为空数组 []
+    5. **音频输出意向检测**：
       - 最高优先级：用户发送了语音消息
       - 次高优先级：用户明确要求语音回复
       - 低优先级：根据上下文推测用户偏好语音
-    5. **实体提取规则**：
+    6. **实体提取规则**：
       - 仅从用户明确陈述中提取
       - 不要推测或臆造实体信息
       - 如无明确提及，设置为 null
-    6. **返回有效的JSON**，严格匹配上述格式
+    7. **返回有效的JSON**，严格匹配上述格式
 
     请基于对话内容返回JSON格式的分析结果。
 
