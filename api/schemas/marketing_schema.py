@@ -3,6 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from .responses import BaseResponse
+
 
 class MarketingPlanOption(BaseModel):
     """营销计划选项"""
@@ -16,7 +18,7 @@ class MarketingPlanRequest(BaseModel):
     content: str = Field(description="营销方案描述")
 
 
-class MarketingPlanResponse(BaseModel):
+class MarketingPlanResponse(BaseResponse):
     """营销计划生成响应"""
     request_id: UUID = Field(description="请求ID")
     response: str = Field(description="营销方案分析和建议")

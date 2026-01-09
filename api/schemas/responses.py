@@ -22,6 +22,8 @@ class BaseResponse(BaseModel):
     域特定的响应模型应该继承此类。
     """
 
+    model_config = {"exclude_none": True}
+
     code: int = Field(default=0, description="业务状态码，0表示成功")
     message: str = Field(default="success", description="响应消息")
     timestamp: int = Field(default_factory=get_current_timestamp_ms, description="响应时间戳")
