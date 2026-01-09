@@ -48,7 +48,7 @@ class IntentAgent(BaseAgent):
         4. 生成业务输出（CRM集成）
 
         参数:
-            state: 当前对话状态，包含 customer_input, tenant_id, thread_id
+            state: 当前对话状态
 
         返回:
             dict: 更新后的对话状态，包含 intent_analysis 信息

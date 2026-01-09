@@ -1,16 +1,3 @@
-"""
-Sales Agent
-
-负责生成最终的销售话术回复。
-
-核心职责:
-- 接收 SentimentAgent 提供的策略提示词
-- 检索并整合记忆上下文
-- 获取并整合助理人设信息
-- 生成符合人设和策略的个性化回复
-- 自动管理助手回复的存储
-"""
-
 from uuid import UUID
 
 from core.agents import BaseAgent
@@ -33,10 +20,16 @@ logger = get_component_logger(__name__, "Sales Agent")
 
 class SalesAgent(BaseAgent):
     """
-    销售回复生成智能体
-    
-    专注于执行销售策略，生成最终回复。它利用 SentimentAgent 确定的策略方向，
-    结合历史记忆，生成连贯、得体的对话内容。
+    Sales Agent
+
+    负责生成最终的销售话术回复。
+
+    核心职责:
+    - 接收 SentimentAgent 提供的策略提示词
+    - 检索并整合记忆上下文
+    - 获取并整合助理人设信息
+    - 生成符合人设和策略的个性化回复
+    - 自动管理助手回复的存储。
     """
 
     def __init__(self):
@@ -58,7 +51,7 @@ class SalesAgent(BaseAgent):
             state: 当前工作流执行状态
 
         Returns:
-            dict: 状态更新增量，包含 sales_response
+            dict: 状态更新增量
         """
         start_time = get_current_datetime()
 
@@ -126,7 +119,6 @@ class SalesAgent(BaseAgent):
         except Exception as e:
             logger.error(f"Sales Agent处理失败: {e}", exc_info=True)
             raise e
-
 
     async def _generate_final_response(
         self,
@@ -277,7 +269,8 @@ class SalesAgent(BaseAgent):
             *short_term_messages
         ]
 
-    def _extract_token_info(self, llm_response) -> dict:
+    @staticmethod
+    def _extract_token_info(llm_response) -> dict:
         """提取 token 使用信息"""
         try:
             input_tokens = llm_response.usage.input_tokens
@@ -294,7 +287,8 @@ class SalesAgent(BaseAgent):
 
         return {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0}
 
-    def _get_fallback_response(self, matched_prompt: dict) -> str:
+    @staticmethod
+    def _get_fallback_response(matched_prompt: dict) -> str:
         """获取兜底回复"""
         tone = matched_prompt.get("tone", "专业、友好")
 
