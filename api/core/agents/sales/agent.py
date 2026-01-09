@@ -190,6 +190,8 @@ class SalesAgent(BaseAgent):
         strategy = state.matched_prompt.get("strategy", "标准服务")
         appointment_intent = state.intent_analysis.get("appointment_intent")
         audio_output_intent = state.intent_analysis.get("audio_output_intent")
+        role_prompt_content = None
+        thread_context_content = None
 
         try:
             # 获取助理信息
@@ -240,8 +242,6 @@ class SalesAgent(BaseAgent):
                 logger.info(f"已获取客户线程信息")
         except Exception as e:
             logger.warning(f"获取助理或客户信息失败: {e}")
-            role_prompt_content = None
-            thread_context_content = None
 
         user_text = self._input_to_text(state.input)
         short_term_messages, long_term_memories = await self.memory_manager.retrieve_context(
