@@ -87,6 +87,7 @@ async def api_exception_handler(_, exc: BaseHTTPException):
         }
     )
 
+
 @app.exception_handler(Exception)
 async def general_exception_handler(request: Request, exc: Exception):
     """处理未捕获的异常"""
@@ -103,8 +104,11 @@ async def general_exception_handler(request: Request, exc: Exception):
             "path": str(request.url)
         }
     )
+
+
 # 注册路由器
 app.include_router(app_router, prefix="/v1")
+
 # 根路径健康检查
 @app.get("/")
 async def root():
@@ -115,6 +119,7 @@ async def root():
         "version": __version__,
         "docs": "/docs"
     }
+
 
 def main():
     """Main entry point for the application."""
