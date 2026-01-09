@@ -109,3 +109,4 @@ class ThreadRunResponse(BaseModel):
     asr_results: Optional[list[dict]] = Field(None, description="用户语音输入的ASR结果")
     multimodal_outputs: Optional[OutputContentParams] = Field(None, description="标准化的多模态输出流")
     invitation: Optional[InvitationData] = Field(None, description="特定业务场景的结构化输出")
+    assets_data: Optional[dict] = Field(None, description="素材数据（当检测到素材意向时返回）")

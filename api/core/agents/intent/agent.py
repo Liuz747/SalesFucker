@@ -6,12 +6,14 @@ from uuid import UUID
 from langfuse import observe
 from pydantic import ValidationError
 
+from config import mas_config
 from core.agents import BaseAgent
 from core.entities import WorkflowExecutionModel
 from core.prompts.template_loader import get_prompt_template
 from infra.runtimes import CompletionsRequest, LLMResponse
 from libs.types import Message, MessageParams
 from schemas.conversation_schema import InvitationData
+from services import AssetsService
 from utils import get_current_datetime, get_component_logger, get_processing_time
 from utils.appointment_time_parser import parse_appointment_time
 from .entities import AppointmentIntent, IntentAnalysisResult
@@ -87,8 +89,59 @@ class IntentAgent(BaseAgent):
                 f"音频输出detected={audio_output_intent.detected}"
             )
 
-            # 步骤3: 更新对话状态
-            updated_state = self._update_state_with_intent(intent_result, recent_user_messages)
+            # 步骤3: 如果检测到素材意向，查询外部素材数据库
+            assets_data = None
+            if assets_intent.detected:
+                logger.info("检测到素材意向，开始查询素材数据库")
+                try:
+                    assets_service = AssetsService(str(mas_config.CALLBACK_URL))
+
+                    # 查询所有素材（使用缓存）
+                    all_assets_data = await assets_service.query_assets(
+                        tenant_id=state.tenant_id,
+                        thread_id=state.thread_id,
+                        assistant_id=state.assistant_id,
+                        workflow_id=state.workflow_id
+                    )
+
+                    # 使用LLM提取的关键词进行搜索
+                    keywords = assets_intent.keywords
+
+                    if keywords:
+                        # 使用关键词搜索过滤素材
+                        filtered_assets = AssetsService.search_assets(
+                            assets_data=all_assets_data,
+                            keywords=keywords,
+                            top_k=1,  # 返回1个最相关的素材
+                            score_threshold=0.0
+                        )
+
+                        assets_data = {
+                            "assets": filtered_assets,
+                            "total": len(filtered_assets),
+                            "from_cache": all_assets_data.get("from_cache", False)
+                        }
+
+                        logger.info(
+                            f"素材搜索完成: keywords={keywords}, "
+                            f"匹配{len(filtered_assets)}个相关素材"
+                        )
+
+                except Exception as e:
+                    logger.error(f"素材查询失败: {e}", exc_info=True)
+                    assets_data = {
+                        "assets": [],
+                        "total": 0,
+                        "from_cache": False,
+                        "error": str(e)
+                    }
+
+            # 步骤4: 更新对话状态
+            updated_state = self._update_state_with_intent(
+                intent_result,
+                recent_user_messages,
+                assets_data
+            )
 
             processing_time = get_processing_time(start_time)
             logger.info(f"意向分析完成: 耗时{processing_time:.2f}s")
@@ -268,7 +321,8 @@ class IntentAgent(BaseAgent):
     def _update_state_with_intent(
         self,
         intent_result: IntentAnalysisResult,
-        recent_messages: list[Message]
+        recent_messages: list[Message],
+        assets_data: dict | None = None
     ) -> dict:
         """
         更新状态，添加统一意向信息
@@ -276,6 +330,7 @@ class IntentAgent(BaseAgent):
         Args:
             intent_result: 统一意向分析结果
             recent_messages: 分析用的消息列表
+            assets_data: 素材查询结果（可选）
 
         Returns:
             dict: 更新后的状态
@@ -306,9 +361,10 @@ class IntentAgent(BaseAgent):
 
         logger.info(f"意向字段已添加: business_status={business_outputs.status}")
 
-        # 返回增量更新字典，让 LangGraph 的 Reducer 正确合并状态
+        # 构建状态更新字典
         return {
             "actions": actions,
+            "assets_data": assets_data,
             "intent_analysis": intent_result.model_dump(),
             "business_outputs": business_outputs.model_dump(),
             "input_tokens": input_tokens,
