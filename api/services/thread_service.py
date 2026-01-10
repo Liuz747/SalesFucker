@@ -45,23 +45,19 @@ class ThreadService:
         try:
             thread_orm = thread.to_orm()
             
+            # 1. 立即写入数据库
             async with database_session() as session:
-                # 1. 立即写入数据库
                 thread_orm = await ThreadRepository.insert_thread(thread_orm, session)
 
-            if thread_orm:
-                # 2. 异步更新Redis缓存
-                redis_client = infra_registry.get_cached_clients().redis
-                thread_model = Thread.to_model(thread_orm)
-                asyncio.create_task(
-                    ThreadRepository.update_thread_cache(thread_model, redis_client)
-                )
+            # 2. 异步更新Redis缓存
+            redis_client = infra_registry.get_cached_clients().redis
+            thread_model = Thread.to_model(thread_orm)
+            asyncio.create_task(
+                ThreadRepository.update_thread_cache(thread_model, redis_client)
+            )
 
-                
-                logger.debug(f"线程写入redis缓存成功: {thread_model.thread_id}")
-                return thread_model.thread_id
-            
-            return None
+            logger.debug(f"线程写入redis缓存成功: {thread_model.thread_id}")
+            return thread_model.thread_id
 
         except Exception as e:
             logger.error(f"线程创建失败: {e}")

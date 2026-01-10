@@ -5,8 +5,7 @@
 """
 
 from collections.abc import Sequence
-from dataclasses import dataclass
-from typing import Optional
+from typing import Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, PositiveInt
@@ -15,20 +14,27 @@ from libs.types import MessageParams, OutputContentParams, Sex
 from .responses import BaseResponse
 
 
-@dataclass
-class AppointmentOutput:
-    status: int
-    time: Optional[int] = None
-    service: Optional[str] = None
-    name: Optional[str] = None
-    phone: Optional[int] = None
+class InvitationData(BaseModel):
+    """邀约信息数据模型"""
+    status: Literal[0, 1] = Field(default=0, description="邀约状态: 0=不邀约, 1=确认邀约")
+    time: int = Field(default=0, description="预约时间戳（毫秒），status=1时必须有值")
+    service: Optional[str] = Field(default=None, description="服务项目")
+    name: Optional[str] = Field(default=None, description="客户姓名")
+    phone: Optional[str] = Field(default=None, description="联系电话")
 
+    @field_validator("phone", mode="before")
+    @classmethod
+    def validate_phone_number(cls, v) -> Optional[str]:
+        """验证手机号格式（中国11位手机号）"""
+        if v is None:
+            return None
 
-class ThreadMetadata(BaseModel):
-    """线程元数据模型"""
+        phone_str = str(v) if not isinstance(v, str) else v
 
-    tenant_id: Optional[str] = Field(None, description="租户标识符")
-    assistant_id: Optional[UUID] = Field(None, description="助手标识符")
+        if len(phone_str) == 11 and phone_str.startswith('1'):
+            return phone_str
+
+        return None
 
 
 class WorkflowData(BaseModel):
@@ -102,4 +108,5 @@ class ThreadRunResponse(BaseModel):
     processing_time: float = Field(description="处理时间（毫秒）")
     asr_results: Optional[list[dict]] = Field(None, description="用户语音输入的ASR结果")
     multimodal_outputs: Optional[OutputContentParams] = Field(None, description="标准化的多模态输出流")
-    invitation: Optional[AppointmentOutput] = Field(None, description="特定业务场景的结构化输出")
+    invitation: Optional[InvitationData] = Field(None, description="特定业务场景的结构化输出")
+    assets_data: Optional[dict] = Field(None, description="素材数据（当检测到素材意向时返回）")

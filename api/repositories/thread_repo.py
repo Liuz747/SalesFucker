@@ -59,7 +59,7 @@ class ThreadRepository:
             raise
 
     @staticmethod
-    async def insert_thread(thread: ThreadOrm, session: AsyncSession) -> Optional[ThreadOrm]:
+    async def insert_thread(thread: ThreadOrm, session: AsyncSession) -> ThreadOrm:
         """创建线程数据库模型"""
         try:
             session.add(thread)

@@ -39,10 +39,10 @@ class ElasticsearchIndex:
     def client(self) -> AsyncElasticsearch:
         """获取集中管理的 Elasticsearch 客户端。"""
         if self._es_client is None:
-            clients = infra_registry.get_cached_clients()
-            if clients is None or clients.elasticsearch is None:
+            client = infra_registry.get_cached_clients().elasticsearch
+            if client is None:
                 raise RuntimeError("Elasticsearch客户端未初始化，请先调用 infra_registry.create_clients()")
-            self._es_client = clients.elasticsearch
+            self._es_client = client
         return self._es_client
 
     # --------------------------------------------------------------------
@@ -117,7 +117,7 @@ class ElasticsearchIndex:
             tenant_id: 租户ID
             thread_id: 对话线程ID
             limit: 返回结果数量限制，默认20
-            memory_types: 需要的记忆类型过滤（默认仅long term）
+            memory_type: 需要的记忆类型过滤（默认仅long term）
 
         Returns:
             list[dict]: 摘要列表，按创建时间降序排列
@@ -229,8 +229,54 @@ class ElasticsearchIndex:
             logger.warning(f"[ElasticsearchIndex] Failed to update metadata: {e}")
 
     # --------------------------------------------------------------------
-    # Delete expired memory entries
+    # Delete memory entries
     # --------------------------------------------------------------------
+    async def delete_by_id(
+        self,
+        memory_id: str,
+        tenant_id: str,
+        thread_id: UUID
+    ):
+        """
+        根据记忆ID删除单条记忆
+
+        Args:
+            memory_id: 记忆文档ID
+            tenant_id: 租户ID
+            thread_id: 线程ID
+        """
+        query = {
+            "bool": {
+                "filter": [
+                    {"ids": {"values": [memory_id]}},
+                    {"term": {"tenant_id": tenant_id}},
+                    {"term": {"thread_id": str(thread_id)}}
+                ]
+            }
+        }
+
+        try:
+            result = await self.client.delete_by_query(
+                index=self.index_name,
+                query=query,
+                conflicts="proceed"
+            )
+
+            if not result.get("deleted"):
+                logger.warning(
+                    f"[ElasticsearchIndex] Memory not found or access denied: "
+                    f"memory_id={memory_id}, thread_id={thread_id}"
+                )
+                raise NotFoundError(f"Memory {memory_id} not found", None, None)
+
+            logger.info(f"[ElasticsearchIndex] Deleted memory: {memory_id}")
+
+        except NotFoundError:
+            raise
+        except Exception as e:
+            logger.error(f"[ElasticsearchIndex] Failed to delete memory {memory_id}: {e}")
+            raise
+
     async def delete_expired(self):
         """
         删除所有过期的记忆文档

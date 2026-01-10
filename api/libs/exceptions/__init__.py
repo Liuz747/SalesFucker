@@ -60,6 +60,11 @@ from .workspace import (
     AssistantConflictException,
     AssistantDisabledException,
     AssistantInactiveException,
+    # 记忆插入相关
+    MemoryInsertionException,
+    MemoryInsertFailureException,
+    MemoryNotFoundException,
+    MemoryDeletionException,
     # 线程相关
     ThreadException,
     ThreadNotFoundException,
@@ -141,4 +146,10 @@ __all__ = [
 
     # 基础设施
     "DatabaseConnectionException",
+
+    # 记忆插入
+    "MemoryInsertionException",
+    "MemoryInsertFailureException",
+    "MemoryNotFoundException",
+    "MemoryDeletionException",
 ]

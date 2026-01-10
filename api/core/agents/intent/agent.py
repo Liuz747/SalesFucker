@@ -1,17 +1,22 @@
 import json
 import re
-from typing import Any, Optional
+from typing import Literal
 from uuid import UUID
 
 from langfuse import observe
+from pydantic import ValidationError
 
+from config import mas_config
 from core.agents import BaseAgent
 from core.entities import WorkflowExecutionModel
 from core.prompts.template_loader import get_prompt_template
 from infra.runtimes import CompletionsRequest, LLMResponse
 from libs.types import Message, MessageParams
+from schemas.conversation_schema import InvitationData
+from services import AssetsService
 from utils import get_current_datetime, get_component_logger, get_processing_time
 from utils.appointment_time_parser import parse_appointment_time
+from .entities import AppointmentIntent, IntentAnalysisResult
 
 logger = get_component_logger(__name__, "IntentAgent")
 
@@ -30,9 +35,8 @@ class IntentAgent(BaseAgent):
     """
 
     def __init__(self):
-        super().__init__()
-
         self.agent_name = "intent_analysis"
+        super().__init__()
 
     @observe(name="intent-analysis", as_type="generation")
     async def process_conversation(self, state: WorkflowExecutionModel) -> dict:
@@ -46,7 +50,7 @@ class IntentAgent(BaseAgent):
         4. 生成业务输出（CRM集成）
 
         参数:
-            state: 当前对话状态，包含 customer_input, tenant_id, thread_id
+            state: 当前对话状态
 
         返回:
             dict: 更新后的对话状态，包含 intent_analysis 信息
@@ -74,22 +78,70 @@ class IntentAgent(BaseAgent):
             )
 
             # 提取两种意向的结果
-            assets_intent = intent_result.get("assets_intent")
-            appointment_intent = intent_result.get("appointment_intent")
-            audio_output_intent = intent_result.get("audio_output_intent")
+            assets_intent = intent_result.assets_intent
+            appointment_intent = intent_result.appointment_intent
+            audio_output_intent = intent_result.audio_output_intent
 
             logger.info(
-                f"统一意向分析结果 - "
-                f"素材意向detected={assets_intent.get('detected', False)}, "
-                f"urgency={assets_intent.get('urgency_level', 'low')}, "
-                f"邀约意向detected={appointment_intent.get('detected', False)}, "
-                f"strength={appointment_intent.get('intent_strength', 0)}, "
-                f"音频输出detected={audio_output_intent.get('detected', False)}, "
-                f"trigger={audio_output_intent.get('trigger_reason', 'none')}"
+                f"统一意向分析结果: \n"
+                f"素材意向detected={assets_intent.detected}, "
+                f"邀约意向detected={appointment_intent.detected}, "
+                f"音频输出detected={audio_output_intent.detected}"
             )
 
-            # 步骤3: 更新对话状态
-            updated_state = self._update_state_with_intent(intent_result, recent_user_messages)
+            # 步骤3: 如果检测到素材意向，查询外部素材数据库
+            assets_data = None
+            if assets_intent.detected:
+                logger.info("检测到素材意向，开始查询素材数据库")
+                try:
+                    assets_service = AssetsService(str(mas_config.CALLBACK_URL))
+
+                    # 查询所有素材（使用缓存）
+                    all_assets_data = await assets_service.query_assets(
+                        tenant_id=state.tenant_id,
+                        thread_id=state.thread_id,
+                        assistant_id=state.assistant_id,
+                        workflow_id=state.workflow_id
+                    )
+
+                    # 使用LLM提取的关键词进行搜索
+                    keywords = assets_intent.keywords
+
+                    if keywords:
+                        # 使用关键词搜索过滤素材
+                        filtered_assets = AssetsService.search_assets(
+                            assets_data=all_assets_data,
+                            keywords=keywords,
+                            top_k=1,  # 返回1个最相关的素材
+                            score_threshold=0.0
+                        )
+
+                        assets_data = {
+                            "assets": filtered_assets,
+                            "total": len(filtered_assets),
+                            "from_cache": all_assets_data.get("from_cache", False)
+                        }
+
+                        logger.info(
+                            f"素材搜索完成: keywords={keywords}, "
+                            f"匹配{len(filtered_assets)}个相关素材"
+                        )
+
+                except Exception as e:
+                    logger.error(f"素材查询失败: {e}", exc_info=True)
+                    assets_data = {
+                        "assets": [],
+                        "total": 0,
+                        "from_cache": False,
+                        "error": str(e)
+                    }
+
+            # 步骤4: 更新对话状态
+            updated_state = self._update_state_with_intent(
+                intent_result,
+                recent_user_messages,
+                assets_data
+            )
 
             processing_time = get_processing_time(start_time)
             logger.info(f"意向分析完成: 耗时{processing_time:.2f}s")
@@ -107,7 +159,7 @@ class IntentAgent(BaseAgent):
         tenant_id: str,
         thread_id: UUID,
         run_id: UUID
-    ) -> dict[str, Any]:
+    ) -> IntentAnalysisResult:
         """
         执行统一意向分析
 
@@ -118,7 +170,7 @@ class IntentAgent(BaseAgent):
             run_id: 运行ID
 
         Returns:
-            dict: 统一意向分析结果，包含assets_intent和appointment_intent
+            IntentAnalysisResult: 统一意向分析结果
         """
         try:
             # 构建LLM请求
@@ -126,10 +178,7 @@ class IntentAgent(BaseAgent):
                 template_name="intent_analysis",
                 template_file="agent_prompt.yaml"
             )
-            messages = [
-                Message(role="system", content=system_prompt),
-                *inputs
-            ]
+            messages = [Message(role="system", content=system_prompt), *inputs]
 
             request = CompletionsRequest(
                 id=run_id,
@@ -144,22 +193,14 @@ class IntentAgent(BaseAgent):
             response = await self.invoke_llm(request, tenant_id, thread_id)
 
             # 解析响应
-            result = self._parse_llm_response(response)
-
-            result.update({
-                "timestamp": get_current_datetime().isoformat(),
-                "input_tokens": response.usage.input_tokens,
-                "output_tokens": response.usage.output_tokens
-            })
-
-            return result
+            return self._parse_llm_response(response)
 
         except Exception as e:
             logger.error(f"统一意向分析失败: {e}")
-            # 返回默认的无需求结果
-            return self._get_fallback_result(error=str(e))
+            return IntentAnalysisResult(error=str(e))
 
-    def _parse_llm_response(self, response: LLMResponse) -> dict[str, Any]:
+    @staticmethod
+    def _parse_llm_response(response: LLMResponse) -> IntentAnalysisResult:
         """
         解析LLM响应
 
@@ -167,7 +208,7 @@ class IntentAgent(BaseAgent):
             response: LLM响应对象
 
         Returns:
-            dict: 解析后的统一意向结果
+            IntentAnalysisResult: 解析后的统一意向结果
         """
         try:
             # 提取响应内容
@@ -183,179 +224,75 @@ class IntentAgent(BaseAgent):
                 json_content = json_match.group(0) if json_match else content
 
             # 解析JSON
-            result = json.loads(json_content)
+            raw_data = json.loads(json_content)
 
-            # 验证和规范化两种意向
-            result = self._validate_and_normalize(result)
+            # 验证和规范化意向
+            result = IntentAnalysisResult(
+                **raw_data,
+                input_tokens=response.usage.input_tokens,
+                output_tokens=response.usage.output_tokens
+            )
 
             return result
 
         except json.JSONDecodeError as e:
-            logger.warning(f"JSON解析失败: {e}")
-            return self._get_fallback_result(
-                response=response,
-                error=f"JSON解析失败: {str(e)}"
-            )
+            error_msg = f"JSON解析失败: {str(e)}"
+            logger.warning(error_msg)
+        except ValidationError as e:
+            error_msg = f"数据验证失败: {str(e)}"
+            logger.warning(error_msg)
         except Exception as e:
-            logger.error(f"响应解析失败: {e}")
-            return self._get_fallback_result(
-                response=response,
-                error=str(e)
-            )
+            error_msg = f"响应解析失败: {str(e)}"
+            logger.error(error_msg)
 
-    def _validate_and_normalize(self, result: dict) -> dict:
-        """
-        验证和规范化分析结果
+        return IntentAnalysisResult(
+            input_tokens=response.usage.input_tokens,
+            output_tokens=response.usage.output_tokens,
+            error=error_msg
+        )
 
-        Args:
-            result: 原始分析结果
-
-        Returns:
-            dict: 验证后的结果
-        """
-        # 验证素材意向
-        asset = result.get("assets_intent", {})
-
-        # 验证urgency_level
-        valid_urgency = ["high", "medium", "low"]
-        if asset.get("urgency_level") not in valid_urgency:
-            asset["urgency_level"] = "medium"
-
-        # 验证recommendation
-        valid_recommendations = ["send_immediately", "send_soon", "wait_for_confirmation", "no_material"]
-        if asset.get("recommendation") not in valid_recommendations:
-            asset["recommendation"] = "wait_for_confirmation"
-
-        # 验证数值范围
-        asset["priority_score"] = max(0.0, min(1.0, asset.get("priority_score", 0.5)))
-        asset["confidence"] = max(0.0, min(1.0, asset.get("confidence", 0.5)))
-
-        # 确保必要字段存在
-        asset.setdefault("detected", False)
-        asset.setdefault("asset_types", [])
-        asset.setdefault("specific_requests", [])
-        asset.setdefault("summary", "")
-
-        # 验证邀约意向
-        appointment = result.get("appointment_intent", {})
-
-        # 验证time_window
-        valid_windows = ["immediate", "this_week", "this_month", "unknown"]
-        if appointment.get("time_window") not in valid_windows:
-            appointment["time_window"] = "unknown"
-
-        # 验证recommendation
-        valid_recommendations = ["suggest_appointment", "wait_signal", "no_appointment"]
-        if appointment.get("recommendation") not in valid_recommendations:
-            appointment["recommendation"] = "wait_signal"
-
-        # 验证数值范围
-        appointment["intent_strength"] = max(0.0, min(1.0, appointment.get("intent_strength", 0.0)))
-        appointment["confidence"] = max(0.0, min(1.0, appointment.get("confidence", 0.5)))
-
-        # 确保必要字段存在
-        appointment.setdefault("detected", False)
-        appointment.setdefault("signals", [])
-        appointment.setdefault("extracted_entities", {})
-        appointment.setdefault("summary", "")
-
-        # 验证音频输出意向
-        audio_output = result.get("audio_output_intent", {})
-
-        # 验证trigger_reason
-        valid_triggers = ["user_sent_audio", "explicit_request", "context_preference", "none"]
-        if audio_output.get("trigger_reason") not in valid_triggers:
-            audio_output["trigger_reason"] = "none"
-
-        # 验证数值范围
-        audio_output["confidence"] = max(0.0, min(1.0, audio_output.get("confidence", 0.5)))
-
-        # 确保必要字段存在
-        audio_output.setdefault("detected", False)
-        audio_output.setdefault("summary", "")
-
-        return result
-
-    def _get_fallback_result(self, response: LLMResponse = None, error: str = "") -> dict:
-        """
-        获取降级结果
-
-        Args:
-            response: LLM响应对象（可选）
-            error: 错误信息
-
-        Returns:
-            dict: 降级结果，包含三种意向的默认值
-        """
-        return {
-            "assets_intent": {
-                "detected": False,
-                "recommendation": "wait_for_confirmation"
-            },
-            "appointment_intent": {
-                "detected": False,
-                "recommendation": "no_appointment"
-            },
-            "audio_output_intent": {
-                "detected": False,
-                "trigger_reason": "none"
-            },
-            "timestamp": get_current_datetime().isoformat(),
-            "input_tokens": response.usage.input_tokens if response else 0,
-            "output_tokens": response.usage.output_tokens if response else 0,
-            "error": error
-        }
-
-    def _generate_business_outputs(self, intent_result: dict) -> dict:
+    @staticmethod
+    def _generate_business_outputs(appointment_intent: AppointmentIntent) -> InvitationData:
         """
         基于邀约意向分析结果生成业务输出
 
         Args:
-            intent_result: 统一意向分析结果
+            appointment_intent: 邀约意向分析结果
 
         Returns:
-            dict: 结构化的业务输出，包含邀约信息
+            InvitationData: 结构化的业务输出，包含邀约信息
                 格式: {status, time, service, name, phone}
                 status: 0=不邀约, 1=确认邀约
                 当status=1时，time必须有值（时间戳毫秒）
         """
         try:
-            appointment_intent = intent_result.get("appointment_intent")
-
             # 如果未检测到邀约意向，返回默认值
-            if not appointment_intent.get("detected", False):
-                return {
-                    "status": 0,
-                    "time": 0,
-                    "service": None,
-                    "name": None,
-                    "phone": None
-                }
+            if not appointment_intent.detected:
+                return InvitationData()
 
             # 提取实体信息
-            extracted_entities = appointment_intent.get("extracted_entities", {})
-            entity_confidence = extracted_entities.get("entity_confidence", {})
+            extracted_entities = appointment_intent.extracted_entities
 
             # 获取时间表达式
-            time_expression = extracted_entities.get("time_expression")
+            time_expression = extracted_entities.time_expression
 
             # 解析时间
             parsed_time = 0
             if time_expression:
-                time_confidence = entity_confidence.get("time_expression", 0)
                 timestamp_ms, parse_info = parse_appointment_time(time_expression)
                 if timestamp_ms:
                     parsed_time = timestamp_ms
-                    logger.info(f"时间解析成功: {time_expression} -> {timestamp_ms} (置信度: {time_confidence}, 方法: {parse_info.get('method', 'unknown')})")
+                    logger.info(f"时间解析成功: {time_expression} -> {timestamp_ms} (方法: {parse_info.get('method', 'unknown')})")
                 else:
                     logger.warning(f"时间解析失败: {time_expression} - {parse_info.get('error', 'unknown error')}")
 
             # 确定邀约状态
             # status: 0=不邀约, 1=确认邀约
             # 确认邀约的条件：意向强度>=0.6 且 有有效时间
-            intent_strength = appointment_intent.get("intent_strength", 0)
+            intent_strength = appointment_intent.intent_strength
 
             # 只有当意向强度足够且时间已解析成功时，才确认邀约
+            status: Literal[0, 1]
             if intent_strength >= 0.6 and parsed_time > 0:
                 status = 1  # 确认邀约
             else:
@@ -363,65 +300,29 @@ class IntentAgent(BaseAgent):
                 if intent_strength >= 0.6 and parsed_time == 0:
                     logger.warning(f"意向强度足够({intent_strength})但时间未解析成功，无法确认邀约")
 
-            # 构建简洁的邀约信息
-            invitation_data = {
-                "status": status,
-                "time": parsed_time if status == 1 else 0,  # 只有确认邀约时才返回时间
-                "service": extracted_entities.get("service"),
-                "name": extracted_entities.get("name"),
-                "phone": self._parse_phone_number(extracted_entities.get("phone")) if extracted_entities.get("phone") else None
-            }
+            # 构建邀约信息
+            invitation_data = InvitationData(
+                status=status,
+                time=parsed_time if status == 1 else 0,
+                service=extracted_entities.service,
+                name=extracted_entities.name,
+                phone=extracted_entities.phone
+            )
 
-            logger.info(f"生成邀约信息: \nstatus={invitation_data['status']}, ")
-            logger.info(f"time={invitation_data['time']}, ")
-            logger.info(f"service={invitation_data['service']}, ")
-            logger.info(f"name={invitation_data['name']}, ")
-            logger.info(f"phone={invitation_data['phone']}")
+            logger.info(f"生成邀约信息: {invitation_data.model_dump()}")
 
             return invitation_data
 
         except Exception as e:
             logger.error(f"生成业务输出失败: {e}", exc_info=True)
             # 返回默认的不邀约状态
-            return {
-                "status": 0,
-                "time": 0,
-                "service": None,
-                "name": None,
-                "phone": None
-            }
-
-    def _parse_phone_number(self, phone_str: str) -> Optional[int]:
-        """
-        解析电话号码为整数
-
-        Args:
-            phone_str: 电话号码字符串
-
-        Returns:
-            Optional[int]: 解析后的电话号码，失败返回None
-        """
-        if not phone_str:
-            return None
-
-        try:
-            # 移除所有非数字字符
-            clean_phone = ''.join(c for c in str(phone_str) if c.isdigit())
-
-            # 验证手机号格式（中国手机号11位）
-            if len(clean_phone) == 11 and clean_phone.startswith('1'):
-                return int(clean_phone)
-            else:
-                logger.warning(f"无效的手机号格式: {phone_str} -> {clean_phone}")
-                return None
-        except (ValueError, TypeError) as e:
-            logger.warning(f"电话号码解析失败: {phone_str} - {e}")
-            return None
+            return InvitationData()
 
     def _update_state_with_intent(
         self,
-        intent_result: dict,
-        recent_messages: list[Message]
+        intent_result: IntentAnalysisResult,
+        recent_messages: list[Message],
+        assets_data: dict | None = None
     ) -> dict:
         """
         更新状态，添加统一意向信息
@@ -429,43 +330,43 @@ class IntentAgent(BaseAgent):
         Args:
             intent_result: 统一意向分析结果
             recent_messages: 分析用的消息列表
+            assets_data: 素材查询结果（可选）
 
         Returns:
-            dict: 更新后的状态，包含intent_analysis、actions
+            dict: 更新后的状态
         """
         # 更新token信息
-        input_tokens = intent_result.get("input_tokens")
-        output_tokens = intent_result.get("output_tokens")
+        input_tokens = intent_result.input_tokens
+        output_tokens = intent_result.output_tokens
 
         # 生成业务输出
-        business_outputs = self._generate_business_outputs(intent_result)
+        business_outputs = self._generate_business_outputs(intent_result.appointment_intent)
 
         # 根据音频输出意向更新actions字段
         actions = []
-        audio_output_intent = intent_result.get("audio_output_intent", {})
-        if audio_output_intent.get("detected", False):
+        if intent_result.audio_output_intent.detected:
             actions.append("output_audio")
-            logger.info(f"检测到音频输出意向，添加output_audio到actions: trigger={audio_output_intent.get('trigger_reason')}")
 
         # 构建 agent_data
         agent_data = {
             "agent_id": self.agent_name,
             "agent_type": "analytics",
-            "intent_analysis": intent_result,
-            "business_outputs": business_outputs,
+            "intent_analysis": intent_result.model_dump(),
+            "business_outputs": business_outputs.model_dump(),
             "analyzed_messages": recent_messages,
-            "timestamp": intent_result.get("timestamp"),
+            "timestamp": intent_result.timestamp,
             "input_tokens": input_tokens,
             "output_tokens": output_tokens
         }
 
-        logger.info(f"意向字段已添加: business_status={business_outputs.get('status', 0)}")
+        logger.info(f"意向字段已添加: business_status={business_outputs.status}")
 
-        # 返回增量更新字典，让 LangGraph 的 Reducer 正确合并状态
+        # 构建状态更新字典
         return {
             "actions": actions,
-            "intent_analysis": intent_result,
-            "business_outputs": business_outputs,
+            "assets_data": assets_data,
+            "intent_analysis": intent_result.model_dump(),
+            "business_outputs": business_outputs.model_dump(),
             "input_tokens": input_tokens,
             "output_tokens": output_tokens,
             "values": {"agent_responses": {self.agent_name: agent_data}}

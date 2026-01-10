@@ -82,6 +82,7 @@ services:
     image: ${REGISTRY_URL}/api:test
     environment:
       <<: *shared-mas-env
+      CALLBACK_URL: ${CALLBACK_URL_TEST}
       DEBUG: true
       LOG_LEVEL: DEBUG
       SQLALCHEMY_ECHO: true

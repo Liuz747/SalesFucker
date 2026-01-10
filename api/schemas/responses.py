@@ -10,7 +10,8 @@
 from typing import Any, Optional
 
 from pydantic import BaseModel, Field
-from utils.time_utils import get_current_timestamp_ms
+
+from utils import get_current_timestamp_ms
 
 
 class BaseResponse(BaseModel):
@@ -20,6 +21,8 @@ class BaseResponse(BaseModel):
     所有API响应的基础类，提供标准字段。
     域特定的响应模型应该继承此类。
     """
+
+    model_config = {"exclude_none": True}
 
     code: int = Field(default=0, description="业务状态码，0表示成功")
     message: str = Field(default="success", description="响应消息")

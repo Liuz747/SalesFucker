@@ -6,7 +6,7 @@
 
 from collections.abc import Mapping
 from datetime import datetime
-import operator
+from operator import add
 from typing import Annotated, Any, Optional
 from uuid import UUID
 
@@ -154,10 +154,12 @@ class WorkflowExecutionModel(BaseModel):
     sentiment_analysis: Annotated[dict, safe_merge_dict] = Field(default_factory=dict, description="情感分析结果")
     # 传递业务输出
     business_outputs: Annotated[Optional[dict], safe_merge_dict] = Field(default=None, description="结构化业务输出")
+    # 素材数据
+    assets_data: Annotated[Optional[dict], safe_merge_dict] = Field(default=None, description="素材查询结果数据")
     journey_stage: Optional[str] = Field(default=None, description="客户旅程阶段")
     matched_prompt: dict = Field(default_factory=dict, description="匹配的提示词信息")
-    input_tokens: Annotated[int, operator.add] = Field(default=0, description="输入Token数")
-    output_tokens: Annotated[int, operator.add] = Field(default=0, description="输出Token数")
+    input_tokens: Annotated[int, add] = Field(default=0, description="输入Token数")
+    output_tokens: Annotated[int, add] = Field(default=0, description="输出Token数")
     total_tokens: Optional[int] = Field(default=0, description="总Token数")
     error_message: Optional[str] = Field(default=None, description="错误信息")
     exception_count: int = Field(default=0, description="异常次数")

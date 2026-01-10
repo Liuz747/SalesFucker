@@ -133,7 +133,8 @@ class MomentsAnalysisService:
             logger.exception(f"朋友圈提示词获取失败：{e}")
             raise
 
-    def build_moments_prompt(self, request: MomentsAnalysisRequest) -> str:
+    @staticmethod
+    def build_moments_prompt(request: MomentsAnalysisRequest) -> str:
         """构建朋友圈分析提示词"""
         moment_descriptions = []
         for idx, moment in enumerate(request.task_list, 1):
@@ -232,25 +233,6 @@ class MomentsAnalysisService:
         except Exception as e:
             logger.exception(f"朋友圈分析失败: {e}")
             raise MomentsServiceError(f"朋友圈内容分析失败: {str(e)}")
-
-    async def reload_prompt(self, method: MethodType):
-        """重载提示词缓存"""
-        redis_client = await get_redis_client()
-        cache_key = f"social_media_prompt:{method}"
-
-        yaml_content = load_yaml_file(self.config_path)
-        method_data = yaml_content.get(method)
-        if not method_data:
-            logger.error(f"未找到提示词配置: {method}")
-            raise
-
-        prompt = method_data.get("prompt")
-        if not prompt:
-            logger.error(f"配置中缺少 'prompt' 字段: {method}")
-            raise
-
-        await redis_client.set(cache_key, prompt, ex=mas_config.REDIS_TTL)
-        logger.info(f"朋友圈提示词重载成功: {method}")
 
     async def _store_moments_memories(
         self,

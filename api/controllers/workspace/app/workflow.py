@@ -105,7 +105,8 @@ async def create_run(
             processing_time=processing_time,
             asr_results=asr_results,
             multimodal_outputs=result.multimodal_outputs if result.multimodal_outputs else None,
-            invitation=invitation
+            invitation=invitation,
+            assets_data=result.assets_data
         )
 
     except HTTPException:

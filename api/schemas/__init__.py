@@ -16,6 +16,13 @@ from .marketing_schema import (
     MarketingPlanResponse,
     MarketingPlanOption
 )
+from .memory_schema import (
+    MemoryInsertRequest,
+    MemoryInsertResponse,
+    MemoryInsertSummary,
+    MemoryInsertResult,
+    MemoryDeleteRequest
+)
 
 __all__ = [
     "AssistantCreateRequest",
@@ -30,5 +37,10 @@ __all__ = [
     "MarketingPlanRequest",
     "MarketingPlanResponse",
     "MarketingPlanOption",
+    "MemoryInsertRequest",
+    "MemoryInsertResponse",
+    "MemoryInsertSummary",
+    "MemoryInsertResult",
+    "MemoryDeleteRequest",
     "WorkflowData"
 ]

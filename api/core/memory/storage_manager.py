@@ -300,3 +300,27 @@ class StorageManager:
             logger.info("Expired memories cleanup completed")
         except Exception as e:
             logger.error(f"Failed to cleanup expired memories: {e}")
+
+    async def delete_es_memory(
+        self,
+        memory_id: str,
+        tenant_id: str,
+        thread_id: UUID
+    ):
+        """
+        删除指定的记忆条目
+
+        Args:
+            memory_id: 记忆文档ID
+            tenant_id: 租户ID
+            thread_id: 线程ID
+        """
+        try:
+            await self.elasticsearch_index.delete_by_id(
+                memory_id,
+                tenant_id,
+                thread_id
+            )
+        except Exception as e:
+            logger.error(f"Failed to delete memory {memory_id}: {e}")
+            raise
