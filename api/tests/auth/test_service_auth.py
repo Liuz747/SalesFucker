@@ -10,19 +10,15 @@ Covers:
 
 from __future__ import annotations
 
-import sys
-import os
 import jwt
 from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-
 from infra.auth.jwt_auth import verify_service_token, ServiceContext
 from infra.auth.key_manager import key_manager
-from config import settings
+from config import mas_config
 
 
 @pytest.mark.asyncio
@@ -32,10 +28,10 @@ async def test_success():
     app_key = "test-service"
     key_data = key_manager.generate_key_pair(app_key)
     
-    # Mock settings
-    with patch.object(settings, 'APP_KEY', app_key), \
-         patch.object(settings, 'APP_JWT_ISSUER', 'mas-cosmetic-system'), \
-         patch.object(settings, 'APP_JWT_AUDIENCE', 'mas-api'):
+    # Mock mas_config
+    with patch.object(mas_config, 'APP_KEY', app_key), \
+         patch.object(mas_config, 'APP_JWT_ISSUER', 'mas-cosmetic-system'), \
+         patch.object(mas_config, 'APP_JWT_AUDIENCE', 'mas-api'):
         
         # Create test token
         now = datetime.now(timezone.utc)
@@ -70,9 +66,9 @@ async def test_token_expired():
     app_key = "test-service-expired"
     key_data = key_manager.generate_key_pair(app_key)
     
-    with patch.object(settings, 'APP_KEY', app_key), \
-         patch.object(settings, 'APP_JWT_ISSUER', 'mas-cosmetic-system'), \
-         patch.object(settings, 'APP_JWT_AUDIENCE', 'mas-api'):
+    with patch.object(mas_config, 'APP_KEY', app_key), \
+         patch.object(mas_config, 'APP_JWT_ISSUER', 'mas-cosmetic-system'), \
+         patch.object(mas_config, 'APP_JWT_AUDIENCE', 'mas-api'):
         
         # Create expired token
         now = datetime.now(timezone.utc)
@@ -102,9 +98,9 @@ async def test_invalid_subject():
     app_key = "test-service-invalid-sub"
     key_data = key_manager.generate_key_pair(app_key)
     
-    with patch.object(settings, 'APP_KEY', app_key), \
-         patch.object(settings, 'APP_JWT_ISSUER', 'mas-cosmetic-system'), \
-         patch.object(settings, 'APP_JWT_AUDIENCE', 'mas-api'):
+    with patch.object(mas_config, 'APP_KEY', app_key), \
+         patch.object(mas_config, 'APP_JWT_ISSUER', 'mas-cosmetic-system'), \
+         patch.object(mas_config, 'APP_JWT_AUDIENCE', 'mas-api'):
         
         # Create token with invalid subject
         now = datetime.now(timezone.utc)
@@ -134,9 +130,9 @@ async def test_invalid_issuer():
     app_key = "test-service-invalid-iss"
     key_data = key_manager.generate_key_pair(app_key)
     
-    with patch.object(settings, 'APP_KEY', app_key), \
-         patch.object(settings, 'APP_JWT_ISSUER', 'mas-cosmetic-system'), \
-         patch.object(settings, 'APP_JWT_AUDIENCE', 'mas-api'):
+    with patch.object(mas_config, 'APP_KEY', app_key), \
+         patch.object(mas_config, 'APP_JWT_ISSUER', 'mas-cosmetic-system'), \
+         patch.object(mas_config, 'APP_JWT_AUDIENCE', 'mas-api'):
         
         # Create token with invalid issuer
         now = datetime.now(timezone.utc)
@@ -163,7 +159,7 @@ async def test_invalid_issuer():
 @pytest.mark.asyncio
 async def test_no_app_key():
     """Test failure when APP_KEY is not configured."""
-    with patch.object(settings, 'APP_KEY', None):
+    with patch.object(mas_config, 'APP_KEY', None):
         # Verify token without app key
         result = await verify_service_token("dummy-token")
         
@@ -175,7 +171,7 @@ async def test_no_app_key():
 @pytest.mark.asyncio
 async def test_key_not_found():
     """Test failure when key pair is not found."""
-    with patch.object(settings, 'APP_KEY', 'non-existent-key'):
+    with patch.object(mas_config, 'APP_KEY', 'non-existent-key'):
         # Verify token with non-existent key
         result = await verify_service_token("dummy-token")
         

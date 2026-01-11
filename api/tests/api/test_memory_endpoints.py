@@ -10,7 +10,7 @@
 """
 
 import pytest
-from unittest.mock import Mock, AsyncMock, patch
+from unittest.mock import Mock, patch
 from uuid import uuid4, UUID
 
 from controllers.workspace.app.memory import delete_inserted_memory
