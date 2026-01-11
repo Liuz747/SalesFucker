@@ -14,14 +14,14 @@ class AudioServiceException(BaseHTTPException):
     http_status_code = 500
 
 
-class ASRConfigurationException(AudioServiceException):
-    """ASR配置异常"""
+class AudioConfigurationException(AudioServiceException):
+    """音频配置异常"""
     code = 1500001
-    message = "ASR_CONFIGURATION_ERROR"
+    message = "AUDIO_CONFIGURATION_ERROR"
     http_status_code = 500
 
-    def __init__(self):
-        super().__init__(detail="DASHSCOPE_API_KEY未配置，无法进行ASR转录")
+    def __init__(self, audio_service: str):
+        super().__init__(detail=f"API_KEY未配置，无法使用{audio_service}相关服务")
 
 
 class ASRUrlValidationException(AudioServiceException):

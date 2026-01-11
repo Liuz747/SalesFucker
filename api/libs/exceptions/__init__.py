@@ -82,7 +82,7 @@ from .workspace import (
 # 音频服务异常
 from .audio import (
     AudioServiceException,
-    ASRConfigurationException,
+    AudioConfigurationException,
     ASRUrlValidationException,
     ASRTaskSubmissionException,
     ASRTranscriptionException,
@@ -137,7 +137,7 @@ __all__ = [
 
     # 音频服务
     "AudioServiceException",
-    "ASRConfigurationException",
+    "AudioConfigurationException",
     "ASRUrlValidationException",
     "ASRTaskSubmissionException",
     "ASRTranscriptionException",

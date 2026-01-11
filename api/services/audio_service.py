@@ -13,7 +13,7 @@ from libs.types import (
     MessageParams,
 )
 from libs.exceptions import (
-    ASRConfigurationException,
+    AudioConfigurationException,
     ASRUrlValidationException,
     ASRTranscriptionException,
     ASRTimeoutException,
@@ -34,11 +34,19 @@ class AudioService:
     """
 
     @staticmethod
-    def verify_api_key():
-        """验证API密钥"""
-        api_key = mas_config.DASHSCOPE_API_KEY
-        if not api_key:
-            raise ASRConfigurationException()
+    def verify_dashscope_key():
+        """验证DashScope API密钥"""
+        dashscope_api_key = mas_config.DASHSCOPE_API_KEY
+        if not dashscope_api_key:
+            raise AudioConfigurationException(audio_service="DashScope")
+
+    @staticmethod
+    def verify_minimax_key() -> str:
+        """MiniMax API密钥"""
+        minimax_api_key = mas_config.MINIMAX_API_KEY
+        if not minimax_api_key:
+            raise AudioConfigurationException(audio_service="MiniMax")
+        return minimax_api_key
 
     @classmethod
     async def transcribe_async(
@@ -62,7 +70,7 @@ class AudioService:
             language_hints = ['zh', 'en']
 
         # 验证API密钥
-        cls.verify_api_key()
+        cls.verify_dashscope_key()
 
         logger.info(f"[ASR] 开始转录")
 
@@ -217,9 +225,7 @@ class AudioService:
         """
         try:
             # 验证API密钥
-            api_key = mas_config.MINIMAX_API_KEY
-            if not api_key:
-                raise ValueError("MiniMax API密钥未配置")
+            api_key = cls.verify_minimax_key()
 
             # 验证voice_id格式
             if not voice_id or len(voice_id) < 8 or len(voice_id) > 256:
@@ -249,7 +255,7 @@ class AudioService:
 
             # 步骤4: 激活克隆的声音（防止7天后过期）
             activation_text = demo_text or "你好，我是你的AI助理。"
-            await cls.activate_voice(
+            await cls.generate_audio(
                 api_key=api_key,
                 voice_id=voice_id,
                 activation_text=activation_text
@@ -323,9 +329,6 @@ class AudioService:
 
         返回:
             dict: 克隆结果
-
-        异常:
-            Exception: 克隆失败
         """
         clone_url = "https://api.minimax.io/v1/voice_clone"
         clone_payload = {
@@ -357,11 +360,11 @@ class AudioService:
                 return await response.json()
 
     @staticmethod
-    async def activate_voice(
+    async def generate_audio(
         api_key: str,
         voice_id: str,
         activation_text: str
-    ):
+    ) -> tuple[str, float]:
         """
         激活克隆的声音
 
@@ -372,8 +375,8 @@ class AudioService:
             voice_id: 要激活的声音ID
             activation_text: 用于激活的文本内容
 
-        异常:
-            Exception: 激活失败
+        返回:
+            tuple[str, float]: 音频链接和音频长度
         """
         try:
             url = "https://api.minimaxi.com/v1/t2a_v2"
@@ -429,5 +432,5 @@ class AudioService:
             return audio_url, audio_length
 
         except Exception as e:
-            logger.error(f"激活声音失败: {e}", exc_info=True)
+            logger.error(f"[TTS] 生成音频失败: {e}", exc_info=True)
             raise
