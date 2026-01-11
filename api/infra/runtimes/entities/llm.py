@@ -22,7 +22,6 @@ class LLMRequest:
     temperature: float = 0.7
     max_tokens: int | None = None
     stream: bool = False
-    thread_id: UUID | None = None          # TODO: Look for other usage of this field, see if can be deleted.
     output_model: Type[BaseModel] | None = None
 
 

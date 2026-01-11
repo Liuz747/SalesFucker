@@ -37,14 +37,6 @@ class InvitationData(BaseModel):
         return None
 
 
-class WorkflowData(BaseModel):
-    """工作流数据模型"""
-
-    input: str = Field(description="工作流输入内容")
-    output: str = Field(description="工作流输出内容")
-    total_tokens: int = Field(description="消耗的总token数")
-
-
 class ThreadPayload(BaseModel):
     """线程更新模型"""
 
@@ -89,10 +81,10 @@ class CallbackPayload(BaseModel):
     assistant_id: UUID = Field(description="助手标识符")
     tenant_id: str = Field(description="租户标识符")
     status: str = Field(description="运行状态 (completed/failed)")
-    data: Optional[WorkflowData] = Field(None, description="工作流处理结果")
+    data: Optional[dict] = Field(None, description="工作流处理结果")
     error: Optional[str] = Field(None, description="错误信息（如果失败）")
     processing_time: float = Field(description="处理时间（毫秒）")
-    finished_at: str = Field(description="完成时间（ISO格式字符串）")
+    finished_at: int = Field(description="完成时间戳")
     metadata: Optional[dict] = Field(None, description="元数据信息")
 
 

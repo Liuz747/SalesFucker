@@ -17,12 +17,13 @@ from config import mas_config
 from core.app import Orchestrator
 from libs.types import MessageParams, ThreadStatus
 from models import Thread, WorkflowRun
-from schemas.conversation_schema import CallbackPayload, WorkflowData
+from schemas.conversation_schema import CallbackPayload
 from services import ThreadService
 from utils import (
     get_component_logger,
     get_current_datetime,
     get_processing_time_ms,
+    get_current_timestamp,
     ExternalClient
 )
 
@@ -77,7 +78,7 @@ class BackgroundWorkflowProcessor:
         orchestrator: Orchestrator,
         run_id: UUID,
         thread: Thread,
-        input: MessageParams
+        inputs: MessageParams
     ):
         """在后台处理工作流"""
         start_time = get_current_datetime()
@@ -92,18 +93,19 @@ class BackgroundWorkflowProcessor:
                 assistant_id=thread.assistant_id,
                 tenant_id=thread.tenant_id,
                 type="chat",
-                input=input
+                inputs=inputs
             )
 
             # 使用编排器处理消息 - 核心工作流调用
             result = await orchestrator.dispatch(workflow)
 
             # 构建工作流数据
-            workflow_data = WorkflowData(
-                input=result.input,
-                output=result.output,
-                total_tokens=result.total_tokens
-            )
+            workflow_data = {
+                "inputs": inputs,
+                "output": result.output,
+                "input_tokens": result.input_tokens,
+                "output_tokens": result.output_tokens
+            }
 
             # 更新线程状态
             await ThreadService.update_thread_status(thread.thread_id, ThreadStatus.ACTIVE)
@@ -121,7 +123,7 @@ class BackgroundWorkflowProcessor:
                 status="completed",
                 data=workflow_data,
                 processing_time=processing_time,
-                finished_at=get_current_datetime().isoformat()
+                finished_at=get_current_timestamp()
             )
 
             # 发送回调
@@ -143,6 +145,6 @@ class BackgroundWorkflowProcessor:
                 status="failed",
                 error=str(e),
                 processing_time=get_processing_time_ms(start_time),
-                finished_at=get_current_datetime().isoformat()
+                finished_at=get_current_timestamp()
             )
             await self.send_callback(callback_url, failure_payload)

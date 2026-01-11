@@ -6,8 +6,7 @@ from .assistants_schema import (
 from .conversation_schema import (
     CallbackPayload,
     ThreadPayload,
-    ThreadCreateResponse,
-    WorkflowData
+    ThreadCreateResponse
 )
 from .responses import BaseResponse
 from .tenant_schema import TenantSyncRequest, TenantUpdateRequest
@@ -41,6 +40,5 @@ __all__ = [
     "MemoryInsertResponse",
     "MemoryInsertSummary",
     "MemoryInsertResult",
-    "MemoryDeleteRequest",
-    "WorkflowData"
+    "MemoryDeleteRequest"
 ]

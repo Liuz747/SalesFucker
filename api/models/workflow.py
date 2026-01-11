@@ -32,7 +32,7 @@ class WorkflowRun(BaseModel):
     assistant_id: UUID = Field(description="助手标识符")
     tenant_id: str = Field(description="租户标识符")
     type: Literal['chat', 'trigger'] = Field(description="工作流类型")
-    input: MessageParams | None = Field(None, description="用户输入：消息列表")
+    inputs: MessageParams | None = Field(None, description="用户输入：消息列表")
     trigger_metadata: Mapping | None = Field(None, description="工作流元数据")
     created_at: datetime = Field(default_factory=get_current_datetime, description="创建时间")
     finished_at: datetime = Field(default_factory=get_current_datetime, description="完成时间")

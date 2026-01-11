@@ -102,14 +102,14 @@ class Orchestrator:
             # 更新Langfuse追踪信息
             langfuse_trace = get_client()
             # 检测是否为多模态输入
-            is_multimodal = not isinstance(workflow.input, str)
-            multimodal_count = len(workflow.input) if is_multimodal else 0
+            is_multimodal = not isinstance(workflow.inputs, str)
+            multimodal_count = len(workflow.inputs) if is_multimodal else 0
 
             langfuse_trace.update_current_trace(
                 name=f"conversation-{workflow.workflow_id}",
                 user_id=workflow.tenant_id,
                 input={
-                    "customer_input": workflow.input if isinstance(workflow.input, str) else f"[多模态内容: {multimodal_count}项]",
+                    "customer_input": workflow.inputs if isinstance(workflow.inputs, str) else f"[多模态内容: {multimodal_count}项]",
                     "tenant_id": workflow.tenant_id,
                     "is_multimodal": is_multimodal
                 },
@@ -143,11 +143,8 @@ class Orchestrator:
             # 返回统一错误状态
             raise
 
-    async def _enrich_output(
-        self,
-        result: WorkflowExecutionModel,
-        assistant_id: UUID
-    ) -> WorkflowExecutionModel:
+    @staticmethod
+    async def _enrich_output(result: WorkflowExecutionModel, assistant_id: UUID) -> WorkflowExecutionModel:
         """
         为工作流结果添加多模态输出
 

@@ -78,7 +78,7 @@ async def create_run(
             assistant_id=request.assistant_id,
             tenant_id=thread.tenant_id,
             type="chat",
-            input=normalized_input
+            inputs=normalized_input
         )
 
         # 使用编排器处理消息
@@ -228,7 +228,7 @@ async def create_background_run(
             orchestrator=orchestrator,
             run_id=run_id,
             thread=thread,
-            input=normalized_input
+            inputs=normalized_input
         )
 
         logger.info(f"后台运行已创建 - 线程: {thread.thread_id}, 运行: {run_id}")

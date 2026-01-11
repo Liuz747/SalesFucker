@@ -40,7 +40,7 @@ class StateManager:
             thread_id=workflow.thread_id,
             assistant_id=workflow.assistant_id,
             tenant_id=workflow.tenant_id,
-            input=workflow.input,
+            input=workflow.inputs,
             started_at=workflow.created_at,
             exception_count=0,
             total_tokens=0,

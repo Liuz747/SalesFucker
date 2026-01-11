@@ -21,7 +21,6 @@ from libs.exceptions import (
 )
 from utils import get_component_logger
 
-
 logger = get_component_logger(__name__, "AudioService")
 
 
@@ -34,8 +33,8 @@ class AudioService:
     - input normalization for controller
     """
 
-    @classmethod
-    def _verify_api_key(cls):
+    @staticmethod
+    def verify_api_key():
         """验证API密钥"""
         api_key = mas_config.DASHSCOPE_API_KEY
         if not api_key:
@@ -63,7 +62,7 @@ class AudioService:
             language_hints = ['zh', 'en']
 
         # 验证API密钥
-        cls._verify_api_key()
+        cls.verify_api_key()
 
         logger.info(f"[ASR] 开始转录")
 
@@ -215,18 +214,6 @@ class AudioService:
 
         返回:
             dict: 包含voice_id和克隆结果的字典
-
-        异常:
-            ValueError: 参数无效或API密钥未配置
-            Exception: API调用失败
-
-        示例:
-            >>> result = await clone_voice_from_file(
-            ...     voice_file_path="/path/to/voice.mp3",
-            ...     voice_id="my_custom_voice_123",
-            ...     demo_text="Hello, this is a test."
-            ... )
-            >>> print(result["voice_id"])
         """
         try:
             # 验证API密钥
@@ -280,8 +267,8 @@ class AudioService:
             logger.error(f"克隆并激活声音失败: {e}", exc_info=True)
             raise
 
-    @classmethod
-    async def _upload_audio_file(cls, api_key: str, file_path: str) -> str:
+    @staticmethod
+    async def _upload_audio_file(api_key: str, file_path: str) -> str:
         """
         上传音频文件到MiniMax
 
@@ -318,9 +305,8 @@ class AudioService:
 
                     return file_id
 
-    @classmethod
+    @staticmethod
     async def _clone_voice(
-        cls,
         api_key: str,
         file_id: str,
         voice_id: str,
@@ -370,9 +356,8 @@ class AudioService:
 
                 return await response.json()
 
-    @classmethod
+    @staticmethod
     async def activate_voice(
-        cls,
         api_key: str,
         voice_id: str,
         activation_text: str

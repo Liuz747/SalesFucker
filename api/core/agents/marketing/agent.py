@@ -34,7 +34,7 @@ class MarketingAgent(BaseAgent):
         # self.product_recommender = ProductRecommender()
         # self.product_search = ProductSearch()
 
-    async def process_conversation(self, state: dict) -> dict:
+    async def process_conversation(self, state) -> dict:
         """
         实现BaseAgent的抽象方法（用于工作流集成）
 
@@ -212,19 +212,15 @@ class MarketingAgent(BaseAgent):
         except json.JSONDecodeError as e:
             logger.error(f"JSON解析失败: {e}")
             # 尝试提取JSON部分（可能LLM返回包含了额外文本）
-            try:
-                # 查找第一个 { 和最后一个 }
-                start_idx = llm_response.find("{")
-                end_idx = llm_response.rfind("}") + 1
+            start_idx = llm_response.find("{")
+            end_idx = llm_response.rfind("}") + 1
 
-                if start_idx != -1 and end_idx > start_idx:
-                    json_str = llm_response[start_idx:end_idx]
-                    response_data = json.loads(json_str)
-                    response = response_data.get("response", "")
-                    options = response_data.get("options", [])[:3]
-                    return response, options
-            except:
-                pass
+            if start_idx != -1 and end_idx > start_idx:
+                json_str = llm_response[start_idx:end_idx]
+                response_data = json.loads(json_str)
+                response = response_data.get("response", "")
+                options = response_data.get("options", [])[:3]
+                return response, options
 
             # 解析失败
             logger.error("无法解析LLM输出")

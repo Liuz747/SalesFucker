@@ -119,7 +119,6 @@ async def generate_analysis(
             provider=provider,
             model=model,
             messages=llm_messages,
-            thread_id=thread_id,
             temperature=temperature
         )
 
