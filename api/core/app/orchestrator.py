@@ -166,7 +166,7 @@ class Orchestrator:
         for action in result.actions:
             match action:
                 case OutputType.AUDIO:
-                    await generate_audio_output(result, assistant_id)
+                    await generate_audio_output(result)
                 case OutputType.IMAGE:
                     pass
                 case OutputType.VIDEO:

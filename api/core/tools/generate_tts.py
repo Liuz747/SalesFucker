@@ -7,8 +7,6 @@
 - generate_audio: 根据文本和助理配置生成TTS音频
 """
 
-from uuid import UUID
-
 from config import mas_config
 from core.entities import WorkflowExecutionModel
 from libs.types import OutputContent, OutputType
@@ -18,7 +16,7 @@ from utils import get_component_logger
 logger = get_component_logger(__name__)
 
 
-async def generate_audio_output(result: WorkflowExecutionModel, assistant_id: UUID) -> None:
+async def generate_audio_output(result: WorkflowExecutionModel):
     """
     生成TTS音频输出
 
@@ -27,19 +25,20 @@ async def generate_audio_output(result: WorkflowExecutionModel, assistant_id: UU
 
     参数:
         result: 工作流执行结果，包含需要转换的文本(result.output)
-        assistant_id: 助理ID，用于获取个性化voice_id配置
-
-    异常:
-        ValueError: MiniMax API密钥未配置时抛出
-        Exception: API调用失败时抛出
     """
     try:
         # 获取API密钥
         api_key = AudioService.verify_minimax_key()
 
         # 获取voice_id
-        assistant_model = await AssistantService.get_assistant_by_id(assistant_id)
-        voice_id = assistant_model.voice_id if assistant_model.voice_id else mas_config.MINIMAX_VOICE_ID
+        voice_id = mas_config.MINIMAX_VOICE_ID
+        try:
+            assistant_model = await AssistantService.get_assistant_by_id(result.assistant_id)
+            if assistant_model.voice_id:
+                voice_id = assistant_model.voice_id
+                logger.info(f"[TTS] 使用助手配置的voice_id: {voice_id}")
+        except Exception as e:
+            logger.warning(f"[TTS] 获取助手voice_id失败，使用默认值: {e}")
 
         logger.info(f"[TTS] 最终使用voice_id: {voice_id}")
 
