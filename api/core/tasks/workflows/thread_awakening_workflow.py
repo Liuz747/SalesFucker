@@ -182,7 +182,7 @@ class ThreadAwakeningWorkflow:
                     stats["failed"] += 1
                     workflow.logger.error(
                         f"✗ 唤醒消息发送失败: thread_id={thread_id}, "
-                        f"error={send_result.get('error', 'unknown')}"
+                        f"error={send_result.get('detail', 'unknown')}"
                     )
 
                 stats["processed"] += 1

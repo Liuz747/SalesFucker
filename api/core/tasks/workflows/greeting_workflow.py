@@ -18,7 +18,7 @@ from uuid import UUID
 from temporalio import workflow
 from temporalio.common import RetryPolicy
 
-from core.tasks.entities import MessagingResult, MessageType
+from core.tasks.entities import TriggerMessagingResult, MessageType
 
 with workflow.unsafe.imports_passed_through():
     from core.prompts.template_loader import get_prompt_template
@@ -43,7 +43,7 @@ class GreetingWorkflow:
         )
 
     @workflow.run
-    async def run(self, thread_id: UUID) -> MessagingResult:
+    async def run(self, thread_id: UUID) -> TriggerMessagingResult:
         """
         执行线程监控工作流
 
@@ -51,7 +51,7 @@ class GreetingWorkflow:
             thread_id: 线程监控配置
 
         Returns:
-            MessagingResult: 消息发送结果
+            TriggerMessagingResult: 消息发送结果
         """
         # TODO: Add more detailed logging info and error exceptions
         try:
@@ -69,9 +69,9 @@ class GreetingWorkflow:
             )
 
             # 3. 如果状态不是'idle'，说明客户已经发送了消息，不需要自动发送
-            if thread_status != ThreadStatus.IDLE:
+            if not thread_status or thread_status != ThreadStatus.IDLE:
                 workflow.logger.info(f"线程已有活动，跳过自动消息: thread_id={thread_id}, status={thread_status}")
-                return MessagingResult(
+                return TriggerMessagingResult(
                     success=True,
                     metadata={"action": "skipped", "reason": "thread_has_activity", "thread_status": str(thread_status)}
                 )
@@ -108,11 +108,11 @@ class GreetingWorkflow:
                 retry_policy=self.retry_policy
             )
 
-            return result
+            return TriggerMessagingResult(**result)
 
         except Exception as e:
-            return MessagingResult(
+            return TriggerMessagingResult(
                 success=False,
-                error_message=str(e),
+                detail=str(e),
                 metadata={"exception_type": type(e).__name__}
             )

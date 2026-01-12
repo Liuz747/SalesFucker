@@ -23,7 +23,7 @@ logger = get_component_logger(__name__)
 
 
 @activity.defn
-async def check_thread_activity_status(thread_id: UUID) -> ThreadStatus:
+async def check_thread_activity_status(thread_id: UUID) -> ThreadStatus | None:
     """检查线程活动状态"""
     try:
         # 使用消息服务获取线程的最新活动状态

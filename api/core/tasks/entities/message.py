@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from datetime import datetime
 from enum import StrEnum
 
 
@@ -15,10 +14,9 @@ class MessageType(StrEnum):
 
 
 @dataclass
-class MessagingResult:
+class TriggerMessagingResult:
     """消息发送结果"""
     success: bool
-    message_id: str | None = None
-    sent_at: datetime | None = None
-    error_message: str | None = None
+    action: str | None = None
+    detail: str | None = None
     metadata: dict | None = None

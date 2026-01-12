@@ -36,9 +36,7 @@ async def send_callback_message(
         callback_url = str(mas_config.CALLBACK_URL)
         client = ExternalClient(base_url=callback_url)
 
-        event_content = {
-            "active_chat_response": content
-        }
+        event_content = {"active_chat_response": content}
 
         payload = {
             "assistantId": str(assistant_id),
@@ -64,12 +62,12 @@ async def send_callback_message(
             logger.error(f"自动消息发送失败: thread_id={thread_id}, 错误: {response.get('msg')}")
             return {
                 "success": False,
-                "error": response.get("msg")
+                "detail": response.get("msg")
             }
 
     except Exception as e:
         logger.error(f"发送自动消息失败: thread_id={thread_id}, 错误: {e}", exc_info=True)
         return {
             "success": False,
-            "error": str(e)
+            "detail": str(e)
         }

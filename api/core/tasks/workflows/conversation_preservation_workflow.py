@@ -9,7 +9,7 @@ from uuid import UUID
 from temporalio import workflow
 from temporalio.common import RetryPolicy
 
-from core.tasks.entities.preservation import PreservationResult
+from core.tasks.entities import TriggerMessagingResult
 
 # 在Temporal工作流中安全导入activities
 with workflow.unsafe.imports_passed_through():
@@ -34,7 +34,7 @@ class ConversationPreservationWorkflow:
         )
 
     @workflow.run
-    async def run(self, thread_id: UUID, tenant_id: str) -> PreservationResult:
+    async def run(self, thread_id: UUID, tenant_id: str) -> TriggerMessagingResult:
         """
         执行对话保存工作流
 
@@ -68,10 +68,10 @@ class ConversationPreservationWorkflow:
             if not check_result["needs_preservation"]:
                 reason = check_result.get("reason", "unknown")
                 workflow.logger.info(f"对话无需保存: thread_id={thread_id}, reason={reason}")
-                return PreservationResult(
+                return TriggerMessagingResult(
                     success=True,
                     action="skipped",
-                    reason=reason,
+                    detail=reason,
                     metadata=check_result
                 )
 
@@ -88,10 +88,10 @@ class ConversationPreservationWorkflow:
                 workflow.logger.info(
                     f"对话质量不足，跳过保存: thread_id={thread_id}"
                 )
-                return PreservationResult(
+                return TriggerMessagingResult(
                     success=True,
                     action="filtered",
-                    reason="quality_check_failed",
+                    detail="quality_check_failed",
                     metadata=quality_result
                 )
 
@@ -110,10 +110,10 @@ class ConversationPreservationWorkflow:
                     f"doc_id={preserve_result.get('doc_id')}, "
                     f"message_count={preserve_result.get('message_count')}"
                 )
-                return PreservationResult(
+                return TriggerMessagingResult(
                     success=True,
                     action="preserved",
-                    reason="quality_passed",
+                    detail="quality_passed",
                     metadata=preserve_result
                 )
             else:
@@ -121,10 +121,10 @@ class ConversationPreservationWorkflow:
                     f"对话保存失败: thread_id={thread_id}, "
                     f"error={preserve_result.get('error')}"
                 )
-                return PreservationResult(
+                return TriggerMessagingResult(
                     success=False,
                     action="preservation_failed",
-                    reason=preserve_result.get("error", "unknown_error"),
+                    detail=preserve_result.get("error", "unknown_error"),
                     metadata=preserve_result
                 )
 
@@ -133,9 +133,9 @@ class ConversationPreservationWorkflow:
                 f"工作流执行异常: thread_id={thread_id}, error={str(e)}",
                 exc_info=True
             )
-            return PreservationResult(
+            return TriggerMessagingResult(
                 success=False,
                 action="workflow_error",
-                reason=str(e),
+                detail=str(e),
                 metadata={"exception_type": type(e).__name__}
             )

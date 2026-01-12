@@ -1,8 +1,6 @@
-from .message import MessageType, MessagingResult
-from .preservation import PreservationResult
+from .message import MessageType, TriggerMessagingResult
 
 __all__ = [
     "MessageType",
-    "MessagingResult",
-    "PreservationResult"
+    "TriggerMessagingResult"
 ]

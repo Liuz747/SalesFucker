@@ -170,8 +170,9 @@ class ThreadRepository:
 
             stmt = select(ThreadOrm).where(
                 and_(
-                    # 去掉失败的线程
-                    ThreadOrm.status != ThreadStatus.FAILED,
+                    ThreadOrm.enable_takeover,
+                    ThreadOrm.enable_trigger,
+                    ThreadOrm.status != ThreadStatus.BUSY,
                     # 未超过最大尝试次数
                     ThreadOrm.awakening_attempt_count < mas_config.MAX_AWAKENING_ATTEMPTS,
                     # 满足不活跃条件：指定天数未活动或从未互动
