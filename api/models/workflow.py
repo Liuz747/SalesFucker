@@ -48,8 +48,8 @@ class WorkflowRun(BaseModel):
         """
         match self.type:
             case "chat":
-                if not self.input:
-                    raise ValueError("Chat workflow requires 'input' field with user messages")
+                if not self.inputs:
+                    raise ValueError("Chat workflow requires 'inputs' field with user messages")
             case "trigger":
                 if not self.trigger_metadata:
                     raise ValueError("Trigger workflow requires 'trigger_metadata' field with event information")

@@ -49,6 +49,8 @@ class ThreadPayload(BaseModel):
     occupation: Optional[str] = Field(None, description="客户职业")
     services: Optional[list[str]] = Field(None, description="客户已消费的服务列表")
     is_converted: Optional[bool] = Field(None, description="客户是否已转化（已消费）")
+    enable_trigger: Optional[bool] = Field(None, description="是否允许主动触发")
+    enable_takeover: Optional[bool] = Field(None, description="是否允许AI接管")
 
 
 class ThreadCreateResponse(BaseResponse):
