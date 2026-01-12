@@ -293,7 +293,7 @@ services:
       - ./nginx/https.conf.template:/etc/nginx/https.conf.template:ro
       - ./nginx/proxy.conf.template:/etc/nginx/proxy.conf.template:ro
       - ./nginx/docker-entrypoint.sh:/docker-entrypoint.sh
-      - ./nginx/ssl:/etc/ssl:ro  # Place your SSL certs here if HTTPS enabled
+      - ./nginx/ssl:/etc/ssl:ro  # Place SSL certs here if HTTPS enabled
     entrypoint: [ "sh", "/docker-entrypoint.sh" ]
     environment:
       NGINX_SERVER_NAME: ${NGINX_SERVER_NAME:-_}
