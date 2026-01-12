@@ -22,7 +22,13 @@ from config import mas_config
 from core.tasks.workflows import ConversationPreservationWorkflow
 from libs.factory import infra_registry
 from models import Thread, TenantModel
-from schemas import BaseResponse, ThreadPayload, ThreadCreateResponse, ThreadBatchUpdateRequest, ThreadBatchUpdateResponse
+from schemas import (
+    BaseResponse,
+    ThreadBatchUpdateRequest,
+    ThreadBatchUpdateResponse,
+    ThreadCreateResponse,
+    ThreadPayload
+)
 from services import ThreadService
 from utils import get_component_logger
 from ..wraps import validate_and_get_tenant

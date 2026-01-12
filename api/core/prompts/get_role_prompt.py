@@ -37,16 +37,6 @@ async def get_role_prompt(
 
     返回:
         Message: 包含role="system"的角色扮演系统提示词消息
-
-    异常:
-        AssistantInactiveException: 助理不存在时抛出
-
-    使用示例:
-        >>> from uuid import UUID
-        >>> assistant_id = UUID("12345678-1234-5678-1234-567812345678")
-        >>> system_message = await get_role_prompt(assistant_id)
-        >>> # system_message.role == "system"
-        >>> # system_message.content == "你是小美，一位专业的..."
     """
     # 通过服务层获取助理模型（自动处理缓存逻辑）
     assistant = await AssistantService.get_assistant_by_id(assistant_id, use_cache=use_cache)
