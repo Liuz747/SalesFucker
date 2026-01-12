@@ -22,7 +22,7 @@ from config import mas_config
 from core.tasks.workflows import ConversationPreservationWorkflow
 from libs.factory import infra_registry
 from models import Thread, TenantModel
-from schemas import BaseResponse, ThreadPayload, ThreadCreateResponse
+from schemas import BaseResponse, ThreadPayload, ThreadCreateResponse, ThreadBatchUpdateRequest, ThreadBatchUpdateResponse
 from services import ThreadService
 from utils import get_component_logger
 from ..wraps import validate_and_get_tenant
@@ -148,32 +148,41 @@ async def update_thread(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@router.post("/{thread_id}/record")
-async def upload_record(
-    thread_id: UUID,
-    records: list,
+@router.post("/batch-update", response_model=ThreadBatchUpdateResponse)
+async def batch_update_threads(
+    request: ThreadBatchUpdateRequest,
     tenant: Annotated[TenantModel, Depends(validate_and_get_tenant)]
 ):
     """
-    上传线程记忆记录
-    
-    将记忆记录存储到线程的 metadata 中，支持自动去重。
+    批量更新线程属性
+
+    使用相同的字段和值更新多个线程。支持更新以下字段：
+    - is_converted: 客户是否已转化
+    - enable_trigger: 是否允许主动触发
+    - enable_takeover: 是否允许AI接管
+
+    特性：
+    - 最多支持100个线程
+    - 自动验证租户归属权限
+    - 异步刷新Redis缓存
     """
     try:
-        # 验证线程归属
-        thread = await ThreadService.get_thread(thread_id)
-        if not thread:
-            raise HTTPException(status_code=404, detail=f"线程不存在: {thread_id}")
-            
-        if thread.tenant_id != tenant.tenant_id:
-            raise HTTPException(status_code=403, detail="租户ID不匹配，无法访问此线程")
+        # 调用服务层批量更新
+        succeeded, failed, failed_ids = await ThreadService.batch_update_threads(
+            tenant_id=tenant.tenant_id,
+            thread_ids=request.thread_ids,
+            set_updates=request.set_updates.model_dump(exclude_unset=True)
+        )
 
-        await ThreadService.update_thread_records(thread_id, records)
-        
-        return {"message": "记忆记录上传成功"}
-        
+        return ThreadBatchUpdateResponse(
+            message=f"批量更新完成: 成功 {succeeded} 个, 失败 {failed} 个",
+            succeeded=succeeded,
+            failed=failed,
+            failed_ids=failed_ids
+        )
+
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"记忆记录上传失败: {e}", exc_info=True)
+        logger.error(f"批量更新线程失败: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))

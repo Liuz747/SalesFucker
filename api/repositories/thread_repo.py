@@ -17,7 +17,7 @@ from typing import Optional
 from uuid import UUID
 
 import msgpack
-from redis import Redis
+from redis.asyncio import Redis
 from sqlalchemy import select, update, func, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -153,6 +153,30 @@ class ThreadRepository:
             raise
 
     @staticmethod
+    async def batch_delete_cache(thread_ids: Sequence[UUID], redis_client: Redis):
+        """
+        批量删除线程缓存
+
+        参数:
+            thread_ids: 线程ID列表
+            redis_client: Redis客户端
+        """
+        try:
+            if not thread_ids:
+                return
+
+            # 使用pipeline批量删除
+            async with redis_client.pipeline(transaction=True) as pipeline:
+                for thread_id in thread_ids:
+                    redis_key = f"thread:{str(thread_id)}"
+                    await pipeline.delete(redis_key)
+                await pipeline.execute()
+                logger.debug(f"批量删除线程缓存: {len(thread_ids)} 个线程")
+
+        except Exception as e:
+            logger.error(f"批量删除线程缓存失败: 错误: {e}")
+
+    @staticmethod
     async def get_inactive_threads(session: AsyncSession) -> Sequence[ThreadOrm]:
         """
         查询不活跃线程（用于唤醒工作流）
@@ -251,3 +275,40 @@ class ThreadRepository:
             logger.error(f"增加唤醒计数失败: thread_id={thread_id}, 错误: {e}")
             raise
 
+    @staticmethod
+    async def bulk_update_threads(
+        tenant_id: str,
+        thread_ids: list[UUID],
+        set_updates: dict,
+        session: AsyncSession
+    ) -> Sequence[UUID]:
+        """
+        批量更新线程字段
+
+        参数:
+            tenant_id: 租户ID，用于验证线程归属
+            thread_ids: 要更新的线程ID列表
+            set_updates: 要更新的字段字典
+            session: 数据库会话
+
+        返回:
+            Sequence: 成功的线程ID列表
+        """
+        try:
+            # 批量更新有效的线程
+            stmt = (
+                update(ThreadOrm)
+                .where(
+                    ThreadOrm.thread_id.in_(thread_ids),
+                    ThreadOrm.tenant_id == tenant_id,
+                )
+                .values(updated_at=func.now(), **set_updates)
+                .returning(ThreadOrm.thread_id)
+            )
+
+            result = await session.execute(stmt)
+            return result.scalars().all()
+
+        except Exception as e:
+            logger.error(f"批量更新线程失败: 错误: {e}")
+            raise

@@ -3,13 +3,7 @@ from .assistants_schema import (
     AssistantUpdateRequest,
     AssistantCreateResponse    
 )
-from .conversation_schema import (
-    CallbackPayload,
-    ThreadPayload,
-    ThreadCreateResponse
-)
-from .responses import BaseResponse
-from .tenant_schema import TenantSyncRequest, TenantUpdateRequest
+from .conversation_schema import CallbackPayload
 from .marketing_schema import (
     MarketingPlanRequest,
     MarketingPlanResponse,
@@ -22,6 +16,14 @@ from .memory_schema import (
     MemoryInsertResult,
     MemoryDeleteRequest
 )
+from .responses import BaseResponse
+from .tenant_schema import TenantSyncRequest, TenantUpdateRequest
+from .thread_schema import (
+    ThreadPayload,
+    ThreadCreateResponse,
+    ThreadBatchUpdateRequest,
+    ThreadBatchUpdateResponse
+)
 
 __all__ = [
     "AssistantCreateRequest",
@@ -31,8 +33,10 @@ __all__ = [
     "CallbackPayload",
     "TenantSyncRequest",
     "TenantUpdateRequest",
-    "ThreadPayload",
+    "ThreadBatchUpdateRequest",
+    "ThreadBatchUpdateResponse",
     "ThreadCreateResponse",
+    "ThreadPayload",
     "MarketingPlanRequest",
     "MarketingPlanResponse",
     "MarketingPlanOption",

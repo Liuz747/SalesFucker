@@ -270,3 +270,46 @@ class ThreadService:
             logger.error(f"增加唤醒计数失败: thread_id={thread_id}, 错误: {e}")
             raise
 
+    @staticmethod
+    async def batch_update_threads(
+        tenant_id: str,
+        thread_ids: list[UUID],
+        set_updates: dict
+    ) -> tuple[int, int, list[UUID]]:
+        """
+        批量更新线程字段
+
+        参数:
+            tenant_id: 租户ID，用于验证线程归属
+            thread_ids: 要更新的线程ID列表
+            set_updates: 要更新的字段字典（仅包含非空字段）
+
+        返回:
+            tuple: (成功数量, 失败数量, 失败结果列表)
+        """
+        try:
+            # 使用单个数据库会话进行批量更新
+            async with database_session() as session:
+                results = await ThreadRepository.bulk_update_threads(
+                    tenant_id=tenant_id,
+                    thread_ids=thread_ids,
+                    set_updates=set_updates,
+                    session=session
+                )
+
+            # 构建结果列表
+            succeeded = len(results)
+            failed = len(thread_ids) - succeeded
+            failed_ids = list(set(thread_ids) - set(results)) if failed else []
+
+            # 批量清除Redis缓存
+            redis_client = infra_registry.get_cached_clients().redis
+            asyncio.create_task(ThreadRepository.batch_delete_cache(results, redis_client))
+
+            logger.info(f"批量更新完成: 成功={succeeded}, 失败={failed}")
+            return succeeded, failed, failed_ids
+
+        except Exception as e:
+            logger.error(f"批量更新线程失败: 错误: {e}")
+            raise
+

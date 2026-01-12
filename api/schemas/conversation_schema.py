@@ -8,10 +8,9 @@ from collections.abc import Sequence
 from typing import Literal, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator, PositiveInt
+from pydantic import BaseModel, Field, field_validator
 
-from libs.types import MessageParams, OutputContentParams, Sex
-from .responses import BaseResponse
+from libs.types import MessageParams, OutputContentParams
 
 
 class InvitationData(BaseModel):
@@ -35,28 +34,6 @@ class InvitationData(BaseModel):
             return phone_str
 
         return None
-
-
-class ThreadPayload(BaseModel):
-    """线程更新模型"""
-
-    name: Optional[str] = Field(None, description="客户姓名")
-    nickname: Optional[str] = Field(None, description="客户昵称")
-    real_name: Optional[str] = Field(None, description="客户真实姓名")
-    sex: Optional[Sex] = Field(None, description="客户性别")
-    age: Optional[PositiveInt] = Field(None, description="客户年龄")
-    phone: Optional[str] = Field(None, description="客户电话")
-    occupation: Optional[str] = Field(None, description="客户职业")
-    services: Optional[list[str]] = Field(None, description="客户已消费的服务列表")
-    is_converted: Optional[bool] = Field(None, description="客户是否已转化（已消费）")
-    enable_trigger: Optional[bool] = Field(None, description="是否允许主动触发")
-    enable_takeover: Optional[bool] = Field(None, description="是否允许AI接管")
-
-
-class ThreadCreateResponse(BaseResponse):
-    """线程创建响应模型"""
-
-    thread_id: UUID = Field(description="创建的线程信息")
 
 
 class MessageCreateRequest(BaseModel):
