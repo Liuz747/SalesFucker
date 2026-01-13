@@ -14,7 +14,8 @@ from .memory_schema import (
     MemoryInsertResponse,
     MemoryInsertSummary,
     MemoryInsertResult,
-    MemoryDeleteRequest
+    MemoryDeleteRequest,
+    MemoryAppendRequest
 )
 from .responses import BaseResponse
 from .tenant_schema import TenantSyncRequest, TenantUpdateRequest
@@ -31,6 +32,7 @@ __all__ = [
     "AssistantUpdateRequest",
     "BaseResponse",
     "CallbackPayload",
+    "MemoryAppendRequest",
     "TenantSyncRequest",
     "TenantUpdateRequest",
     "ThreadBatchUpdateRequest",

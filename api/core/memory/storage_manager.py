@@ -49,8 +49,6 @@ class StorageManager:
         self.conversation_store = ConversationStore()
         self.elasticsearch_index = ElasticsearchIndex()
         self.summarization_service = SummarizationService()
-        self._summary_guard = asyncio.Lock()
-        self._active_summaries: set[UUID] = set()
 
         logger.info("StorageManager initialized")
 
@@ -158,18 +156,30 @@ class StorageManager:
         return await self.store_messages(tenant_id, thread_id, msg)
 
     async def _schedule_summarization(self, tenant_id: str, thread_id: UUID):
-        """确保同一线程仅存在一个并发摘要任务。"""
-        async with self._summary_guard:
-            if thread_id in self._active_summaries:
-                return
-            self._active_summaries.add(thread_id)
+        """
+        确保同一线程仅存在一个并发摘要任务
 
+        使用Redis分布式锁防止多个请求/实例同时触发摘要生成。
+        """
+        lock_key = f"lock:summarization:{thread_id}"
+
+        lock = self.conversation_store.redis_client.lock(
+            lock_key,
+            timeout=300,  # 5分钟超时
+            blocking=False
+        )
+
+        acquired = await lock.acquire()
+        if not acquired:
+            logger.info(f"摘要生成已在进行中，跳过 - thread: {thread_id}")
+            return
+
+        # 在后台任务中执行摘要生成并释放锁
         async def runner():
             try:
                 await self._trigger_summarization(tenant_id, thread_id)
             finally:
-                async with self._summary_guard:
-                    self._active_summaries.discard(thread_id)
+                await lock.release()
 
         asyncio.create_task(runner())
 

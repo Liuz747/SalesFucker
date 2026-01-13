@@ -3,6 +3,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
+from libs.types import MessageParams
 from .responses import BaseResponse
 
 
@@ -50,3 +51,8 @@ class MemoryDeleteRequest(BaseModel):
 
     thread_id: UUID = Field(description="对话线程ID")
     memory_id: str = Field(description="记忆ID")
+
+
+class MemoryAppendRequest(BaseModel):
+    """消息追加请求模型"""
+    messages: MessageParams = Field(min_length=1, max_length=100, description="要追加的消息列表，最少1条，最多100条")

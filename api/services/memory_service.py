@@ -16,8 +16,10 @@ from uuid import UUID
 from elasticsearch import NotFoundError
 
 from core.memory import StorageManager
+from infra.db import database_session
 from libs.exceptions import MemoryNotFoundException, MemoryDeletionException
-from libs.types import MemoryType
+from libs.types import MemoryType, MessageParams, ThreadStatus
+from repositories import ThreadRepository
 from schemas import MemoryInsertSummary, MemoryInsertResult
 from utils import get_component_logger
 
@@ -194,3 +196,46 @@ class MemoryService:
         except Exception as e:
             logger.error(f"记忆删除失败: memory_id={memory_id}, error={e}", exc_info=True)
             raise MemoryDeletionException(reason=str(e))
+
+    @staticmethod
+    async def append_messages(
+        tenant_id: str,
+        thread_id: UUID,
+        messages: MessageParams
+    ) -> bool:
+        """
+        追加消息到线程记忆末尾
+
+        将消息按顺序追加到线程的短期记忆（Redis）末尾。
+        当消息数量达到阈值时，会自动触发摘要生成并转存到长期记忆（Elasticsearch）。
+
+        参数:
+            tenant_id: 租户ID
+            thread_id: 线程ID
+            messages: 要追加的消息列表
+
+        返回:
+            bool
+        """
+        try:
+            # 获取 StorageManager 实例
+            storage_manager = StorageManager()
+
+            # 存储消息到短期记忆（会自动触发摘要检查）
+            await storage_manager.store_messages(
+                tenant_id=tenant_id,
+                thread_id=thread_id,
+                messages=messages
+            )
+
+            # 更新线程的时间戳
+            async with database_session() as session:
+                await ThreadRepository.update_thread_status(thread_id, ThreadStatus.ACTIVE, session)
+
+            logger.info(f"消息追加成功: thread_id={thread_id}")
+
+            return True
+
+        except Exception as e:
+            logger.error(f"消息追加失败: thread_id={thread_id}, 错误: {e}", exc_info=True)
+            raise

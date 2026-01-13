@@ -118,6 +118,16 @@ class ThreadAccessDeniedException(ThreadException):
         super().__init__(detail=f"租户 {tenant_id} 无权访问线程 {thread_id}")
 
 
+class ThreadBusyException(ThreadException):
+    """线程繁忙异常"""
+    code = 1300005
+    message = "THREAD_BUSY"
+    http_status_code = 409
+
+    def __init__(self, thread_id: UUID | str, timeout: float = 5.0):
+        super().__init__(detail=f"线程 {thread_id} 正在处理工作流且在{timeout}秒内未完成，请稍后重试")
+
+
 # ============================================
 # 对话相关异常
 # ============================================

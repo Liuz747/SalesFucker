@@ -71,6 +71,7 @@ from .workspace import (
     ThreadNotFoundException,
     ThreadCreationException,
     ThreadAccessDeniedException,
+    ThreadBusyException,
     # 对话相关
     ConversationException,
     ConversationProcessingException,
@@ -130,6 +131,7 @@ __all__ = [
     "ThreadNotFoundException",
     "ThreadCreationException",
     "ThreadAccessDeniedException",
+    "ThreadBusyException",
     "ConversationException",
     "ConversationProcessingException",
     "MessageValidationException",

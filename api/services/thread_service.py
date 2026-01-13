@@ -313,3 +313,42 @@ class ThreadService:
             logger.error(f"批量更新线程失败: 错误: {e}")
             raise
 
+    @classmethod
+    async def wait_for_thread_available(
+        cls,
+        thread_id: UUID,
+        timeout: float = 5.0,
+        poll_interval: float = 1.0
+    ) -> bool:
+        """
+        等待线程变为可用状态（非BUSY）
+
+        使用轮询机制检查线程状态，适用于需要等待工作流完成的场景。
+
+        参数:
+            thread_id: 线程ID
+            timeout: 最大等待时间（秒），默认5秒
+            poll_interval: 轮询间隔（秒），默认0.5秒
+
+        返回:
+            bool: True表示线程已可用，False表示超时
+        """
+        start_time = asyncio.get_event_loop().time()
+
+        while True:
+            # 检查是否超时
+            elapsed = asyncio.get_event_loop().time() - start_time
+            if elapsed >= timeout:
+                logger.warning(f"等待线程可用超时 - thread: {thread_id}, 超时时间: {timeout}秒")
+                return False
+
+            # 获取线程当前状态
+            thread = await cls.get_thread(thread_id)
+
+            # 检查线程是否可用
+            if thread.status != ThreadStatus.BUSY:
+                logger.info(f"线程已可用 - thread: {thread_id}, 等待时间: {elapsed:.2f}秒")
+                return True
+
+            # 等待后重试
+            await asyncio.sleep(poll_interval)
