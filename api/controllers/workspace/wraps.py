@@ -12,9 +12,16 @@
 
 from typing import Optional
 
-from fastapi import HTTPException, Request
+from fastapi import Request
 
 from core.app.orchestrator import Orchestrator
+from libs.exceptions import (
+    BaseHTTPException,
+    TenantIdRequiredException,
+    TenantNotFoundException,
+    TenantDisabledException,
+    TenantValidationException
+)
 from libs.types import AccountStatus
 from services.tenant_service import TenantService, TenantModel
 from utils import get_component_logger
@@ -25,45 +32,26 @@ logger = get_component_logger(__name__, "TenantValidation")
 async def validate_and_get_tenant(request: Request) -> Optional[TenantModel]:
     """依赖注入函数 - 租户验证"""
     tenant_id = request.headers.get("X-Tenant-ID")
-    
+
     if not tenant_id:
-        raise HTTPException(
-            status_code=400,
-            detail={
-                "error": "TENANT_ID_REQUIRED",
-                "message": "请求必须包含租户ID",
-                "methods": "Header: X-Tenant-ID"
-            }
-        )
-    
+        raise TenantIdRequiredException()
+
     try:
         tenant = await TenantService.query_tenant(tenant_id)
-        
+
         if not tenant:
-            raise HTTPException(
-                status_code=403,
-                detail={
-                    "error": "TENANT_NOT_FOUND",
-                    "message": f"租户 {tenant_id} 不存在"
-                }
-            )
-        
+            raise TenantNotFoundException(tenant_id)
+
         if tenant.status != AccountStatus.ACTIVE:
-            raise HTTPException(
-                status_code=403,
-                detail={
-                    "error": "TENANT_DISABLED", 
-                    "message": f"租户 {tenant_id} 已被禁用"
-                }
-            )
-        
+            raise TenantDisabledException(tenant_id)
+
         return tenant
-        
-    except HTTPException:
+
+    except BaseHTTPException:
         raise
     except Exception as e:
         logger.error(f"租户验证失败: {tenant_id}, 错误: {e}")
-        raise HTTPException(status_code=500, detail="租户验证失败")
+        raise TenantValidationException(tenant_id, str(e))
 
 
 async def get_orchestrator(request: Request):

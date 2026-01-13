@@ -13,8 +13,14 @@
 from typing import Annotated
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks
+from fastapi import APIRouter, Depends, BackgroundTasks
 
+from libs.exceptions import (
+    BaseHTTPException,
+    ThreadNotFoundException,
+    ThreadAccessDeniedException,
+    WorkflowExecutionException
+)
 from libs.types import ThreadStatus
 from models import WorkflowRun, TenantModel
 from schemas.conversation_schema import MessageCreateRequest, ThreadRunResponse
@@ -109,15 +115,15 @@ async def create_run(
             assets_data=result.assets_data
         )
 
-    except HTTPException:
-        # HTTPException: 更新线程状态为FAILED
+    except BaseHTTPException:
+        # 更新线程状态为FAILED
         await ThreadService.update_thread_status(thread_id, ThreadStatus.FAILED)
         raise
     except Exception as e:
         # 其他异常: 更新线程状态为FAILED
         await ThreadService.update_thread_status(thread_id, ThreadStatus.FAILED)
         logger.error(f"运行处理失败 - 线程: {thread_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"运行处理失败: {str(e)}")
+        raise WorkflowExecutionException(workflow_type="chat_sync", reason=str(e))
 
 
 @router.post("/suggestion", response_model=ThreadRunResponse)
@@ -173,15 +179,15 @@ async def create_suggestion(
             invitation=None
         )
 
-    except HTTPException:
-        # HTTPException: 更新线程状态为FAILED
+    except BaseHTTPException:
+        # 更新线程状态为FAILED
         await ThreadService.update_thread_status(thread_id, ThreadStatus.FAILED)
         raise
     except Exception as e:
         # 其他异常: 更新线程状态为FAILED
         await ThreadService.update_thread_status(thread_id, ThreadStatus.FAILED)
         logger.error(f"建议生成失败 - 线程: {thread_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"建议生成失败: {str(e)}")
+        raise WorkflowExecutionException(workflow_type="suggestion", reason=str(e))
 
 
 @router.post("/async")
@@ -241,15 +247,15 @@ async def create_background_run(
             "created_at": created_at
         }
 
-    except HTTPException:
-        # HTTPException: 更新线程状态为FAILED
+    except BaseHTTPException:
+        # 更新线程状态为FAILED
         await ThreadService.update_thread_status(thread_id, ThreadStatus.FAILED)
         raise
     except Exception as e:
         # 其他异常: 更新线程状态为FAILED
         await ThreadService.update_thread_status(thread_id, ThreadStatus.FAILED)
         logger.error(f"后台运行创建失败 - 线程: {thread_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"后台运行创建失败: {str(e)}")
+        raise WorkflowExecutionException(workflow_type="chat_async", reason=str(e))
 
 
 @router.get("/{run_id}/status")
@@ -265,18 +271,12 @@ async def get_run_status(
     """
     try:
         thread = await ThreadService.get_thread(thread_id)
-    
+
         if not thread:
-            raise HTTPException(
-                status_code=404,
-                detail=f"线程不存在: {thread_id}"
-            )
-        
+            raise ThreadNotFoundException(thread_id)
+
         if thread.tenant_id != tenant.tenant_id:
-            raise HTTPException(
-                status_code=403,
-                detail="租户ID不匹配，无法访问此线程"
-            )
+            raise ThreadAccessDeniedException(tenant.tenant_id)
 
         # 返回线程状态信息
         return {
@@ -286,9 +286,9 @@ async def get_run_status(
             "created_at": thread.created_at,
             "updated_at": thread.updated_at
         }
-    
-    except HTTPException:
+
+    except BaseHTTPException:
         raise
     except Exception as e:
         logger.error(f"运行状态查询失败 - 线程: {thread_id}, 运行: {run_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"运行状态查询失败: {str(e)}")
+        raise WorkflowExecutionException(workflow_type="status_query", reason=str(e))

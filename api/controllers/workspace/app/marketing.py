@@ -7,9 +7,10 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends
 
 from core.agents import MarketingAgent
+from libs.exceptions import BaseHTTPException, MarketingPlanGenerationException
 from models import TenantModel
 from schemas.marketing_schema import MarketingPlanRequest, MarketingPlanResponse
 from utils import get_component_logger, get_current_datetime, get_processing_time
@@ -63,11 +64,8 @@ async def create_marketing_plan(
 
         return response
 
-    except HTTPException:
+    except BaseHTTPException:
         raise
     except Exception as e:
         logger.error(f"营销计划生成失败: {e}", exc_info=True)
-        raise HTTPException(
-            status_code=500,
-            detail=f"营销计划生成失败: {str(e)}"
-        )
+        raise MarketingPlanGenerationException(str(e))

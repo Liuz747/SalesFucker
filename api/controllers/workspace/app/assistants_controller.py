@@ -14,11 +14,18 @@ AI员工管理API端点
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, Query, status
 
 from models import TenantModel, AssistantModel
 from schemas import AssistantCreateRequest, AssistantCreateResponse, AssistantUpdateRequest, BaseResponse
-from libs.exceptions import AssistantNotFoundException
+from libs.exceptions import (
+    BaseHTTPException,
+    AssistantCreationException,
+    AssistantException,
+    AssistantNotFoundException,
+    AssistantDeletionException,
+    AssistantUpdateException
+)
 from services import AssistantService
 from utils import get_component_logger
 from ..wraps import validate_and_get_tenant
@@ -45,13 +52,6 @@ async def create_assistant(
     try:
         logger.info(f"创建助理请求: tenant={tenant.tenant_id}")
 
-        # 验证租户ID匹配
-        if request.tenant_id != tenant.tenant_id:
-            raise HTTPException(
-                status_code=403,
-                detail="租户ID不匹配，无法访问"
-            )
-
         result = await AssistantService.create_assistant(request)
 
         logger.info(f"助理创建成功: {result.assistant_id}")
@@ -61,20 +61,11 @@ async def create_assistant(
             assistant_id=result.assistant_id
         )
 
-    except ValueError as e:
-        logger.warning(f"助理创建参数错误: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
-    except HTTPException as e:
+    except BaseHTTPException:
         raise
     except Exception as e:
         logger.error(f"助理创建失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="助理创建失败，请稍后重试"
-        )
+        raise AssistantCreationException(str(e))
 
 
 """
@@ -146,14 +137,11 @@ async def get_assistant(assistant_id: UUID):
         logger.info(f"助理详情查询成功: {assistant_id}")
         return result
 
-    except AssistantNotFoundException:
+    except BaseHTTPException:
         raise
     except Exception as e:
         logger.error(f"助理详情查询失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="助理详情查询失败，请稍后重试"
-        )
+        raise AssistantException()
 
 
 @router.post("/{assistant_id}", response_model=BaseResponse)
@@ -175,22 +163,11 @@ async def update_assistant(
         logger.info(f"助理更新成功: {assistant_id}")
         return BaseResponse(message="助理更新成功")
 
-    except AssistantNotFoundException:
-        raise
-    except ValueError as e:
-        logger.warning(f"助理更新参数错误: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=str(e)
-        )
-    except HTTPException as e:
+    except BaseHTTPException:
         raise
     except Exception as e:
         logger.error(f"助理更新失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="助理更新失败，请稍后重试"
-        )
+        raise AssistantUpdateException(assistant_id, str(e))
 
 
 @router.delete("/{assistant_id}", response_model=BaseResponse)
@@ -215,11 +192,8 @@ async def delete_assistant(
         else:
             raise AssistantNotFoundException(assistant_id)
 
-    except AssistantNotFoundException:
+    except BaseHTTPException:
         raise
     except Exception as e:
         logger.error(f"助理删除失败: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="助理删除失败，请稍后重试"
-        )
+        raise AssistantDeletionException(assistant_id, str(e))

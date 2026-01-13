@@ -1,14 +1,14 @@
 from uuid import UUID
 
-from fastapi import HTTPException
-
 from libs.types import AccountStatus, ThreadStatus
 from models import Thread
 from libs.exceptions import (
-    AssistantDisabledException,
+    AssistantInactiveException,
     BaseHTTPException,
     TenantValidationException,
-    ThreadNotFoundException
+    ThreadNotFoundException,
+    ThreadBusyException,
+    WorkflowExecutionException
 )
 from utils import get_component_logger, get_current_datetime
 from .assistant_service import AssistantService
@@ -62,10 +62,7 @@ class WorkflowService:
             # 每个线程代表一个用户，拥有独立的记忆和上下文
             # 允许FAILED线程重新运行，以便用户可以从错误中恢复
             if thread.status == ThreadStatus.BUSY:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"线程当前状态正在运行，无法处理运行请求。"
-                )
+                raise ThreadBusyException(thread_id)
 
             # 3. 验证助理身份
             assistant = await AssistantService.get_assistant_by_id(
@@ -81,7 +78,7 @@ class WorkflowService:
             # 5. 验证助理状态
             if assistant.status != AccountStatus.ACTIVE:
                 logger.warning(f"助理已被禁用: assistant_id={assistant_id}")
-                raise AssistantDisabledException(assistant_id)
+                raise AssistantInactiveException(assistant_id, assistant.status)
 
             # 6. 更新线程状态为BUSY，同时绑定助理ID（如果未绑定），并重置唤醒计数
             update_fields = {
@@ -103,7 +100,4 @@ class WorkflowService:
             logger.error(
                 f"验证工作流权限时发生异常: thread_id={thread_id}, 错误: {e}"
             )
-            raise HTTPException(
-                status_code=500,
-                detail=f"权限验证失败: {str(e)}"
-            )
+            raise WorkflowExecutionException(workflow_type="permission_verification", reason=str(e))

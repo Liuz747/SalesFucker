@@ -56,7 +56,7 @@ async def insert_memory(
             raise ThreadNotFoundException(request.thread_id)
 
         if thread.tenant_id != tenant.tenant_id:
-            raise ThreadAccessDeniedException(request.thread_id, tenant.tenant_id)
+            raise ThreadAccessDeniedException(tenant.tenant_id)
 
         # 插入记忆
         results, summary = await MemoryService.insert_memory(
@@ -100,7 +100,7 @@ async def delete_inserted_memory(
             raise ThreadNotFoundException(request.thread_id)
 
         if thread.tenant_id != tenant.tenant_id:
-            raise ThreadAccessDeniedException(request.thread_id, tenant.tenant_id)
+            raise ThreadAccessDeniedException(tenant.tenant_id)
 
         # 删除记忆
         await MemoryService.delete_memory(
@@ -143,7 +143,7 @@ async def append_messages(
             raise ThreadNotFoundException(thread_id)
 
         if thread.tenant_id != tenant.tenant_id:
-            raise ThreadAccessDeniedException(thread_id, tenant.tenant_id)
+            raise ThreadAccessDeniedException(tenant.tenant_id)
 
         # 检查线程状态，如果正在处理工作流则等待
         if thread.status == ThreadStatus.BUSY:

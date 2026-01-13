@@ -35,16 +35,6 @@ class AssistantNotFoundException(AssistantException):
         super().__init__(detail=f"AI数字员工 {assistant_id} 不存在")
 
 
-class AssistantUnavailableException(AssistantException):
-    """助手不可用异常"""
-    code = 1100002
-    message = "ASSISTANT_UNAVAILABLE"
-    http_status_code = 503
-
-    def __init__(self, assistant_id: UUID):
-        super().__init__(detail=f"AI数字员工 {assistant_id} 暂时不可用")
-
-
 class AssistantConflictException(AssistantException):
     """助手冲突异常"""
     code = 1100003
@@ -55,16 +45,6 @@ class AssistantConflictException(AssistantException):
         super().__init__(detail=f"AI数字员工 {assistant_id} 已存在")
 
 
-class AssistantDisabledException(AssistantException):
-    """助手已禁用异常"""
-    code = 1100004
-    message = "ASSISTANT_DISABLED"
-    http_status_code = 400
-
-    def __init__(self, assistant_id: UUID):
-        super().__init__(detail=f"AI数字员工 {assistant_id} 已被禁用，无法处理请求")
-
-
 class AssistantInactiveException(AssistantException):
     """助手未激活异常"""
     code = 1100005
@@ -73,6 +53,45 @@ class AssistantInactiveException(AssistantException):
 
     def __init__(self, assistant_id: UUID, status: str):
         super().__init__(detail=f"AI数字员工 {assistant_id} 未激活（当前状态: {status}），无法使用")
+
+
+class AssistantCreationException(AssistantException):
+    """助手创建失败异常"""
+    code = 1100006
+    message = "ASSISTANT_CREATION_FAILED"
+    http_status_code = 500
+
+    def __init__(self, reason: str = ""):
+        detail = "AI数字员工创建失败"
+        if reason:
+            detail += f": {reason}"
+        super().__init__(detail=detail)
+
+
+class AssistantUpdateException(AssistantException):
+    """助手更新失败异常"""
+    code = 1100007
+    message = "ASSISTANT_UPDATE_FAILED"
+    http_status_code = 500
+
+    def __init__(self, assistant_id: UUID, reason: str = ""):
+        detail = f"AI数字员工 {assistant_id} 更新失败"
+        if reason:
+            detail += f": {reason}"
+        super().__init__(detail=detail)
+
+
+class AssistantDeletionException(AssistantException):
+    """助手删除失败异常"""
+    code = 1100008
+    message = "ASSISTANT_DELETION_FAILED"
+    http_status_code = 500
+
+    def __init__(self, assistant_id: UUID, reason: str = ""):
+        detail = f"AI数字员工 {assistant_id} 删除失败"
+        if reason:
+            detail += f": {reason}"
+        super().__init__(detail=detail)
 
 
 # ============================================
@@ -114,8 +133,8 @@ class ThreadAccessDeniedException(ThreadException):
     message = "THREAD_ACCESS_DENIED"
     http_status_code = 403
 
-    def __init__(self, thread_id: UUID | str, tenant_id: str):
-        super().__init__(detail=f"租户 {tenant_id} 无权访问线程 {thread_id}")
+    def __init__(self, tenant_id: str):
+        super().__init__(detail=f"租户 {tenant_id} 无权访问此线程")
 
 
 class ThreadBusyException(ThreadException):
@@ -128,56 +147,64 @@ class ThreadBusyException(ThreadException):
         super().__init__(detail=f"线程 {thread_id} 正在处理工作流且在{timeout}秒内未完成，请稍后重试")
 
 
-# ============================================
-# 对话相关异常
-# ============================================
-
-class ConversationException(WorkspaceException):
-    """对话异常基类"""
-    code = 1400001
-    message = "CONVERSATION_ERROR"
-
-
-class ConversationProcessingException(ConversationException):
-    """对话处理失败异常"""
-    code = 1400002
-    message = "CONVERSATION_PROCESSING_FAILED"
+class ThreadUpdateException(ThreadException):
+    """线程更新失败异常"""
+    code = 1300006
+    message = "THREAD_UPDATE_FAILED"
     http_status_code = 500
 
-    def __init__(self, reason: str = ""):
-        detail = "对话处理失败"
+    def __init__(self, thread_id: UUID | str, reason: str = ""):
+        detail = f"线程 {thread_id} 更新失败"
         if reason:
             detail += f": {reason}"
         super().__init__(detail=detail)
 
 
-class MessageValidationException(ConversationException):
-    """消息验证失败异常"""
-    code = 1400003
-    message = "MESSAGE_VALIDATION_ERROR"
+# ============================================
+# 对话相关异常
+# ============================================
 
-    def __init__(self, message: str):
-        super().__init__(detail=f"消息验证失败: {message}")
+class ConversationAnalysisException(WorkspaceException):
+    """对话分析失败异常"""
+    code = 1400004
+    message = "CONVERSATION_ANALYSIS_FAILED"
+
+    def __init__(self, analysis_type: str, reason: str = ""):
+        detail = f"{analysis_type}分析失败"
+        if reason:
+            detail += f": {reason}"
+        super().__init__(detail=detail)
 
 
 # ============================================
 # 工作流相关异常
 # ============================================
 
-class WorkflowException(WorkspaceException):
-    """工作流异常基类"""
-    code = 1400004
-    message = "WORKFLOW_ERROR"
-    http_status_code = 500
-
-
-class WorkflowExecutionException(WorkflowException):
+class WorkflowExecutionException(WorkspaceException):
     """工作流执行失败异常"""
     code = 1400005
     message = "WORKFLOW_EXECUTION_FAILED"
+    http_status_code = 500
 
     def __init__(self, workflow_type: str, reason: str = ""):
         detail = f"{workflow_type} 工作流执行失败"
+        if reason:
+            detail += f": {reason}"
+        super().__init__(detail=detail)
+
+
+# ============================================
+# 营销相关异常
+# ============================================
+
+class MarketingPlanGenerationException(WorkspaceException):
+    """营销计划生成失败异常"""
+    code = 1700002
+    message = "MARKETING_PLAN_GENERATION_FAILED"
+    http_status_code = 500
+
+    def __init__(self, reason: str = ""):
+        detail = "营销计划生成失败"
         if reason:
             detail += f": {reason}"
         super().__init__(detail=detail)
@@ -195,18 +222,6 @@ class MemoryException(WorkspaceException):
 
     def __init__(self, detail: str = "记忆操作失败"):
         super().__init__(detail=detail)
-
-
-class MemoryInsertionException(MemoryException):
-    """记忆插入失败异常"""
-    code = 1600002
-    message = "MEMORY_INSERTION_FAILED"
-
-    def __init__(self, reason: str = ""):
-        detail = "记忆插入失败"
-        if reason:
-            detail += f": {reason}"
-        super().__init__(detail)
 
 
 class MemoryInsertFailureException(MemoryException):

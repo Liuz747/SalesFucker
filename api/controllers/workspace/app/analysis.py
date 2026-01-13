@@ -11,8 +11,9 @@ import json
 from typing import Annotated
 from uuid import UUID, uuid4
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends
 
+from libs.exceptions import BaseHTTPException, ConversationAnalysisException
 from models import TenantModel
 from schemas.conversation_schema import ThreadRunResponse
 from services import generate_analysis
@@ -69,9 +70,11 @@ async def generate_thread_report(
             processing_time=processing_time
         )
 
+    except BaseHTTPException:
+        raise
     except Exception as e:
         logger.error(f"API生成报告失败: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise ConversationAnalysisException(analysis_type="报告", reason=str(e))
 
 
 @router.post("/label", response_model=ThreadRunResponse)
@@ -121,10 +124,12 @@ async def generate_thread_labels(
             processing_time=processing_time
         )
 
+    except BaseHTTPException:
+        raise
     except Exception as e:
         logger.error(f"API生成标签失败: {e}", exc_info=True)
         processing_time = get_processing_time_ms(start_time)
-        raise HTTPException(status_code=500, detail=str(e)) 
+        raise ConversationAnalysisException(analysis_type="标签", reason=str(e)) 
 
 
 @router.post("/profile", response_model=ThreadRunResponse)
@@ -178,7 +183,9 @@ async def generate_thread_profile(
             processing_time=processing_time
         )
 
+    except BaseHTTPException:
+        raise
     except Exception as e:
         logger.error(f"API生成画像失败: {e}", exc_info=True)
         processing_time = get_processing_time_ms(start_time)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise ConversationAnalysisException(analysis_type="画像", reason=str(e))

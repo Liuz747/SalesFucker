@@ -66,14 +66,6 @@ class TenantDisabledException(TenantValidationException):
         super().__init__(tenant_id=tenant_id, reason="租户已被禁用")
 
 
-class TenantAccessDeniedException(TenantValidationException):
-    """租户访问拒绝异常"""
-    code = 1000009
-    message = "TENANT_ACCESS_DENIED"
-
-    def __init__(self, tenant_id: str, resource: str):
-        super().__init__(tenant_id=tenant_id, reason=f"无权访问 {resource}")
-
 
 class TenantAlreadyExistsException(TenantManagementException):
     """租户已存在异常"""

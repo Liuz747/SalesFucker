@@ -15,12 +15,17 @@ import asyncio
 from uuid import UUID
 
 from infra.db import database_session
+from libs.exceptions import (
+    BaseHTTPException,
+    AssistantNotFoundException,
+    TenantNotFoundException,
+    TenantValidationException
+)
 from libs.types import AccountStatus
 from libs.factory import infra_registry
 from models import AssistantModel
 from repositories.assistant_repo import AssistantRepository
 from schemas import AssistantCreateRequest, AssistantUpdateRequest
-from libs.exceptions import AssistantNotFoundException, TenantNotFoundException, TenantValidationException
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "AssistantService")
@@ -181,9 +186,7 @@ class AssistantService:
 
             return assistant_model
 
-        except AssistantNotFoundException:
-            raise
-        except TenantValidationException:
+        except BaseHTTPException:
             raise
         except Exception as e:
             logger.error(f"助理更新失败: {e}")

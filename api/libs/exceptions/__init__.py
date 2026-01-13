@@ -16,13 +16,6 @@
 - 100000-199999: 基础设施与租户管理
 - 200000-299999: 工作空间资源
 - 1500000-1599999: 音频服务
-
-使用示例：
-    from libs.exceptions import TenantNotFoundException, AssistantDisabledException
-
-    # 或按域导入
-    from libs.exceptions.tenant import TenantNotFoundException
-    from libs.exceptions.workspace import AssistantDisabledException
 """
 
 # 基础异常
@@ -46,7 +39,6 @@ from .tenant import (
     TenantValidationException,
     TenantIdRequiredException,
     TenantDisabledException,
-    TenantAccessDeniedException,
     TenantAlreadyExistsException,
 )
 
@@ -56,13 +48,15 @@ from .workspace import (
     # 助手相关
     AssistantException,
     AssistantNotFoundException,
-    AssistantUnavailableException,
     AssistantConflictException,
-    AssistantDisabledException,
     AssistantInactiveException,
+    AssistantCreationException,
+    AssistantUpdateException,
+    AssistantDeletionException,
+    # 营销相关
+    MarketingPlanGenerationException,
     # 记忆插入相关
     MemoryException,
-    MemoryInsertionException,
     MemoryInsertFailureException,
     MemoryNotFoundException,
     MemoryDeletionException,
@@ -72,12 +66,10 @@ from .workspace import (
     ThreadCreationException,
     ThreadAccessDeniedException,
     ThreadBusyException,
+    ThreadUpdateException,
     # 对话相关
-    ConversationException,
-    ConversationProcessingException,
-    MessageValidationException,
+    ConversationAnalysisException,
     # 工作流相关
-    WorkflowException,
     WorkflowExecutionException,
 )
 
@@ -116,27 +108,28 @@ __all__ = [
     "TenantValidationException",
     "TenantIdRequiredException",
     "TenantDisabledException",
-    "TenantAccessDeniedException",
     "TenantAlreadyExistsException",
 
     # 工作空间
     "WorkspaceException",
     "AssistantException",
     "AssistantNotFoundException",
-    "AssistantUnavailableException",
     "AssistantConflictException",
-    "AssistantDisabledException",
     "AssistantInactiveException",
+    "AssistantCreationException",
+    "AssistantUpdateException",
+    "AssistantDeletionException",
     "ThreadException",
     "ThreadNotFoundException",
     "ThreadCreationException",
     "ThreadAccessDeniedException",
     "ThreadBusyException",
-    "ConversationException",
-    "ConversationProcessingException",
-    "MessageValidationException",
-    "WorkflowException",
+    "ThreadUpdateException",
+    "ConversationAnalysisException",
     "WorkflowExecutionException",
+
+    # 营销
+    "MarketingPlanGenerationException",
 
     # 音频服务
     "AudioServiceException",
@@ -152,7 +145,6 @@ __all__ = [
 
     # 记忆插入
     "MemoryException",
-    "MemoryInsertionException",
     "MemoryInsertFailureException",
     "MemoryNotFoundException",
     "MemoryDeletionException",

@@ -117,7 +117,8 @@ class TestMemoryDeleteEndpoint:
         with pytest.raises(ThreadAccessDeniedException) as exc_info:
             await delete_inserted_memory(valid_delete_request, mock_tenant)
 
-        assert str(valid_delete_request.thread_id) in str(exc_info.value.detail)
+        assert "无权访问此线程" in str(exc_info.value.detail)
+        assert str(valid_delete_request.thread_id) not in str(exc_info.value.detail)
 
     @pytest.mark.asyncio
     @patch("controllers.workspace.app.memory.ThreadService.get_thread")

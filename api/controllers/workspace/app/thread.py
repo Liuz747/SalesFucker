@@ -16,10 +16,18 @@ import asyncio
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends
 
 from config import mas_config
 from core.tasks.workflows import ConversationPreservationWorkflow
+from libs.exceptions import (
+    BaseHTTPException,
+    ThreadAccessDeniedException,
+    ThreadCreationException,
+    ThreadException,
+    ThreadNotFoundException,
+    ThreadUpdateException
+)
 from libs.factory import infra_registry
 from models import Thread, TenantModel
 from schemas import (
@@ -88,12 +96,12 @@ async def create_thread(
         task.add_done_callback(lambda t: t.exception())
 
         return ThreadCreateResponse(message="线程创建成功", thread_id=thread_id)
-        
-    except HTTPException:
+
+    except BaseHTTPException:
         raise
     except Exception as e:
         logger.error(f"线程创建失败: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise ThreadCreationException(str(e))
 
 
 @router.get("/{thread_id}")
@@ -109,24 +117,20 @@ async def get_thread(
     try:
         # 使用依赖注入的存储库获取线程
         thread = await ThreadService.get_thread(thread_id)
-        
+
         if not thread:
-            raise HTTPException(
-                status_code=404, 
-                detail=f"线程不存在: {thread_id}"
-            )
-        
+            raise ThreadNotFoundException(thread_id)
+
         if thread.tenant_id != tenant.tenant_id:
-            raise HTTPException(
-                status_code=403, 
-                detail="租户ID不匹配，无法访问此线程"
-            )
+            raise ThreadAccessDeniedException(tenant.tenant_id)
 
         return thread
 
+    except BaseHTTPException:
+        raise
     except Exception as e:
         logger.error(f"线程获取失败: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise ThreadException()
 
 
 @router.post("/{thread_id}/info")
@@ -147,11 +151,11 @@ async def update_thread(
 
         return BaseResponse(message="线程更新成功")
 
-    except HTTPException:
+    except BaseHTTPException:
         raise
     except Exception as e:
         logger.error(f"线程更新失败: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise ThreadUpdateException(thread_id, str(e))
 
 
 @router.post("/batch-update", response_model=ThreadBatchUpdateResponse)
@@ -187,8 +191,8 @@ async def batch_update_threads(
             failed_ids=failed_ids
         )
 
-    except HTTPException:
+    except BaseHTTPException:
         raise
     except Exception as e:
         logger.error(f"批量更新线程失败: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise ThreadException()
