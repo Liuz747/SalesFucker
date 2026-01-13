@@ -183,6 +183,9 @@ class MemoryException(WorkspaceException):
     message = "MEMORY_ERROR"
     http_status_code = 500
 
+    def __init__(self, detail: str = "记忆操作失败"):
+        super().__init__(detail=detail)
+
 
 class MemoryInsertionException(MemoryException):
     """记忆插入失败异常"""

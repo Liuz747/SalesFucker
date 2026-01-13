@@ -48,6 +48,7 @@ class ConversationStore:
         thread_id: UUID,
         messages: list[Message],
     ):
+        """追加消息到Redis列表"""
         key = self._key(thread_id)
 
         if not messages:
@@ -78,6 +79,11 @@ class ConversationStore:
 
     # ---------------- Clear / Shrink ----------------
     async def shrink_context(self, thread_id: UUID, keep_last: int = 5):
+        """
+        缩减对话上下文，仅保留最后N条消息
+
+        注意：此方法仅在摘要生成时调用，已由StorageManager的分布式锁保护
+        """
         key = self._key(thread_id)
         await self.redis_client.ltrim(key, -keep_last, -1)
         logger.debug(f"[ConversationStore] shrink -> {keep_last}")

@@ -20,7 +20,7 @@ from libs.exceptions import (
     ThreadNotFoundException,
     ThreadAccessDeniedException,
     MemoryNotFoundException,
-    MemoryDeletionException
+    MemoryException
 )
 
 
@@ -157,8 +157,8 @@ class TestMemoryDeleteEndpoint:
         mock_get_thread.return_value = mock_thread
         mock_delete_memory.side_effect = Exception("Database connection failed")
 
-        # 验证抛出MemoryDeletionException
-        with pytest.raises(MemoryDeletionException) as exc_info:
+        # 验证抛出MemoryException
+        with pytest.raises(MemoryException) as exc_info:
             await delete_inserted_memory(valid_delete_request, mock_tenant)
 
         assert "Database connection failed" in str(exc_info.value.detail)
