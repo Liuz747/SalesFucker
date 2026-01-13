@@ -175,10 +175,6 @@ class MemoryService:
             tenant_id: 租户ID
             thread_id: 线程ID
             memory_id: 记忆ID
-
-        Raises:
-            MemoryNotFoundException: 记忆不存在或无权访问
-            MemoryDeletionException: 删除失败
         """
         try:
             storage_manager = StorageManager()
@@ -202,7 +198,7 @@ class MemoryService:
         tenant_id: str,
         thread_id: UUID,
         messages: MessageParams
-    ) -> bool:
+    ):
         """
         追加消息到线程记忆末尾
 
@@ -213,9 +209,6 @@ class MemoryService:
             tenant_id: 租户ID
             thread_id: 线程ID
             messages: 要追加的消息列表
-
-        返回:
-            bool
         """
         try:
             # 获取 StorageManager 实例
@@ -233,8 +226,6 @@ class MemoryService:
                 await ThreadRepository.update_thread_status(thread_id, ThreadStatus.ACTIVE, session)
 
             logger.info(f"消息追加成功: thread_id={thread_id}")
-
-            return True
 
         except Exception as e:
             logger.error(f"消息追加失败: thread_id={thread_id}, 错误: {e}", exc_info=True)

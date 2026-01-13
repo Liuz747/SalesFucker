@@ -97,7 +97,6 @@ class WorkflowService:
         except BaseHTTPException:
             raise
         except Exception as e:
-            logger.error(
-                f"验证工作流权限时发生异常: thread_id={thread_id}, 错误: {e}"
-            )
+            logger.error(f"验证工作流权限时发生异常: thread_id={thread_id}, 错误: {e}")
+            # TODO: Change this to a general exception
             raise WorkflowExecutionException(workflow_type="permission_verification", reason=str(e))

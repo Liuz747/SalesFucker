@@ -210,7 +210,7 @@ class AssistantService:
                 if not assistant_orm:
                     return False
 
-                # todo 检查是否有活跃对话
+                # TODO: 检查是否有活跃对话
                 current_customers = 0
                 if current_customers > 0 and not force:
                     raise ValueError("助理有活跃对话，需要强制删除标志")
@@ -226,6 +226,7 @@ class AssistantService:
             logger.info(f"助理删除成功: {assistant_id}")
             return True
 
+        # TODO: Check how to handle this value error
         except ValueError:
             raise
         except Exception as e:
