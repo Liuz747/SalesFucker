@@ -61,6 +61,7 @@ from .workspace import (
     AssistantDisabledException,
     AssistantInactiveException,
     # 记忆插入相关
+    MemoryException,
     MemoryInsertionException,
     MemoryInsertFailureException,
     MemoryNotFoundException,
@@ -148,6 +149,7 @@ __all__ = [
     "DatabaseConnectionException",
 
     # 记忆插入
+    "MemoryException",
     "MemoryInsertionException",
     "MemoryInsertFailureException",
     "MemoryNotFoundException",
