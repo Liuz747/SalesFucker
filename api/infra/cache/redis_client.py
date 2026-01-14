@@ -1,10 +1,15 @@
 from redis.asyncio import Redis, ConnectionPool
+
 from config import mas_config
 from utils import get_component_logger
+
 logger = get_component_logger(__name__)
+
+
 async def create_redis_client() -> Redis:
     """
     创建Redis客户端实例
+
     创建连接池并返回Redis客户端。
 
     返回:
@@ -15,10 +20,14 @@ async def create_redis_client() -> Redis:
         decode_responses=False,
         max_connections=mas_config.REDIS_MAX_CONNECTIONS,
         socket_timeout=mas_config.REDIS_SOCKET_TIMEOUT,
-        socket_connect_timeout=mas_config.REDIS_CONNECT_TIMEOUT)
-    return Redis(connection_pool=pool) 
+        socket_connect_timeout=mas_config.REDIS_CONNECT_TIMEOUT
+    )
+    return Redis(connection_pool=pool)
+
+
 async def test_redis_connection(client: Redis) -> bool:
-    """测试Redis连接
+    """
+    测试Redis连接
 
     参数:
         client: Redis客户端实例
@@ -34,7 +43,7 @@ async def test_redis_connection(client: Redis) -> bool:
 
 
 async def close_redis_client(client: Redis):
-    """ 
+    """
     关闭Redis客户端连接
 
     参数:
