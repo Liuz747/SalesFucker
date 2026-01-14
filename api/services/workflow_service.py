@@ -1,7 +1,5 @@
 from uuid import UUID
 
-from libs.types import AccountStatus, ThreadStatus
-from models import Thread
 from libs.exceptions import (
     AssistantInactiveException,
     BaseHTTPException,
@@ -10,6 +8,8 @@ from libs.exceptions import (
     ThreadBusyException,
     WorkflowExecutionException
 )
+from libs.types import AccountStatus, ThreadStatus
+from models import Thread
 from utils import get_component_logger, get_current_datetime
 from .assistant_service import AssistantService
 from .thread_service import ThreadService

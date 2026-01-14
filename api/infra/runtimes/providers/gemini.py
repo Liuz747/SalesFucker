@@ -1,7 +1,7 @@
 import google.genai as genai
 
-from infra.runtimes.providers import BaseProvider
-from infra.runtimes.entities import LLMRequest, LLMResponse, Provider
+from ..entities import LLMRequest, LLMResponse, Provider
+from .base import BaseProvider
 
 class GeminiProvider(BaseProvider):
     def __init__(self, provider: Provider):

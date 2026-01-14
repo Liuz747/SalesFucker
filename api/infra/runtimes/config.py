@@ -6,9 +6,9 @@ LLM配置加载器
 
 from pathlib import Path
 
-from infra.runtimes.entities import Provider, Model, ProviderType, ModelType
-from utils.yaml_loader import load_yaml_file
 from config import mas_config
+from utils.yaml_loader import load_yaml_file
+from .entities import Provider, Model, ProviderType, ModelType
 
 class LLMConfig:
     """LLM配置管理器"""

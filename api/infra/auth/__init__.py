@@ -15,6 +15,5 @@ __all__ = [
     "ServiceContext",
     "get_service_context",
     "require_service_scopes",
-    
     "key_manager"
 ]

@@ -6,18 +6,18 @@ import aiohttp
 from dashscope.audio.asr import Transcription
 
 from config import mas_config
-from libs.types import (
-    InputContent,
-    InputType,
-    Message,
-    MessageParams,
-)
 from libs.exceptions import (
     AudioConfigurationException,
     ASRUrlValidationException,
     ASRTranscriptionException,
     ASRTimeoutException,
     ASRDownloadException
+)
+from libs.types import (
+    InputContent,
+    InputType,
+    Message,
+    MessageParams,
 )
 from utils import get_component_logger
 

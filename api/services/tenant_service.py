@@ -18,7 +18,9 @@ from sqlalchemy.exc import IntegrityError
 
 from libs.exceptions import TenantNotFoundException, TenantAlreadyExistsException
 from libs.factory import infra_registry
-from repositories.tenant_repo import TenantRepository, TenantModel, AccountStatus
+from libs.types import AccountStatus
+from models import TenantModel
+from repositories import TenantRepository
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "TenantService")

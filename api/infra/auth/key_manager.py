@@ -5,13 +5,14 @@ Manages RSA key pairs for service-to-service authentication.
 Backend services get public/private key pairs from MAS and use them for JWT signing.
 """
 
-import os
-import json
 from datetime import timedelta
+import json
+import os
 from typing import Dict, Optional
+
+from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography.hazmat.backends import default_backend
 
 from utils import get_current_datetime, to_isoformat, from_isoformat
 

@@ -11,10 +11,11 @@ JWT认证核心模块
 - FastAPI依赖注入集成
 """
 
-import jwt
 from datetime import datetime
 from typing import Optional, List, Dict, Any
+
 from fastapi import HTTPException, Header, Depends
+import jwt
 from pydantic import BaseModel, Field
 
 from config import mas_config

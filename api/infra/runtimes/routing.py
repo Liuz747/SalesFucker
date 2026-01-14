@@ -5,7 +5,8 @@
 """
 
 from typing import List, Dict, Any
-from infra.runtimes.entities import ProviderType, LLMRequest
+
+from .entities import ProviderType, LLMRequest
 
 class SimpleRouter:
     """简单路由器"""

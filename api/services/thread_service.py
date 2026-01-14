@@ -18,7 +18,8 @@ from uuid import UUID
 from libs.exceptions import ThreadNotFoundException, TenantValidationException
 from libs.factory import infra_registry
 from libs.types import ThreadStatus
-from repositories.thread_repo import ThreadRepository, Thread
+from models import Thread
+from repositories import ThreadRepository
 from schemas import ThreadPayload
 from utils import get_component_logger
 
