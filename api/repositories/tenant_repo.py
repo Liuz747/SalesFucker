@@ -10,7 +10,7 @@
 from typing import Optional
 
 import msgpack
-from redis import Redis, RedisError
+from redis.asyncio import Redis, RedisError
 from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 

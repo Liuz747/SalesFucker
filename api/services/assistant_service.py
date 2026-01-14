@@ -23,7 +23,7 @@ from libs.exceptions import (
 from libs.factory import infra_registry
 from libs.types import AccountStatus
 from models import AssistantModel
-from repositories.assistant_repo import AssistantRepository
+from repositories import AssistantRepository
 from schemas import AssistantCreateRequest, AssistantUpdateRequest
 from utils import get_component_logger
 
@@ -223,7 +223,7 @@ class AssistantService:
                 if current_customers > 0 and not force:
                     raise ValueError("助理有活跃对话，需要强制删除标志")
 
-                await AssistantRepository.delete(assistant_id, session)
+                await AssistantRepository.delete_assistant(assistant_id, session)
 
             # 删除缓存
             redis_client = infra_registry.get_cached_clients().redis

@@ -15,12 +15,12 @@ from typing import Optional
 from uuid import UUID
 
 import msgpack
-from redis import Redis, RedisError
+from redis.asyncio import Redis, RedisError
 from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import mas_config
-from models.assistant import AssistantModel, AssistantOrmModel
+from models import AssistantModel, AssistantOrmModel
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "AssistantService")
@@ -100,7 +100,7 @@ class AssistantRepository:
             raise
 
     @staticmethod
-    async def delete(assistant_id: UUID, session: AsyncSession) -> bool:
+    async def delete_assistant(assistant_id: UUID, session: AsyncSession) -> bool:
         """
         删除数字员工（软删除）
 
