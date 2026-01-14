@@ -20,7 +20,7 @@ def configure_logging():
     """
     配置全局日志系统
     
-    应该在应用启动时调用一次（在main.py的lifespan函数中）
+    应在应用启动时调用
     """
     # 配置根日志器
     logging.basicConfig(

@@ -17,10 +17,11 @@
 - Schedule ID: thread-awakening-schedule
 - 可通过 Temporal UI 查看和管理 Schedule
 """
+
 import asyncio
-import sys
 from datetime import timedelta
 from pathlib import Path
+import sys
 
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
