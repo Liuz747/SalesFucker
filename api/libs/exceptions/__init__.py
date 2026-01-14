@@ -18,9 +18,16 @@
 - 1500000-1599999: 音频服务
 """
 
-# 基础异常
-from .base import BaseHTTPException
-
+# 音频服务异常
+from .audio import (
+    AudioServiceException,
+    AudioConfigurationException,
+    ASRUrlValidationException,
+    ASRTaskSubmissionException,
+    ASRTranscriptionException,
+    ASRTimeoutException,
+    ASRDownloadException,
+)
 # 认证与授权异常
 from .auth import (
     AuthenticationException,
@@ -30,7 +37,12 @@ from .auth import (
     AuthorizationException,
     InsufficientScopeException,
 )
-
+# 基础异常
+from .base import BaseHTTPException
+# 基础设施异常
+from .infrastructure import (
+    DatabaseConnectionException,
+)
 # 租户管理异常
 from .tenant import (
     TenantManagementException,
@@ -41,7 +53,6 @@ from .tenant import (
     TenantDisabledException,
     TenantAlreadyExistsException,
 )
-
 # 工作空间异常
 from .workspace import (
     WorkspaceException,
@@ -71,22 +82,6 @@ from .workspace import (
     ConversationAnalysisException,
     # 工作流相关
     WorkflowExecutionException,
-)
-
-# 音频服务异常
-from .audio import (
-    AudioServiceException,
-    AudioConfigurationException,
-    ASRUrlValidationException,
-    ASRTaskSubmissionException,
-    ASRTranscriptionException,
-    ASRTimeoutException,
-    ASRDownloadException,
-)
-
-# 基础设施异常
-from .infrastructure import (
-    DatabaseConnectionException,
 )
 
 __all__ = [

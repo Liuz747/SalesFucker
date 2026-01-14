@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends
 from core.agents import MarketingAgent
 from libs.exceptions import BaseHTTPException, MarketingPlanGenerationException
 from models import TenantModel
-from schemas.marketing_schema import MarketingPlanRequest, MarketingPlanResponse
+from schemas import MarketingPlanRequest, MarketingPlanResponse
 from utils import get_component_logger, get_current_datetime, get_processing_time
 from ..wraps import validate_and_get_tenant
 

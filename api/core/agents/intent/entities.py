@@ -11,6 +11,7 @@ Intent Analysis Models
 """
 
 from typing import Literal, Optional
+
 from pydantic import BaseModel, Field, field_validator
 
 from utils import to_isoformat

@@ -10,12 +10,12 @@ POST /v1/auth/token
 from datetime import timedelta
 from typing import Optional, Any
 
-import jwt
 from fastapi import APIRouter, Header, HTTPException, status, Depends
+import jwt
 
 from config import mas_config
-from utils import get_current_datetime, to_isoformat
 from infra.auth import get_service_context, require_service_scopes, ServiceContext, key_manager
+from utils import get_current_datetime, to_isoformat
 
 
 router = APIRouter()

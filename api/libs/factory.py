@@ -12,16 +12,16 @@ from pymilvus import MilvusClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from temporalio.client import Client
 
+from infra.cache import (
+    create_redis_client,
+    test_redis_connection,
+    close_redis_client
+)
 from infra.db import (
     create_db_engine,
     create_session_factory,
     test_db_connection,
     close_engine
-)
-from infra.cache import (
-    create_redis_client,
-    test_redis_connection,
-    close_redis_client
 )
 from infra.ops import (
     get_es_client,

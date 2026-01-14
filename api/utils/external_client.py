@@ -5,8 +5,9 @@
 """
 
 import asyncio
-import aiohttp
 from typing import Any, Optional
+
+import aiohttp
 
 from .logger_utils import get_component_logger
 

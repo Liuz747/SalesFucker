@@ -3,8 +3,8 @@
 """
 
 from .analysis_service import generate_analysis
-from .assistant_service import AssistantService
 from .assets_service import AssetsService
+from .assistant_service import AssistantService
 from .audio_service import AudioService
 from .memory_service import MemoryService
 from .suggestion_service import generate_suggestions

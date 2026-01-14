@@ -22,8 +22,8 @@ import uvicorn
 from config import mas_config
 from controllers import app_router, __version__
 from controllers.middleware import JWTMiddleware
-from libs.factory import infra_registry
 from libs.exceptions import BaseHTTPException
+from libs.factory import infra_registry
 from utils import get_component_logger, configure_logging, get_current_timestamp
 
 # 配置日志

@@ -5,10 +5,11 @@ JWT认证中间件
 自动为除认证路径外的所有端点验证服务认证。
 """
 
+from typing import Callable, List, Optional
+
 from fastapi import Request, HTTPException, status
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
-from typing import Callable, List, Optional
 
 from infra.auth import get_service_context, ServiceContext
 from utils import get_component_logger

@@ -7,7 +7,7 @@ from core.agents import BaseAgent
 from core.memory import ConversationStore
 from infra.runtimes import CompletionsRequest, LLMResponse
 from libs.types import Message
-from schemas.marketing_schema import MarketingPlanRequest, MarketingPlanResponse
+from schemas import MarketingPlanRequest, MarketingPlanResponse
 from utils import get_component_logger
 
 logger = get_component_logger(__name__)

@@ -23,13 +23,13 @@ from schemas.social_media_schema import (
     MomentsAnalysisRequest,
     MomentsAnalysisResponse,
 )
-from services.social_media_service import (
-    SocialMediaPublicTrafficService,
-    SocialMediaServiceError,
-)
 from services.moments_service import (
     MomentsAnalysisService,
     MomentsServiceError,
+)
+from services.social_media_service import (
+    SocialMediaPublicTrafficService,
+    SocialMediaServiceError,
 )
 from utils import get_component_logger
 from ..wraps import validate_and_get_tenant, TenantModel

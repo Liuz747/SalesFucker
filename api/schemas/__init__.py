@@ -4,11 +4,7 @@ from .assistants_schema import (
     AssistantCreateResponse    
 )
 from .conversation_schema import CallbackPayload
-from .marketing_schema import (
-    MarketingPlanRequest,
-    MarketingPlanResponse,
-    MarketingPlanOption
-)
+from .marketing_schema import MarketingPlanRequest, MarketingPlanResponse
 from .memory_schema import (
     MemoryInsertRequest,
     MemoryInsertResponse,
@@ -41,7 +37,6 @@ __all__ = [
     "ThreadPayload",
     "MarketingPlanRequest",
     "MarketingPlanResponse",
-    "MarketingPlanOption",
     "MemoryInsertRequest",
     "MemoryInsertResponse",
     "MemoryInsertSummary",

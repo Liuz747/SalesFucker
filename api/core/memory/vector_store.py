@@ -3,8 +3,9 @@ Hybrid Memory System - Milvus向量数据库适配器
 
 支持高性能向量相似度搜索和记忆检索。
 """
-from typing import Any, Optional
+
 from dataclasses import dataclass
+from typing import Any, Optional
 
 from pymilvus import MilvusClient
 

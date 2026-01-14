@@ -9,7 +9,6 @@ from .content_params import (
     OutputContent,
 )
 from .customer import Sex
-from .trigger_event import EventType
 from .infra_clients import InfraClients
 from .memory import MemoryType
 from .message_params import (
@@ -29,6 +28,7 @@ from .social_media_types import (
     TextBeautifyActionType
 )
 from .thread_status import ThreadStatus
+from .trigger_event import EventType
 
 
 __all__ = [

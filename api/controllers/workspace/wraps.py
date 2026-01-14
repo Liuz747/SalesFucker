@@ -14,12 +14,12 @@ from typing import Optional
 
 from fastapi import Request
 
-from core.app.orchestrator import Orchestrator
+from core.app import Orchestrator
 from libs.exceptions import (
     BaseHTTPException,
     TenantIdRequiredException,
-    TenantNotFoundException,
     TenantDisabledException,
+    TenantNotFoundException,
     TenantValidationException
 )
 from libs.types import AccountStatus

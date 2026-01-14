@@ -2,12 +2,12 @@
 Core search functionality with caching
 """
 
+from dataclasses import dataclass
 import hashlib
 from typing import Any, Optional
-from dataclasses import dataclass
 
-from .embedding import EmbeddingGenerator
 from libs.factory import infra_registry
+from .embedding import EmbeddingGenerator
 
 
 @dataclass

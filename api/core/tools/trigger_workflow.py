@@ -3,6 +3,7 @@ Temporal工作流触发工具
 
 用于异步触发Temporal工作流进行后台任务执行。
 """
+
 import json
 from uuid import UUID
 from typing import Any

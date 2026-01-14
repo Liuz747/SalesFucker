@@ -15,8 +15,8 @@ from collections.abc import Sequence
 from typing import Any
 from uuid import uuid4
 
-from libs.types import InputContentParams, InputContent, InputType, Message, MessageParams
 from infra.runtimes import LLMClient, CompletionsRequest
+from libs.types import InputContentParams, InputContent, InputType, Message, MessageParams
 from utils import get_component_logger
 
 logger = get_component_logger(__name__)

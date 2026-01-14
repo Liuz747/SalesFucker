@@ -10,9 +10,9 @@
 - 违规检测算法
 """
 
+from dataclasses import dataclass
 import re
 from typing import Any, Optional
-from dataclasses import dataclass
 
 from .types import RuleSeverity, RuleAction, RuleCategory
 

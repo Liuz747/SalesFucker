@@ -15,6 +15,7 @@ from typing import Optional
 
 from config import mas_config
 
+
 def configure_logging():
     """
     配置全局日志系统
@@ -32,6 +33,7 @@ def configure_logging():
     if mas_config.DEBUG:
         logging.getLogger('httpx').propagate = False
         logging.getLogger('httpcore').propagate = False
+
 
 def get_component_logger(component_name: str, identifier: Optional[str] = None) -> logging.Logger:
     """

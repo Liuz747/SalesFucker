@@ -19,15 +19,15 @@ API Package - Multi-Agent System API
 
 from fastapi import APIRouter
 
-from .console import tenant_router, auth_router, health_router
+from .console import auth_router, health_router, tenant_router
 from .inner import completion_router
 from .workspace import (
-    conversations_router,
     assistants_router,
+    conversations_router,
     marketing_router,
     memory_router,
     public_traffic_router,
-    text_beautify_router,
+    text_beautify_router
 )
 
 

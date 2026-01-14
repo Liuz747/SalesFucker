@@ -7,8 +7,8 @@
 from pydantic_settings import SettingsConfigDict
 
 from .deploy import DeploymentConfig
-from .storage import StorageConfig
 from .service import ServiceConfig
+from .storage import StorageConfig
 
 
 class AppConfig(DeploymentConfig, StorageConfig, ServiceConfig):

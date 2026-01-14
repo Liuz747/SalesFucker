@@ -7,10 +7,10 @@ API中间件模块
 - RateLimiting: 速率限制中间件
 """
 
-from .rate_limiting import RateLimiting
 from .jwt_middleware import JWTMiddleware
+from .rate_limiting import RateLimiting
 
 __all__ = [
-    "RateLimiting",
-    "JWTMiddleware"
+    "JWTMiddleware",
+    "RateLimiting"
 ]

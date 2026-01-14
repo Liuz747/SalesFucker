@@ -14,8 +14,8 @@
 from typing import Any
 
 from core.agents import BaseAgent
-from .rule_manager import ComplianceRuleManager
 from .checker import ComplianceChecker
+from .rule_manager import ComplianceRuleManager
 
 
 class ComplianceAgent(BaseAgent):

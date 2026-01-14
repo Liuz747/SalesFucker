@@ -9,8 +9,8 @@ from temporalio.client import Client
 from config import mas_config
 from utils import get_component_logger
 
-
 logger = get_component_logger(__name__)
+
 
 async def get_temporal_client() -> Client:
     """

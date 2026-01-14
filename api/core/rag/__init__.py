@@ -6,9 +6,9 @@ All modules are under 250 lines and focused on core functionality.
 """
 
 from .embedding import EmbeddingGenerator, EmbeddingResult
-from .search import ProductSearch, SearchQuery, SearchResponse
-from .recommender import ProductRecommender, RecommendationType, RecommendationRequest, Recommendation
 from .indexer import ProductIndexer, IndexStats
+from .recommender import ProductRecommender, RecommendationType, RecommendationRequest, Recommendation
+from .search import ProductSearch, SearchQuery, SearchResponse
 
 __all__ = [
     # Core embedding

@@ -3,6 +3,7 @@ Thread Awakening Configuration
 
 线程唤醒工作流配置模块
 """
+
 from pydantic import Field, PositiveInt
 from pydantic_settings import BaseSettings
 

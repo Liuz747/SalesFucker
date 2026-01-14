@@ -1,10 +1,11 @@
 """
 Clean embedding generation with minimal dependencies
 """
+
 import asyncio
+from dataclasses import dataclass
 import hashlib
 from typing import Any, Optional
-from dataclasses import dataclass
 
 from libs.factory import infra_registry
 

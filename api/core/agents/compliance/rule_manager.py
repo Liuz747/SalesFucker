@@ -12,6 +12,7 @@
 """
 
 from typing import Any, Optional
+
 from .models import ComplianceRule
 from .types import RuleSeverity
 

@@ -4,8 +4,9 @@ LLM聊天端点
 
 import uuid
 from typing import Optional
-from pydantic import BaseModel
+
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 
 from infra.runtimes import LLMClient, CompletionsRequest, ResponseMessageRequest
 from libs.types import Message

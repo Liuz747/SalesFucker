@@ -21,11 +21,12 @@ Langfuse 链路追踪工具模块
         return "LLM response"
 """
 
-import logging
 from langfuse import get_client
 
+from .logger_utils import get_component_logger
+
 # 配置日志记录器
-logger = logging.getLogger(__name__)
+logger = get_component_logger(__name__)
 
 
 def flush_traces():

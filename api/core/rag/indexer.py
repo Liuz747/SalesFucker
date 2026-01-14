@@ -2,8 +2,8 @@
 Simple product indexing with batch support
 """
 
-from typing import Dict, List, Any
 from dataclasses import dataclass
+from typing import Dict, List, Any
 
 from .embedding import EmbeddingGenerator
 from .vector_db import MilvusDB

@@ -17,7 +17,7 @@ from config import mas_config
 from core.app import Orchestrator
 from libs.types import MessageParams, ThreadStatus
 from models import Thread, WorkflowRun
-from schemas.conversation_schema import CallbackPayload
+from schemas import CallbackPayload
 from services import ThreadService
 from utils import (
     get_component_logger,
@@ -26,7 +26,6 @@ from utils import (
     get_current_timestamp,
     ExternalClient
 )
-
 
 logger = get_component_logger(__name__, "BackgroundProcessor")
 

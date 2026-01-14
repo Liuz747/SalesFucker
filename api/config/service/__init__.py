@@ -7,10 +7,10 @@
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
-from .provider import LLMConfig
-from .tracer import TracerConfig
-from .temporal_config import TemporalConfig
 from .awakening_config import AwakeningConfig
+from .provider import LLMConfig
+from .temporal_config import TemporalConfig
+from .tracer import TracerConfig
 
 class AuthConfig(BaseSettings):
     """

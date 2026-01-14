@@ -31,12 +31,12 @@ from services import (
     generate_suggestions
 )
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms
+from .background_process import BackgroundWorkflowProcessor
 from ..wraps import (
     validate_and_get_tenant,
     get_orchestrator,
     Orchestrator
 )
-from .background_process import BackgroundWorkflowProcessor
 
 logger = get_component_logger(__name__, "WorkflowRouter")
 

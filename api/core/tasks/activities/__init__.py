@@ -6,6 +6,11 @@ Temporal 活动注册
 
 from collections.abc import Callable
 
+from .awakening_activities import (
+    scan_inactive_threads,
+    prepare_awakening_context,
+    update_awakened_thread
+)
 from .callback_activities import send_callback_message
 from .generate_message_activity import invoke_task_llm
 from .monitoring_activities import check_thread_activity_status
@@ -14,11 +19,7 @@ from .preservation_activities import (
     evaluate_conversation_quality,
     preserve_conversation_to_elasticsearch
 )
-from .awakening_activities import (
-    scan_inactive_threads,
-    prepare_awakening_context,
-    update_awakened_thread
-)
+
 
 def get_all_activities() -> list[Callable]:
     """返回需要注册的活动列表。"""

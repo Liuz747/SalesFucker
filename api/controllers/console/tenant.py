@@ -10,18 +10,18 @@
 
 from fastapi import APIRouter
 
+from libs.exceptions import (
+    TenantManagementException,
+    TenantNotFoundException,
+    TenantSyncException,
+    TenantAlreadyExistsException
+)
 from libs.types import AccountStatus
 from models import TenantModel
 from schemas import (
     BaseResponse,
     TenantSyncRequest,
     TenantUpdateRequest,
-)
-from libs.exceptions import (
-    TenantManagementException,
-    TenantNotFoundException,
-    TenantSyncException,
-    TenantAlreadyExistsException
 )
 from services import TenantService
 from utils import get_component_logger

@@ -7,10 +7,10 @@
 from pydantic import Field, NonNegativeInt, PositiveInt
 from pydantic_settings import BaseSettings
 
-from .redis_config import RedisConfig
+from .conversation_config import ConversationConfig
 from .elasticsearch_config import ElasticsearchConfig
 from .milvus_config import MilvusConfig
-from .conversation_config import ConversationConfig
+from .redis_config import RedisConfig
 
 class DatabaseConfig(BaseSettings):
     """

@@ -12,6 +12,7 @@ from openai.types.chat import ChatCompletionMessageParam, ChatCompletionContentP
 from pydantic import ValidationError
 
 from utils import get_component_logger
+from .base import BaseProvider
 from ..entities import (
     LLMResponse,
     Provider,
@@ -20,7 +21,6 @@ from ..entities import (
     ToolCallData,
     TokenUsage
 )
-from .base import BaseProvider
 
 logger = get_component_logger(__name__, "OpenAIProvider")
 

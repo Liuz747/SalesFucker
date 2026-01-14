@@ -39,9 +39,9 @@ from schemas import (
 )
 from services import ThreadService
 from utils import get_component_logger
-from ..wraps import validate_and_get_tenant
 from .analysis import router as analysis_router
 from .workflow import router as workflow_router
+from ..wraps import validate_and_get_tenant
 
 
 logger = get_component_logger(__name__, "ConversationRouter")

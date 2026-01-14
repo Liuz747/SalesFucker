@@ -16,15 +16,19 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, status
 
-from models import TenantModel, AssistantModel
-from schemas import AssistantCreateRequest, AssistantCreateResponse, AssistantUpdateRequest, BaseResponse
 from libs.exceptions import (
     BaseHTTPException,
     AssistantCreationException,
     AssistantException,
-    AssistantNotFoundException,
     AssistantDeletionException,
     AssistantUpdateException
+)
+from models import TenantModel, AssistantModel
+from schemas import (
+    AssistantCreateRequest,
+    AssistantCreateResponse,
+    AssistantUpdateRequest,
+    BaseResponse
 )
 from services import AssistantService
 from utils import get_component_logger

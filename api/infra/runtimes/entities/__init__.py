@@ -6,8 +6,8 @@ from .llm import (
     TokenUsage,
     ToolCallData
 )
-from .providers import Provider, ProviderType
 from .models import Model, ModelType
+from .providers import Provider, ProviderType
 
 __all__ = [
     "CompletionsRequest",

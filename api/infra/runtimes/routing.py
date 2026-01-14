@@ -8,6 +8,7 @@ from typing import List, Dict, Any
 
 from .entities import ProviderType, LLMRequest
 
+
 class SimpleRouter:
     """简单路由器"""
 

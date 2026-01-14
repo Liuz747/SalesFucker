@@ -1,6 +1,7 @@
 """
 Milvus向量数据库配置
 """
+
 from pydantic import Field, PositiveInt
 from pydantic_settings import BaseSettings
 

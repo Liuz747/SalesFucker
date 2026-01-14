@@ -10,8 +10,8 @@ from typing import Any
 import anthropic
 from anthropic.types import MessageParam
 
-from ..entities import CompletionsRequest, LLMResponse, Provider, TokenUsage
 from .base import BaseProvider
+from ..entities import CompletionsRequest, LLMResponse, Provider, TokenUsage
 
 
 class AnthropicProvider(BaseProvider):

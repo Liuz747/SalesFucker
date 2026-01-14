@@ -7,6 +7,7 @@ LLM调试包装器工具
 
 from typing import Any
 
+
 class LLMDebugWrapper:
     """
     LLMClient的调试包装器
@@ -70,4 +71,3 @@ class LLMDebugWrapper:
             self.logger.debug(f"\n[DEBUG] Node: {self.node_name} | Method: {method_type} | Output:\n{content}")
         except Exception as e:
             self.logger.warning(f"[DEBUG] Failed to log response for {self.node_name}: {e}")
-

@@ -24,7 +24,6 @@ from schemas.social_media_schema import (
 )
 from utils import get_component_logger, load_yaml_file
 
-
 logger = get_component_logger(__name__, "MomentsService")
 
 

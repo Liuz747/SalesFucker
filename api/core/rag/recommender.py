@@ -2,13 +2,13 @@
 Clean recommendation engine with multiple strategies
 """
 
-from typing import Any
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
+from libs.factory import infra_registry
 from .search import ProductSearch, SearchQuery
 from .vector_db import MilvusDB
-from libs.factory import infra_registry
 
 
 class RecommendationType(Enum):

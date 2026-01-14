@@ -10,10 +10,9 @@
 - 错误状态处理
 """
 
+from core.entities import WorkflowExecutionModel
 from models import WorkflowRun
 from utils import get_component_logger
-from core.entities import WorkflowExecutionModel
-
 
 logger = get_component_logger(__name__)
 

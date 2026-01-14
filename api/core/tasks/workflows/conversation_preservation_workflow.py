@@ -13,12 +13,12 @@ from core.tasks.entities import TriggerMessagingResult
 
 # 在Temporal工作流中安全导入activities
 with workflow.unsafe.imports_passed_through():
+    from config import mas_config
     from core.tasks.activities.preservation_activities import (
         check_preservation_needed,
         evaluate_conversation_quality,
         preserve_conversation_to_elasticsearch
     )
-    from config import mas_config
 
 
 @workflow.defn
