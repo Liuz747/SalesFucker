@@ -3,15 +3,15 @@ Clean embedding generation with minimal dependencies
 """
 import asyncio
 import hashlib
-from typing import Dict, List, Any, Optional
+from typing import Any, Optional
 from dataclasses import dataclass
 
-from infra.cache import get_redis_client
+from libs.factory import infra_registry
 
 
 @dataclass
 class EmbeddingResult:
-    embedding: List[float]
+    embedding: list[float]
     cache_hit: bool = False
 
 
@@ -23,7 +23,7 @@ class EmbeddingGenerator:
         self.cache_ttl = cache_ttl
         # LLM client disabled for simplified MVP
         self.llm_client = None
-        self.redis_client = get_redis_client()
+        self.redis_client = infra_registry.get_cached_clients().redis
     
     async def generate(self, text: str) -> EmbeddingResult:
         """Generate embedding with caching"""
@@ -44,11 +44,11 @@ class EmbeddingGenerator:
         
         return EmbeddingResult(embedding=embedding, cache_hit=False)
     
-    async def generate_batch(self, texts: List[str]) -> List[EmbeddingResult]:
+    async def generate_batch(self, texts: list[str]) -> list[EmbeddingResult]:
         """Generate embeddings in batch"""
         return await asyncio.gather(*[self.generate(text) for text in texts])
     
-    def create_product_text(self, product: Dict[str, Any]) -> str:
+    def create_product_text(self, product: dict[str, Any]) -> str:
         """Create optimized searchable text from product data"""
         parts = []
         
@@ -64,7 +64,7 @@ class EmbeddingGenerator:
         
         return " ".join(parts)
     
-    async def _get_cached(self, key: str) -> Optional[List[float]]:
+    async def _get_cached(self, key: str) -> Optional[list[float]]:
         """Get cached embedding"""
         try:
             data = await self.redis_client.get(key)
@@ -72,7 +72,7 @@ class EmbeddingGenerator:
         except:
             return None
     
-    async def _cache_embedding(self, key: str, embedding: List[float]):
+    async def _cache_embedding(self, key: str, embedding: list[float]):
         """Cache embedding"""
         try:
             await self.redis_client.setex(key, self.cache_ttl, str(embedding))

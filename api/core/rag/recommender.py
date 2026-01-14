@@ -2,13 +2,13 @@
 Clean recommendation engine with multiple strategies
 """
 
-from typing import Dict, List, Any
+from typing import Any
 from dataclasses import dataclass
 from enum import Enum
 
 from .search import ProductSearch, SearchQuery
 from .vector_db import MilvusDB
-from infra.cache import get_redis_client
+from libs.factory import infra_registry
 
 
 class RecommendationType(Enum):
@@ -24,14 +24,14 @@ class RecommendationRequest:
     customer_id: str
     tenant_id: str
     rec_type: RecommendationType
-    context: Dict[str, Any] = None
+    context: dict[str, Any] = None
     max_results: int = 10
 
 
 @dataclass
 class Recommendation:
     product_id: str
-    product_data: Dict[str, Any]
+    product_data: dict[str, Any]
     score: float
     reason: str
 
@@ -43,7 +43,7 @@ class ProductRecommender:
         self.tenant_id = tenant_id
         self.search = ProductSearch()
         self.vector_db = MilvusDB()
-        self.redis_client = get_redis_client()
+        self.redis_client = infra_registry.get_cached_clients().redis
         
         # Strategy weights
         self.strategy_weights = {
@@ -66,7 +66,7 @@ class ProductRecommender:
             print(f"ProductRecommender initialization failed: {e}")
             return False
     
-    async def recommend(self, request: RecommendationRequest) -> List[Recommendation]:
+    async def recommend(self, request: RecommendationRequest) -> list[Recommendation]:
         """Main recommendation interface"""
         if request.rec_type == RecommendationType.SIMILAR:
             return await self._similar_products(request)
@@ -79,7 +79,7 @@ class ProductRecommender:
         else:
             return []
     
-    async def _similar_products(self, request: RecommendationRequest) -> List[Recommendation]:
+    async def _similar_products(self, request: RecommendationRequest) -> list[Recommendation]:
         """Find similar products based on context"""
         context = request.context or {}
         
@@ -119,7 +119,7 @@ class ProductRecommender:
             for r in results
         ]
     
-    async def _personalized_recommendations(self, request: RecommendationRequest) -> List[Recommendation]:
+    async def _personalized_recommendations(self, request: RecommendationRequest) -> list[Recommendation]:
         """Personalized recommendations based on customer profile"""
         context = request.context or {}
         profile = context.get("customer_profile", {})
@@ -165,7 +165,7 @@ class ProductRecommender:
             for r in response.results
         ]
     
-    async def _trending_products(self, request: RecommendationRequest) -> List[Recommendation]:
+    async def _trending_products(self, request: RecommendationRequest) -> list[Recommendation]:
         """Get trending/popular products"""
         # Use cached trending products
         cache_key = f"trending:{request.tenant_id}"
@@ -193,7 +193,7 @@ class ProductRecommender:
         
         return []
     
-    async def _cross_sell_recommendations(self, request: RecommendationRequest) -> List[Recommendation]:
+    async def _cross_sell_recommendations(self, request: RecommendationRequest) -> list[Recommendation]:
         """Cross-sell recommendations based on purchase history"""
         context = request.context or {}
         purchased_products = context.get("purchased_products", [])
@@ -250,7 +250,7 @@ class ProductRecommender:
         
         return unique_recs
     
-    def _build_profile_filters(self, profile: Dict[str, Any]) -> Dict[str, Any]:
+    def _build_profile_filters(self, profile: dict[str, Any]) -> dict[str, Any]:
         """Build search filters from customer profile"""
         filters = {}
         

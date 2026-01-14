@@ -3,26 +3,26 @@ Core search functionality with caching
 """
 
 import hashlib
-from typing import Dict, List, Any, Optional
+from typing import Any, Optional
 from dataclasses import dataclass
 
 from .embedding import EmbeddingGenerator
-from infra.cache import get_redis_client
+from libs.factory import infra_registry
 
 
 @dataclass
 class SearchQuery:
     text: str
     tenant_id: str
-    filters: Dict[str, Any] = None
+    filters: dict[str, Any] = None
     top_k: int = 10
     min_score: float = 0.7
 
 
 @dataclass
 class SearchResponse:
-    results: List[SearchResult]
-    query_embedding: List[float]
+    results: list[SearchResult]
+    query_embedding: list[float]
     cache_hit: bool = False
 
 
@@ -40,7 +40,7 @@ class ProductSearch:
         """初始化搜索组件"""
         try:
             # 初始化Redis客户端
-            self.redis_client = await get_redis_client()
+            self.redis_client = infra_registry.get_cached_clients().redis
             self._initialized = True
             return True
         except Exception as e:
@@ -85,9 +85,9 @@ class ProductSearch:
     async def search_by_product(
         self, 
         tenant_id: str, 
-        product_data: Dict[str, Any], 
+        product_data: dict[str, Any], 
         top_k: int = 10
-    ) -> List[SearchResult]:
+    ) -> list[SearchResult]:
         """Find products similar to given product"""
         # Create searchable text
         text = self.embedding_gen.create_product_text(product_data)
@@ -106,9 +106,9 @@ class ProductSearch:
     
     def _apply_filters(
         self, 
-        results: List[SearchResult], 
-        filters: Dict[str, Any]
-    ) -> List[SearchResult]:
+        results: list[SearchResult], 
+        filters: dict[str, Any]
+    ) -> list[SearchResult]:
         """Apply post-search filters"""
         filtered = []
         
@@ -156,7 +156,7 @@ class ProductSearch:
         key_str = "|".join(key_parts)
         return f"search:{hashlib.md5(key_str.encode()).hexdigest()}"
     
-    async def _get_cached_results(self, cache_key: str) -> Optional[Dict]:
+    async def _get_cached_results(self, cache_key: str) -> Optional[dict]:
         """Get cached search results"""
         try:
             data = await self.redis_client.get(cache_key)
@@ -167,8 +167,8 @@ class ProductSearch:
     async def _cache_results(
         self, 
         cache_key: str, 
-        results: List[SearchResult], 
-        embedding: List[float]
+        results: list[SearchResult], 
+        embedding: list[float]
     ):
         """Cache search results"""
         try:
