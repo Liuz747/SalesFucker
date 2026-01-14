@@ -31,7 +31,7 @@ logger = get_component_logger(__name__)
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(_app: FastAPI):
     """应用生命周期管理"""
     # 启动时执行
     configure_logging()

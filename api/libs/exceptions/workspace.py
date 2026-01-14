@@ -39,7 +39,7 @@ class AssistantConflictException(AssistantException):
     """助手冲突异常"""
     code = 1100003
     message = "ASSISTANT_CONFLICT"
-    http_status_code = 503
+    http_status_code = 409
 
     def __init__(self, assistant_id: UUID):
         super().__init__(detail=f"AI数字员工 {assistant_id} 已存在")
@@ -168,6 +168,7 @@ class ConversationAnalysisException(WorkspaceException):
     """对话分析失败异常"""
     code = 1400004
     message = "CONVERSATION_ANALYSIS_FAILED"
+    http_status_code = 500
 
     def __init__(self, analysis_type: str, reason: str = ""):
         detail = f"{analysis_type}分析失败"

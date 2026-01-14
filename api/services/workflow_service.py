@@ -43,11 +43,6 @@ class WorkflowService:
 
         返回:
             Thread: 验证通过的线程模型
-
-        异常:
-            ThreadNotFoundException: 线程不存在
-            TenantValidationException: 租户验证失败（租户不匹配或助理不属于租户）
-            AssistantDisabledException: 助理已被禁用
         """
         try:
             logger.info(f"开始验证工作流权限 - 线程: {thread_id}")

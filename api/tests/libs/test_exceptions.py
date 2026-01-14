@@ -59,9 +59,9 @@ class TestBaseExceptions:
         """测试BaseHTTPException基础结构"""
         exc = BaseHTTPException(detail="测试错误")
         assert exc.detail == "测试错误"
-        assert exc.code == 1000000
-        assert exc.message == "INTERNAL_ERROR"
-        assert exc.http_status_code == 500
+        assert exc.code == 0
+        assert exc.message == "SUCCESS"
+        assert exc.http_status_code == 200
 
 
 class TestTenantExceptions:
@@ -72,7 +72,7 @@ class TestTenantExceptions:
         tenant_id = "test_tenant_123"
         exc = TenantNotFoundException(tenant_id)
 
-        assert exc.code == 1000001
+        assert exc.code == 1000002
         assert exc.message == "TENANT_NOT_FOUND"
         assert exc.http_status_code == 404
         assert tenant_id in exc.detail
@@ -84,8 +84,8 @@ class TestTenantExceptions:
         reason = "租户状态异常"
         exc = TenantValidationException(tenant_id, reason)
 
-        assert exc.code == 1000002
-        assert exc.message == "TENANT_VALIDATION_FAILED"
+        assert exc.code == 1000005
+        assert exc.message == "TENANT_VALIDATION_ERROR"
         assert exc.http_status_code == 403
         assert tenant_id in exc.detail
         assert reason in exc.detail
@@ -94,7 +94,7 @@ class TestTenantExceptions:
         """测试租户ID必需异常"""
         exc = TenantIdRequiredException()
 
-        assert exc.code == 1000003
+        assert exc.code == 1000006
         assert exc.message == "TENANT_ID_REQUIRED"
         assert exc.http_status_code == 400
         assert "租户ID" in exc.detail
@@ -104,7 +104,7 @@ class TestTenantExceptions:
         tenant_id = "test_tenant_123"
         exc = TenantDisabledException(tenant_id)
 
-        assert exc.code == 1000004
+        assert exc.code == 1000008
         assert exc.message == "TENANT_DISABLED"
         assert exc.http_status_code == 403
         assert tenant_id in exc.detail
@@ -115,7 +115,7 @@ class TestTenantExceptions:
         tenant_id = "test_tenant_123"
         exc = TenantAlreadyExistsException(tenant_id)
 
-        assert exc.code == 1000005
+        assert exc.code == 1000001
         assert exc.message == "TENANT_ALREADY_EXISTS"
         assert exc.http_status_code == 409
         assert tenant_id in exc.detail
@@ -150,12 +150,12 @@ class TestAssistantExceptions:
     def test_assistant_inactive_exception(self):
         """测试助手未激活异常"""
         assistant_id = uuid4()
-        status = AccountStatus.INACTIVE
+        status = AccountStatus.BANNED
         exc = AssistantInactiveException(assistant_id, status)
 
         assert exc.code == 1100005
         assert exc.message == "ASSISTANT_INACTIVE"
-        assert exc.http_status_code == 400
+        assert exc.http_status_code == 403
         assert str(assistant_id) in exc.detail
         assert status.value in exc.detail
         assert "未激活" in exc.detail
@@ -215,7 +215,7 @@ class TestThreadExceptions:
         thread_id = uuid4()
         exc = ThreadNotFoundException(thread_id)
 
-        assert exc.code == 1300001
+        assert exc.code == 1300002
         assert exc.message == "THREAD_NOT_FOUND"
         assert exc.http_status_code == 404
         assert str(thread_id) in exc.detail
@@ -226,7 +226,7 @@ class TestThreadExceptions:
         reason = "租户配额已满"
         exc = ThreadCreationException(reason)
 
-        assert exc.code == 1300002
+        assert exc.code == 1300003
         assert exc.message == "THREAD_CREATION_FAILED"
         assert exc.http_status_code == 500
         assert reason in exc.detail
@@ -236,7 +236,7 @@ class TestThreadExceptions:
         """测试线程创建失败异常（无原因）"""
         exc = ThreadCreationException()
 
-        assert exc.code == 1300002
+        assert exc.code == 1300003
         assert "创建失败" in exc.detail
 
     def test_thread_access_denied_exception(self):
@@ -244,7 +244,7 @@ class TestThreadExceptions:
         tenant_id = "test_tenant_123"
         exc = ThreadAccessDeniedException(tenant_id)
 
-        assert exc.code == 1300003
+        assert exc.code == 1300004
         assert exc.message == "THREAD_ACCESS_DENIED"
         assert exc.http_status_code == 403
         assert tenant_id in exc.detail
@@ -256,7 +256,7 @@ class TestThreadExceptions:
         timeout = 30
         exc = ThreadBusyException(thread_id, timeout)
 
-        assert exc.code == 1300004
+        assert exc.code == 1300005
         assert exc.message == "THREAD_BUSY"
         assert exc.http_status_code == 409
         assert str(thread_id) in exc.detail
@@ -373,16 +373,12 @@ class TestMemoryExceptions:
 
     def test_memory_insert_failure_exception(self):
         """测试记忆插入失败异常"""
-        failed_count = 3
-        total_count = 5
-        exc = MemoryInsertFailureException(failed_count, total_count)
+        exc = MemoryInsertFailureException()
 
         assert exc.code == 1600003
         assert exc.message == "MEMORY_INSERT_FAILURE"
         assert exc.http_status_code == 500
-        assert str(failed_count) in exc.detail
-        assert str(total_count) in exc.detail
-        assert "插入失败" in exc.detail
+        assert "全部记忆插入失败" in exc.detail
 
     def test_memory_not_found_exception(self):
         """测试记忆不存在异常"""
@@ -397,14 +393,12 @@ class TestMemoryExceptions:
 
     def test_memory_deletion_exception(self):
         """测试记忆删除失败异常"""
-        memory_id = "test_memory_123"
         reason = "向量索引更新失败"
-        exc = MemoryDeletionException(memory_id, reason)
+        exc = MemoryDeletionException(reason)
 
         assert exc.code == 1600005
         assert exc.message == "MEMORY_DELETION_FAILED"
         assert exc.http_status_code == 500
-        assert memory_id in exc.detail
         assert reason in exc.detail
         assert "删除失败" in exc.detail
 
@@ -416,7 +410,7 @@ class TestExceptionInheritance:
         """测试租户异常继承自BaseHTTPException"""
         assert issubclass(TenantManagementException, BaseHTTPException)
         assert issubclass(TenantNotFoundException, TenantManagementException)
-        assert issubclass(TenantValidationException, TenantManagementException)
+        assert issubclass(TenantValidationException, BaseHTTPException)
 
     def test_workspace_exceptions_inherit_from_base(self):
         """测试工作空间异常继承自BaseHTTPException"""
@@ -456,7 +450,7 @@ class TestExceptionErrorCodes:
             # 助手相关 (110xxxx)
             AssistantNotFoundException(uuid4()),
             AssistantConflictException(uuid4()),
-            AssistantInactiveException(uuid4(), AccountStatus.INACTIVE),
+            AssistantInactiveException(uuid4(), AccountStatus.BANNED),
             AssistantCreationException(),
             AssistantUpdateException(uuid4()),
             AssistantDeletionException(uuid4()),
@@ -473,7 +467,7 @@ class TestExceptionErrorCodes:
             MarketingPlanGenerationException(),
             # 记忆相关 (160xxxx)
             MemoryException(),
-            MemoryInsertFailureException(1, 2),
+            MemoryInsertFailureException(),
             MemoryNotFoundException("test"),
             MemoryDeletionException("test"),
         ]

@@ -193,11 +193,16 @@ class AssistantService:
             raise
 
     @staticmethod
-    async def delete_assistant(assistant_id: UUID, force: bool = False) -> bool:
+    async def delete_assistant(
+        tenant_id: str,
+        assistant_id: UUID,
+        force: bool = False
+    ) -> bool:
         """
         删除助理
 
         参数:
+            tenant_id: 租户ID
             assistant_id: 助理ID
             force: 是否强制删除
 
@@ -208,16 +213,18 @@ class AssistantService:
             async with database_session() as session:
                 assistant_orm = await AssistantRepository.get_assistant_by_id(assistant_id, session)
                 if not assistant_orm:
-                    return False
+                    raise AssistantNotFoundException(assistant_id)
+
+                # 验证租户所有权
+                if assistant_orm.tenant_id != tenant_id:
+                    raise TenantValidationException(tenant_id, reason=f"助理不属于当前租户")
 
                 # TODO: 检查是否有活跃对话
                 current_customers = 0
                 if current_customers > 0 and not force:
                     raise ValueError("助理有活跃对话，需要强制删除标志")
 
-                flag = await AssistantRepository.delete(assistant_id, session)
-                if not flag:
-                    raise Exception("删除失败，请咨询管理员")
+                await AssistantRepository.delete(assistant_id, session)
 
             # 删除缓存
             redis_client = infra_registry.get_cached_clients().redis
