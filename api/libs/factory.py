@@ -4,14 +4,25 @@
 提供基于类的接口来构建和缓存基础设施客户端（数据库、Redis、Elasticsearch、Milvus），并复用既有的客户端构造逻辑。
 """
 
+from contextlib import asynccontextmanager
 from typing import Optional
 
 from elasticsearch import AsyncElasticsearch
 from pymilvus import MilvusClient
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from temporalio.client import Client
 
-from infra.db import get_engine, close_db_connections, test_db_connection
-from infra.cache import get_redis_client, close_redis_client, test_redis_connection
+from infra.db import (
+    create_db_engine,
+    create_session_factory,
+    test_db_connection,
+    close_engine
+)
+from infra.cache import (
+    create_redis_client,
+    test_redis_connection,
+    close_redis_client
+)
 from infra.ops import (
     get_es_client,
     close_es_client,
@@ -23,8 +34,8 @@ from infra.ops import (
     get_temporal_client,
     verify_temporal_connection
 )
+from libs.types import InfraClients
 from utils import get_component_logger
-from .types import InfraClients
 
 logger = get_component_logger(__name__)
 
@@ -38,6 +49,7 @@ class InfraFactory:
 
     def __init__(self):
         self._clients: Optional[InfraClients] = None
+        self._session_factory: Optional[async_sessionmaker[AsyncSession]] = None
 
     async def create_clients(self) -> InfraClients:
         """
@@ -51,15 +63,16 @@ class InfraFactory:
 
         logger.info("开始初始化基础设施客户端")
 
-        # Database engine (async)
-        db_engine = await get_engine()
+        # Database engine
+        db_engine = await create_db_engine()
+        self._session_factory = create_session_factory(db_engine)
         logger.info("PostgreSQL 数据库引擎准备完成")
 
         # Redis client
-        redis = await get_redis_client()
+        redis = await create_redis_client()
         logger.info("Redis 客户端准备完成")
 
-        # Elasticsearch client (optional)
+        # Elasticsearch client
         elasticsearch: Optional[AsyncElasticsearch] = None
         try:
             elasticsearch = await get_es_client()
@@ -67,7 +80,7 @@ class InfraFactory:
         except Exception as e:
             logger.warning(f"Elasticsearch 连接初始化失败: {e}")
 
-        # Milvus is optional
+        # Milvus client
         milvus: Optional[MilvusClient] = None
         try:
             milvus = await get_milvus_connection()
@@ -75,6 +88,7 @@ class InfraFactory:
         except ConnectionError as e:
             logger.warning(f"Milvus 连接初始化失败: {e}")
 
+        # Temporal client
         temporal: Optional[Client] = None
         try:
             temporal = await get_temporal_client()
@@ -93,14 +107,40 @@ class InfraFactory:
         logger.info("基础设施客户端初始化完成")
         return self._clients
 
-    def get_cached_clients(self) -> Optional[InfraClients]:
+    def get_cached_clients(self) -> InfraClients:
         """
         返回已缓存的客户端，不触发初始化。
 
         Returns:
-            Optional[InfraClients]: 之前创建的客户端集合。
+            InfraClients: 创建的客户端集合。
         """
+        if self._clients is None:
+            raise RuntimeError("InfraFactory未初始化，请先调用create_clients()")
         return self._clients
+
+    @asynccontextmanager
+    async def get_db_session(self):
+        """
+        便捷方法：获取数据库会话
+
+        用法:
+            async with infra_registry.get_db_session() as session:
+                # 数据库操作
+                pass
+        """
+        if self._session_factory is None:
+            raise RuntimeError("InfraFactory未初始化，请先调用create_clients()")
+
+        session = self._session_factory()
+        try:
+            yield session
+            await session.commit()
+        except Exception as e:
+            await session.rollback()
+            logger.error(f"数据库操作失败，本次操作已取消: {e}")
+            raise
+        finally:
+            await session.close()
 
     async def test_clients(self):
         """测试所有已初始化的基础设施客户端,各服务连接状态记录在日志中。"""
@@ -112,8 +152,8 @@ class InfraFactory:
 
         # Test database connection
         try:
-            db_ok = await test_db_connection()
-            if db_ok:
+            db_flag = await test_db_connection(self._clients.db_engine)
+            if db_flag:
                 logger.info("✓ 数据库连接成功")
             else:
                 logger.warning("✗ 数据库连接失败")
@@ -166,12 +206,15 @@ class InfraFactory:
         if self._clients.elasticsearch:
             await close_es_client(self._clients.elasticsearch)
 
-        await close_redis_client()
-        await close_db_connections()
+        await close_redis_client(self._clients.redis)
+        await close_engine(self._clients.db_engine)
 
         self._clients = None
+        self._session_factory = None
         logger.info("基础设施客户端关闭完成")
 
 
 # 全局注册表实例
 infra_registry = InfraFactory()
+
+__all__ = ["infra_registry"]

@@ -14,15 +14,14 @@ AI员工处理器
 import asyncio
 from uuid import UUID
 
-from infra.db import database_session
 from libs.exceptions import (
     BaseHTTPException,
     AssistantNotFoundException,
     TenantNotFoundException,
     TenantValidationException
 )
-from libs.types import AccountStatus
 from libs.factory import infra_registry
+from libs.types import AccountStatus
 from models import AssistantModel
 from repositories.assistant_repo import AssistantRepository
 from schemas import AssistantCreateRequest, AssistantUpdateRequest
@@ -50,7 +49,7 @@ class AssistantService:
             AssistantModel: 创建的助理模型
         """
         try:
-            async with database_session() as session:
+            async with infra_registry.get_db_session() as session:
                 # 1. 创建助理数据
                 assistant_model = AssistantModel(
                     assistant_name=request.assistant_name,
@@ -132,7 +131,7 @@ class AssistantService:
             logger.info("缓存失效，数据回源")
 
         try:
-            async with database_session() as session:
+            async with infra_registry.get_db_session() as session:
                 assistant_orm = await AssistantRepository.get_assistant_by_id(assistant_id, session)
                 if not assistant_orm:
                     raise AssistantNotFoundException(assistant_id)
@@ -162,7 +161,7 @@ class AssistantService:
             AssistantModel: 更新后的助理信息
         """
         try:
-            async with database_session() as session:
+            async with infra_registry.get_db_session() as session:
                 assistant_orm = await AssistantRepository.get_assistant_by_id(assistant_id, session)
                 if not assistant_orm:
                     raise AssistantNotFoundException(assistant_id)
@@ -210,7 +209,7 @@ class AssistantService:
             bool: 是否删除成功
         """
         try:
-            async with database_session() as session:
+            async with infra_registry.get_db_session() as session:
                 assistant_orm = await AssistantRepository.get_assistant_by_id(assistant_id, session)
                 if not assistant_orm:
                     raise AssistantNotFoundException(assistant_id)

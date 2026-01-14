@@ -15,12 +15,11 @@ import asyncio
 from typing import Optional
 from uuid import UUID
 
-from infra.db import database_session
+from libs.exceptions import ThreadNotFoundException, TenantValidationException
 from libs.factory import infra_registry
 from libs.types import ThreadStatus
 from repositories.thread_repo import ThreadRepository, Thread
 from schemas import ThreadPayload
-from libs.exceptions import ThreadNotFoundException, TenantValidationException
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "ThreadService")
@@ -46,7 +45,7 @@ class ThreadService:
             thread_orm = thread.to_orm()
             
             # 1. 立即写入数据库
-            async with database_session() as session:
+            async with infra_registry.get_db_session() as session:
                 thread_orm = await ThreadRepository.insert_thread(thread_orm, session)
 
             # 2. 异步更新Redis缓存
@@ -80,7 +79,7 @@ class ThreadService:
                 return thread_model
             
             # Level 2: 数据库查询
-            async with database_session() as session:
+            async with infra_registry.get_db_session() as session:
                 thread_orm = await ThreadRepository.get_thread(thread_id, session)
             
             if thread_orm:
@@ -109,7 +108,7 @@ class ThreadService:
         """
         try:
             # 更新数据库中的状态
-            async with database_session() as session:
+            async with infra_registry.get_db_session() as session:
                 flag = await ThreadRepository.update_thread_status(thread_id, status, session)
 
             if flag:
@@ -139,7 +138,7 @@ class ThreadService:
         """
         try:
             # 更新数据库中的字段
-            async with database_session() as session:
+            async with infra_registry.get_db_session() as session:
                 thread_orm = await ThreadRepository.update_thread_field(thread_id, fields, session)
 
             if not thread_orm:
@@ -181,7 +180,7 @@ class ThreadService:
             TenantValidationException: 租户ID不匹配，无权访问此线程
         """
         try:
-            async with database_session() as session:
+            async with infra_registry.get_db_session() as session:
                 # 查询线程是否存在
                 thread_orm = await ThreadRepository.get_thread(thread_id, session)
                 if not thread_orm:
@@ -226,7 +225,7 @@ class ThreadService:
             threads: 线程列表（包含业务模型数据）
         """
         try:
-            async with database_session() as session:
+            async with infra_registry.get_db_session() as session:
                 thread_orms = await ThreadRepository.get_inactive_threads(session)
 
                 # 转换为业务模型字典
@@ -252,7 +251,7 @@ class ThreadService:
             bool: 是否更新成功
         """
         try:
-            async with database_session() as session:
+            async with infra_registry.get_db_session() as session:
                 success = await ThreadRepository.increment_awakening_attempt(thread_id=thread_id, session=session)
 
                 if success:
@@ -289,7 +288,7 @@ class ThreadService:
         """
         try:
             # 使用单个数据库会话进行批量更新
-            async with database_session() as session:
+            async with infra_registry.get_db_session() as session:
                 results = await ThreadRepository.bulk_update_threads(
                     tenant_id=tenant_id,
                     thread_ids=thread_ids,

@@ -14,8 +14,8 @@ from pydantic import BaseModel
 
 from config import mas_config
 from core.memory import StorageManager
-from infra.cache import get_redis_client
 from infra.runtimes import LLMClient, CompletionsRequest, LLMResponse
+from libs.factory import infra_registry
 from libs.types import MethodType, Message, InputContent, InputType, MemoryType
 from schemas.social_media_schema import (
     MomentsAnalysisRequest,
@@ -101,7 +101,7 @@ class MomentsAnalysisService:
 
     async def load_prompt(self, method: MethodType) -> str:
         """加载提示词配置，支持Redis缓存"""
-        redis_client = await get_redis_client()
+        redis_client = infra_registry.get_cached_clients().redis
         cache_key = f"social_media_prompt:{method}"
 
         try:

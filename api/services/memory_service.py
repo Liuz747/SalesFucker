@@ -16,8 +16,8 @@ from uuid import UUID
 from elasticsearch import NotFoundError
 
 from core.memory import StorageManager
-from infra.db import database_session
 from libs.exceptions import MemoryNotFoundException, MemoryDeletionException
+from libs.factory import infra_registry
 from libs.types import MemoryType, MessageParams, ThreadStatus
 from repositories import ThreadRepository
 from schemas import MemoryInsertSummary, MemoryInsertResult
@@ -222,7 +222,7 @@ class MemoryService:
             )
 
             # 更新线程的时间戳
-            async with database_session() as session:
+            async with infra_registry.get_db_session() as session:
                 await ThreadRepository.update_thread_status(thread_id, ThreadStatus.ACTIVE, session)
 
             logger.info(f"消息追加成功: thread_id={thread_id}")

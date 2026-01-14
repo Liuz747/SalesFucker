@@ -16,10 +16,9 @@ from typing import Optional
 
 from sqlalchemy.exc import IntegrityError
 
-from infra.db import database_session
-from infra.cache import get_redis_client
-from repositories.tenant_repo import TenantRepository, TenantModel, AccountStatus
 from libs.exceptions import TenantNotFoundException, TenantAlreadyExistsException
+from libs.factory import infra_registry
+from repositories.tenant_repo import TenantRepository, TenantModel, AccountStatus
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "TenantService")
@@ -39,12 +38,12 @@ class TenantService:
         try:
             tenant_orm = tenant.to_orm()
 
-            async with database_session() as session:
+            async with infra_registry.get_db_session() as session:
                 flag = await TenantRepository.insert_tenant(tenant_orm, session)
 
             if flag:
-                # 直接获取Redis客户端，使用连接池
-                redis_client = await get_redis_client()
+                # 获取Redis客户端
+                redis_client = infra_registry.get_cached_clients().redis
                 tenant_model = TenantModel.to_model(tenant_orm)
                 asyncio.create_task(TenantRepository.update_tenant_cache(
                     tenant_model,
@@ -74,9 +73,9 @@ class TenantService:
             Optional[Tenant]: 租户业务模型，不存在则返回None
         """
         try:
+            redis_client = infra_registry.get_cached_clients().redis
+
             if use_cache:
-                # 直接获取Redis客户端，使用连接池
-                redis_client = await get_redis_client()
 
                 # Level 1: Redis缓存 (< 10ms)
                 tenant_model = await TenantRepository.get_tenant_cache(tenant_id, redis_client)
@@ -84,12 +83,11 @@ class TenantService:
                     return tenant_model
 
             # Level 2: 数据库查询
-            async with database_session() as session:
+            async with infra_registry.get_db_session() as session:
                 tenant_orm = await TenantRepository.get_tenant_by_id(tenant_id, session)
 
             if tenant_orm:
                 tenant_model = TenantModel.to_model(tenant_orm)
-                redis_client = await get_redis_client()
                 asyncio.create_task(TenantRepository.update_tenant_cache(
                     tenant_model,
                     redis_client
@@ -110,7 +108,7 @@ class TenantService:
     ) -> TenantModel:
         """更新租户"""
         try:
-            async with database_session() as session:
+            async with infra_registry.get_db_session() as session:
                 tenant_orm = await TenantRepository.get_tenant_by_id(tenant_id, session)
                 if not tenant_orm:
                     raise TenantNotFoundException(tenant_id)
@@ -119,7 +117,7 @@ class TenantService:
                 updated_tenant_orm = await TenantRepository.update_tenant(tenant_orm, session)
 
             # 修改数据成功后，刷新缓存
-            redis_client = await get_redis_client()
+            redis_client = infra_registry.get_cached_clients().redis
             tenant_model = TenantModel.to_model(updated_tenant_orm)
             asyncio.create_task(TenantRepository.update_tenant_cache(
                 tenant_model,
@@ -141,13 +139,13 @@ class TenantService:
         返回: bool: 是否删除成功
         """
         try:
-            async with database_session() as session:
+            async with infra_registry.get_db_session() as session:
                 # 软删除：设置为非激活状态
                 tenant_orm = await TenantRepository.delete_tenant(tenant_id, session)
 
             if tenant_orm:
                 # 直接获取Redis客户端，使用连接池
-                redis_client = await get_redis_client()
+                redis_client = infra_registry.get_cached_clients().redis
                 # 异步执行缓存实际删除 - 从Redis中彻底移除
                 asyncio.create_task(TenantRepository.delete_tenant_cache(
                     tenant_id,

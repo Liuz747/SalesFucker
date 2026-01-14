@@ -5,15 +5,15 @@
 """
 
 from pathlib import Path
-from typing import Type
 from time import time
+from typing import Type
 from uuid import uuid4
 
 from pydantic import BaseModel
 
 from config import mas_config
-from infra.cache import get_redis_client
 from infra.runtimes import LLMClient, CompletionsRequest, LLMResponse
+from libs.factory import infra_registry
 from libs.types import MethodType, Message, TextBeautifyActionType
 from schemas.social_media_schema import (
     CommentGenerationRequest,
@@ -68,7 +68,7 @@ class SocialMediaPublicTrafficService:
         return response
 
     async def load_prompt(self, method: MethodType) -> str:
-        redis_client = await get_redis_client()
+        redis_client = infra_registry.get_cached_clients().redis
         cache_key = f"social_media_prompt:{method}"
 
         try: 
@@ -101,7 +101,7 @@ class SocialMediaPublicTrafficService:
             raise
 
     async def reload_prompt(self, method: MethodType):
-        redis_client = await get_redis_client()
+        redis_client = infra_registry.get_cached_clients().redis
         cache_key = f"social_media_prompt:{method}"
 
         yaml_content = load_yaml_file(self.config_path)

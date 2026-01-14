@@ -9,10 +9,14 @@ Core Features:
 - Connection pooling
 """
 
-from .redis_client import get_redis_client, close_redis_client, test_redis_connection
+from .redis_client import (
+    create_redis_client,
+    test_redis_connection,
+    close_redis_client
+)
 
 __all__ = [
-    "get_redis_client",
-    "close_redis_client",
-    "test_redis_connection"
+    "create_redis_client",
+    "test_redis_connection",
+    "close_redis_client"
 ]

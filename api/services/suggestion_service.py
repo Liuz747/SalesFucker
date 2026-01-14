@@ -7,10 +7,10 @@ import re
 from uuid import UUID
 
 from core.memory import ConversationStore
-from infra.db import database_session
 from infra.runtimes import LLMClient
+from libs.factory import infra_registry
 from libs.types import Message, MessageParams
-from repositories.assistant_repo import AssistantRepository
+from repositories import AssistantRepository
 from utils import get_component_logger, get_current_datetime, get_processing_time_ms
 
 logger = get_component_logger(__name__, "SuggestionService")
@@ -46,7 +46,7 @@ async def generate_suggestions(
 
         # 1. 获取助理人设信息
         assistant_model = None
-        async with database_session() as session:
+        async with infra_registry.get_db_session() as session:
             assistant_orm = await AssistantRepository.get_assistant_by_id(
                 assistant_id=assistant_id,
                 session=session,
