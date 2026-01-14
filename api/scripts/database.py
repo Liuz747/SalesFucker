@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 MAS 数据库迁移脚本
 """
@@ -12,7 +11,8 @@ sys.path.insert(0, str(project_root))
 
 from alembic import command
 from alembic.config import Config
-from infra.db import test_db_connection, get_engine
+
+from infra.db import create_db_engine
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "Database")
@@ -27,12 +27,8 @@ async def upgrade():
     try:
         logger.info("开始数据库迁移...")
 
-        # Test connection first
-        if not await test_db_connection():
-            raise Exception("数据库连接失败")
-
         # 使用异步引擎和连接共享模式
-        engine = await get_engine()
+        engine = await create_db_engine()
         cfg = Config("migrations/alembic.ini")
         
         async with engine.begin() as conn:
@@ -55,12 +51,8 @@ async def revision(message: str):
     try:
         logger.info(f"生成迁移文件: {message}")
 
-        # Test connection first
-        if not await test_db_connection():
-            raise Exception("数据库连接失败")
-
         # 使用异步引擎和连接共享模式
-        engine = await get_engine()
+        engine = await create_db_engine()
         cfg = Config("migrations/alembic.ini")
         
         async with engine.begin() as conn:
@@ -82,11 +74,7 @@ async def downgrade(revision: str = "-1"):
     try:
         logger.info(f"回滚数据库迁移到版本: {revision}")
 
-        # Test connection first
-        if not await test_db_connection():
-            raise Exception("数据库连接失败")
-
-        engine = await get_engine()
+        engine = await create_db_engine()
         cfg = Config("migrations/alembic.ini")
         
         async with engine.begin() as conn:
