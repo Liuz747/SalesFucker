@@ -5,19 +5,10 @@ __pycache__/
 *.so
 .Python
 build/
-develop-eggs/
 dist/
-downloads/
-eggs/
-.eggs/
-parts/
 sdist/
 var/
 wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
 
 # Virtual Environment
 .venv/
@@ -46,25 +37,13 @@ CLAUDE.md
 .pytest_cache/
 .coverage
 htmlcov/
-.tox/
 .cache
-nosetests.xml
 coverage.xml
 *.cover
-.hypothesis/
 
 # Logs
 logs/
 *.log
-
-# Data
-data/uploads/
-data/vector_store/
-data/temp/
-
-# Model artifacts
-*.pkl
-*.joblib
 
 # MAS specific
 memory-bank/

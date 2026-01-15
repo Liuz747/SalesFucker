@@ -57,31 +57,31 @@ The platform integrates mainstream storage solutions including Redis, Elasticsea
 
 ```text
 mas/
-├── api/                      # FastAPI backend service and LangGraph agent workflows
-│   ├── controllers/          # API routing layer
-│   ├── core/                 # Core business capability modules
-│   │   ├── agents/           # Agent implementations
-│   │   ├── graphs/           # LangGraph workflow definitions
-│   │   ├── memory/           # Memory management system
-│   │   └── prompts/          # Prompt engineering
-│   ├── infra/                # Infrastructure layer
-│   │   ├── database/         # Database adapters
-│   │   ├── cache/            # Cache adapters
-│   │   └── runtimes/         # LLM runtime manager
-│   ├── services/             # Business service orchestration layer
-│   ├── models/               # Data models
-│   ├── schemas/              # API request/response models
-│   ├── scripts/              # Utility scripts (database migrations, initialization, etc.)
-│   └── tests/                 # Test suite (Pytest)
-├── docker/                   # Docker orchestration configuration
-│   ├── docker-compose.dev.yml    # Development environment config
-│   └── docker-compose.yml        # Production environment config
-├── docs/                     # Project documentation
-│   ├── deployment.md         # Deployment guide
-│   ├── LLM_usage.md    # Multi-LLM configuration guide
-│   └── database_migrations.md # Database migration guide
-├── web/                      # Next.js frontend application
-└── README.md                 # Main README (Chinese)
+├── api/                            # FastAPI backend service and LangGraph agent workflows
+│   ├── controllers/                # API routing layer
+│   ├── core/                       # Core business capability modules
+│   │   ├── agents/                 # Agent implementations
+│   │   ├── graphs/                 # LangGraph workflow definitions
+│   │   ├── memory/                 # Memory management system
+│   │   └── prompts/                # Prompt engineering
+│   ├── infra/                      # Infrastructure layer
+│   │   ├── db/                     # Database adapters
+│   │   ├── cache/                  # Cache adapters
+│   │   └── runtimes/               # LLM runtime manager
+│   ├── services/                   # Business service orchestration layer
+│   ├── models/                     # Data models
+│   ├── schemas/                    # API request/response models
+│   ├── scripts/                    # Utility scripts (database migrations, initialization, etc.)
+│   └── tests/                      # Test suite (Pytest)
+├── docker/                         # Docker orchestration configuration
+│   ├── docker-compose.dev.yml      # Development environment config
+│   └── docker-compose.yml          # Production environment config
+├── docs/                           # Project documentation
+│   ├── deployment.md               # Deployment guide
+│   ├── LLM_usage.md                # Multi-LLM configuration guide
+│   └── database_migrations.md      # Database migration guide
+├── web/                            # Next.js frontend application
+└── README.md                       # Main README (Chinese)
 ```
 
 ## 🚀 Quick Start
