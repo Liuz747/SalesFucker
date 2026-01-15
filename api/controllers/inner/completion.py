@@ -1,15 +1,15 @@
 """
-LLM聊天端点
+LLM聊天测试端点
 """
 
-import uuid
 from typing import Optional
+from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from infra.runtimes import LLMClient, CompletionsRequest, ResponseMessageRequest
-from libs.types import Message
+from infra.runtimes import CompletionsRequest, LLMClient, ResponseMessageRequest
+from libs.types import InputContentParams, Message
 from utils import get_component_logger
 
 logger = get_component_logger(__name__, "LLM")
@@ -20,48 +20,42 @@ router = APIRouter()
 
 class ChatRequest(BaseModel):
     """聊天请求"""
-    message: str
-    system_prompt: str = "你是一个助手，请尽可能地回答问题。"
     provider: str
     model: str
+    message: InputContentParams
+    system_prompt: str = "你是一个助手，请尽可能地回答问题。"
     temperature: Optional[float] = 0.7
     max_tokens: Optional[int] = 4000
 
 
-@router.post("/")
-async def send_message(request: ChatRequest):
+@router.post("/completion")
+async def test_completion_message(request: ChatRequest):
     """
-    发送聊天消息
-    
-    简单的聊天接口，直接使用LLMClient
+    测试Completion API
     """
     try:
         # 初始化LLM客户端
         client = LLMClient()
-        
-        # 生成对话ID
-        chat_id = uuid.uuid4()
-        
+
         # 构建LLM请求
         llm_request = CompletionsRequest(
-            id=chat_id,
+            id=uuid4(),
             messages=[Message(role='user', content=request.message)],
             model=request.model,
             provider=request.provider,
             temperature=request.temperature,
-            output_model=CalendarEvent,
             max_tokens=request.max_tokens
         )
 
-        # 返回响应
         return await client.completions(llm_request)
-        
+
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"聊天失败: {str(e)}")
+        logger.error(f"Completion API调用失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Completion API调用失败: {str(e)}")
 
 
-@router.post("/responses")
-async def test_responses_api(request: ChatRequest):
+@router.post("/response")
+async def test_responses_message(request: ChatRequest):
     """
     测试OpenAI Responses API（基础文本输出）
 
@@ -72,12 +66,9 @@ async def test_responses_api(request: ChatRequest):
         # 初始化LLM客户端
         client = LLMClient()
 
-        # 生成对话ID
-        chat_id = uuid.uuid4()
-
         # 构建Responses请求
         llm_request = ResponseMessageRequest(
-            id=chat_id,
+            id=uuid4(),
             input=request.message,
             system_prompt=request.system_prompt,
             model=request.model,
@@ -86,7 +77,6 @@ async def test_responses_api(request: ChatRequest):
             max_tokens=request.max_tokens
         )
 
-        # 返回响应
         return await client.responses(llm_request)
 
     except Exception as e:
@@ -102,8 +92,38 @@ class CalendarEvent(BaseModel):
     participants: list[str]
 
 
-@router.post("/responses/structured")
-async def test_structured_outputs(request: ChatRequest):
+@router.post("/completion-structured")
+async def test_completion_structured_outputs(request: ChatRequest):
+    """
+    测试Completion API结构化输出
+
+    使用Completion API的结构化输出功能。
+    """
+    try:
+        # 初始化LLM客户端
+        client = LLMClient()
+
+        # 构建LLM请求
+        llm_request = CompletionsRequest(
+            id=uuid4(),
+            messages=[Message(role='user', content=request.message)],
+            model=request.model,
+            provider=request.provider,
+            temperature=request.temperature,
+            output_model=CalendarEvent,
+            max_tokens=request.max_tokens
+        )
+
+        # 返回响应
+        return await client.completions(llm_request)
+
+    except Exception as e:
+        logger.error(f"Completion结构化输出调用失败: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Completion结构化输出调用失败: {str(e)}")
+
+
+@router.post("/response-structured")
+async def test_response_structured_outputs(request: ChatRequest):
     """
     测试OpenAI Structured Outputs（结构化输出）
 
@@ -118,12 +138,9 @@ async def test_structured_outputs(request: ChatRequest):
         # 初始化LLM客户端
         client = LLMClient()
 
-        # 生成对话ID
-        chat_id = uuid.uuid4()
-
         # 构建Structured Responses请求
         llm_request = ResponseMessageRequest(
-            id=chat_id,
+            id=uuid4(),
             input=request.message,
             system_prompt=request.system_prompt,
             output_model=CalendarEvent,
@@ -133,22 +150,8 @@ async def test_structured_outputs(request: ChatRequest):
             max_tokens=request.max_tokens
         )
 
-        # 发送请求
-        response = await client.responses(llm_request)
+        return await client.responses(llm_request)
 
-        # 返回响应
-        return {
-            "chat_id": response.id,
-            "response": response.content,
-            "provider": response.provider,
-            "model": response.model,
-            "usage": response.usage,
-            "cost": response.cost
-        }
-
-    except HTTPException:
-        raise
     except Exception as e:
         logger.error(f"Structured Outputs调用失败: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Structured Outputs调用失败: {str(e)}")
-
