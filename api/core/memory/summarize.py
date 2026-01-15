@@ -16,7 +16,7 @@ class SummarizationService:
     负责调用 LLM 对对话窗口进行摘要压缩。
     """
 
-    def __init__(self, max_length: int = 8000):
+    def __init__(self, max_length: int = 10000):
         """
         初始化摘要服务
 
@@ -31,7 +31,7 @@ class SummarizationService:
         生成对话摘要
 
         Args:
-            prompt: 包含对话内容的提示词
+            text_block: 包含对话内容的提示词
 
         Returns:
             str: 生成的摘要内容
@@ -48,10 +48,10 @@ class SummarizationService:
             # 构建LLM请求对象
             request = CompletionsRequest(
                 id=None,
-                model="openai/gpt-4o",
+                model="google/gemini-3-flash-preview",
                 provider="openrouter",
                 messages=[Message(role="user", content=prompt)],
-                max_tokens=1000,
+                max_tokens=3000,
                 temperature=0.3  # 使用较低的temperature保证摘要一致性
             )
 
