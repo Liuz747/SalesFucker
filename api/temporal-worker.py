@@ -30,7 +30,7 @@ async def main():
 
     # 创建工作器
     worker = Worker(
-        infra_registry._clients.temporal,
+        infra_registry.get_cached_clients().temporal,
         task_queue=mas_config.TASK_QUEUE,
         workflows=get_all_workflows(),
         activities=get_all_activities(),

@@ -67,7 +67,7 @@ class MomentsAnalysisService:
             model="openai/gpt-4o",  # 使用支持视觉的模型
             provider="openrouter",
             temperature=0.3,  # 较低温度确保稳定输出
-            max_tokens=4000,
+            max_tokens=10000,
             messages=messages,
             output_model=output_model
         )
@@ -91,7 +91,7 @@ class MomentsAnalysisService:
             model="openai/gpt-5",  # 文本分析使用更经济的模型
             provider="openrouter",
             temperature=1,
-            max_tokens=1000,  # 朋友圈分析通常不需要很长的回复
+            max_tokens=4000,  # 朋友圈分析通常不需要很长的回复
             messages=messages,
             output_model=output_model
         )

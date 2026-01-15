@@ -146,6 +146,7 @@ class SalesAgent(BaseAgent):
             request = CompletionsRequest(
                 id=run_id,
                 provider="openrouter",
+                max_tokens=10000,
                 model="anthropic/claude-haiku-4.5",
                 temperature=0.6,
                 messages=messages,

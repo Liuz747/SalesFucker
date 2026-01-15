@@ -29,5 +29,5 @@ concise summary, validation notes (commands run, screenshots for API responses i
 ensure reviewers understand any new environment requirements.
 
 ## Security & Configuration Tips
-Keep secrets out of version control; populate `.env` using `scripts/setup.sh`. Regenerate API keys and database passwords for shared environments. When adding new
+Keep secrets out of version control; populate `.env` using `.env.example` as a template. Regenerate API keys and database passwords for shared environments. When adding new
 services, update `config/models.yaml` and the corresponding `config/service` providers with minimal privileges, and document required credentials in the PR.
