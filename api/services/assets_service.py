@@ -81,7 +81,7 @@ class AssetsService:
             cache_key = self._get_cache_key(tenant_id)
 
             cached_value = json.dumps(assets_data, ensure_ascii=False)
-            await redis.setex(cache_key, 86400, cached_value)
+            await redis.set(cache_key, cached_value, ex=86400)
 
             logger.info(
                 f"素材已缓存: tenant_id={tenant_id}, "

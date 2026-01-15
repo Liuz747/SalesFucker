@@ -102,15 +102,15 @@ class TestAssetsService:
         """测试设置缓存"""
         with patch('services.assets_service.infra_registry') as mock_registry:
             mock_registry.get_cached_clients().redis = mock_redis
-            mock_redis.setex.return_value = True
+            mock_redis.set.return_value = True
 
             result = await assets_service.set_cached_assets("test-tenant", sample_assets_data)
 
             assert result is True
-            mock_redis.setex.assert_called_once()
-            args = mock_redis.setex.call_args[0]
+            mock_redis.set.assert_called_once()
+            args, kwargs = mock_redis.set.call_args
             assert args[0] == "assets:test-tenant"
-            assert args[1] == 86400  # 24小时
+            assert kwargs['ex'] == 86400  # 24小时
 
     @pytest.mark.asyncio
     async def test_query_assets_from_cache(self, assets_service, mock_redis, sample_assets_data):
@@ -137,7 +137,7 @@ class TestAssetsService:
         with patch('services.assets_service.infra_registry') as mock_registry:
             mock_registry.get_cached_clients().redis = mock_redis
             mock_redis.get.return_value = None
-            mock_redis.setex.return_value = True
+            mock_redis.set.return_value = True
 
             # Mock API响应
             api_response = {

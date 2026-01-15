@@ -119,10 +119,10 @@ class TenantRepository:
             redis_key = f"tenant:{tenant_model.tenant_id}"
             tenant_data = tenant_model.model_dump(mode='json')
 
-            await redis_client.setex(
+            await redis_client.set(
                 redis_key,
-                mas_config.REDIS_TTL,
                 msgpack.packb(tenant_data),
+                ex=mas_config.REDIS_TTL,
             )
             logger.debug(f"更新租户缓存: {tenant_model.tenant_id}")
         except RedisError as e:

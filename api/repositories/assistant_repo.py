@@ -57,6 +57,7 @@ class AssistantRepository:
                 stmt = stmt.where(AssistantOrmModel.is_active == True)
             result = await session.execute(stmt)
             return result.scalar_one_or_none()
+
         except Exception as e:
             logger.error(f"获取助理配置失败: {assistant_id}, 错误: {e}")
             raise
@@ -78,8 +79,10 @@ class AssistantRepository:
             session.add(new_assistant)
             await session.flush()
             await session.refresh(new_assistant)
+
             logger.debug(f"创建助理: {new_assistant.assistant_id}")
             return new_assistant
+
         except Exception as e:
             logger.error(f"保存助理配置失败, 错误: {e}")
             raise
@@ -93,6 +96,7 @@ class AssistantRepository:
             await session.flush()
             await session.refresh(merged_assistant)
             return merged_assistant
+
         except Exception as e:
             logger.error(f"更新数字员工失败: {assistant.assistant_name}, 错误: {e}")
             raise
@@ -117,12 +121,15 @@ class AssistantRepository:
             )
             result = await session.execute(stmt)
             await session.commit()
+
             flag = result.rowcount > 0  # type: ignore
             if flag:
                 logger.info(f"软删除数字员工: assistant_id={assistant_id}")
             else:
                 logger.warning(f"数字员工不存在，无法删除: assistant_id={assistant_id}")
+
             return flag
+
         except Exception as e:
             logger.error(f"删除数字员工失败: assistant_id={assistant_id}, 错误: {e}")
             raise
@@ -133,12 +140,14 @@ class AssistantRepository:
         try:
             redis_key = f"assistant:{str(assistant_model.assistant_id)}"
             assistant_data = assistant_model.model_dump(mode='json')
-            await redis_client.setex(
+
+            await redis_client.set(
                 redis_key,
-                mas_config.REDIS_TTL,
                 msgpack.packb(assistant_data),
+                ex=mas_config.REDIS_TTL,
             )
             logger.debug(f"更新数字员工缓存: {assistant_model.assistant_id}")
+
         except RedisError as e:
             logger.error(f"redis 命令执行失败: {e}")
             raise
@@ -152,10 +161,13 @@ class AssistantRepository:
         try:
             redis_key = f"assistant:{str(assistant_id)}"
             assistant_data = await redis_client.get(redis_key)
+
             if assistant_data:
                 assistant_data = msgpack.unpackb(assistant_data, raw=False)
                 return AssistantModel(**assistant_data)
+
             return None
+
         except RedisError as e:
             logger.error(f"redis 命令执行失败: {e}")
             raise
@@ -171,6 +183,7 @@ class AssistantRepository:
             result = await redis_client.delete(redis_key)
             logger.debug(f"删除助理缓存: {assistant_id}, 结果: {result}")
             return result > 0
+
         except RedisError as e:
             logger.error(f"redis 命令执行失败: {e}")
             raise

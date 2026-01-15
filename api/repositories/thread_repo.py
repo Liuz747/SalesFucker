@@ -63,7 +63,6 @@ class ThreadRepository:
         """创建线程数据库模型"""
         try:
             session.add(thread)
-            # 刷新以获取数据库生成的值（如 thread_id, created_at, updated_at）
             await session.flush()
             await session.refresh(thread)
             return thread
@@ -78,7 +77,7 @@ class ThreadRepository:
             thread.updated_at = func.now()
             logger.debug(f"更新线程: {thread.thread_id}")
             merged_thread = await session.merge(thread)
-            # 刷新以获取数据库生成的值（如 updated_at）
+
             await session.flush()
             await session.refresh(merged_thread)
             return merged_thread
@@ -125,11 +124,10 @@ class ThreadRepository:
             redis_key = f"thread:{str(thread_model.thread_id)}"
             thread_data = thread_model.model_dump(mode='json')
 
-            # TODO: 更新Redis方法，setex已经进入废弃流程
-            await redis_client.setex(
+            await redis_client.set(
                 redis_key,
-                mas_config.REDIS_TTL,
                 msgpack.packb(thread_data),
+                ex=mas_config.REDIS_TTL,
             )
             logger.debug(f"更新线程缓存: {thread_model.thread_id}")
 

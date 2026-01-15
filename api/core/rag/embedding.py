@@ -76,6 +76,6 @@ class EmbeddingGenerator:
     async def _cache_embedding(self, key: str, embedding: list[float]):
         """Cache embedding"""
         try:
-            await self.redis_client.setex(key, self.cache_ttl, str(embedding))
+            await self.redis_client.set(key, str(embedding), ex=self.cache_ttl)
         except:
             pass  # Continue without caching

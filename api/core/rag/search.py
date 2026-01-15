@@ -183,8 +183,8 @@ class ProductSearch:
                 ],
                 "embedding": embedding
             }
-            await self.redis_client.setex(
-                cache_key, self.cache_ttl, str(cache_data)
+            await self.redis_client.set(
+                cache_key, str(cache_data), ex=self.cache_ttl
             )
         except:
             pass  # Continue without caching
