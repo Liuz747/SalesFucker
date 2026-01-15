@@ -116,7 +116,12 @@ class ThreadAwakeningWorkflow:
                 workflow.logger.info(f"准备唤醒上下文: thread_id={thread_id}")
                 context = await workflow.execute_activity(
                     prepare_awakening_context,
-                    args=[thread_data.tenant_id, thread_data.assistant_id, thread_id],
+                    args=[
+                        thread_data.tenant_id,
+                        thread_data.assistant_id,
+                        thread_id,
+                        thread_data.last_interaction_at
+                    ],
                     start_to_close_timeout=timedelta(seconds=30),
                     retry_policy=self.retry_policy
                 )
