@@ -13,7 +13,7 @@
 
 from langgraph.graph import StateGraph
 
-from core.entities import WorkflowExecutionModel
+from models import WorkflowExecutionModel
 from utils import get_component_logger
 from ..factories import create_agents_set
 from ..graphs import BaseWorkflow

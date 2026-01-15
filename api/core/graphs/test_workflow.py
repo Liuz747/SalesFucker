@@ -1,8 +1,8 @@
 from langgraph.graph import StateGraph
 
 from core.agents import BaseAgent
-from core.entities import WorkflowExecutionModel
 from libs.types import AgentNodeType
+from models import WorkflowExecutionModel
 from .base_workflow import BaseWorkflow
 
 

@@ -4,8 +4,8 @@ from langgraph.graph import StateGraph, START, END
 
 from config import mas_config
 from core.agents import BaseAgent
-from core.entities import WorkflowExecutionModel
 from libs.types import AgentNodeType
+from models import WorkflowExecutionModel
 from utils import get_component_logger
 from utils.llm_debug_wrapper import LLMDebugWrapper
 from .base_workflow import BaseWorkflow

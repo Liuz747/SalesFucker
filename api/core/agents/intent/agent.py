@@ -8,10 +8,10 @@ from pydantic import ValidationError
 
 from config import mas_config
 from core.agents import BaseAgent
-from core.entities import WorkflowExecutionModel
 from core.prompts.template_loader import get_prompt_template
 from infra.runtimes import CompletionsRequest, LLMResponse
 from libs.types import Message, MessageParams
+from models import WorkflowExecutionModel
 from schemas.conversation_schema import InvitationData
 from services import AssetsService
 from utils import get_current_datetime, get_component_logger, get_processing_time

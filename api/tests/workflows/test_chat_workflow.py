@@ -38,10 +38,10 @@ from uuid import uuid4
 
 import pytest
 
-from core.app.workflow_builder import WorkflowBuilder
-from core.entities import WorkflowExecutionModel
-from libs.types import AgentNodeType, UserMessage
+from core.app import WorkflowBuilder
 from libs.factory import infra_registry
+from libs.types import AgentNodeType, UserMessage
+from models import WorkflowExecutionModel
 from utils import get_component_logger, get_current_datetime
 
 logger = get_component_logger(__name__)
@@ -593,7 +593,7 @@ class TestChatWorkflowRefactorValidation:
         importlib.reload(chat_workflow)
 
         from langgraph.graph import StateGraph
-        from core.entities import WorkflowExecutionModel
+        from models import WorkflowExecutionModel
 
         workflow_builder = WorkflowBuilder(chat_workflow.ChatWorkflow)
         workflow = workflow_builder.workflow

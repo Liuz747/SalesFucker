@@ -8,8 +8,8 @@
 """
 
 from config import mas_config
-from core.entities import WorkflowExecutionModel
 from libs.types import OutputContent, OutputType
+from models import WorkflowExecutionModel
 from services import AssistantService, AudioService
 from utils import get_component_logger
 

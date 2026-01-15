@@ -16,11 +16,11 @@ from abc import ABC, abstractmethod
 import json
 from uuid import UUID
 
-from core.entities import WorkflowExecutionModel
 from core.memory import StorageManager
 from core.tools import get_handler
 from infra.runtimes import LLMClient, CompletionsRequest, LLMResponse, TokenUsage
 from libs.types import MessageParams, InputContent, AssistantMessage, ToolMessage
+from models import WorkflowExecutionModel
 from utils import get_component_logger
 
 
