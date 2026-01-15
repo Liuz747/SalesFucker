@@ -64,10 +64,10 @@ class MomentsAnalysisService:
 
         request = CompletionsRequest(
             id=run_id,
-            model="openai/gpt-4o",  # 使用支持视觉的模型
+            model="google/gemini-2.5-flash",
             provider="openrouter",
-            temperature=0.3,  # 较低温度确保稳定输出
-            max_tokens=10000,
+            temperature=0.3,
+            max_tokens=8000,
             messages=messages,
             output_model=output_model
         )
@@ -88,7 +88,7 @@ class MomentsAnalysisService:
         ]
         request = CompletionsRequest(
             id=run_id,
-            model="openai/gpt-5",  # 文本分析使用更经济的模型
+            model="anthropic/claude-haiku-4.5",  # 文本分析使用更经济的模型
             provider="openrouter",
             temperature=1,
             max_tokens=4000,  # 朋友圈分析通常不需要很长的回复
