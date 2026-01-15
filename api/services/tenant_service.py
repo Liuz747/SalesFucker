@@ -132,32 +132,33 @@ class TenantService:
             raise
 
     @staticmethod
-    async def delete_tenant(tenant_id: str) -> bool:
+    async def delete_tenant(tenant_id: str) -> None:
         """
         删除租户（软删除）
         
-        参数: tenant_id: 租户ID
-        
-        返回: bool: 是否删除成功
+        参数:
+            tenant_id: 租户ID
         """
         try:
             async with infra_registry.get_db_session() as session:
                 # 软删除：设置为非激活状态
-                tenant_orm = await TenantRepository.delete_tenant(tenant_id, session)
+                flag = await TenantRepository.delete_tenant(tenant_id, session)
 
-            if tenant_orm:
-                # 直接获取Redis客户端，使用连接池
-                redis_client = infra_registry.get_cached_clients().redis
-                # 异步执行缓存实际删除 - 从Redis中彻底移除
-                asyncio.create_task(TenantRepository.delete_tenant_cache(
-                    tenant_id,
-                    redis_client
-                ))
-                return True
-            else:
+            if not flag:
                 logger.error(f"租户不存在: {tenant_id}")
-                return False
+                raise TenantNotFoundException(tenant_id)
 
+            # 直接获取Redis客户端，使用连接池
+            redis_client = infra_registry.get_cached_clients().redis
+            # 异步执行缓存实际删除 - 从Redis中彻底移除
+            asyncio.create_task(TenantRepository.delete_tenant_cache(
+                tenant_id,
+                redis_client
+            ))
+
+        except TenantNotFoundException:
+            logger.error(f"租户不存在: {tenant_id}")
+            raise
         except Exception as e:
             logger.error(f"删除租户失败: {tenant_id}, 错误: {e}")
             raise

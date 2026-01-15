@@ -239,7 +239,7 @@ class ThreadRepository:
             )
 
             result = await session.execute(stmt)
-            return result.rowcount > 0
+            return result.rowcount > 0  # type: ignore
 
         except Exception as e:
             logger.error(f"更新线程状态失败: thread_id={thread_id}, status={status}, 错误: {e}")
@@ -269,7 +269,7 @@ class ThreadRepository:
             )
 
             result = await session.execute(stmt)
-            return result.rowcount > 0
+            return result.rowcount > 0  # type: ignore
 
         except Exception as e:
             logger.error(f"增加唤醒计数失败: thread_id={thread_id}, 错误: {e}")

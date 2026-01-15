@@ -64,35 +64,32 @@ class TenantRepository:
     async def update_tenant_field(tenant_id: str, value: dict, session: AsyncSession) -> bool:
         """更新租户数据库模型字段"""
         try:
-            value['updated_at'] = func.now()
             stmt = (
                 update(TenantOrm)
                 .where(TenantOrm.tenant_id == tenant_id)
-                .values(**value)
+                .values(updated_at=func.now(), **value)
             )
             result = await session.execute(stmt)
-            return result.rowcount > 0
+            return result.rowcount > 0  # type: ignore
         except Exception as e:
             logger.error(f"更新租户数据库模型字段失败: {tenant_id}, 错误: {e}")
             raise
 
     @staticmethod
-    async def delete_tenant(tenant_id: str, session: AsyncSession) -> Optional[TenantOrm]:
-        """删除租户数据库模型"""
+    async def delete_tenant(tenant_id: str, session: AsyncSession) -> bool:
+        """删除租户数据库模型（软删除）"""
         try:
-            tenant = await session.get(TenantOrm, tenant_id)
-            if not tenant:
-                return None
-
-            tenant.is_active = False
-            tenant.status = AccountStatus.CLOSED
-            tenant.updated_at = func.now()
-            await session.flush()
-            await session.refresh(tenant)
-            logger.debug(f"删除租户: {tenant_id}")
-
-            return tenant
-
+            stmt = (
+                update(TenantOrm)
+                .where(TenantOrm.tenant_id == tenant_id)
+                .values(
+                    is_active=False,
+                    status=AccountStatus.CLOSED,
+                    updated_at=func.now()
+                )
+            )
+            result = await session.execute(stmt)
+            return result.rowcount > 0  # type: ignore
         except Exception as e:
             logger.error(f"删除租户数据库模型失败: {tenant_id}, 错误: {e}")
             raise

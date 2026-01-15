@@ -11,6 +11,7 @@
 from fastapi import APIRouter
 
 from libs.exceptions import (
+    BaseHTTPException,
     TenantManagementException,
     TenantNotFoundException,
     TenantSyncException,
@@ -117,14 +118,12 @@ async def delete_tenant(tenant_id: str):
     try:
         logger.info(f"租户删除请求: {tenant_id}")
 
-        flag = await TenantService.delete_tenant(tenant_id)
-
-        if not flag:
-            logger.error(f"删除租户失败: {tenant_id}")
-            raise TenantSyncException(tenant_id, "删除租户失败")
+        await TenantService.delete_tenant(tenant_id)
 
         return BaseResponse(message="租户删除成功")
 
+    except BaseHTTPException:
+        raise
     except Exception as e:
         logger.error(f"租户删除失败 {tenant_id}: {e}", exc_info=True)
         raise TenantSyncException(tenant_id, f"租户删除失败: {str(e)}")
