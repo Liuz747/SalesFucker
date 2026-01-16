@@ -103,7 +103,7 @@ services:
       - mas-network
 
   see-u-again-api:
-    image: ${REGISTRY_URL}/see-u-again-api:test
+    image: ${REGISTRY_URL}/see-u-again-api:latest
     environment:
       <<: *shared-mas-env
       DEBUG: true
