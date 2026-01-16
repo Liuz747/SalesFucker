@@ -43,7 +43,7 @@ async def generate_thread_report(
             thread_id=thread_id,
             analysis_type="report_generation",
             provider="openrouter",
-            model="qwen/qwen-plus-2025-07-28",
+            model="qwen/qwen3-coder",
             temperature=0.7
         )
 
@@ -98,7 +98,7 @@ async def generate_thread_labels(
             thread_id=thread_id,
             analysis_type="label_generation",
             provider="openrouter",
-            model="qwen/qwen3-coder-flash",
+            model="qwen/qwen3-coder",
             temperature=0.7
         )
 
@@ -153,7 +153,7 @@ async def generate_thread_profile(
             thread_id=thread_id,
             analysis_type="profile_analysis",
             provider="openrouter",
-            model="qwen/qwen3-coder-flash",
+            model="qwen/qwen3-coder",
             temperature=0.7
         )
 
