@@ -102,6 +102,46 @@ services:
     networks:
       - mas-network
 
+  see-u-again-api:
+    image: ${REGISTRY_URL}/see-u-again-api:test
+    environment:
+      <<: *shared-mas-env
+      CALLBACK_URL: ${CALLBACK_URL_TEST}
+      DEBUG: true
+      LOG_LEVEL: DEBUG
+      SQLALCHEMY_ECHO: true
+      DB_NAME: ${DB_NAME_SUA}
+      REDIS_DB: ${REDIS_DB_SUA}
+      ES_MEMORY_INDEX: ${ELASTIC_MEMORY_INDEX_SUA}
+      TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE_SUA}
+    depends_on: *mas-depends-on
+    restart: unless-stopped
+    profiles:
+      - see-u-again
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - mas-network
+
+  see-u-again-worker:
+    image: ${REGISTRY_URL}/see-u-again-api:latest
+    environment:
+      <<: *shared-mas-env
+      MODE: worker
+      DB_NAME: ${DB_NAME_SUA}
+      REDIS_DB: ${REDIS_DB_SUA}
+      ES_MEMORY_INDEX: ${ELASTIC_MEMORY_INDEX_SUA}
+      TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE_SUA}
+    depends_on: *mas-depends-on
+    restart: unless-stopped
+    profiles:
+      - see-u-again
+    networks:
+      - mas-network
+
   langfuse-web:
     image: ${REGISTRY_URL}/frontend:latest
     depends_on: &langfuse-depends-on
