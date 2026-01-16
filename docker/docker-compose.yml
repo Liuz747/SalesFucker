@@ -106,6 +106,7 @@ services:
     image: ${REGISTRY_URL}/see-u-again-api:latest
     environment:
       <<: *shared-mas-env
+      CALLBACK_URL: ${CALLBACK_URL_SUA}
       DEBUG: true
       LOG_LEVEL: DEBUG
       SQLALCHEMY_ECHO: true
@@ -127,6 +128,7 @@ services:
     image: ${REGISTRY_URL}/see-u-again-api:latest
     environment:
       <<: *shared-mas-env
+      CALLBACK_URL: ${CALLBACK_URL_SUA}
       MODE: worker
       DB_NAME: ${DB_NAME_SUA}
       REDIS_DB: ${REDIS_DB_SUA}
