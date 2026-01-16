@@ -106,7 +106,6 @@ services:
     image: ${REGISTRY_URL}/see-u-again-api:test
     environment:
       <<: *shared-mas-env
-      CALLBACK_URL: ${CALLBACK_URL_TEST}
       DEBUG: true
       LOG_LEVEL: DEBUG
       SQLALCHEMY_ECHO: true
@@ -116,8 +115,6 @@ services:
       TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE_SUA}
     depends_on: *mas-depends-on
     restart: unless-stopped
-    profiles:
-      - see-u-again
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/v1/health"]
       interval: 30s
@@ -137,8 +134,6 @@ services:
       TEMPORAL_NAMESPACE: ${TEMPORAL_NAMESPACE_SUA}
     depends_on: *mas-depends-on
     restart: unless-stopped
-    profiles:
-      - see-u-again
     networks:
       - mas-network
 
