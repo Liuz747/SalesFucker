@@ -66,12 +66,9 @@ class IntentAgent(BaseAgent):
                 thread_id=state.thread_id
             )
 
-            # 提取用户消息用于分析
-            recent_user_messages = [msg for msg in short_term_messages if msg.role == "user"]
-
             # 步骤2: 执行统一意向分析
             intent_result = await self._analyze_intent(
-                inputs=recent_user_messages + state.input,
+                inputs=short_term_messages + state.input,
                 tenant_id=state.tenant_id,
                 thread_id=state.thread_id,
                 run_id=state.workflow_id
@@ -137,11 +134,7 @@ class IntentAgent(BaseAgent):
                     }
 
             # 步骤4: 更新对话状态
-            updated_state = self._update_state_with_intent(
-                intent_result,
-                recent_user_messages,
-                assets_data
-            )
+            updated_state = self._update_state_with_intent(intent_result, assets_data)
 
             processing_time = get_processing_time(start_time)
             logger.info(f"意向分析完成: 耗时{processing_time:.2f}s")
@@ -321,7 +314,6 @@ class IntentAgent(BaseAgent):
     def _update_state_with_intent(
         self,
         intent_result: IntentAnalysisResult,
-        recent_messages: list[Message],
         assets_data: dict | None = None
     ) -> dict:
         """
@@ -329,7 +321,6 @@ class IntentAgent(BaseAgent):
 
         Args:
             intent_result: 统一意向分析结果
-            recent_messages: 分析用的消息列表
             assets_data: 素材查询结果（可选）
 
         Returns:
@@ -353,7 +344,6 @@ class IntentAgent(BaseAgent):
             "agent_type": "analytics",
             "intent_analysis": intent_result.model_dump(),
             "business_outputs": business_outputs.model_dump(),
-            "analyzed_messages": recent_messages,
             "timestamp": intent_result.timestamp,
             "input_tokens": input_tokens,
             "output_tokens": output_tokens
