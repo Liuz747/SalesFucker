@@ -183,7 +183,7 @@ class IntentAgent(BaseAgent):
             request = CompletionsRequest(
                 id=run_id,
                 provider="openrouter",
-                model="anthropic/claude-haiku-4.5",
+                model="google/gemini-3-flash-preview",
                 messages=messages,
                 temperature=0.1,
                 max_tokens=1200

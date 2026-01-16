@@ -88,7 +88,7 @@ class MomentsAnalysisService:
         ]
         request = CompletionsRequest(
             id=run_id,
-            model="anthropic/claude-haiku-4.5",  # 文本分析使用更经济的模型
+            model="google/gemini-3-flash-preview",
             provider="openrouter",
             temperature=1,
             max_tokens=4000,  # 朋友圈分析通常不需要很长的回复

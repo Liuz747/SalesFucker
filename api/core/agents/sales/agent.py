@@ -147,7 +147,7 @@ class SalesAgent(BaseAgent):
                 id=run_id,
                 provider="openrouter",
                 max_tokens=10000,
-                model="anthropic/claude-haiku-4.5",
+                model="google/gemini-3-flash-preview",
                 temperature=0.6,
                 messages=messages,
                 tools=get_tools_schema([long_term_memory_tool, store_episodic_memory_tool]),
@@ -302,4 +302,4 @@ class SalesAgent(BaseAgent):
         elif "积极" in tone or "热情" in tone:
             return "太好了！"
         else:
-            return "感谢您的咨询。"
+            return "稍等稍等"

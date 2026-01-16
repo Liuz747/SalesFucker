@@ -82,7 +82,7 @@ class ThreadAwakeningWorkflow:
                 "stats": stats
             }
 
-        model = "anthropic/claude-haiku-4.5"
+        model = "google/gemini-3-flash-preview"
         provider = "openrouter"
         temperature = 0.8
         max_tokens = 1024
