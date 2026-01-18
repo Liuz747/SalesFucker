@@ -26,6 +26,7 @@ from models import AssistantModel
 from repositories import AssistantRepository
 from schemas import AssistantCreateRequest, AssistantUpdateRequest
 from utils import get_component_logger
+from .audio_service import AudioService
 
 logger = get_component_logger(__name__, "AssistantService")
 
@@ -80,8 +81,6 @@ class AssistantService:
             # 5. 处理语音克隆（如果提供了音频URL和voice_id）
             if created_assistant.voice_file and created_assistant.voice_id:
                 try:
-                    from services.audio_service import AudioService
-
                     # 克隆并激活声音（voice_file应该是音频文件的URL）
                     clone_result = await AudioService.clone_and_activate_voice(
                         voice_file=created_assistant.voice_file,
@@ -168,6 +167,15 @@ class AssistantService:
 
                 if assistant_orm.tenant_id != tenant_id:
                     raise TenantValidationException(tenant_id, reason=f"助理不属于当前租户")
+
+                if request.voice_file and request.voice_id:
+                    # 克隆并激活声音（voice_file应该是音频文件的URL）
+                    clone_result = await AudioService.clone_and_activate_voice(
+                        voice_file=request.voice_file,
+                        voice_id=request.voice_id,
+                        demo_text="你好，我是你的AI助理。"
+                    )
+                    logger.info(f"声音克隆并激活成功: {clone_result}")
 
                 # 仅更新用户提供的字段
                 update_data = request.model_dump(exclude_unset=True)
