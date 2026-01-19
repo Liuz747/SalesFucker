@@ -8,24 +8,24 @@ import json
 
 import openai
 from openai.types.chat import (
-    ChatCompletionMessageParam,
+    ChatCompletionAssistantMessageParam,
     ChatCompletionContentPartParam,
     ChatCompletionContentPartTextParam,
     ChatCompletionContentPartImageParam,
-    ChatCompletionUserMessageParam,
-    ChatCompletionAssistantMessageParam,
+    ChatCompletionMessageParam,
+    ChatCompletionUserMessageParam
 )
 from pydantic import ValidationError
 
 from utils import get_component_logger
 from .base import BaseProvider
 from ..entities import (
+    CompletionsRequest,
     LLMResponse,
     Provider,
-    CompletionsRequest,
     ResponseMessageRequest,
-    ToolCallData,
-    TokenUsage
+    TokenUsage,
+    ToolCallData
 )
 
 logger = get_component_logger(__name__, "OpenAIProvider")

@@ -29,9 +29,9 @@ class LLMClient:
         self.config = config
         self.active_providers: dict[str, BaseProvider] = {}
         # self.router = SimpleRouter(config.routing_config)
-        self._load_providers()
+        self._dispatch_providers()
 
-    def _load_providers(self):
+    def _dispatch_providers(self):
         """初始化已启用的供应商"""
         for provider in self.config.providers:
             if provider.enabled:
