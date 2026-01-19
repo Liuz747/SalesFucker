@@ -4,11 +4,17 @@ OpenAI供应商实现
 提供OpenAI GPT系列模型的调用功能，支持函数调用（Function Calling）。
 """
 
-from collections.abc import Sequence
 import json
 
 import openai
-from openai.types.chat import ChatCompletionMessageParam, ChatCompletionContentPartParam
+from openai.types.chat import (
+    ChatCompletionMessageParam,
+    ChatCompletionContentPartParam,
+    ChatCompletionContentPartTextParam,
+    ChatCompletionContentPartImageParam,
+    ChatCompletionUserMessageParam,
+    ChatCompletionAssistantMessageParam,
+)
 from pydantic import ValidationError
 
 from utils import get_component_logger
@@ -41,7 +47,7 @@ class OpenAIProvider(BaseProvider):
             base_url=provider.base_url
         )
 
-    def _format_message_content(self, content) -> Sequence:
+    def _format_message_content(self, content) -> str | list[ChatCompletionContentPartParam]:
         """
         将通用content格式转换为OpenAI特定格式
 
@@ -49,7 +55,7 @@ class OpenAIProvider(BaseProvider):
             content: str（纯文本）或 Sequence[InputContent]（多模态）
 
         返回:
-            str 或 list[dict]: OpenAI API所需格式
+            str 或 list[ChatCompletionContentPartParam]: OpenAI API所需格式
         """
         if isinstance(content, str):
             return content
@@ -57,16 +63,23 @@ class OpenAIProvider(BaseProvider):
         # 将InputContent序列转换为OpenAI要求的字段
         formatted: list[ChatCompletionContentPartParam] = []
         for item in content:
-            if item.type == "text":
-                formatted.append({"type": item.type, "text": item.content})
-            elif item.type == "input_image":
-                formatted.append({
-                    "type": "image_url",
-                    "image_url": {"url": item.content}
-                })
+            match item.type:
+                case "text":
+                    text_part: ChatCompletionContentPartTextParam = {
+                        "type": "text",
+                        "text": item.content
+                    }
+                    formatted.append(text_part)
+                case "input_image":
+                    image_part: ChatCompletionContentPartImageParam = {
+                        "type": "image_url",
+                        "image_url": {"url": item.content}
+                    }
+                    formatted.append(image_part)
         return formatted
 
-    def _parse_tool_calls(self, message) -> list[ToolCallData] | None:
+    @staticmethod
+    def _parse_tool_calls(message) -> list[ToolCallData] | None:
         """
         解析 OpenAI 响应中的工具调用
 
@@ -108,24 +121,31 @@ class OpenAIProvider(BaseProvider):
         # 构建包含历史记录的对话上下文并处理多模态内容
         messages: list[ChatCompletionMessageParam] = []
         for m in request.messages:
-            if m.role in ("user", "assistant"):
-                msg = {
-                    "role": m.role,
-                    "content": self._format_message_content(m.content) if m.content else None
-                }
-                if getattr(m, "tool_calls", None):
-                    msg["tool_calls"] = m.tool_calls
-                messages.append(msg)
-            else:
-                messages.append(m.model_dump())
+            match m.role:
+                case "user":
+                    user_msg: ChatCompletionUserMessageParam = {
+                        "role": "user",
+                        "content": self._format_message_content(m.content)
+                    }
+                    messages.append(user_msg)
+                case "assistant":
+                    assistant_msg: ChatCompletionAssistantMessageParam = {
+                        "role": "assistant",
+                        "content": self._format_message_content(m.content) if m.content else None
+                    }
+                    if getattr(m, "tool_calls", None):
+                        assistant_msg["tool_calls"] = m.tool_calls
+                    messages.append(assistant_msg)
+                case _:
+                    messages.append(m.model_dump())
 
         response = await self.client.chat.completions.create(
-            model=request.model or "gpt-4o-mini",
+            model=request.model,
             messages=messages,
             temperature=request.temperature,
             max_completion_tokens=request.max_tokens,
-            tools=request.tools,
-            tool_choice=request.tool_choice
+            tools=[tool.to_openai_tool() for tool in request.tools] if request.tools else None,
+            tool_choice=request.tool_choice if request.tool_choice else None
         )
 
         message = response.choices[0].message
@@ -205,7 +225,7 @@ class OpenAIProvider(BaseProvider):
                 logger.error(f"JSON解析失败。内容长度: {len(content_str)}, 前200字符: {content_str[:200]}")
                 raise ValueError(f"LLM返回的不是有效的JSON: {e}. 内容: {content_str[:200]}")
             except ValidationError as e:
-                logger.error(f"Pydantic验证失败。解析后的数据: {parsed_data}")
+                logger.error(f"Pydantic验证失败。")
                 raise ValueError(f"LLM返回的JSON不符合预期格式: {e}")
         else:
             # 原生OpenAI方式：使用.parse()
@@ -301,7 +321,8 @@ class OpenAIProvider(BaseProvider):
         return llm_response
 
 
-    def _calculate_cost(self, usage, model: str) -> float:
+    @staticmethod
+    def _calculate_cost(usage, model: str) -> float:
         """
         计算OpenAI请求成本
 

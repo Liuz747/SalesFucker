@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from typing import Any
+
+from openai.types.chat import ChatCompletionToolParam
 
 
 @dataclass
@@ -16,7 +17,7 @@ class ToolDefinition:
     description: str
     arguments: list[ToolArgument]
 
-    def to_openai_tool(self) -> dict[str, Any]:
+    def to_openai_tool(self) -> ChatCompletionToolParam:
         """转换为 OpenAI function calling 格式"""
         properties = {}
         required = []
@@ -36,7 +37,7 @@ class ToolDefinition:
             if arg.required:
                 required.append(arg.name)
 
-        return {
+        tool: ChatCompletionToolParam = {
             "type": "function",
             "function": {
                 "name": self.name,
@@ -48,6 +49,8 @@ class ToolDefinition:
                 },
             },
         }
+
+        return tool
 
 
 @dataclass

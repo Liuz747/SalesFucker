@@ -5,7 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-from libs.types import MessageParams
+from libs.types import MessageParams, ToolDefinition
 
 
 @dataclass
@@ -34,7 +34,7 @@ class ResponseMessageRequest(LLMRequest):
 @dataclass(kw_only=True)
 class CompletionsRequest(LLMRequest):
     messages: MessageParams
-    tools: list[dict[str, Any]] | None = None
+    tools: list[ToolDefinition] | None = None
     tool_choice: Literal["auto", "required", "none"] | None = None
 
 

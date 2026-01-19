@@ -2,7 +2,7 @@ from uuid import UUID
 
 from core.agents import BaseAgent
 from core.prompts.template_loader import get_prompt_template
-from core.tools import get_tools_schema, long_term_memory_tool, store_episodic_memory_tool
+from core.tools import long_term_memory_tool, store_episodic_memory_tool
 from infra.runtimes import CompletionsRequest
 from libs.exceptions import AssistantInactiveException
 from libs.types import AccountStatus, Message, MessageParams
@@ -150,7 +150,7 @@ class SalesAgent(BaseAgent):
                 model="google/gemini-3-flash-preview",
                 temperature=0.6,
                 messages=messages,
-                tools=get_tools_schema([long_term_memory_tool, store_episodic_memory_tool]),
+                tools=[long_term_memory_tool, store_episodic_memory_tool],
                 tool_choice="auto"
             )
 

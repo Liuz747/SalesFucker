@@ -7,8 +7,8 @@
 from collections.abc import Callable
 from typing import Any
 
+from libs.types import ToolArgument, ToolDefinition
 from utils import get_component_logger
-from .entities import ToolArgument, ToolDefinition
 from .search_context import search_conversation_context
 from .store_episodic import store_episodic_memory
 
@@ -89,15 +89,3 @@ def get_handler(tool_name: str) -> Callable:
         raise ValueError(f"未知工具: {tool_name}")
 
     return TOOL_HANDLERS[tool_name]
-
-
-def get_tools_schema(tools: list[ToolDefinition]) -> list[dict[str, Any]]:
-    """将工具定义列表转换为 OpenAI API 格式的 schema。
-
-    Args:
-        tools: 工具定义列表
-
-    Returns:
-        OpenAI tools 格式的列表
-    """
-    return [tool.to_openai_tool() for tool in tools]

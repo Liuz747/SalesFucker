@@ -28,11 +28,17 @@ from .social_media_types import (
     TextBeautifyActionType
 )
 from .thread_status import ThreadStatus
+from .tool_types import (
+    ToolArgument,
+    ToolDefinition,
+    AgentGoal
+)
 from .trigger_event import EventType
 
 
 __all__ = [
     "AccountStatus",
+    "AgentGoal",
     "AgentNodeType",
     "EventType",
     "InfraClients",
@@ -55,6 +61,8 @@ __all__ = [
     "AssistantMessage",
     "SystemMessage",
     "ThreadStatus",
-    "ToolMessage",
-    "ToolCall"
+    "ToolArgument",
+    "ToolCall",
+    "ToolDefinition",
+    "ToolMessage"
 ]
