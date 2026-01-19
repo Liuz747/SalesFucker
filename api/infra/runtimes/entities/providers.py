@@ -8,6 +8,8 @@ class ProviderType(StrEnum):
     OPENAI = "openai"
     ANTHROPIC = "anthropic"
     GEMINI = "gemini"
+    DASHSCOPE = "dashscope"
+    OPENROUTER = "openrouter"
 
 
 @dataclass
@@ -18,4 +20,3 @@ class Provider:
     api_key: str
     base_url: Optional[str] = None
     models: list[Model] = None
-    enabled: bool = True

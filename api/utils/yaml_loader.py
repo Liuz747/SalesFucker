@@ -10,7 +10,7 @@ from typing import Any
 import yaml
 
 
-def load_yaml_file(file_path: str | Path) -> dict[str, Any]:
+def load_yaml_file(file_path: str | Path) -> Any:
     """
     加载YAML文件
 
@@ -18,7 +18,7 @@ def load_yaml_file(file_path: str | Path) -> dict[str, Any]:
         file_path: YAML文件路径
 
     返回:
-        dict[str, Any]: 解析后的YAML内容
+        Any: 解析后的YAML内容
     """
     if isinstance(file_path, str):
         file_path = Path(file_path)

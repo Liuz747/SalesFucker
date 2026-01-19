@@ -17,4 +17,3 @@ class Model:
     provider: str
     name: str
     type: Optional[ModelType]
-    enabled: bool = True
