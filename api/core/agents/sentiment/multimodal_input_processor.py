@@ -1,37 +1,24 @@
-"""
-多模态输入处理器 - 简化版本
-
-直接使用LLM的多模态能力处理不同类型的输入，
-将复杂的预处理逻辑简化为直接的LLM调用。
-
-核心功能:
-- 支持 Sequence[InputContent] 多模态输入
-- 直接利用LLM原生多模态能力
-- 将多模态内容转换为纯文字
-- 提供简洁的处理结果
-"""
-
 from collections.abc import Sequence
 from typing import Any
 from uuid import uuid4
 
-from infra.runtimes import LLMClient, CompletionsRequest
+from infra.runtimes import CompletionsRequest
 from libs.types import InputContentParams, InputContent, InputType, Message, MessageParams
 from utils import get_component_logger
 
 logger = get_component_logger(__name__)
 
 
-class MultimodalInputProcessor():
+class MultimodalInputProcessor:
     """
-    简化的多模态输入处理器
+    多模态输入处理器
 
-    直接使用LLM的多模态能力，避免复杂的预处理管道。
+    直接使用LLM的多模态能力处理不同类型的输入，
+    将复杂的预处理逻辑简化为直接的LLM调用。
     """
 
-    def __init__(self, tenant_id: str = None):
-        self.tenant_id = tenant_id
-        self.llm_client = LLMClient()
+    def __init__(self, client):
+        self.llm_client = client
 
     async def process_input(self, customer_input: MessageParams) -> tuple[str, dict[str, Any]]:
         """
@@ -169,7 +156,7 @@ class MultimodalInputProcessor():
                     url_data = msg["image_url"]
                     url = url_data["url"] if isinstance(url_data, dict) else url_data
                     content_list.append(InputContent(type=InputType.IMAGE, content=url))
-            
+
             if not content_list:
                 return ""
 
@@ -191,7 +178,7 @@ class MultimodalInputProcessor():
             # 4. 发送请求
             request = CompletionsRequest(
                 id=uuid4(),
-                model="openai/gpt-4o",  # 使用支持视觉的模型
+                model="google/gemini-3-flash-preview",
                 provider="openrouter",
                 temperature=0.5,
                 messages=llm_messages
@@ -199,11 +186,11 @@ class MultimodalInputProcessor():
 
             logger.info(f"调用多模态LLM进行图片分析: {len(content_list)}个内容项")
             response = await self.llm_client.completions(request)
-            
+
             # 5. 处理响应
             content = response.content
             result_text = content.get("content", "") if isinstance(content, dict) else str(content)
-            
+
             logger.info(f"图片分析完成，描述长度: {len(result_text)}")
             return result_text
 
@@ -219,7 +206,8 @@ class MultimodalInputProcessor():
                     text_parts.append(f"[图片: {url}]")
             return " ".join(text_parts)
 
-    def _extract_fallback_text(self, input_sequence: Sequence[InputContent]) -> str:
+    @staticmethod
+    def _extract_fallback_text(input_sequence: Sequence[InputContent]) -> str:
         """降级文本提取"""
         text_parts = []
         for item in input_sequence:

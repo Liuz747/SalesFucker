@@ -117,7 +117,8 @@ class SocialMediaPublicTrafficService:
 
         await redis_client.set(cache_key, prompt, ex=mas_config.REDIS_TTL)
 
-    def build_comment_prompt(self, request: CommentGenerationRequest) -> str:
+    @staticmethod
+    def build_comment_prompt(request: CommentGenerationRequest) -> str:
         """构建评论生成提示词"""
         prompt_type_label = "固定文案" if request.comment_type else "风格"
         prompt_content = request.comment_prompt or "无"
@@ -131,7 +132,8 @@ class SocialMediaPublicTrafficService:
             f"目标作品内容: {request.task.product_content}"
         )
 
-    def build_reply_prompt(self, request: ReplyGenerationRequest) -> str:
+    @staticmethod
+    def build_reply_prompt(request: ReplyGenerationRequest) -> str:
         """构建回复生成提示词"""
         task_descriptions = []
         for idx, task in enumerate(request.task_list, 1):
@@ -153,7 +155,8 @@ class SocialMediaPublicTrafficService:
             f"重要：请务必返回{len(request.task_list)}个任务，每个任务对应上面的一条评论，保持ID一致。"
         )
 
-    def build_keywords_prompt(self, request: KeywordSummaryRequest) -> str:
+    @staticmethod
+    def build_keywords_prompt(request: KeywordSummaryRequest) -> str:
         """构建关键词摘要提示词"""
         existing_keywords = ', '.join(request.existing_keywords) if request.existing_keywords else '无'
 
@@ -164,7 +167,8 @@ class SocialMediaPublicTrafficService:
             f"期望生成数量: {request.expecting_count}"
         )
 
-    def build_chat_prompt(self, request: ChatGenerationRequest) -> str:
+    @staticmethod
+    def build_chat_prompt(request: ChatGenerationRequest) -> str:
         """构建私聊回复提示词"""
         prompt_type_label = "固定文案" if request.comment_type else "风格"
         prompt_content = request.chat_prompt or "无"
@@ -178,7 +182,8 @@ class SocialMediaPublicTrafficService:
             f"用户消息: {request.content}"
         )
 
-    def build_text_beautify_prompt(self, request: TextBeautifyRequest) -> str:
+    @staticmethod
+    def build_text_beautify_prompt(request: TextBeautifyRequest) -> str:
         """构建文本美化提示词"""
         action_desc = "缩写" if request.action_type == TextBeautifyActionType.COMPRESS else "扩写"
         style_desc = request.style or "专业、简洁、易读"
@@ -254,7 +259,8 @@ class SocialMediaPublicTrafficService:
                 action_type=request.action_type
             )
 
-    def _parse_beautify_response(self, response: str, expected_count: int) -> list[str]:
+    @staticmethod
+    def _parse_beautify_response(response: str, expected_count: int) -> list[str]:
         """解析LLM响应为多个美化文本"""
         # 尝试按数字编号分割
         import re

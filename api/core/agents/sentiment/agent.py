@@ -42,7 +42,7 @@ class SentimentAnalysisAgent(BaseAgent):
         self.prompt_matcher = PromptMatcher()
 
         # 初始化核心组件
-        self.input_processor = MultimodalInputProcessor(tenant_id=getattr(self, 'tenant_id', None))
+        self.input_processor = MultimodalInputProcessor(self.llm_client)
 
         self.sentiment_analyzer = SentimentAnalyzer(
             llm_provider="openrouter",
