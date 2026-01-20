@@ -9,7 +9,7 @@ LLM客户端
 from utils import get_component_logger
 from .config import LLMConfig
 from .entities import LLMResponse, ProviderType, CompletionsRequest, ResponseMessageRequest
-from .providers import OpenAIProvider, AnthropicProvider, BaseProvider
+from .providers import AnthropicProvider, BaseProvider, OpenAIProvider
 
 logger = get_component_logger(__name__, "LLMClient")
 
@@ -44,6 +44,25 @@ class LLMClient:
                 else:
                     raise Exception(f"不支持的供应商类型: {provider.type}")
 
+    def _get_provider(self, provider_id: str, model_id: str) -> BaseProvider:
+        """
+        获取并验证供应商
+
+        参数:
+            provider_id: 供应商ID
+
+        返回:
+            BaseProvider: 供应商实例
+        """
+        provider_id = provider_id.lower()
+
+        if provider_id not in self.active_providers:
+            raise ValueError(f"指定的供应商不可用: {provider_id}")
+
+        provider = self.active_providers[provider_id]
+
+        return provider
+
     async def completions(self, request: CompletionsRequest) -> LLMResponse:
         """
         主要聊天接口
@@ -54,15 +73,8 @@ class LLMClient:
         返回:
             LLMResponse: LLM响应对象
         """
-        provider_id = request.provider.lower()
+        provider = self._get_provider(request.provider, request.model)
 
-        # 检查供应商是否可用
-        if provider_id not in self.active_providers:
-            raise ValueError(f"指定的供应商不可用: {request.provider}")
-
-        provider = self.active_providers[provider_id]
-
-        # 发送请求
         try:
             if request.output_model:
                 return await provider.completions_structured(request)
@@ -71,7 +83,7 @@ class LLMClient:
         except NotImplementedError:
             raise
         except Exception as e:
-            logger.error(f"供应商 {provider_id} 调用失败: {str(e)}")
+            logger.error(f"供应商 {request.provider} 调用失败: {str(e)}")
             raise
 
     async def responses(self, request: ResponseMessageRequest) -> LLMResponse:
@@ -91,13 +103,7 @@ class LLMClient:
             ValueError: 当供应商不可用时
             NotImplementedError: 当供应商不支持 Responses API 时
         """
-        provider_id = request.provider.lower()
-
-        # 检查供应商是否可用
-        if provider_id not in self.active_providers:
-            raise ValueError(f"指定的供应商不可用: {request.provider}")
-
-        provider = self.active_providers[provider_id]
+        provider = self._get_provider(request.provider, request.model)
 
         try:
             if request.output_model:
@@ -107,5 +113,5 @@ class LLMClient:
         except NotImplementedError:
             raise
         except Exception as e:
-            logger.error(f"供应商 {provider_id} 调用失败: {str(e)}")
+            logger.error(f"供应商 {request.provider} 调用失败: {str(e)}")
             raise
