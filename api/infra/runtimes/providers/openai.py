@@ -38,7 +38,7 @@ class OpenAIProvider(BaseProvider):
         """
         初始化OpenAI供应商
 
-        参数:
+        Args:
             provider: OpenAI配置
         """
         super().__init__(provider)
@@ -51,11 +51,11 @@ class OpenAIProvider(BaseProvider):
         """
         将通用content格式转换为OpenAI特定格式
 
-        参数:
+        Args:
             content: str（纯文本）或 Sequence[InputContent]（多模态）
 
-        返回:
-            str 或 list[ChatCompletionContentPartParam]: OpenAI API所需格式
+        Returns:
+            str 或 list[ChatCompletionContentPartParam]: OpenAI API所需的content格式
         """
         if isinstance(content, str):
             return content
@@ -78,15 +78,49 @@ class OpenAIProvider(BaseProvider):
                     formatted.append(image_part)
         return formatted
 
+    def _format_messages(self, messages) -> list[ChatCompletionMessageParam]:
+        """
+        将通用消息列表转换为OpenAI特定格式
+
+        Args:
+            messages: MessageParams（消息列表）
+
+        Returns:
+            list[ChatCompletionMessageParam]: OpenAI API所需的消息格式
+        """
+        formatted_messages: list[ChatCompletionMessageParam] = []
+        for m in messages:
+            match m.role:
+                case "user":
+                    user_msg: ChatCompletionUserMessageParam = {
+                        "role": "user",
+                        "content": self._format_message_content(m.content)
+                    }
+                    formatted_messages.append(user_msg)
+
+                case "assistant":
+                    assistant_msg: ChatCompletionAssistantMessageParam = {
+                        "role": "assistant",
+                        "content": self._format_message_content(m.content) if m.content else None
+                    }
+                    if getattr(m, "tool_calls", None):
+                        assistant_msg["tool_calls"] = m.tool_calls
+                    formatted_messages.append(assistant_msg)
+
+                case _:
+                    formatted_messages.append(m.model_dump())
+
+        return formatted_messages
+
     @staticmethod
     def _parse_tool_calls(message) -> list[ToolCallData] | None:
         """
         解析 OpenAI 响应中的工具调用
 
-        参数:
+        Args:
             message: OpenAI ChatCompletionMessage
 
-        返回:
+        Returns:
             list[ToolCallData] | None: 解析后的工具调用列表
         """
         if not message.tool_calls:
@@ -112,32 +146,14 @@ class OpenAIProvider(BaseProvider):
         """
         发送聊天请求到OpenAI
 
-        参数:
+        Args:
             request: LLM请求
 
-        返回:
+        Returns:
             LLMResponse: OpenAI响应
         """
         # 构建包含历史记录的对话上下文并处理多模态内容
-        messages: list[ChatCompletionMessageParam] = []
-        for m in request.messages:
-            match m.role:
-                case "user":
-                    user_msg: ChatCompletionUserMessageParam = {
-                        "role": "user",
-                        "content": self._format_message_content(m.content)
-                    }
-                    messages.append(user_msg)
-                case "assistant":
-                    assistant_msg: ChatCompletionAssistantMessageParam = {
-                        "role": "assistant",
-                        "content": self._format_message_content(m.content) if m.content else None
-                    }
-                    if getattr(m, "tool_calls", None):
-                        assistant_msg["tool_calls"] = m.tool_calls
-                    messages.append(assistant_msg)
-                case _:
-                    messages.append(m.model_dump())
+        messages = self._format_messages(request.messages)
 
         response = await self.client.chat.completions.create(
             model=request.model,
@@ -171,25 +187,14 @@ class OpenAIProvider(BaseProvider):
         """
         发送结构化聊天请求到OpenAI或OpenRouter
 
-        参数:
+        Args:
             request: LLM请求
 
-        返回:
+        Returns:
             LLMResponse: OpenAI响应
         """
         # 构建包含历史记录的对话上下文并处理多模态内容
-        messages: list[ChatCompletionMessageParam] = []
-        for m in request.messages:
-            if m.role in ("user", "assistant"):
-                msg = {
-                    "role": m.role,
-                    "content": self._format_message_content(m.content) if m.content else None
-                }
-                if getattr(m, "tool_calls", None):
-                    msg["tool_calls"] = m.tool_calls
-                messages.append(msg)
-            else:
-                messages.append(m.model_dump())
+        messages = self._format_messages(request.messages)
 
         # 为OpenRouter使用JSON schema格式，为原生OpenAI使用.parse()
         if request.provider == "openrouter" and not request.model.startswith("openai/"):
@@ -253,6 +258,7 @@ class OpenAIProvider(BaseProvider):
         )
 
         return llm_response
+
     async def responses(self, request: ResponseMessageRequest) -> LLMResponse:
         """
         调用OpenAI Responses API获取回复内容。
@@ -289,10 +295,10 @@ class OpenAIProvider(BaseProvider):
         通过Pydantic模型定义输出结构,实现类型安全和数据验证。
         适用于需要可靠结构化数据的场景,如数据提取、表单填充等。
 
-        参数:
+        Args:
             request: ResponseMessageRequest请求对象,必须包含output_model (Pydantic BaseModel类型)
 
-        返回:
+        Returns:
             LLMResponse: 统一的LLM响应对象,content字段包含解析后的Pydantic对象
         """
 
@@ -326,11 +332,11 @@ class OpenAIProvider(BaseProvider):
         """
         计算OpenAI请求成本
 
-        参数:
+        Args:
             usage: 令牌使用情况
             model: 模型名称
 
-        返回:
+        Returns:
             float: 请求成本(美元)
         """
         # 简单成本计算

@@ -21,8 +21,8 @@ class AnthropicProvider(BaseProvider):
         """
         初始化Anthropic供应商
         
-        参数:
-            config: Anthropic配置
+        Args:
+            provider: Anthropic配置
         """
         super().__init__(provider)
         self.client = anthropic.AsyncAnthropic(
@@ -30,15 +30,15 @@ class AnthropicProvider(BaseProvider):
             base_url=provider.base_url
         )
 
-    def _format_message_content(self, content) -> Any:
+    def _format_message_content(self, content) -> str | list[dict]:
         """
         将通用content格式转换为Anthropic特定格式
 
-        参数:
-            content: str（纯文本）或 Sequence[InputContent]（多模态）
+        Args:
+            content: InputContentParams
 
-        返回:
-            str 或 list[dict]: Anthropic API所需格式
+        Returns:
+            str 或 list[dict]: Anthropic API所需的content格式
         """
         if isinstance(content, str):
             return content
@@ -55,22 +55,37 @@ class AnthropicProvider(BaseProvider):
                 })
         return formatted
 
+    def _format_messages(self, messages) -> list[MessageParam]:
+        """
+        将通用消息列表转换为Anthropic特定格式
+
+        Args:
+            messages: MessageParams（消息列表）
+
+        Returns:
+            list[MessageParam]: Anthropic API所需的消息格式
+        """
+        formatted_messages: list[MessageParam] = []
+        for message in messages:
+            if message.role != "tool" and message.role != "system" and message.content:
+                formatted_content = self._format_message_content(message.content)
+                formatted_message = MessageParam(role=message.role, content=formatted_content)
+                formatted_messages.append(formatted_message)
+
+        return formatted_messages
+
     async def completions(self, request: CompletionsRequest) -> LLMResponse:
         """
         发送聊天请求到Anthropic
 
-        参数:
+        Args:
             request: LLM请求
 
-        返回:
+        Returns:
             LLMResponse: Anthropic响应
         """
         # 构建包含历史记录的对话上下文并处理多模态内容
-        messages: list[MessageParam] = []
-        for message in request.messages:
-            if message.content:
-                message.content = self._format_message_content(message.content)
-            messages.append(message)
+        messages = self._format_messages(request.messages)
 
         response = await self.client.messages.create(
             model=request.model or "claude-3-5-sonnet-20241022",
@@ -93,15 +108,16 @@ class AnthropicProvider(BaseProvider):
 
         return llm_response
 
-    def _calculate_cost(self, usage, model: str) -> float:
+    @staticmethod
+    def _calculate_cost(usage, model: str) -> float:
         """
         计算Anthropic请求成本
         
-        参数:
+        Args:
             usage: 令牌使用情况
             model: 模型名称
             
-        返回:
+        Returns:
             float: 请求成本(美元)
         """
         # Anthropic简单成本计算

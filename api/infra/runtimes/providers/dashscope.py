@@ -43,10 +43,10 @@ class DashScopeProvider(BaseProvider):
         将通用content格式转换为DashScope特定格式
 
         Args:
-            content: str（纯文本）或 Sequence[InputContent]（多模态）
+            content: InputContentParams
 
         Returns:
-            str 或 list[dict]: DashScope API所需格式
+            str 或 list[dict]: DashScope API所需的content格式
         """
         if isinstance(content, str):
             return content
@@ -59,6 +59,27 @@ class DashScopeProvider(BaseProvider):
             elif item.type == "input_image":
                 formatted.append({"image": item.content})
         return formatted
+
+    def _format_messages(self, messages: MessageParams) -> list[dict[str, Any]]:
+        """
+        将通用消息列表转换为DashScope特定格式
+
+        Args:
+            messages: MessageParams（消息列表）
+
+        Returns:
+            list[dict]: DashScope API所需的消息格式
+        """
+        formatted_messages: list[dict[str, Any]] = []
+        for m in messages:
+            formatted_content = self._format_message_content(m.content) if m.content else ""
+            message = {
+                "role": m.role,
+                "content": formatted_content
+            }
+            formatted_messages.append(message)
+
+        return formatted_messages
 
     @staticmethod
     def _has_multimodal_input(messages: MessageParams) -> bool:
@@ -144,13 +165,7 @@ class DashScopeProvider(BaseProvider):
             GenerationResponse: DashScope响应对象
         """
         # 构建消息列表
-        messages = []
-        for m in request.messages:
-            message = {
-                "role": m.role,
-                "content": self._format_message_content(m.content) if m.content else ""
-            }
-            messages.append(message)
+        messages = self._format_messages(request.messages)
 
         try:
             return await AioGeneration.call(
@@ -177,13 +192,7 @@ class DashScopeProvider(BaseProvider):
             MultiModalConversationResponse: DashScope响应对象
         """
         # 构建消息列表
-        messages = []
-        for m in request.messages:
-            message = {
-                "role": m.role,
-                "content": self._format_message_content(m.content) if m.content else ""
-            }
-            messages.append(message)
+        messages = self._format_messages(request.messages)
 
         try:
             return await AioMultiModalConversation.call(
