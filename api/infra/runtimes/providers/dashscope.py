@@ -113,60 +113,71 @@ class DashScopeProvider(BaseProvider):
         Returns:
             LLMResponse: DashScope响应
         """
-        # 根据请求类型选择合适的API调用方法
-        if self._has_multimodal_input(request.messages):
-            logger.info("检测到多模态内容，使用多模态API")
-            response = await self._call_multimodal_api(request)
-        else:
-            logger.info("纯文本请求，使用通用文本API")
-            response = await self._call_text_api(request)
+        try:
+            formatted_messages = self._format_messages(request.messages)
 
-        # 统一处理响应
-        if response.status_code != 200:
-            error_msg = f"DashScope API错误: {response.code} - {response.message}"
-            logger.error(error_msg)
-            raise ValueError(error_msg)
+            # 根据请求类型选择合适的API调用方法
+            if self._has_multimodal_input(request.messages):
+                logger.info("检测到多模态内容，使用多模态API")
+                response = await self._call_multimodal_api(request, formatted_messages)
+            else:
+                logger.info("纯文本请求，使用通用文本API")
+                response = await self._call_text_api(request, formatted_messages)
 
-        # 提取消息内容
-        message = response.output.choices[0].message
-        content = message.content
+            # 统一处理响应
+            if response.status_code != 200:
+                error_msg = f"DashScope API错误: {response.code} - {response.message}"
+                logger.error(error_msg)
+                raise ValueError(error_msg)
 
-        # 处理多模态响应中的列表格式内容
-        if isinstance(content, list):
-            # 提取第一个文本内容
-            for item in content:
-                if "text" in item:
-                    content = item["text"]
-                    break
+            # 提取消息内容
+            message = response.output.choices[0].message
+            content = message.content
 
-        # 提取token使用情况
-        token_usage = TokenUsage(
-            input_tokens=response.usage.input_tokens if response.usage else 0,
-            output_tokens=response.usage.output_tokens if response.usage else 0
-        )
+            # 处理多模态响应中的列表格式内容
+            if isinstance(content, list):
+                # 提取第一个文本内容
+                for item in content:
+                    if "text" in item:
+                        content = item["text"]
+                        break
 
-        return LLMResponse(
-            id=request.id,
-            content=content,
-            provider=request.provider,
-            model=request.model,
-            usage=token_usage,
-            finish_reason=response.output.choices[0].finish_reason
-        )
+            # 提取token使用情况
+            token_usage = TokenUsage(
+                input_tokens=response.usage.input_tokens if response.usage else 0,
+                output_tokens=response.usage.output_tokens if response.usage else 0
+            )
 
-    async def _call_text_api(self, request: CompletionsRequest) -> GenerationResponse:
+            return LLMResponse(
+                id=request.id,
+                content=content,
+                provider=request.provider,
+                model=request.model,
+                usage=token_usage,
+                finish_reason=response.output.choices[0].finish_reason
+            )
+
+        except ValueError:
+            raise
+        except Exception as e:
+            logger.error(f"DashScope completions调用失败: {str(e)}")
+            raise
+
+    @staticmethod
+    async def _call_text_api(
+        request: CompletionsRequest,
+        messages: list[dict[str, Any]]
+    ) -> GenerationResponse:
         """
         调用DashScope纯文本API
 
         Args:
             request: LLM请求（仅包含文本内容）
+            messages: 已格式化的消息列表
 
         Returns:
             GenerationResponse: DashScope响应对象
         """
-        # 构建消息列表
-        messages = self._format_messages(request.messages)
-
         try:
             return await AioGeneration.call(
                 model=request.model,
@@ -181,19 +192,21 @@ class DashScopeProvider(BaseProvider):
             logger.error(f"DashScope文本API调用失败: {str(e)}")
             raise
 
-    async def _call_multimodal_api(self, request: CompletionsRequest) -> MultiModalConversationResponse:
+    @staticmethod
+    async def _call_multimodal_api(
+        request: CompletionsRequest,
+        messages: list[dict[str, Any]]
+    ) -> MultiModalConversationResponse:
         """
         调用DashScope多模态API
 
         Args:
             request: LLM请求（包含图像、音频等多模态内容）
+            messages: 已格式化的消息列表
 
         Returns:
             MultiModalConversationResponse: DashScope响应对象
         """
-        # 构建消息列表
-        messages = self._format_messages(request.messages)
-
         try:
             return await AioMultiModalConversation.call(
                 model=request.model,
