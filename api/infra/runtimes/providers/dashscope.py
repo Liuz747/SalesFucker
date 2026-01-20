@@ -8,7 +8,11 @@ from typing import Any
 
 import dashscope
 from dashscope import AioGeneration, AioMultiModalConversation
-from dashscope.api_entities.dashscope_response import GenerationResponse, MultiModalConversationResponse
+from dashscope.api_entities.dashscope_response import (
+    GenerationResponse,
+    Message,
+    MultiModalConversationResponse
+)
 
 from libs.types import MessageParams
 from utils import get_component_logger
@@ -60,7 +64,7 @@ class DashScopeProvider(BaseProvider):
                 formatted.append({"image": item.content})
         return formatted
 
-    def _format_messages(self, messages: MessageParams) -> list[dict[str, Any]]:
+    def _format_messages(self, messages: MessageParams) -> list[Message]:
         """
         将通用消息列表转换为DashScope特定格式
 
@@ -68,15 +72,15 @@ class DashScopeProvider(BaseProvider):
             messages: MessageParams（消息列表）
 
         Returns:
-            list[dict]: DashScope API所需的消息格式
+            list[Message]: DashScope API所需的消息格式
         """
-        formatted_messages: list[dict[str, Any]] = []
+        formatted_messages: list[Message] = []
         for m in messages:
             formatted_content = self._format_message_content(m.content) if m.content else ""
-            message = {
-                "role": m.role,
-                "content": formatted_content
-            }
+            message = Message(
+                role=m.role,
+                content=formatted_content
+            )
             formatted_messages.append(message)
 
         return formatted_messages
@@ -166,7 +170,7 @@ class DashScopeProvider(BaseProvider):
     @staticmethod
     async def _call_text_api(
         request: CompletionsRequest,
-        messages: list[dict[str, Any]]
+        messages: list[Message]
     ) -> GenerationResponse:
         """
         调用DashScope纯文本API
@@ -195,7 +199,7 @@ class DashScopeProvider(BaseProvider):
     @staticmethod
     async def _call_multimodal_api(
         request: CompletionsRequest,
-        messages: list[dict[str, Any]]
+        messages: list[Message]
     ) -> MultiModalConversationResponse:
         """
         调用DashScope多模态API
