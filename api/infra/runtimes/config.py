@@ -70,7 +70,7 @@ class LLMConfig:
 
         api_keys = {
             'anthropic': mas_config.ANTHROPIC_API_KEY,
-            'dashscope': mas_config.DASHSCOPE_API_KEY,
+            'bailian': mas_config.DASHSCOPE_API_KEY,
             'gemini': mas_config.GOOGLE_API_KEY,
             'openai': mas_config.OPENAI_API_KEY,
             'openrouter': mas_config.OPENROUTER_API_KEY,

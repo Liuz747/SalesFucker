@@ -9,7 +9,13 @@ LLM客户端
 from utils import get_component_logger
 from .config import LLMConfig
 from .entities import LLMResponse, ProviderType, CompletionsRequest, ResponseMessageRequest
-from .providers import AnthropicProvider, BaseProvider, OpenAIProvider
+from .providers import (
+    AnthropicProvider,
+    BaseProvider,
+    DashScopeProvider,
+    OpenAIProvider,
+    # OpenRouterProvider
+)
 
 logger = get_component_logger(__name__, "LLMClient")
 
@@ -22,9 +28,6 @@ class LLMClient:
     def __init__(self):
         """
         初始化LLM客户端
-        
-        参数:
-            config: LLM配置对象
         """
         self.config = config
         self.active_providers: dict[str, BaseProvider] = {}
@@ -34,24 +37,28 @@ class LLMClient:
     def _dispatch_providers(self):
         """初始化已启用的供应商"""
         for provider in self.config.providers:
-            if provider.enabled:
-                if provider.type == ProviderType.OPENAI:
+            match provider.type:
+                case ProviderType.OPENAI:
                     self.active_providers[provider.id] = OpenAIProvider(provider)
-                elif provider.type == ProviderType.ANTHROPIC:
+                case ProviderType.ANTHROPIC:
                     self.active_providers[provider.id] = AnthropicProvider(provider)
-                elif provider.type == ProviderType.GEMINI:
+                case ProviderType.DASHSCOPE:
+                    self.active_providers[provider.id] = DashScopeProvider(provider)
+                # case ProviderType.OPENROUTER:
+                #     self.active_providers[provider.id] = OpenRouterProvider(provider)
+                case ProviderType.GEMINI:
                     pass
-                else:
+                case _:
                     raise Exception(f"不支持的供应商类型: {provider.type}")
 
     def _get_provider(self, provider_id: str, model_id: str) -> BaseProvider:
         """
         获取并验证供应商
 
-        参数:
+        Args:
             provider_id: 供应商ID
 
-        返回:
+        Returns:
             BaseProvider: 供应商实例
         """
         provider_id = provider_id.lower()
@@ -67,10 +74,10 @@ class LLMClient:
         """
         主要聊天接口
 
-        参数:
+        Args:
             request: LLM请求对象
 
-        返回:
+        Returns:
             LLMResponse: LLM响应对象
         """
         provider = self._get_provider(request.provider, request.model)
@@ -93,13 +100,13 @@ class LLMClient:
         Responses API相比Chat Completions更简洁,
         适合单轮对话场景。支持更好的推理性能和内置工具。
 
-        参数:
+        Args
             request: ResponseMessageRequest请求对象
 
-        返回:
+        Returns:
             LLMResponse: 统一的LLM响应对象
 
-        异常:
+        Raises:
             ValueError: 当供应商不可用时
             NotImplementedError: 当供应商不支持 Responses API 时
         """

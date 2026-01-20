@@ -1,3 +1,64 @@
+- id: "anthropic"
+  type: "anthropic"
+  name: "Anthropic"
+  enabled: true
+  base_url: "https://api.anthropic.com/v1"
+  models:
+    - id: "claude-3-5-sonnet-20241022"
+      provider: "anthropic"
+      name: "Claude 3.5 Sonnet"
+      type: "text"
+      enabled: true
+    - id: "claude-3-5-haiku-20241022"
+      provider: "anthropic"
+      name: "Claude 3.5 Haiku"
+      type: "text"
+      enabled: true
+
+- id: "bailian"
+  type: "dashscope"
+  name: "BaiLian"
+  base_url: "https://dashscope.aliyuncs.com/api/v1"
+  enabled: true
+  models:
+    - id: "qwen-plus"
+      provider: "dashscope"
+      name: "Qwen Plus"
+      type: "text"
+      enabled: true
+    - id: "qwen-turbo"
+      provider: "dashscope"
+      name: "Qwen Turbo"
+      type: "text"
+      enabled: true
+    - id: "qwen-max"
+      provider: "dashscope"
+      name: "Qwen Max"
+      type: "text"
+      enabled: true
+    - id: "qwen-vl-plus"
+      provider: "dashscope"
+      name: "Qwen VL Plus"
+      type: "vision"
+      enabled: true
+    - id: "qwen-vl-max"
+      provider: "dashscope"
+      name: "Qwen VL Max"
+      type: "vision"
+      enabled: true
+
+- id: "gemini"
+  type: "gemini"
+  name: "Google Gemini"
+  enabled: true
+  base_url: "https://api.google.com/v1"
+  models:
+    - id: "gemini-1.5-pro-002"
+      provider: "gemini"
+      name: "Gemini 1.5 Pro"
+      type: "text"
+      enabled: true
+
 - id: "openai"
   type: "openai"
   name: "OpenAI"
@@ -23,35 +84,6 @@
       provider: "openai"
       name: "Text Embedding 3 Large"
       type: "embedding"
-      enabled: true
-
-- id: "anthropic"
-  type: "anthropic"
-  name: "Anthropic"
-  enabled: true
-  base_url: "https://api.anthropic.com/v1"
-  models:
-    - id: "claude-3-5-sonnet-20241022"
-      provider: "anthropic"
-      name: "Claude 3.5 Sonnet"
-      type: "text"
-      enabled: true
-    - id: "claude-3-5-haiku-20241022"
-      provider: "anthropic"
-      name: "Claude 3.5 Haiku"
-      type: "text"
-      enabled: true
-
-- id: "gemini"
-  type: "gemini"
-  name: "Google Gemini"
-  enabled: true
-  base_url: "https://api.google.com/v1"
-  models:
-    - id: "gemini-1.5-pro-002"
-      provider: "gemini"
-      name: "Gemini 1.5 Pro"
-      type: "text"
       enabled: true
 
 - id: "openrouter"
