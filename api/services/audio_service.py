@@ -1,18 +1,10 @@
-import asyncio
 from typing import Optional
-from urllib.parse import urlparse
 
 import aiohttp
-from dashscope.audio.asr import Transcription
 
 from config import mas_config
-from libs.exceptions import (
-    AudioConfigurationException,
-    ASRUrlValidationException,
-    ASRTranscriptionException,
-    ASRTimeoutException,
-    ASRDownloadException
-)
+from infra.runtimes.client import LLMClient
+from libs.exceptions import AudioConfigurationException
 from libs.types import (
     InputContent,
     InputType,
@@ -34,13 +26,6 @@ class AudioService:
     """
 
     @staticmethod
-    def verify_dashscope_key():
-        """验证DashScope API密钥"""
-        dashscope_api_key = mas_config.DASHSCOPE_API_KEY
-        if not dashscope_api_key:
-            raise AudioConfigurationException(audio_service="DashScope")
-
-    @staticmethod
     def verify_minimax_key() -> str:
         """MiniMax API密钥"""
         minimax_api_key = mas_config.MINIMAX_API_KEY
@@ -48,109 +33,8 @@ class AudioService:
             raise AudioConfigurationException(audio_service="MiniMax")
         return minimax_api_key
 
-    @classmethod
-    async def transcribe_async(
-        cls,
-        audio_url: str,
-        thread_id: str,
-        language_hints: Optional[list[str]] = None
-    ) -> str:
-        """
-        使用Paraformer进行语音转文字
-
-        Args:
-            audio_url: 音频文件的公网可访问URL
-            thread_id: 线程ID，用于日志记录
-            language_hints: 语言提示，默认支持'zh', 'en'
-
-        Returns:
-            转录后的文本内容
-        """
-        if language_hints is None:
-            language_hints = ['zh', 'en']
-
-        # 验证API密钥
-        cls.verify_dashscope_key()
-
-        logger.info(f"[ASR] 开始转录")
-
-        try:
-            # 验证URL格式
-            parsed_url = urlparse(audio_url)
-            if not parsed_url.scheme or not parsed_url.netloc:
-                raise ASRUrlValidationException(audio_url)
-
-            # 提交ASR任务（异步调用）
-            logger.debug(f"[ASR] 提交转录任务")
-            task_response = Transcription.async_call(
-                model='paraformer-v2',
-                file_urls=[audio_url],
-                language_hints=language_hints
-            )
-
-            task_id = task_response.output.task_id
-            logger.debug(f"[ASR] 任务已提交 - task_id: {task_id}")
-
-            # 轮询等待结果
-            max_wait_time = 300
-            poll_interval = 1
-            elapsed_time = 0
-
-            while elapsed_time < max_wait_time:
-                await asyncio.sleep(poll_interval)
-                elapsed_time += poll_interval
-
-                # 查询任务状态
-                result_response = Transcription.fetch(task=task_id)
-
-                if result_response.status_code != 200:
-                    logger.error(f"[ASR] 查询任务状态失败: {result_response.status_code}")
-                    continue
-
-                task_status = result_response.output.task_status
-                logger.debug(f"[ASR] 任务状态: {task_status} - 已等待: {elapsed_time}秒")
-
-                if task_status == 'SUCCEEDED':
-                    # 任务完成，获取转录结果
-                    transcription_url = result_response.output.results[0]['transcription_url']
-                    try:
-                        async with aiohttp.ClientSession() as session:
-                            async with session.get(transcription_url) as response:
-                                if response.status != 200:
-                                    raise ASRDownloadException()
-                                json_content = await response.json()
-
-                        transcripts = json_content.get('transcripts', [])
-                        if not transcripts:
-                            raise ASRTranscriptionException("无效的转录结果")
-
-                        all_text = " ".join(
-                            t.get("text", "").strip()
-                            for t in transcripts
-                            if t.get("text")
-                        ).strip()
-
-                        logger.info(f"[ASR] 转录完成 - thread={thread_id}, 耗时: {elapsed_time}秒")
-                        return all_text
-                    except Exception as e:
-                        logger.error(f"[ASR] 获取转录结果失败: {e}", exc_info=True)
-                        raise ASRTranscriptionException(f"下载或解析失败: {str(e)}")
-
-                elif task_status == 'FAILED':
-                    raise ASRTranscriptionException(f"任务ID: {task_id}")
-
-            # 超时处理
-            raise ASRTimeoutException(task_id, elapsed_time)
-        except Exception as e:
-            logger.error(f"[ASR] 转录过程中发生异常 - thread={thread_id}: {e}", exc_info=True)
-            raise ASRTranscriptionException(f"未知异常: {str(e)}")
-
-    @classmethod
-    async def normalize_input(
-        cls,
-        raw_input: MessageParams,
-        thread_id: str
-    ) -> tuple[MessageParams, list[dict]]:
+    @staticmethod
+    async def normalize_input(raw_input: MessageParams, thread_id: str) -> tuple[MessageParams, list[dict]]:
         """
         标准化输入消息列表，为音频添加转录文本
 
@@ -166,6 +50,7 @@ class AudioService:
         """
         normalized: list[Message] = []
         asr_result: list[dict] = []
+        llm_client = LLMClient()
 
         for index, message in enumerate(raw_input):
             # 如果内容是字符串，直接保留
@@ -181,9 +66,11 @@ class AudioService:
                     continue
 
                 # Audio → STT
-                transcript = await cls.transcribe_async(
-                    audio_url=item.content,
-                    thread_id=thread_id
+                logger.info(f"[ASR] 开始转录 - thread={thread_id}")
+                transcript = await llm_client.transcribe_audio(
+                    provider='bailian',
+                    model='paraformer-v2',
+                    audio_url=item.content
                 )
 
                 asr_result.append({

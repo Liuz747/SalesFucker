@@ -4,16 +4,26 @@ DashScope供应商实现
 提供阿里云通义千问系列模型的调用功能。
 """
 
-from typing import Any
+from typing import Any, Optional
 
+import aiohttp
 import dashscope
-from dashscope import AioGeneration, AioMultiModalConversation
+from dashscope import (
+    AioGeneration,
+    AioMultiModalConversation,
+    Transcription
+)
 from dashscope.api_entities.dashscope_response import (
     GenerationResponse,
     Message,
     MultiModalConversationResponse
 )
 
+from libs.exceptions import (
+    ASRTranscriptionException,
+    ASRDownloadException,
+    BaseHTTPException
+)
 from libs.types import MessageParams
 from utils import get_component_logger
 from .base import BaseProvider
@@ -175,10 +185,6 @@ class DashScopeProvider(BaseProvider):
         """
         调用DashScope纯文本API
 
-        Args:
-            request: LLM请求（仅包含文本内容）
-            messages: 已格式化的消息列表
-
         Returns:
             GenerationResponse: DashScope响应对象
         """
@@ -204,10 +210,6 @@ class DashScopeProvider(BaseProvider):
         """
         调用DashScope多模态API
 
-        Args:
-            request: LLM请求（包含图像、音频等多模态内容）
-            messages: 已格式化的消息列表
-
         Returns:
             MultiModalConversationResponse: DashScope响应对象
         """
@@ -224,3 +226,80 @@ class DashScopeProvider(BaseProvider):
         except Exception as e:
             logger.error(f"DashScope多模态API调用失败: {str(e)}")
             raise
+
+    @staticmethod
+    async def transcribe_audio(
+        audio_url: str,
+        language_hints: Optional[list[str]] = None
+    ) -> str:
+        """
+        使用Paraformer进行语音转文字
+
+        Args:
+            audio_url: 音频文件的公网可访问URL
+            language_hints: 语言提示，默认支持'zh', 'en'
+
+        Returns:
+            转录后的文本内容
+
+        Raises:
+            ASRTranscriptionException: 转录失败
+            ASRDownloadException: 下载转录结果失败
+        """
+        if not language_hints:
+            language_hints = ['zh', 'en']
+
+        logger.info(f"[ASR] 开始转录音频: {audio_url}")
+
+        try:
+            # 提交ASR任务（异步调用）
+            logger.debug(f"[ASR] 提交转录任务")
+            task_response = Transcription.async_call(
+                model='paraformer-v2',
+                file_urls=[audio_url],
+                language_hints=language_hints
+            )
+
+            task_id = task_response.output.task_id
+            logger.debug(f"[ASR] 任务已提交 - task_id: {task_id}")
+
+            # 在异步上下文中运行同步的wait方法
+            result_response = Transcription.wait(task=task_id)
+
+            # 检查任务状态
+            if result_response.status_code != 200:
+                error_msg = f"ASR任务失败: \n ID: {task_id}\n 错误信息: {result_response.code} - {result_response.message}"
+                logger.error(f"[ASR] {error_msg}")
+                raise ASRTranscriptionException(error_msg)
+
+            # 获取转录结果URL
+            transcription_url = result_response.output.results[0]['transcription_url']
+
+            # 下载并解析转录结果
+            async with aiohttp.ClientSession() as session:
+                async with session.get(transcription_url) as response:
+                    if response.status != 200:
+                        raise ASRDownloadException()
+                    json_content = await response.json()
+
+            transcripts = json_content.get('transcripts', [])
+            if not transcripts:
+                raise ASRTranscriptionException("无效的转录结果")
+
+            # 拼接所有转录文本
+            transcription_output = []
+            for t in transcripts:
+                sentence = t.get("text", "").strip()
+                if sentence:
+                    transcription_output.append(sentence)
+
+            all_text = " ".join(transcription_output)
+
+            logger.info(f"[ASR] 转录完成")
+            return all_text
+
+        except BaseHTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"[ASR] 转录过程中发生异常: {e}", exc_info=True)
+            raise ASRTranscriptionException(f"未知异常: {str(e)}")

@@ -122,3 +122,38 @@ class LLMClient:
         except Exception as e:
             logger.error(f"供应商 {request.provider} 调用失败: {str(e)}")
             raise
+
+    async def transcribe_audio(
+        self,
+        provider: str,
+        model: str,
+        audio_url: str,
+        language_hints: list[str] | None = None
+    ) -> str:
+        """
+        使用指定供应商进行语音转文字
+
+        Args:
+            provider: 供应商ID（目前仅支持'bailian'）
+            model: 模型ID
+            audio_url: 音频文件的公网可访问URL
+            language_hints: 语言提示，默认支持'zh', 'en'
+
+        Returns:
+            转录后的文本内容
+
+        Raises:
+            ValueError: 当供应商不可用
+            NotImplementedError: 当供应商不支持语音转文字
+            ASRTranscriptionException: 转录失败
+            ASRDownloadException: 下载转录结果失败
+        """
+        provider = self._get_provider(provider, model)
+
+        try:
+            return await provider.transcribe_audio(audio_url, language_hints)
+        except NotImplementedError:
+            raise
+        except Exception as e:
+            logger.error(f"供应商 {provider} ASR调用失败: {str(e)}")
+            raise
