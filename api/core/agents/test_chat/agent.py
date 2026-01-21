@@ -13,7 +13,7 @@ from models import WorkflowExecutionModel
 from utils import get_current_datetime, get_processing_time_ms
 
 
-class ChatAgent(BaseAgent):
+class TestChatAgent(BaseAgent):
     """
     聊天机器人智能体
 
@@ -24,7 +24,7 @@ class ChatAgent(BaseAgent):
     def __init__(self):
         super().__init__()
 
-        self.agent_name = "chat_agent"
+        self.agent_name = "test_chat_agent"
 
         # 简单聊天提示词模板
         self.chat_prompt =  """

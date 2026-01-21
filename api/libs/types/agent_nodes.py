@@ -9,11 +9,11 @@ class AgentNodeType(StrEnum):
     """
 
     # 核心分析节点
-    CHAT = "chat_agent"
     COMPLIANCE = "compliance_review"
-    SENTIMENT = "sentiment_analysis"
     INTENT = "intent_analysis"
     SALES = "sales_agent"
+    SENTIMENT = "sentiment_analysis"
+    TEST_CHAT = "test_chat"
 
     # 触发事件节点
     TRIGGER_INACTIVE = "trigger_inactive"

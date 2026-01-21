@@ -82,17 +82,8 @@ class SentimentAnalysisAgent(BaseAgent):
             # 步骤1: 处理多模态输入 (优先处理，将图片转为文字)
             processed_text, multimodal_context = await self._process_input(customer_input)
             self.logger.info(f"多模态输入处理完成 - 输入消息条数: {len(processed_text)}, context类型: {multimodal_context.get('type')}")
-
-            # 步骤2: 存储用户输入到记忆 (存储处理后的文字描述，确保记忆包含图片语义)
-            # 注意：这里我们将处理后的 processed_text 存入记忆，而不是原始的 customer_input
-            # 这样后续检索时，图片内容就是可被搜索和理解的文本形式
-            await self.memory_manager.store_messages(
-                tenant_id=tenant_id,
-                thread_id=thread_id,
-                messages=customer_input,
-            )
             
-            # 步骤3: 检索记忆上下文 (使用处理后的文本进行检索)
+            # 步骤2: 检索记忆上下文 (使用处理后的文本进行检索)
             short_term_messages, long_term_memories = await self.memory_manager.retrieve_context(
                 tenant_id=tenant_id,
                 thread_id=thread_id,
@@ -106,22 +97,22 @@ class SentimentAnalysisAgent(BaseAgent):
             
             self.logger.info(f"记忆检索完成 - 短期消息数: {len(memory_context['short_term'])}, 长期摘要数: {len(memory_context['long_term'])}")
 
-            # 步骤4: 执行情感分析（结合短期消息历史）
+            # 步骤3: 执行情感分析（结合短期消息历史）
             sentiment_result = await self._analyze_sentiment_with_history(processed_text, multimodal_context, memory_context['short_term'])
             self.logger.info(f"情感分析结果 - sentiment: {sentiment_result.get('sentiment')}, score: {sentiment_result.get('score')}, urgency: {sentiment_result.get('urgency')}")
             self.logger.info(f"情感分析token统计 - tokens_used: {sentiment_result.get('tokens_used', 0)}")
             self.logger.info(f"情感分析上下文 - 使用历史消息数: {len(memory_context['short_term'])}")
 
-            # 步骤5: 判断客户旅程阶段
+            # 步骤4: 判断客户旅程阶段
             journey_stage = self._determine_journey_stage(memory_context['short_term'])
             self.logger.info(f"旅程阶段判断: {journey_stage} (基于对话轮次: {len(memory_context['short_term'])})")
 
-            # 步骤6: 智能匹配提示词
+            # 步骤5: 智能匹配提示词
             matched_prompt = self._match_prompt(sentiment_result.get('score', 0.5), journey_stage)
             self.logger.info(f"提示词匹配完成 - matched_key: {matched_prompt['matched_key']}, tone: {matched_prompt['tone']}")
             self.logger.debug(f"matched_prompt内容: {matched_prompt['system_prompt'][:150]}..." if len(matched_prompt['system_prompt']) > 150 else f"matched_prompt内容: {matched_prompt['system_prompt']}")
 
-            # 步骤6.5: 注入外部活动记忆 (如朋友圈互动)
+            # 步骤5.5: 注入外部活动记忆 (如朋友圈互动)
             # 仅在情感积极（> 0.5）时注入，增强互动性
             sentiment_score = sentiment_result.get('score', 0.5)
             if sentiment_score > 0.5:
@@ -130,8 +121,8 @@ class SentimentAnalysisAgent(BaseAgent):
                         tenant_id=tenant_id,
                         thread_id=thread_id,
                         query_text=processed_text,
-                        limit=3, # 最近3条
-                        memory_types=[MemoryType.MOMENTS_INTERACTION] # 未来可添加 MemoryType.OFFLINE_REPORT 等
+                        limit=3,
+                        memory_types=[MemoryType.MOMENTS_INTERACTION]
                     )
                     
                     if external_memories:

@@ -8,22 +8,22 @@
 """
 
 from .base.agent import BaseAgent
-from .chat.agent import ChatAgent
 from .compliance import ComplianceAgent, ComplianceRule, ComplianceRuleManager
 from .intent.agent import IntentAgent
 from .marketing.agent import MarketingAgent
 from .sales.agent import SalesAgent
 from .sentiment.agent import SentimentAnalysisAgent
+from .test_chat.agent import TestChatAgent
 
 
 __all__ = [
     "BaseAgent",
-    "ChatAgent",
     "ComplianceAgent",
     "ComplianceRule",
     "ComplianceRuleManager",
     "IntentAgent",
     "MarketingAgent",
     "SalesAgent",
-    "SentimentAnalysisAgent"
-] 
+    "SentimentAnalysisAgent",
+    "TestChatAgent",
+]

@@ -12,10 +12,10 @@
 
 from core.agents import (
     BaseAgent,
-    ChatAgent,
     IntentAgent,
     SalesAgent,
     SentimentAnalysisAgent,
+    TestChatAgent
     # TriggerInactiveAgent,
     # TriggerEngagementAgent
 )
@@ -32,7 +32,7 @@ AGENT_NODE_MAPPING = {
     AgentNodeType.INTENT: IntentAgent,
     # AgentNodeType.TRIGGER_INACTIVE: TriggerInactiveAgent,
     # AgentNodeType.TRIGGER_ENGAGEMENT: TriggerEngagementAgent,
-    AgentNodeType.CHAT: ChatAgent,
+    AgentNodeType.TEST_CHAT: TestChatAgent,
 }
 
 

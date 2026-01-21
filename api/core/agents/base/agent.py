@@ -28,16 +28,9 @@ class BaseAgent(ABC):
     """
     多智能体系统(MAS)的抽象基类
     
-    专为美妆行业多智能体系统设计，提供核心智能体功能。
+    专为营销行业多智能体系统设计，提供核心智能体功能。
     通过组合模式集成LLM能力和监控功能。
-    
-    属性:
-        agent_id: 智能体唯一标识符
-        agent_type: 智能体类型（从agent_id提取）
-        logger: 日志记录器
-        is_active: 智能体活跃状态
-        monitor: 智能体监控器
-    
+
     子类必须实现:
         process_conversation: 处理对话状态的具体实现
     """
@@ -47,7 +40,6 @@ class BaseAgent(ABC):
         self.llm_client = LLMClient()
         self.memory_manager = StorageManager()
         self.logger = get_component_logger(__name__)
-    
     
     @abstractmethod
     async def process_conversation(self, state: WorkflowExecutionModel) -> dict:
@@ -185,7 +177,8 @@ class BaseAgent(ABC):
 
         return response
 
-    def _input_to_text(self, messages: MessageParams) -> str:
+    @staticmethod
+    def _input_to_text(messages: MessageParams) -> str:
         """
         将输入转换为文本
 

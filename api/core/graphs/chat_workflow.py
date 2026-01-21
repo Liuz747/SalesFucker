@@ -141,9 +141,9 @@ class ChatWorkflow(BaseWorkflow):
             logger.debug("并行执行架构入口出口点已通过START/END设置")
     
     async def _process_agent_node(
-            self,
-            state: WorkflowExecutionModel,
-            node_name: AgentNodeType
+        self,
+        state: WorkflowExecutionModel,
+        node_name: AgentNodeType
     ) -> dict:
         """
         通用智能体节点处理方法
