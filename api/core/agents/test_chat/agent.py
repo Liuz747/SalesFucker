@@ -83,7 +83,7 @@ class TestChatAgent(BaseAgent):
             request = CompletionsRequest(
                 id=state.workflow_id,
                 provider="openrouter",
-                model="openai/gpt-5-mini",
+                model="google/gemini-3-flash-preview",
                 messages=llm_messages,
                 thread_id=state.thread_id,
                 temperature=1,

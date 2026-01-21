@@ -236,7 +236,7 @@ class OpenAIProvider(BaseProvider):
             # 原生OpenAI方式：使用.parse()
             response = await self.client.chat.completions.parse(
                 response_format=request.output_model,
-                model=request.model or "gpt-4o-mini",
+                model=request.model,
                 messages=messages,
                 temperature=request.temperature,
                 max_completion_tokens=request.max_tokens

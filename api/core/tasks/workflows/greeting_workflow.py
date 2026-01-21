@@ -76,8 +76,8 @@ class GreetingWorkflow:
                     metadata={"action": "skipped", "reason": "thread_has_activity", "thread_status": str(thread_status)}
                 )
 
-            model = "gpt-4o-mini"
-            provider = "openai"
+            model = "google/gemini-3-flash-preview"
+            provider = "openrouter"
             temperature = 0.7
             max_tokens = 1024
             context = [

@@ -46,7 +46,7 @@ class SentimentAnalysisAgent(BaseAgent):
 
         self.sentiment_analyzer = SentimentAnalyzer(
             llm_provider="openrouter",
-            llm_model="openai/gpt-5-mini",
+            llm_model="google/gemini-3-flash-preview",
             invoke_llm_fn=self.invoke_llm
         )
 
@@ -263,7 +263,7 @@ class SentimentAnalysisAgent(BaseAgent):
         except Exception as e:
             self.logger.error(f"提示词匹配失败: {e}")
             return {
-                "system_prompt": "你是一个专业友好的美容顾问。",
+                "system_prompt": "你是一个专业友好的心理咨询师。",
                 "tone": "专业、友好",
                 "strategy": "标准服务",
                 "matched_key": "fallback",
