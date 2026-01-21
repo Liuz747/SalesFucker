@@ -22,10 +22,7 @@
 from .audio import (
     AudioServiceException,
     AudioConfigurationException,
-    ASRUrlValidationException,
-    ASRTaskSubmissionException,
     ASRTranscriptionException,
-    ASRTimeoutException,
     ASRDownloadException,
 )
 # 认证与授权异常
@@ -129,10 +126,7 @@ __all__ = [
     # 音频服务
     "AudioServiceException",
     "AudioConfigurationException",
-    "ASRUrlValidationException",
-    "ASRTaskSubmissionException",
     "ASRTranscriptionException",
-    "ASRTimeoutException",
     "ASRDownloadException",
 
     # 基础设施

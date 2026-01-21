@@ -6,6 +6,7 @@ LLM供应商基类
 """
 
 from abc import ABC, abstractmethod
+from typing import Optional
 
 from libs.types import InputContentParams, MessageParams
 from ..entities import (
@@ -101,3 +102,17 @@ class BaseProvider(ABC):
             LLMResponse: LLM响应，content字段包含解析后的结构化对象
         """
         raise NotImplementedError(f"{request.provider} 不支持 Responses API 的结构化输出。")
+
+    @staticmethod
+    async def transcribe_audio(audio_url: str, language_hints:Optional[list[str]]):
+        """
+        异步转录音频文件
+
+        Args:
+            audio_url: 音频文件的URL地址
+            language_hints: 语言提示列表，用于指导语音识别的语言偏好
+
+        Returns:
+            转录结果，通常为包含文本内容的字典或字符串
+        """
+        raise NotImplementedError("当前Provider不支持转录音频文件输出。")

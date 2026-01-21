@@ -1,6 +1,7 @@
 from collections.abc import Sequence
 from enum import StrEnum
 from typing import Any, Optional, TypeAlias
+from urllib.parse import urlparse
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -35,7 +36,9 @@ class InputContent(BaseModel):
         """验证非文本类型必须是有效URL"""
         content_type = info.data.get('type')
         if content_type and content_type != InputType.TEXT:
-            if not v.startswith(('http://', 'https://')):
+            v = v.strip()
+            parsed = urlparse(v)
+            if parsed.scheme not in ('http', 'https') or not parsed.netloc:
                 raise ValueError(f"无效的URL格式: {v}")
         return v
 
@@ -54,7 +57,9 @@ class OutputContent(BaseModel):
     @classmethod
     def validate_url(cls, v: str) -> str:
         """验证URL格式"""
-        if not v.startswith(('http://', 'https://')):
+        v = v.strip()
+        parsed = urlparse(v)
+        if parsed.scheme not in ('http', 'https') or not parsed.netloc:
             raise ValueError(f"无效的URL格式: {v}")
         return v
 
