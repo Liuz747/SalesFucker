@@ -42,8 +42,8 @@ async def generate_thread_report(
             tenant_id=tenant.tenant_id,
             thread_id=thread_id,
             analysis_type="report_generation",
-            provider="openrouter",
-            model="qwen/qwen3-coder",
+            provider="bailian",
+            model="qwen-plus",
             temperature=0.7
         )
 
@@ -97,8 +97,8 @@ async def generate_thread_labels(
             tenant_id=tenant.tenant_id,
             thread_id=thread_id,
             analysis_type="label_generation",
-            provider="openrouter",
-            model="qwen/qwen3-coder",
+            provider="bailian",
+            model="qwen3-coder-flash",
             temperature=0.7
         )
 
@@ -152,8 +152,8 @@ async def generate_thread_profile(
             tenant_id=tenant.tenant_id,
             thread_id=thread_id,
             analysis_type="profile_analysis",
-            provider="openrouter",
-            model="qwen/qwen3-coder",
+            provider="bailian",
+            model="qwen3-coder-flash",
             temperature=0.7
         )
 
