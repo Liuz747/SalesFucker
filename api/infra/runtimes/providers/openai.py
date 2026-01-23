@@ -204,7 +204,18 @@ class OpenAIProvider(BaseProvider):
 
             # 在最后一条用户消息后添加JSON格式指令
             if messages and messages[-1]["role"] == "user":
-                messages[-1]["content"] += f"\n\n请严格按照以下JSON schema格式返回结果，只返回JSON对象，不要包含任何其他文字、解释或markdown格式：\n\n{json_schema_str}\n\n只返回符合schema的纯JSON对象。"
+                schema_instruction = f"\n\n请严格按照以下JSON schema格式返回结果，只返回JSON对象，不要包含任何其他文字、解释或markdown格式：\n\n{json_schema_str}\n\n只返回符合schema的纯JSON对象。"
+
+                # 检查content是字符串还是列表（多模态）
+                if isinstance(messages[-1]["content"], str):
+                    # 纯文本消息：直接拼接
+                    messages[-1]["content"] += schema_instruction
+                else:
+                    # 多模态消息：添加为新的文本部分
+                    messages[-1]["content"].append({
+                        "type": "text",
+                        "text": schema_instruction
+                    })
 
             response = await self.client.chat.completions.create(
                 extra_body={"provider": {'require_parameters': True}},
