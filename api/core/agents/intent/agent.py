@@ -273,7 +273,6 @@ class IntentAgent(BaseAgent):
                 output_tokens=response.usage.output_tokens
             )
 
-            return result
             # 应用阈值覆盖
             return self._apply_threshold_overrides(result)
 
