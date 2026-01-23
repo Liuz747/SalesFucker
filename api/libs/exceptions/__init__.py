@@ -36,6 +36,14 @@ from .auth import (
 )
 # 基础异常
 from .base import BaseHTTPException
+# 文档相关
+from .document import (
+    DocumentException,
+    DocumentNotFoundException,
+    DocumentUploadException,
+    DocumentProcessingException,
+    DocumentDeletionException,
+)
 # 基础设施异常
 from .infrastructure import (
     DatabaseConnectionException,
@@ -92,6 +100,13 @@ __all__ = [
     "TokenGenerationException",
     "AuthorizationException",
     "InsufficientScopeException",
+
+    # 文档
+    "DocumentException",
+    "DocumentNotFoundException",
+    "DocumentUploadException",
+    "DocumentProcessingException",
+    "DocumentDeletionException",
 
     # 租户管理
     "TenantManagementException",
