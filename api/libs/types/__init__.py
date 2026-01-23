@@ -9,6 +9,7 @@ from .content_params import (
     OutputContent,
 )
 from .customer import Sex
+from .datasets_type import DocumentStatus, DocumentType
 from .infra_clients import InfraClients
 from .memory import MemoryType
 from .message_params import (
@@ -40,6 +41,8 @@ __all__ = [
     "AccountStatus",
     "AgentGoal",
     "AgentNodeType",
+    "DocumentStatus",
+    "DocumentType",
     "EventType",
     "InfraClients",
     "InputContent",

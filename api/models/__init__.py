@@ -9,6 +9,7 @@
 - conversation.py: 对话相关的所有模型
 - workflow.py: 工作流相关的所有模型
 - assistant.py: 助理相关的所有模型
+- document.py: 文档管理相关的所有模型
 """
 
 from .assistant import (
@@ -18,6 +19,12 @@ from .assistant import (
 from .conversation import (
     Thread,
     ThreadOrm
+)
+from .document import (
+    Document,
+    DocumentChunk,
+    DocumentChunkOrm,
+    DocumentOrm
 )
 from .tenant import (
     TenantModel,
@@ -34,6 +41,10 @@ __all__ = [
     "AgentMessage",
     "AssistantModel",
     "AssistantOrmModel",
+    "Document",
+    "DocumentChunk",
+    "DocumentChunkOrm",
+    "DocumentOrm",
     "TenantModel",
     "TenantOrm",
     "Thread",
