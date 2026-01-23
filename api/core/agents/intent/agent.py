@@ -194,6 +194,60 @@ class IntentAgent(BaseAgent):
 
         return intent_analysis
 
+    async def _retrieve_faq_context(
+        self,
+        tenant_id: str,
+        query: str,
+        top_k: int = 3
+    ) -> Optional[str]:
+        """
+        检索FAQ上下文用于意向分析
+
+        Args:
+            tenant_id: 租户ID
+            query: 查询文本
+            top_k: 返回结果数量
+
+        Returns:
+            Optional[str]: 格式化的FAQ上下文，如果检索失败则返回None
+        """
+        try:
+            from core.tools import rag_retrieve
+
+            logger.debug(f"开始FAQ检索: {query[:50]}...")
+
+            # 检索FAQ文档
+            faq_results = await rag_retrieve(
+                tenant_id=tenant_id,
+                query=query,
+                retrieval_type="documents",
+                top_k=top_k,
+                search_strategy="hybrid"
+            )
+
+            # 格式化FAQ上下文
+            if faq_results.get("success") and faq_results.get("results"):
+                faqs = faq_results["results"][:top_k]
+                if faqs:
+                    context_parts = ["## 相关FAQ知识"]
+                    for i, faq in enumerate(faqs, 1):
+                        content = faq.get("content", "")
+                        context_parts.append(f"{i}. {content[:300]}")
+
+                    faq_context = "\n".join(context_parts)
+                    logger.info(f"FAQ检索成功: {len(faqs)} 条结果")
+                    return faq_context
+                else:
+                    logger.debug("FAQ检索未找到相关内容")
+                    return None
+            else:
+                logger.debug("FAQ检索未找到相关内容")
+                return None
+
+        except Exception as e:
+            logger.warning(f"FAQ检索失败: {e}")
+            return None
+
     async def _analyze_intent(
         self,
         inputs: MessageParams,
@@ -214,10 +268,25 @@ class IntentAgent(BaseAgent):
             IntentAnalysisResult: 统一意向分析结果
         """
         try:
+            # 提取用户查询文本（最后一条用户消息）
+            user_query = ""
+            for msg in reversed(inputs):
+                if msg.role == "user":
+                    user_query = self._input_to_text([msg])
+                    break
+
+            # RAG检索：获取相关FAQ知识
+            faq_context = await self._retrieve_faq_context(
+                tenant_id=tenant_id,
+                query=user_query,
+                top_k=3
+            )
+
             # 构建LLM请求
             system_prompt = get_prompt_template(
                 template_name="intent_analysis",
-                template_file="agent_prompt.yaml"
+                template_file="agent_prompt.yaml",
+                faq_context=faq_context
             )
             messages = [Message(role="system", content=system_prompt), *inputs]
 

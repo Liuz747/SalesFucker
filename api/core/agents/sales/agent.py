@@ -1,3 +1,4 @@
+from typing import Optional
 from uuid import UUID
 
 from core.agents import BaseAgent
@@ -253,6 +254,13 @@ class SalesAgent(BaseAgent):
             query_text=user_text,
         )
 
+        # RAG检索：获取相关产品和文档知识
+        rag_context = await self._retrieve_rag_context(
+            tenant_id=state.tenant_id,
+            query=user_text,
+            top_k=5
+        )
+
         system_prompt = get_prompt_template(
             template_name="sales",
             template_file="agent_prompt.yaml",
@@ -266,6 +274,7 @@ class SalesAgent(BaseAgent):
             assets_intent=assets_intent,
             assets_data=assets_data,
             summaries=long_term_memories,
+            rag_context=rag_context,
             current_time=get_chinese_time()
         )
 
@@ -303,3 +312,76 @@ class SalesAgent(BaseAgent):
             return "太好了！"
         else:
             return "稍等稍等"
+
+    async def _retrieve_rag_context(
+        self,
+        tenant_id: str,
+        query: str,
+        top_k: int = 5
+    ) -> Optional[str]:
+        """
+        检索RAG上下文（产品和文档知识）
+
+        Args:
+            tenant_id: 租户ID
+            query: 查询文本
+            top_k: 返回结果数量
+
+        Returns:
+            Optional[str]: 格式化的RAG上下文，如果检索失败则返回None
+        """
+        try:
+            from core.tools import rag_retrieve
+
+            logger.debug(f"开始RAG检索: {query[:50]}...")
+
+            # 检索产品信息
+            product_results = await rag_retrieve(
+                tenant_id=tenant_id,
+                query=query,
+                retrieval_type="products",
+                top_k=top_k,
+                search_strategy="hybrid"
+            )
+
+            # 检索文档知识
+            document_results = await rag_retrieve(
+                tenant_id=tenant_id,
+                query=query,
+                retrieval_type="documents",
+                top_k=top_k,
+                search_strategy="hybrid"
+            )
+
+            # 格式化RAG上下文
+            context_parts = []
+
+            if product_results.get("success") and product_results.get("results"):
+                products = product_results["results"][:3]  # 最多3个产品
+                if products:
+                    context_parts.append("## 相关产品信息")
+                    for i, product in enumerate(products, 1):
+                        content = product.get("content", "")
+                        metadata = product.get("metadata", {})
+                        product_name = metadata.get("name", "未知产品")
+                        context_parts.append(f"{i}. {product_name}: {content[:200]}")
+
+            if document_results.get("success") and document_results.get("results"):
+                documents = document_results["results"][:3]  # 最多3个文档片段
+                if documents:
+                    context_parts.append("\n## 相关知识库信息")
+                    for i, doc in enumerate(documents, 1):
+                        content = doc.get("content", "")
+                        context_parts.append(f"{i}. {content[:200]}")
+
+            if context_parts:
+                rag_context = "\n".join(context_parts)
+                logger.info(f"RAG检索成功: 产品={len(product_results.get('results', []))}, 文档={len(document_results.get('results', []))}")
+                return rag_context
+            else:
+                logger.debug("RAG检索未找到相关内容")
+                return None
+
+        except Exception as e:
+            logger.warning(f"RAG检索失败: {e}")
+            return None

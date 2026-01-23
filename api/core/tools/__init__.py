@@ -1,5 +1,6 @@
 # 工具函数
 from .generate_tts import generate_audio_output
+from .rag_retrieve import rag_retrieve
 from .search_context import search_conversation_context
 from .store_episodic import store_episodic_memory
 
@@ -13,6 +14,7 @@ from .tool_registry import (
 __all__ = [
     # 工具函数
     "generate_audio_output",
+    "rag_retrieve",
     "search_conversation_context",
     "store_episodic_memory",
 
