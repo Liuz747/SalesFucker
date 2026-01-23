@@ -74,7 +74,7 @@ class IntentAgent(BaseAgent):
                 run_id=state.workflow_id
             )
 
-            # 提取两种意向的结果
+            # 提取三种意向的结果
             assets_intent = intent_result.assets_intent
             appointment_intent = intent_result.appointment_intent
             audio_output_intent = intent_result.audio_output_intent
@@ -146,6 +146,54 @@ class IntentAgent(BaseAgent):
             logger.error(f"意向分析失败: {e}", exc_info=True)
             raise
 
+    @staticmethod
+    def _apply_threshold_overrides(intent_analysis: IntentAnalysisResult) -> IntentAnalysisResult:
+        """
+        基于配置的阈值覆盖LLM返回的detected信号
+
+        如果启用了阈值覆盖，且分数低于配置的阈值，则将detected设为False。
+        这样可以防止LLM在低置信度情况下仍然返回detected=True。
+
+        Args:
+            intent_analysis: 意图分析
+
+        Returns:
+            IntentAnalysisResult: 覆盖后的三种意向对象
+        """
+        if not mas_config.ENABLE_INTENT_THRESHOLD_OVERRIDE:
+            logger.debug("阈值覆盖设置未启用，使用原始意图分析detected值")
+            return intent_analysis
+
+        # 素材意向阈值覆盖
+        assets_intent = intent_analysis.assets_intent
+        appointment_intent = intent_analysis.appointment_intent
+        audio_output_intent = intent_analysis.audio_output_intent
+
+        if assets_intent.detected and assets_intent.confidence < mas_config.ASSETS_INTENT_THRESHOLD:
+            logger.info(
+                f"素材意向被阈值覆盖: confidence={assets_intent.confidence:.2f} < "
+                f"threshold={mas_config.ASSETS_INTENT_THRESHOLD:.2f}, detected: True -> False"
+            )
+            assets_intent.detected = False
+
+        # 邀约意向阈值覆盖
+        if appointment_intent.detected and appointment_intent.intent_strength < mas_config.APPOINTMENT_INTENT_THRESHOLD:
+            logger.info(
+                f"邀约意向被阈值覆盖: intent_strength={appointment_intent.intent_strength:.2f} < "
+                f"threshold={mas_config.APPOINTMENT_INTENT_THRESHOLD:.2f}, detected: True -> False"
+            )
+            appointment_intent.detected = False
+
+        # 音频输出意向阈值覆盖
+        if audio_output_intent.detected and audio_output_intent.confidence < mas_config.AUDIO_OUTPUT_INTENT_THRESHOLD:
+            logger.info(
+                f"音频输出意向被阈值覆盖: confidence={audio_output_intent.confidence:.2f} < "
+                f"threshold={mas_config.AUDIO_OUTPUT_INTENT_THRESHOLD:.2f}, detected: True -> False"
+            )
+            audio_output_intent.detected = False
+
+        return intent_analysis
+
     async def _analyze_intent(
         self,
         inputs: MessageParams,
@@ -192,8 +240,7 @@ class IntentAgent(BaseAgent):
             logger.error(f"统一意向分析失败: {e}")
             return IntentAnalysisResult(error=str(e))
 
-    @staticmethod
-    def _parse_llm_response(response: LLMResponse) -> IntentAnalysisResult:
+    def _parse_llm_response(self, response: LLMResponse) -> IntentAnalysisResult:
         """
         解析LLM响应
 
@@ -227,6 +274,8 @@ class IntentAgent(BaseAgent):
             )
 
             return result
+            # 应用阈值覆盖
+            return self._apply_threshold_overrides(result)
 
         except json.JSONDecodeError as e:
             error_msg = f"JSON解析失败: {str(e)}"
