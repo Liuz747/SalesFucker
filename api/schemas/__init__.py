@@ -1,9 +1,21 @@
 from .assistants_schema import (
     AssistantCreateRequest,
     AssistantUpdateRequest,
-    AssistantCreateResponse    
+    AssistantCreateResponse
 )
 from .conversation_schema import CallbackPayload
+from .document_schema import (
+    DocumentUploadRequest,
+    DocumentUploadResponse,
+    DocumentUpdateRequest,
+    DocumentResponse,
+    DocumentProcessingStatusResponse,
+    DocumentListResponse,
+    DocumentIndexRequest,
+    DocumentIndexResponse,
+    DocumentBatchIndexRequest,
+    DocumentBatchIndexResponse
+)
 from .marketing_schema import MarketingPlanRequest, MarketingPlanResponse
 from .memory_schema import (
     MemoryInsertRequest,
@@ -28,6 +40,16 @@ __all__ = [
     "AssistantUpdateRequest",
     "BaseResponse",
     "CallbackPayload",
+    "DocumentUploadRequest",
+    "DocumentUploadResponse",
+    "DocumentUpdateRequest",
+    "DocumentResponse",
+    "DocumentProcessingStatusResponse",
+    "DocumentListResponse",
+    "DocumentIndexRequest",
+    "DocumentIndexResponse",
+    "DocumentBatchIndexRequest",
+    "DocumentBatchIndexResponse",
     "MemoryAppendRequest",
     "TenantSyncRequest",
     "TenantUpdateRequest",

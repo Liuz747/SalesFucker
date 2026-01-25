@@ -27,13 +27,12 @@ class DocumentOrm(Base):
     tenant_id = Column(String(64), nullable=False, index=True, comment="租户标识符")
     assistant_id = Column(String(64), nullable=True, index=True, comment="助手标识符")
     title = Column(String(255), nullable=False, comment="文档标题")
-    file_path = Column(String(500), nullable=False, comment="文件存储路径或URL")
+    file_url = Column(String(500), nullable=False, comment="文件存储URL（外部存储）")
     original_filename = Column(String(255), nullable=True, comment="原始文件名")
     file_type = Column(SQLEnum(DocumentType, name='document_type'), nullable=False, comment="文件类型")
     suffix = Column(String(20), nullable=True, comment="文件后缀名（如.pdf, .jpg）")
     file_size = Column(Integer, nullable=False, comment="文件大小（字节）")
     file_hash = Column(String(64), nullable=True, index=True, comment="文件SHA256哈希值")
-    mime_type = Column(String(100), nullable=True, comment="MIME类型")
     status = Column(SQLEnum(DocumentStatus, name='document_status'), default=DocumentStatus.PENDING, nullable=False, index=True, comment="文档状态")
     batch = Column(String(64), nullable=True, index=True, comment="批次标识符")
     position = Column(Integer, nullable=True, comment="批次内位置")
@@ -50,7 +49,6 @@ class DocumentOrm(Base):
     cleaning_completed_at = Column(DateTime(timezone=True), nullable=True, comment="清洗完成时间")
     splitting_completed_at = Column(DateTime(timezone=True), nullable=True, comment="分块完成时间")
     completed_at = Column(DateTime(timezone=True), nullable=True, comment="完成时间")
-
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
 
@@ -84,13 +82,12 @@ class Document(BaseModel):
     tenant_id: str = Field(description="租户标识符")
     assistant_id: Optional[str] = Field(None, description="助手标识符")
     title: str = Field(description="文档标题")
-    file_path: str = Field(description="文件存储路径或URL")
+    file_url: str = Field(description="文件存储URL（外部存储）")
     original_filename: Optional[str] = Field(None, description="原始文件名")
     file_type: DocumentType = Field(description="文件类型")
     suffix: Optional[str] = Field(None, description="文件后缀名（如.pdf, .jpg）")
     file_size: int = Field(description="文件大小（字节）")
     file_hash: Optional[str] = Field(None, description="文件SHA256哈希值")
-    mime_type: Optional[str] = Field(None, description="MIME类型")
     status: DocumentStatus = Field(default=DocumentStatus.PENDING, description="文档状态")
     batch: Optional[str] = Field(None, description="批次标识符")
     position: Optional[int] = Field(None, description="批次内位置")
@@ -107,7 +104,6 @@ class Document(BaseModel):
     cleaning_completed_at: Optional[datetime] = Field(None, description="清洗完成时间")
     splitting_completed_at: Optional[datetime] = Field(None, description="分块完成时间")
     completed_at: Optional[datetime] = Field(None, description="完成时间")
-
     created_at: datetime = Field(default_factory=get_current_datetime, description="创建时间")
     updated_at: datetime = Field(default_factory=get_current_datetime, description="更新时间")
 
@@ -119,13 +115,12 @@ class Document(BaseModel):
             tenant_id=document_orm.tenant_id,
             assistant_id=document_orm.assistant_id,
             title=document_orm.title,
-            file_path=document_orm.file_path,
+            file_url=document_orm.file_url,
             original_filename=document_orm.original_filename,
             file_type=document_orm.file_type,
             suffix=document_orm.suffix,
             file_size=document_orm.file_size,
             file_hash=document_orm.file_hash,
-            mime_type=document_orm.mime_type,
             status=document_orm.status,
             batch=document_orm.batch,
             position=document_orm.position,
@@ -151,13 +146,12 @@ class Document(BaseModel):
             tenant_id=self.tenant_id,
             assistant_id=self.assistant_id,
             title=self.title,
-            file_path=self.file_path,
+            file_url=self.file_url,
             original_filename=self.original_filename,
             file_type=self.file_type,
             suffix=self.suffix,
             file_size=self.file_size,
             file_hash=self.file_hash,
-            mime_type=self.mime_type,
             status=self.status,
             batch=self.batch,
             position=self.position,
