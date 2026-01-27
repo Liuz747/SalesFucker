@@ -199,7 +199,7 @@ class DashScopeProvider(BaseProvider):
             )
 
         except Exception as e:
-            logger.error(f"DashScope文本API调用失败: {str(e)}")
+            logger.error(f"DashScope文本API调用失败: {str(e)}", exc_info=True)
             raise
 
     @staticmethod
@@ -224,7 +224,7 @@ class DashScopeProvider(BaseProvider):
             )
 
         except Exception as e:
-            logger.error(f"DashScope多模态API调用失败: {str(e)}")
+            logger.error(f"DashScope多模态API调用失败: {str(e)}", exc_info=True)
             raise
 
     @staticmethod

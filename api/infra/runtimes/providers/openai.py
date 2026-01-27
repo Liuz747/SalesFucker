@@ -152,36 +152,51 @@ class OpenAIProvider(BaseProvider):
         Returns:
             LLMResponse: OpenAI响应
         """
-        # 构建包含历史记录的对话上下文并处理多模态内容
-        messages = self._format_messages(request.messages)
+        try:
+            # 构建包含历史记录的对话上下文并处理多模态内容
+            messages = self._format_messages(request.messages)
 
-        response = await self.client.chat.completions.create(
-            model=request.model,
-            messages=messages,
-            temperature=request.temperature,
-            max_completion_tokens=request.max_tokens,
-            tools=[tool.to_openai_tool() for tool in request.tools] if request.tools else None,
-            tool_choice=request.tool_choice if request.tool_choice else None
-        )
+            response = await self.client.chat.completions.create(
+                model=request.model,
+                messages=messages,
+                temperature=request.temperature,
+                max_completion_tokens=request.max_tokens,
+                tools=[tool.to_openai_tool() for tool in request.tools] if request.tools else None,
+                tool_choice=request.tool_choice if request.tool_choice else None
+            )
 
-        message = response.choices[0].message
-        tool_calls = self._parse_tool_calls(message)
+            message = response.choices[0].message
+            tool_calls = self._parse_tool_calls(message)
 
-        llm_response = LLMResponse(
-            id=request.id,
-            content=message.content,
-            provider=request.provider,
-            model=response.model,
-            usage=TokenUsage(
-                input_tokens=response.usage.prompt_tokens,
-                output_tokens=response.usage.completion_tokens,
-            ),
-            cost=self._calculate_cost(response.usage, response.model),
-            tool_calls=tool_calls,
-            finish_reason=response.choices[0].finish_reason
-        )
+            # 检查usage是否为None
+            if not response.usage:
+                logger.warning("OpenRouter未返回usage信息，使用默认值")
+                usage = TokenUsage(input_tokens=0, output_tokens=0)
+            else:
+                usage = TokenUsage(
+                    input_tokens=response.usage.prompt_tokens,
+                    output_tokens=response.usage.completion_tokens,
+                )
 
-        return llm_response
+            llm_response = LLMResponse(
+                id=request.id,
+                content=message.content,
+                provider=request.provider,
+                model=response.model,
+                usage=usage,
+                # cost=self._calculate_cost(response.usage, response.model),
+                tool_calls=tool_calls,
+                finish_reason=response.choices[0].finish_reason
+            )
+
+            return llm_response
+
+        except openai.APIError as e:
+            logger.error(f"OpenAI API错误: {str(e)}", exc_info=True)
+            raise
+        except Exception as e:
+            logger.error(f"OpenAI completions调用失败: {str(e)}", exc_info=True)
+            raise
 
     async def completions_structured(self, request: CompletionsRequest) -> LLMResponse:
         """
@@ -193,110 +208,132 @@ class OpenAIProvider(BaseProvider):
         Returns:
             LLMResponse: OpenAI响应
         """
-        # 构建包含历史记录的对话上下文并处理多模态内容
-        messages = self._format_messages(request.messages)
+        try:
+            # 构建包含历史记录的对话上下文并处理多模态内容
+            messages = self._format_messages(request.messages)
 
-        # 为OpenRouter使用JSON schema格式，为原生OpenAI使用.parse()
-        if request.provider == "openrouter" and not request.model.startswith("openai/"):
-            # OpenRouter方式：使用json_object模式（json_schema在OpenRouter上不可靠）
-            # 在系统消息中添加JSON格式要求
-            json_schema_str = json.dumps(request.output_model.model_json_schema(), indent=2, ensure_ascii=False)
+            # 为OpenRouter使用JSON schema格式，为原生OpenAI使用.parse()
+            if request.provider == "openrouter" and not request.model.startswith("openai/"):
+                # OpenRouter方式：使用json_object模式（json_schema在OpenRouter上不可靠）
+                # 在系统消息中添加JSON格式要求
+                json_schema_str = json.dumps(request.output_model.model_json_schema(), indent=2, ensure_ascii=False)
 
-            # 在最后一条用户消息后添加JSON格式指令
-            if messages and messages[-1]["role"] == "user":
-                schema_instruction = f"\n\n请严格按照以下JSON schema格式返回结果，只返回JSON对象，不要包含任何其他文字、解释或markdown格式：\n\n{json_schema_str}\n\n只返回符合schema的纯JSON对象。"
+                # 在最后一条用户消息后添加JSON格式指令
+                if messages and messages[-1]["role"] == "user":
+                    schema_instruction = f"\n\n请严格按照以下JSON schema格式返回结果，只返回JSON对象，不要包含任何其他文字、解释或markdown格式：\n\n{json_schema_str}\n\n只返回符合schema的纯JSON对象。"
 
-                # 检查content是字符串还是列表（多模态）
-                if isinstance(messages[-1]["content"], str):
-                    # 纯文本消息：直接拼接
-                    messages[-1]["content"] += schema_instruction
-                else:
-                    # 多模态消息：添加为新的文本部分
-                    messages[-1]["content"].append({
-                        "type": "text",
-                        "text": schema_instruction
-                    })
+                    # 检查content是字符串还是列表（多模态）
+                    if isinstance(messages[-1]["content"], str):
+                        # 纯文本消息：直接拼接
+                        messages[-1]["content"] += schema_instruction
+                    else:
+                        # 多模态消息：添加为新的文本部分
+                        messages[-1]["content"].append({
+                            "type": "text",
+                            "text": schema_instruction
+                        })
 
-            response = await self.client.chat.completions.create(
-                extra_body={"provider": {'require_parameters': True}},
-                model=request.model,
-                messages=messages,
-                temperature=request.temperature,
-                max_completion_tokens=request.max_tokens,
-                response_format={
-                    "type": "json_object",
-                    "json_schema": request.output_model.model_json_schema()
-                }
+                response = await self.client.chat.completions.create(
+                    extra_body={"provider": {'require_parameters': True}},
+                    model=request.model,
+                    messages=messages,
+                    temperature=request.temperature,
+                    max_completion_tokens=request.max_tokens,
+                    response_format={
+                        "type": "json_object",
+                        "json_schema": request.output_model.model_json_schema()
+                    }
+                )
+
+                # 解析JSON响应
+                content_str = response.choices[0].message.content.strip()
+
+                try:
+                    # 解析JSON并验证
+                    parsed_data = json.loads(content_str)
+                    parsed_content = request.output_model.model_validate(parsed_data)
+                    logger.info(f"成功解析OpenRouter响应为 {request.output_model.__name__}")
+                except json.JSONDecodeError as e:
+                    logger.error(f"JSON解析失败。内容长度: {len(content_str)}, 前200字符: {content_str[:200]}")
+                    raise ValueError(f"LLM返回的不是有效的JSON: {e}. 内容: {content_str[:200]}")
+                except ValidationError as e:
+                    logger.error(f"Pydantic验证失败。")
+                    raise ValueError(f"LLM返回的JSON不符合预期格式: {e}")
+            else:
+                # 原生OpenAI方式：使用.parse()
+                response = await self.client.chat.completions.parse(
+                    response_format=request.output_model,
+                    model=request.model,
+                    messages=messages,
+                    temperature=request.temperature,
+                    max_completion_tokens=request.max_tokens
+                )
+                parsed_content = response.choices[0].message.parsed
+                if not parsed_content:
+                    raise ValueError("LLM返回了空的parsed响应")
+
+            # 检查usage是否为None
+            if not response.usage:
+                logger.warning("LLM未返回usage信息，使用默认值")
+                usage = TokenUsage(input_tokens=0, output_tokens=0)
+            else:
+                usage = TokenUsage(
+                    input_tokens=response.usage.prompt_tokens,
+                    output_tokens=response.usage.completion_tokens
+                )
+
+            llm_response = LLMResponse(
+                id=request.id,
+                content=parsed_content,
+                provider=request.provider,
+                model=response.model,
+                usage=usage,
+                # cost=self._calculate_cost(response.usage, response.model)
             )
 
-            # 解析JSON响应
-            content_str = response.choices[0].message.content.strip()
+            return llm_response
 
-            try:
-                # 解析JSON并验证
-                parsed_data = json.loads(content_str)
-                parsed_content = request.output_model.model_validate(parsed_data)
-                logger.info(f"成功解析OpenRouter响应为 {request.output_model.__name__}")
-            except json.JSONDecodeError as e:
-                logger.error(f"JSON解析失败。内容长度: {len(content_str)}, 前200字符: {content_str[:200]}")
-                raise ValueError(f"LLM返回的不是有效的JSON: {e}. 内容: {content_str[:200]}")
-            except ValidationError as e:
-                logger.error(f"Pydantic验证失败。")
-                raise ValueError(f"LLM返回的JSON不符合预期格式: {e}")
-        else:
-            # 原生OpenAI方式：使用.parse()
-            response = await self.client.chat.completions.parse(
-                response_format=request.output_model,
-                model=request.model,
-                messages=messages,
-                temperature=request.temperature,
-                max_completion_tokens=request.max_tokens
-            )
-            parsed_content = response.choices[0].message.parsed
-            if not parsed_content:
-                raise ValueError("LLM返回了空的parsed响应")
-
-        llm_response = LLMResponse(
-            id=request.id,
-            content=parsed_content,
-            provider=request.provider,
-            model=response.model,
-            usage=TokenUsage(
-                input_tokens=response.usage.prompt_tokens,
-                output_tokens=response.usage.completion_tokens
-            ),
-            cost=self._calculate_cost(response.usage, response.model)
-        )
-
-        return llm_response
+        except openai.APIError as e:
+            logger.error(f"OpenAI API错误: {str(e)}", exc_info=True)
+            raise
+        except Exception as e:
+            logger.error(f"OpenAI completions_structured调用失败: {str(e)}", exc_info=True)
+            raise
 
     async def responses(self, request: ResponseMessageRequest) -> LLMResponse:
         """
         调用OpenAI Responses API获取回复内容。
         """
+        try:
+            response = await self.client.responses.create(
+                input=request.input,
+                instructions=request.system_prompt,
+                max_output_tokens=request.max_tokens,
+                model=request.model,
+                temperature=request.temperature,
+                store=False
+            )
 
-        response = await self.client.responses.create(
-            input=request.input,
-            instructions=request.system_prompt,
-            max_output_tokens=request.max_tokens,
-            model=request.model,
-            temperature=request.temperature,
-            store=False
-        )
+            llm_response = LLMResponse(
+                id=request.id,
+                content=response.output_text,
+                provider=request.provider,
+                model=response.model,
+                usage=TokenUsage(
+                    input_tokens=response.usage.input_tokens,
+                    output_tokens=response.usage.output_tokens,
+                ),
+                # cost=self._calculate_cost(response.usage, response.model)
+            )
 
-        llm_response = LLMResponse(
-            id=request.id,
-            content=response.output_text,
-            provider=request.provider,
-            model=response.model,
-            usage=TokenUsage(
-                input_tokens=response.usage.input_tokens,
-                output_tokens=response.usage.output_tokens,
-            ),
-            # cost=self._calculate_cost(response.usage, response.model)
-        )
+            return llm_response
 
-        return llm_response
+        except openai.APIError as e:
+            logger.error(f"OpenAI Responses API错误: {str(e)}", exc_info=True)
+            raise
+        except Exception as e:
+            logger.error(f"OpenAI responses调用失败: {str(e)}", exc_info=True)
+            raise
 
     async def responses_structured(self, request: ResponseMessageRequest) -> LLMResponse:
         """
@@ -312,30 +349,37 @@ class OpenAIProvider(BaseProvider):
         Returns:
             LLMResponse: 统一的LLM响应对象,content字段包含解析后的Pydantic对象
         """
+        try:
+            response = await self.client.responses.parse(
+                text_format=request.output_model,
+                input=request.input,
+                instructions=request.system_prompt,
+                max_output_tokens=request.max_tokens,
+                model=request.model,
+                temperature=request.temperature,
+                store=False
+            )
 
-        response = await self.client.responses.parse(
-            text_format=request.output_model,
-            input=request.input,
-            instructions=request.system_prompt,
-            max_output_tokens=request.max_tokens,
-            model=request.model,
-            temperature=request.temperature,
-            store=False
-        )
+            llm_response = LLMResponse(
+                id=request.id,
+                content=response.output_parsed,
+                provider=request.provider,
+                model=response.model,
+                usage=TokenUsage(
+                    input_tokens=response.usage.input_tokens,
+                    output_tokens=response.usage.output_tokens,
+                ),
+                # cost=self._calculate_cost(response.usage, response.model)
+            )
 
-        llm_response = LLMResponse(
-            id=request.id,
-            content=response.output_parsed,
-            provider=request.provider,
-            model=response.model,
-            usage=TokenUsage(
-                input_tokens=response.usage.input_tokens,
-                output_tokens=response.usage.output_tokens,
-            ),
-            # cost=self._calculate_cost(response.usage, response.model)
-        )
+            return llm_response
 
-        return llm_response
+        except openai.APIError as e:
+            logger.error(f"OpenAI Responses API错误: {str(e)}", exc_info=True)
+            raise
+        except Exception as e:
+            logger.error(f"OpenAI responses_structured调用失败: {str(e)}", exc_info=True)
+            raise
 
 
     @staticmethod

@@ -74,10 +74,7 @@ class AppointmentIntent(BaseModel):
         le=1.0,
         description="意向强度"
     )
-    time_window: Literal["immediate", "this_week", "this_month", "unknown"] = Field(
-        default="unknown",
-        description="时间窗口"
-    )
+    time_window: str = Field(default="unknown", description="时间窗口")
     extracted_entities: ExtractedEntities = Field(default_factory=ExtractedEntities, description="提取的实体信息")
     summary: str = Field(default="", description="意向摘要")
 
@@ -96,12 +93,7 @@ class AudioOutputIntent(BaseModel):
         le=1.0,
         description="分析置信度"
     )
-    trigger_reason: Literal[
-        "user_sent_audio",
-        "explicit_request",
-        "context_preference",
-        "none"
-    ] = Field(default="none", description="触发原因")
+    trigger_reason: str = Field(default="none", description="触发原因")
     summary: str = Field(default="", description="意向摘要")
 
     @field_validator("confidence", mode="before")

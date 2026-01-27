@@ -10,8 +10,11 @@ from typing import Any
 import anthropic
 from anthropic.types import MessageParam
 
+from utils import get_component_logger
 from .base import BaseProvider
 from ..entities import CompletionsRequest, LLMResponse, Provider, TokenUsage
+
+logger = get_component_logger(__name__, "AnthropicProvider")
 
 
 class AnthropicProvider(BaseProvider):
@@ -84,29 +87,37 @@ class AnthropicProvider(BaseProvider):
         Returns:
             LLMResponse: Anthropic响应
         """
-        # 构建包含历史记录的对话上下文并处理多模态内容
-        messages = self._format_messages(request.messages)
+        try:
+            # 构建包含历史记录的对话上下文并处理多模态内容
+            messages = self._format_messages(request.messages)
 
-        response = await self.client.messages.create(
-            model=request.model or "claude-3-5-sonnet-20241022",
-            messages=messages,
-            max_tokens=request.max_tokens or 4000,
-            temperature=request.temperature
-        )
+            response = await self.client.messages.create(
+                model=request.model or "claude-3-5-sonnet-20241022",
+                messages=messages,
+                max_tokens=request.max_tokens or 4000,
+                temperature=request.temperature
+            )
 
-        llm_response = LLMResponse(
-            id=request.id,
-            content=response.content[0].text,
-            provider=request.provider,
-            model=response.model,
-            usage=TokenUsage(
-                input_tokens=response.usage.input_tokens,
-                output_tokens=response.usage.output_tokens,
-            ),
-            cost=self._calculate_cost(response.usage, response.model)
-        )
+            llm_response = LLMResponse(
+                id=request.id,
+                content=response.content[0].text,
+                provider=request.provider,
+                model=response.model,
+                usage=TokenUsage(
+                    input_tokens=response.usage.input_tokens,
+                    output_tokens=response.usage.output_tokens,
+                ),
+                cost=self._calculate_cost(response.usage, response.model)
+            )
 
-        return llm_response
+            return llm_response
+
+        except anthropic.APIError as e:
+            logger.error(f"Anthropic API错误: {str(e)}", exc_info=True)
+            raise
+        except Exception as e:
+            logger.error(f"Anthropic completions调用失败: {str(e)}", exc_info=True)
+            raise
 
     @staticmethod
     def _calculate_cost(usage, model: str) -> float:
