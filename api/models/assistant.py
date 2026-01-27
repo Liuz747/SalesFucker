@@ -68,7 +68,7 @@ class AssistantOrmModel(Base):
     occupation = Column(String(100), nullable=False)
     voice_id = Column(String(100))
     voice_file = Column(String(500))
-    industry = Column(String(500), nullable=False)
+    industry = Column(String(2000), nullable=False)
     profile = Column(JSONB, nullable=False)
 
     # 状态信息
