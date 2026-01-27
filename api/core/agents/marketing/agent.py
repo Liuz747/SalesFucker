@@ -23,16 +23,11 @@ class MarketingAgent(BaseAgent):
 
     特点：
     - 独立运行（非工作流集成）
-    - 预留产品目录集成能力
     """
 
     def __init__(self):
         super().__init__()
         self.short_memory_manager = ConversationStore()
-
-        # 预留：未来产品目录集成
-        # self.product_recommender = ProductRecommender()
-        # self.product_search = ProductSearch()
 
     async def process_conversation(self, state) -> dict:
         """
