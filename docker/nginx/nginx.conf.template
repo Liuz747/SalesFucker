@@ -111,4 +111,29 @@ http {
         # HTTPS configuration (injected if enabled)
         ${HTTPS_CONFIG}
     }
+
+    # Nava server
+    server {
+        listen ${NGINX_PORT};
+        server_name ${NGINX_NAVA_SERVER_NAME};
+
+        # Security headers
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-XSS-Protection "1; mode=block" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+
+        # See you again environment indicator header
+        add_header X-Environment "nava" always;
+
+        # API routes -> test backend
+        location /v1 {
+            set $backend_nava_api "nava-api:8000";
+            proxy_pass http://$backend_nava_api;
+            include /etc/nginx/proxy.conf;
+        }
+
+        # HTTPS configuration (injected if enabled)
+        ${HTTPS_CONFIG}
+    }
 }
