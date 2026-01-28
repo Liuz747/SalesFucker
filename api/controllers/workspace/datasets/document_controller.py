@@ -27,7 +27,7 @@ from schemas import (
     DocumentResponse,
     DocumentListResponse
 )
-from services import DocumentService
+# from services import DocumentService
 from utils import get_component_logger
 from .segments import router as segments_router
 from ..wraps import validate_and_get_tenant

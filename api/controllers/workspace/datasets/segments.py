@@ -3,7 +3,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends
 
-from core.rag.indexing import document_indexer
+# from core.rag.indexing import document_indexer
 from libs.exceptions import (
     BaseHTTPException,
     DocumentException,
@@ -18,7 +18,7 @@ from schemas import (
     DocumentBatchIndexResponse,
     DocumentProcessingStatusResponse
 )
-from services import DocumentService
+# from services import DocumentService
 from utils import get_component_logger
 from ..wraps import validate_and_get_tenant
 
