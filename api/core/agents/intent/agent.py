@@ -169,28 +169,28 @@ class IntentAgent(BaseAgent):
         appointment_intent = intent_analysis.appointment_intent
         audio_output_intent = intent_analysis.audio_output_intent
 
-        if assets_intent.detected and assets_intent.confidence < mas_config.ASSETS_INTENT_THRESHOLD:
+        if not assets_intent.detected and assets_intent.confidence > mas_config.ASSETS_INTENT_THRESHOLD:
             logger.info(
-                f"素材意向被阈值覆盖: confidence={assets_intent.confidence:.2f} < "
-                f"threshold={mas_config.ASSETS_INTENT_THRESHOLD:.2f}, detected: True -> False"
+                f"素材意向被阈值覆盖: confidence={assets_intent.confidence:.2f} > "
+                f"threshold={mas_config.ASSETS_INTENT_THRESHOLD:.2f}"
             )
-            assets_intent.detected = False
+            assets_intent.detected = True
 
         # 邀约意向阈值覆盖
-        if appointment_intent.detected and appointment_intent.intent_strength < mas_config.APPOINTMENT_INTENT_THRESHOLD:
+        if not appointment_intent.detected and appointment_intent.intent_strength > mas_config.APPOINTMENT_INTENT_THRESHOLD:
             logger.info(
-                f"邀约意向被阈值覆盖: intent_strength={appointment_intent.intent_strength:.2f} < "
-                f"threshold={mas_config.APPOINTMENT_INTENT_THRESHOLD:.2f}, detected: True -> False"
+                f"邀约意向被阈值覆盖: intent_strength={appointment_intent.intent_strength:.2f} > "
+                f"threshold={mas_config.APPOINTMENT_INTENT_THRESHOLD:.2f}"
             )
-            appointment_intent.detected = False
+            appointment_intent.detected = True
 
         # 音频输出意向阈值覆盖
-        if audio_output_intent.detected and audio_output_intent.confidence < mas_config.AUDIO_OUTPUT_INTENT_THRESHOLD:
+        if not audio_output_intent.detected and audio_output_intent.confidence > mas_config.AUDIO_OUTPUT_INTENT_THRESHOLD:
             logger.info(
-                f"音频输出意向被阈值覆盖: confidence={audio_output_intent.confidence:.2f} < "
-                f"threshold={mas_config.AUDIO_OUTPUT_INTENT_THRESHOLD:.2f}, detected: True -> False"
+                f"音频输出意向被阈值覆盖: confidence={audio_output_intent.confidence:.2f} > "
+                f"threshold={mas_config.AUDIO_OUTPUT_INTENT_THRESHOLD:.2f}"
             )
-            audio_output_intent.detected = False
+            audio_output_intent.detected = True
 
         return intent_analysis
 
